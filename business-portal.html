@@ -1,0 +1,1289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Owner Portal — Spotd for Business</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@400;500;700;800;900&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --navy:   #080C14;
+      --teal:   #00C2A8;
+      --teal2:  #00A891;
+      --white:  #F5F2EE;
+      --muted:  #8B9AAD;
+      --card:   #0F1620;
+      --card2:  #141C28;
+      --border: rgba(255,255,255,0.07);
+      --error:  #FF5C5C;
+      --warn:   #F59E0B;
+      --success:#00C2A8;
+    }
+    body {
+      background: var(--navy);
+      color: var(--white);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* ── NAV ── */
+    nav {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 40px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(8,12,20,0.9);
+      backdrop-filter: blur(12px);
+      position: sticky; top: 0; z-index: 100;
+    }
+    .nav-logo {
+      font-family: 'Cabinet Grotesk', sans-serif;
+      font-weight: 900; font-size: 20px;
+      color: var(--teal); text-decoration: none; letter-spacing: -0.5px;
+    }
+    .nav-logo span { color: var(--white); }
+    .nav-right { display: flex; align-items: center; gap: 16px; }
+    #nav-user { font-size: 13px; color: var(--muted); }
+    #btn-logout {
+      background: transparent; border: 1px solid var(--border);
+      color: var(--muted); padding: 8px 16px; border-radius: 7px;
+      font-size: 13px; cursor: pointer; font-family: 'DM Sans', sans-serif;
+      transition: border-color 0.2s, color 0.2s;
+      display: none;
+    }
+    #btn-logout:hover { border-color: rgba(255,255,255,0.2); color: var(--white); }
+
+    /* ── LAYOUT ── */
+    .app { display: flex; min-height: calc(100vh - 57px); }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      width: 240px; flex-shrink: 0;
+      border-right: 1px solid var(--border);
+      padding: 32px 0;
+      display: none;
+    }
+    .sidebar.visible { display: block; }
+    .sidebar-section {
+      padding: 0 16px;
+      margin-bottom: 8px;
+    }
+    .sidebar-label {
+      font-size: 10px; font-weight: 700; letter-spacing: 2px;
+      text-transform: uppercase; color: var(--muted);
+      padding: 8px 12px;
+    }
+    .sidebar-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px; border-radius: 8px;
+      cursor: pointer; color: var(--muted);
+      font-size: 14px; font-weight: 500;
+      transition: background 0.15s, color 0.15s;
+      user-select: none;
+    }
+    .sidebar-item:hover { background: rgba(255,255,255,0.04); color: var(--white); }
+    .sidebar-item.active { background: rgba(0,194,168,0.1); color: var(--teal); }
+    .sidebar-item .icon { font-size: 16px; }
+
+    /* ── MAIN ── */
+    .main {
+      flex: 1;
+      padding: 40px;
+      max-width: 900px;
+    }
+
+    /* ── SCREENS ── */
+    .screen { display: none; }
+    .screen.active { display: block; }
+
+    /* ── AUTH SCREEN ── */
+    .auth-wrap {
+      min-height: calc(100vh - 57px);
+      display: flex; align-items: center; justify-content: center;
+      padding: 40px 24px;
+    }
+    .auth-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 48px;
+      width: 100%; max-width: 440px;
+    }
+    .auth-card h2 {
+      font-family: 'Cabinet Grotesk', sans-serif;
+      font-size: 28px; font-weight: 800; margin-bottom: 8px;
+      letter-spacing: -0.5px;
+    }
+    .auth-card .sub {
+      color: var(--muted); font-size: 14px; margin-bottom: 32px;
+    }
+    .auth-tabs {
+      display: flex; gap: 4px;
+      background: rgba(255,255,255,0.04);
+      padding: 4px; border-radius: 10px;
+      margin-bottom: 28px;
+    }
+    .auth-tab {
+      flex: 1; padding: 9px;
+      border-radius: 7px; font-size: 14px; font-weight: 500;
+      cursor: pointer; text-align: center;
+      color: var(--muted); transition: background 0.15s, color 0.15s;
+      border: none; background: transparent; font-family: 'DM Sans', sans-serif;
+    }
+    .auth-tab.active { background: var(--card2); color: var(--white); }
+
+    /* ── FORM ELEMENTS ── */
+    .form-group { margin-bottom: 18px; }
+    label { display: block; font-size: 13px; font-weight: 500; color: var(--muted); margin-bottom: 7px; }
+    input[type=text], input[type=email], input[type=password], input[type=tel], input[type=url],
+    input[type=time], textarea, select {
+      width: 100%;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 12px 14px;
+      color: var(--white);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      transition: border-color 0.2s;
+      outline: none;
+    }
+    input:focus, textarea:focus, select:focus {
+      border-color: rgba(0,194,168,0.5);
+    }
+    textarea { resize: vertical; min-height: 90px; }
+    select option { background: #1a2235; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+    .btn {
+      width: 100%; padding: 14px;
+      background: var(--teal); color: var(--navy);
+      border: none; border-radius: 10px;
+      font-family: 'Cabinet Grotesk', sans-serif;
+      font-size: 16px; font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.15s;
+    }
+    .btn:hover { background: var(--teal2); transform: translateY(-1px); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .btn-outline {
+      background: transparent; color: var(--white);
+      border: 1px solid var(--border);
+      padding: 12px 24px; border-radius: 9px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px; font-weight: 500; cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .btn-outline:hover { border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.04); }
+    .btn-sm {
+      padding: 8px 18px; font-size: 13px; width: auto; border-radius: 8px;
+    }
+    .btn-danger {
+      background: rgba(255,92,92,0.15); color: var(--error);
+      border: 1px solid rgba(255,92,92,0.2);
+    }
+    .btn-danger:hover { background: rgba(255,92,92,0.25); }
+
+    .msg {
+      padding: 12px 16px; border-radius: 9px;
+      font-size: 14px; margin-bottom: 20px;
+      display: none;
+    }
+    .msg.error { background: rgba(255,92,92,0.1); border: 1px solid rgba(255,92,92,0.2); color: var(--error); }
+    .msg.success { background: rgba(0,194,168,0.1); border: 1px solid rgba(0,194,168,0.2); color: var(--teal); }
+    .msg.warn { background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.2); color: var(--warn); }
+    .msg.show { display: block; }
+
+    /* ── DASHBOARD ── */
+    .page-header { margin-bottom: 36px; }
+    .page-header h1 {
+      font-family: 'Cabinet Grotesk', sans-serif;
+      font-size: 32px; font-weight: 900;
+      letter-spacing: -0.5px;
+    }
+    .page-header p { color: var(--muted); font-size: 15px; margin-top: 6px; }
+
+    .venue-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      margin-bottom: 16px;
+    }
+    .venue-card-header {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      gap: 16px; margin-bottom: 16px;
+    }
+    .venue-name {
+      font-family: 'Cabinet Grotesk', sans-serif;
+      font-size: 20px; font-weight: 800;
+    }
+    .venue-meta { color: var(--muted); font-size: 13px; margin-top: 3px; }
+    .badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 4px 10px; border-radius: 100px;
+      font-size: 12px; font-weight: 600; flex-shrink: 0;
+    }
+    .badge-verified { background: rgba(0,194,168,0.1); color: var(--teal); border: 1px solid rgba(0,194,168,0.2); }
+    .badge-pending  { background: rgba(245,158,11,0.1); color: var(--warn); border: 1px solid rgba(245,158,11,0.2); }
+
+    /* ── EDIT SECTIONS ── */
+    .edit-section {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+    .edit-section-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 20px 28px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+    }
+    .edit-section-header h3 {
+      font-family: 'Cabinet Grotesk', sans-serif;
+      font-size: 17px; font-weight: 700;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .edit-section-header .toggle {
+      color: var(--muted); transition: transform 0.2s;
+      font-size: 18px;
+    }
+    .edit-section.open .toggle { transform: rotate(180deg); }
+    .edit-section-body {
+      padding: 0 28px;
+      max-height: 0; overflow: hidden;
+      transition: max-height 0.3s ease, padding 0.3s ease;
+    }
+    .edit-section.open .edit-section-body {
+      max-height: 1200px;
+      padding: 24px 28px;
+    }
+
+    /* ── DAYS PICKER ── */
+    .days-picker { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+    .day-btn {
+      padding: 7px 14px; border-radius: 7px; font-size: 13px; font-weight: 600;
+      cursor: pointer; border: 1px solid var(--border);
+      background: transparent; color: var(--muted);
+      font-family: 'DM Sans', sans-serif;
+      transition: all 0.15s;
+    }
+    .day-btn.selected {
+      background: rgba(0,194,168,0.15); color: var(--teal);
+      border-color: rgba(0,194,168,0.3);
+    }
+
+    /* ── DEALS LIST ── */
+    .deal-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+    .deal-row input { flex: 1; }
+    .btn-remove {
+      background: rgba(255,92,92,0.1); border: 1px solid rgba(255,92,92,0.15);
+      color: var(--error); border-radius: 7px; padding: 8px 12px;
+      cursor: pointer; font-size: 16px; flex-shrink: 0;
+      transition: background 0.15s;
+    }
+    .btn-remove:hover { background: rgba(255,92,92,0.2); }
+    .btn-add-deal {
+      background: transparent; border: 1px dashed rgba(0,194,168,0.3);
+      color: var(--teal); border-radius: 8px; padding: 10px;
+      cursor: pointer; width: 100%; font-size: 14px; font-weight: 500;
+      font-family: 'DM Sans', sans-serif;
+      transition: background 0.15s;
+      margin-top: 4px;
+    }
+    .btn-add-deal:hover { background: rgba(0,194,168,0.05); }
+
+    /* ── EVENTS ── */
+    .event-card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 12px;
+    }
+    .event-card-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 12px;
+    }
+    .event-card-header span {
+      font-family: 'Cabinet Grotesk', sans-serif;
+      font-weight: 700; font-size: 15px;
+    }
+
+    /* ── SEARCH ── */
+    .search-wrap { position: relative; margin-bottom: 16px; }
+    .search-wrap input { padding-left: 40px; }
+    .search-icon {
+      position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+      color: var(--muted); font-size: 16px; pointer-events: none;
+    }
+    .search-results {
+      background: var(--card2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      max-height: 280px;
+      overflow-y: auto;
+    }
+    .search-result-item {
+      padding: 14px 16px;
+      cursor: pointer;
+      border-bottom: 1px solid var(--border);
+      transition: background 0.15s;
+    }
+    .search-result-item:last-child { border-bottom: none; }
+    .search-result-item:hover { background: rgba(255,255,255,0.05); }
+    .result-name { font-weight: 600; font-size: 14px; }
+    .result-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+    /* ── CLAIM FORM ── */
+    .claim-wrap { max-width: 600px; }
+
+    /* ── EMPTY STATE ── */
+    .empty-state {
+      text-align: center; padding: 60px 40px;
+      color: var(--muted);
+    }
+    .empty-icon { font-size: 40px; margin-bottom: 16px; }
+    .empty-state h3 {
+      font-family: 'Cabinet Grotesk', sans-serif;
+      font-size: 20px; font-weight: 700;
+      color: var(--white); margin-bottom: 8px;
+    }
+
+    /* ── PENDING NOTICE ── */
+    .pending-notice {
+      background: rgba(245,158,11,0.08);
+      border: 1px solid rgba(245,158,11,0.2);
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin-bottom: 24px;
+      display: flex; gap: 14px; align-items: flex-start;
+    }
+    .pending-notice .icon { font-size: 20px; flex-shrink: 0; }
+    .pending-notice h4 { font-weight: 700; font-size: 15px; color: var(--warn); }
+    .pending-notice p { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+    /* ── SAVE BAR ── */
+    .save-bar {
+      display: none;
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: var(--card2); border: 1px solid rgba(0,194,168,0.3);
+      border-radius: 12px; padding: 14px 24px;
+      display: none; align-items: center; gap: 16px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      z-index: 200; font-size: 14px; white-space: nowrap;
+    }
+    .save-bar.show { display: flex; }
+    .save-bar span { color: var(--muted); }
+
+    @media (max-width: 700px) {
+      .main { padding: 24px 16px; }
+      .auth-card { padding: 32px 24px; }
+      .form-row { grid-template-columns: 1fr; }
+      nav { padding: 14px 16px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav>
+    <a href="business.html" class="nav-logo">Spotd<span> for Business</span></a>
+    <div class="nav-right">
+      <span id="nav-user"></span>
+      <button id="btn-logout">Sign out</button>
+    </div>
+  </nav>
+
+  <!-- AUTH SCREEN -->
+  <div id="screen-auth" class="screen active">
+    <div class="auth-wrap">
+      <div class="auth-card">
+        <h2>Owner Portal</h2>
+        <p class="sub">Sign in or create an account to manage your listing.</p>
+
+        <div class="auth-tabs">
+          <button class="auth-tab active" onclick="switchTab('login')">Sign in</button>
+          <button class="auth-tab" onclick="switchTab('signup')">Create account</button>
+        </div>
+
+        <div id="auth-msg" class="msg"></div>
+
+        <div id="tab-login">
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="login-email" placeholder="you@yourbar.com" />
+          </div>
+          <div class="form-group">
+            <label>Password</label>
+            <input type="password" id="login-password" placeholder="••••••••" />
+          </div>
+          <button class="btn" onclick="handleLogin()">Sign in →</button>
+        </div>
+
+        <div id="tab-signup" style="display:none;">
+          <div class="form-group">
+            <label>Your name</label>
+            <input type="text" id="signup-name" placeholder="Jane Smith" />
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="signup-email" placeholder="you@yourbar.com" />
+          </div>
+          <div class="form-group">
+            <label>Password</label>
+            <input type="password" id="signup-password" placeholder="Min. 8 characters" />
+          </div>
+          <button class="btn" onclick="handleSignup()">Create account →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN APP -->
+  <div id="screen-app" class="screen" style="display:none; flex: 1;">
+    <div class="app">
+      <!-- SIDEBAR -->
+      <div class="sidebar visible" id="sidebar">
+        <div class="sidebar-section">
+          <div class="sidebar-label">Menu</div>
+          <div class="sidebar-item active" onclick="showPage('dashboard')" id="nav-dashboard">
+            <span class="icon">🏠</span> Dashboard
+          </div>
+          <div class="sidebar-item" onclick="showPage('claim')" id="nav-claim">
+            <span class="icon">📍</span> Claim a Business
+          </div>
+        </div>
+        <div class="sidebar-section" id="sidebar-venues-section" style="display:none;">
+          <div class="sidebar-label">Your Listings</div>
+          <div id="sidebar-venues"></div>
+        </div>
+      </div>
+
+      <!-- PAGES -->
+      <div class="main">
+
+        <!-- DASHBOARD -->
+        <div id="page-dashboard" class="screen active">
+          <div class="page-header">
+            <h1>Dashboard</h1>
+            <p>Manage your venue listings and claims.</p>
+          </div>
+          <div id="dashboard-content">
+            <div class="empty-state">
+              <div class="empty-icon">🏪</div>
+              <h3>No listings yet</h3>
+              <p>Claim your business to get started.</p>
+              <br />
+              <button class="btn-outline" onclick="showPage('claim')">Claim a business →</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- CLAIM PAGE -->
+        <div id="page-claim" class="screen">
+          <div class="page-header">
+            <h1>Claim a Business</h1>
+            <p>Search for your venue and submit a claim. We'll verify and approve within 24 hours.</p>
+          </div>
+
+          <div class="claim-wrap">
+            <div id="claim-msg" class="msg"></div>
+
+            <!-- STEP 1: Search -->
+            <div id="claim-step-1">
+              <div class="form-group">
+                <label>Search for your venue</label>
+                <div class="search-wrap">
+                  <span class="search-icon">🔍</span>
+                  <input type="text" id="venue-search" placeholder="Type your bar or restaurant name..." oninput="searchVenues(this.value)" autocomplete="off" />
+                </div>
+                <div id="search-results" class="search-results" style="display:none;"></div>
+              </div>
+
+              <div id="selected-venue-display" style="display:none;" class="venue-card">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <div>
+                    <div class="venue-name" id="selected-venue-name"></div>
+                    <div class="venue-meta" id="selected-venue-meta"></div>
+                  </div>
+                  <button class="btn-outline btn-sm" onclick="clearVenueSelection()">Change</button>
+                </div>
+              </div>
+
+              <div id="not-listed-note" style="margin-bottom:16px; display:none;">
+                <p style="color:var(--muted); font-size:13px;">Can't find your venue? <a href="#" onclick="showAddNew()" style="color:var(--teal);">Submit it for addition →</a></p>
+              </div>
+            </div>
+
+            <!-- STEP 2: Contact info -->
+            <div id="claim-step-2" style="display:none;">
+              <div style="background:rgba(0,194,168,0.06); border:1px solid rgba(0,194,168,0.15); border-radius:12px; padding:16px 20px; margin-bottom:24px;">
+                <p style="font-size:13px; color:var(--muted);">Claiming: <strong style="color:var(--white);" id="claiming-venue-name"></strong></p>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Your name *</label>
+                  <input type="text" id="claim-name" placeholder="Jane Smith" />
+                </div>
+                <div class="form-group">
+                  <label>Phone number</label>
+                  <input type="tel" id="claim-phone" placeholder="(555) 555-5555" />
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Your role at this business</label>
+                <select id="claim-role">
+                  <option value="">Select...</option>
+                  <option>Owner</option>
+                  <option>General Manager</option>
+                  <option>Marketing Manager</option>
+                  <option>Other</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Business email (for verification)</label>
+                <input type="email" id="claim-biz-email" placeholder="manager@yourbar.com" />
+              </div>
+              <div class="form-group">
+                <label>Anything you want us to know? (optional)</label>
+                <textarea id="claim-notes" placeholder="e.g. 'I'm the owner, been open since 2018. Happy to verify via our website...'"></textarea>
+              </div>
+              <div style="display:flex; gap:12px;">
+                <button class="btn-outline" onclick="backToStep1()">← Back</button>
+                <button class="btn" style="flex:1;" onclick="submitClaim()">Submit claim request →</button>
+              </div>
+            </div>
+
+            <!-- SUCCESS -->
+            <div id="claim-success" style="display:none; text-align:center; padding:40px 0;">
+              <div style="font-size:48px; margin-bottom:16px;">🎉</div>
+              <h3 style="font-family:'Cabinet Grotesk',sans-serif; font-size:24px; font-weight:800; margin-bottom:8px;">Claim submitted!</h3>
+              <p style="color:var(--muted); max-width:380px; margin:0 auto;">We'll review your claim and get back to you at <span id="success-email" style="color:var(--white);"></span> within 24 hours.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- EDIT VENUE PAGE -->
+        <div id="page-edit" class="screen">
+          <div class="page-header">
+            <h1 id="edit-venue-title">Edit Listing</h1>
+            <p id="edit-venue-subtitle"></p>
+          </div>
+
+          <div id="edit-pending-notice" class="pending-notice" style="display:none;">
+            <span class="icon">⏳</span>
+            <div>
+              <h4>Claim pending review</h4>
+              <p>Your claim is being reviewed. Once approved you'll be able to edit your listing. Usually within 24 hours.</p>
+            </div>
+          </div>
+
+          <div id="edit-form">
+
+            <!-- Happy Hour Hours -->
+            <div class="edit-section" id="section-hours">
+              <div class="edit-section-header" onclick="toggleSection('hours')">
+                <h3><span>🕐</span> Happy Hour Hours</h3>
+                <span class="toggle">▾</span>
+              </div>
+              <div class="edit-section-body">
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Start time</label>
+                    <input type="text" id="edit-hours-start" placeholder="e.g. 4pm" />
+                  </div>
+                  <div class="form-group">
+                    <label>End time</label>
+                    <input type="text" id="edit-hours-end" placeholder="e.g. 7pm" />
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label>Days</label>
+                  <div class="days-picker" id="days-picker">
+                    <button class="day-btn" data-day="Mon" onclick="toggleDay(this)">Mon</button>
+                    <button class="day-btn" data-day="Tue" onclick="toggleDay(this)">Tue</button>
+                    <button class="day-btn" data-day="Wed" onclick="toggleDay(this)">Wed</button>
+                    <button class="day-btn" data-day="Thu" onclick="toggleDay(this)">Thu</button>
+                    <button class="day-btn" data-day="Fri" onclick="toggleDay(this)">Fri</button>
+                    <button class="day-btn" data-day="Sat" onclick="toggleDay(this)">Sat</button>
+                    <button class="day-btn" data-day="Sun" onclick="toggleDay(this)">Sun</button>
+                  </div>
+                </div>
+                <button class="btn btn-sm" style="width:auto;" onclick="saveHours()">Save hours</button>
+              </div>
+            </div>
+
+            <!-- Deals -->
+            <div class="edit-section" id="section-deals">
+              <div class="edit-section-header" onclick="toggleSection('deals')">
+                <h3><span>🍺</span> Deals & Specials</h3>
+                <span class="toggle">▾</span>
+              </div>
+              <div class="edit-section-body">
+                <p style="color:var(--muted); font-size:13px; margin-bottom:16px;">List each deal on its own line. Be specific — people search for "$5 wells", "half-off apps", etc.</p>
+                <div id="deals-list"></div>
+                <button class="btn-add-deal" onclick="addDeal()">+ Add a deal</button>
+                <br /><br />
+                <button class="btn btn-sm" style="width:auto;" onclick="saveDeals()">Save deals</button>
+              </div>
+            </div>
+
+            <!-- Description & Photo -->
+            <div class="edit-section" id="section-info">
+              <div class="edit-section-header" onclick="toggleSection('info')">
+                <h3><span>📸</span> Description & Photo</h3>
+                <span class="toggle">▾</span>
+              </div>
+              <div class="edit-section-body">
+                <div class="form-group">
+                  <label>Description <span style="color:var(--muted); font-weight:400;">(up to 300 chars)</span></label>
+                  <textarea id="edit-description" maxlength="300" placeholder="What makes your happy hour special? Rooftop patio, $1 oysters, live music every Friday..."></textarea>
+                  <div style="text-align:right; font-size:12px; color:var(--muted); margin-top:4px;" id="desc-count">0 / 300</div>
+                </div>
+                <div class="form-group">
+                  <label>Photo URL <span style="color:var(--muted); font-weight:400;">(link to a photo of your bar)</span></label>
+                  <input type="url" id="edit-photo" placeholder="https://..." />
+                </div>
+                <button class="btn btn-sm" style="width:auto;" onclick="saveInfo()">Save info</button>
+              </div>
+            </div>
+
+            <!-- Events -->
+            <div class="edit-section" id="section-events">
+              <div class="edit-section-header" onclick="toggleSection('events')">
+                <h3><span>🎉</span> Events</h3>
+                <span class="toggle">▾</span>
+              </div>
+              <div class="edit-section-body">
+                <div id="events-list"></div>
+                <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:12px; padding:20px; margin-top:8px;">
+                  <h4 style="font-family:'Cabinet Grotesk',sans-serif; font-weight:700; margin-bottom:16px; font-size:15px;">Add an event</h4>
+                  <div class="form-group">
+                    <label>Event name</label>
+                    <input type="text" id="new-event-name" placeholder="e.g. Trivia Night, Drag Bingo, Live Jazz" />
+                  </div>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label>Event type</label>
+                      <select id="new-event-type">
+                        <option value="">Select...</option>
+                        <option>Trivia</option>
+                        <option>Karaoke</option>
+                        <option>Live Music</option>
+                        <option>Comedy</option>
+                        <option>Bingo</option>
+                        <option>Game Night</option>
+                        <option>Other</option>
+                      </select>
+                    </div>
+                    <div class="form-group">
+                      <label>Price</label>
+                      <input type="text" id="new-event-price" placeholder="Free / $5 / Varies" />
+                    </div>
+                  </div>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label>Start time</label>
+                      <input type="text" id="new-event-start" placeholder="e.g. 7pm" />
+                    </div>
+                    <div class="form-group">
+                      <label>End time</label>
+                      <input type="text" id="new-event-end" placeholder="e.g. 9pm" />
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label>Days</label>
+                    <div class="days-picker" id="event-days-picker">
+                      <button class="day-btn" data-day="Mon" onclick="toggleEventDay(this)">Mon</button>
+                      <button class="day-btn" data-day="Tue" onclick="toggleEventDay(this)">Tue</button>
+                      <button class="day-btn" data-day="Wed" onclick="toggleEventDay(this)">Wed</button>
+                      <button class="day-btn" data-day="Thu" onclick="toggleEventDay(this)">Thu</button>
+                      <button class="day-btn" data-day="Fri" onclick="toggleEventDay(this)">Fri</button>
+                      <button class="day-btn" data-day="Sat" onclick="toggleEventDay(this)">Sat</button>
+                      <button class="day-btn" data-day="Sun" onclick="toggleEventDay(this)">Sun</button>
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label>Description (optional)</label>
+                    <textarea id="new-event-desc" placeholder="Brief description of the event..." style="min-height:70px;"></textarea>
+                  </div>
+                  <button class="btn btn-sm" style="width:auto;" onclick="addEvent()">Add event</button>
+                </div>
+              </div>
+            </div>
+
+          </div><!-- /edit-form -->
+        </div><!-- /page-edit -->
+
+      </div><!-- /main -->
+    </div><!-- /app -->
+  </div><!-- /screen-app -->
+
+  <!-- SAVE BAR -->
+  <div class="save-bar" id="save-bar">
+    <span>Unsaved changes</span>
+  </div>
+
+  <script>
+  // ─────────────────────────────────────────────
+  // CONFIG — fill these in (same as your db.js)
+  // ─────────────────────────────────────────────
+  const SUPABASE_URL = 'https://opcskuzbdfrlnyhraysk.supabase.co';
+  const SUPABASE_ANON = 'YOUR_ANON_KEY'; // same key as db.js
+
+  // ─────────────────────────────────────────────
+  // MINIMAL SUPABASE CLIENT
+  // ─────────────────────────────────────────────
+  const sb = {
+    headers: () => ({
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_ANON,
+      'Authorization': `Bearer ${getToken() || SUPABASE_ANON}`
+    }),
+
+    async from(table) {
+      return {
+        _table: table,
+        _filters: [],
+        _select: '*',
+        select(cols) { this._select = cols; return this; },
+        eq(col, val) { this._filters.push(`${col}=eq.${encodeURIComponent(val)}`); return this; },
+        async get() {
+          const q = this._filters.length ? '?' + this._filters.join('&') : '';
+          const r = await fetch(`${SUPABASE_URL}/rest/v1/${this._table}?select=${this._select}${this._filters.map(f=>'&'+f).join('')}`, {
+            headers: sb.headers()
+          });
+          return r.json();
+        },
+        async insert(data) {
+          const r = await fetch(`${SUPABASE_URL}/rest/v1/${this._table}`, {
+            method: 'POST',
+            headers: { ...sb.headers(), 'Prefer': 'return=representation' },
+            body: JSON.stringify(data)
+          });
+          return r.json();
+        },
+        async update(data) {
+          const q = this._filters.map(f => f).join('&');
+          const r = await fetch(`${SUPABASE_URL}/rest/v1/${this._table}?${q}`, {
+            method: 'PATCH',
+            headers: { ...sb.headers(), 'Prefer': 'return=representation' },
+            body: JSON.stringify(data)
+          });
+          return r.json();
+        }
+      };
+    },
+
+    async signIn(email, password) {
+      const r = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON },
+        body: JSON.stringify({ email, password })
+      });
+      return r.json();
+    },
+
+    async signUp(email, password, name) {
+      const r = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON },
+        body: JSON.stringify({ email, password, data: { full_name: name } })
+      });
+      return r.json();
+    }
+  };
+
+  // ─────────────────────────────────────────────
+  // AUTH STATE
+  // ─────────────────────────────────────────────
+  let currentUser = null;
+  const LS_KEY = 'sb-opcskuzbdfrlnyhraysk-auth-token';
+
+  function getToken() {
+    try {
+      const s = localStorage.getItem(LS_KEY);
+      if (!s) return null;
+      const d = JSON.parse(s);
+      return d?.access_token || null;
+    } catch { return null; }
+  }
+
+  function saveSession(data) {
+    localStorage.setItem(LS_KEY, JSON.stringify(data));
+    currentUser = data.user;
+  }
+
+  function clearSession() {
+    localStorage.removeItem(LS_KEY);
+    currentUser = null;
+  }
+
+  function checkSession() {
+    try {
+      const s = localStorage.getItem(LS_KEY);
+      if (!s) return false;
+      const d = JSON.parse(s);
+      if (!d?.access_token || !d?.user) return false;
+      currentUser = d.user;
+      return true;
+    } catch { return false; }
+  }
+
+  // ─────────────────────────────────────────────
+  // AUTH HANDLERS
+  // ─────────────────────────────────────────────
+  function switchTab(tab) {
+    document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('tab-login').style.display = 'none';
+    document.getElementById('tab-signup').style.display = 'none';
+    if (tab === 'login') {
+      document.querySelectorAll('.auth-tab')[0].classList.add('active');
+      document.getElementById('tab-login').style.display = 'block';
+    } else {
+      document.querySelectorAll('.auth-tab')[1].classList.add('active');
+      document.getElementById('tab-signup').style.display = 'block';
+    }
+    hideMsg('auth-msg');
+  }
+
+  async function handleLogin() {
+    const email = document.getElementById('login-email').value.trim();
+    const pass = document.getElementById('login-password').value;
+    if (!email || !pass) return showMsg('auth-msg', 'Please enter your email and password.', 'error');
+    showMsg('auth-msg', 'Signing in...', 'warn');
+    const data = await sb.signIn(email, pass);
+    if (data.error || !data.access_token) return showMsg('auth-msg', data.error?.message || 'Sign in failed.', 'error');
+    saveSession(data);
+    enterApp();
+  }
+
+  async function handleSignup() {
+    const name = document.getElementById('signup-name').value.trim();
+    const email = document.getElementById('signup-email').value.trim();
+    const pass = document.getElementById('signup-password').value;
+    if (!name || !email || !pass) return showMsg('auth-msg', 'Please fill in all fields.', 'error');
+    if (pass.length < 8) return showMsg('auth-msg', 'Password must be at least 8 characters.', 'error');
+    showMsg('auth-msg', 'Creating account...', 'warn');
+    const data = await sb.signUp(email, pass, name);
+    if (data.error) return showMsg('auth-msg', data.error.message || 'Signup failed.', 'error');
+    showMsg('auth-msg', 'Check your email to confirm your account, then sign in.', 'success');
+  }
+
+  // ─────────────────────────────────────────────
+  // APP ENTRY
+  // ─────────────────────────────────────────────
+  function enterApp() {
+    document.getElementById('screen-auth').style.display = 'none';
+    document.getElementById('screen-app').style.display = 'flex';
+    const email = currentUser?.email || '';
+    document.getElementById('nav-user').textContent = email;
+    document.getElementById('btn-logout').style.display = 'block';
+    loadDashboard();
+  }
+
+  document.getElementById('btn-logout').addEventListener('click', () => {
+    clearSession();
+    location.reload();
+  });
+
+  // ─────────────────────────────────────────────
+  // NAVIGATION
+  // ─────────────────────────────────────────────
+  function showPage(page) {
+    document.querySelectorAll('.main .screen').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+    document.getElementById('page-' + page)?.classList.add('active');
+    document.getElementById('nav-' + page)?.classList.add('active');
+  }
+
+  // ─────────────────────────────────────────────
+  // DASHBOARD
+  // ─────────────────────────────────────────────
+  let myVenues = [];
+
+  async function loadDashboard() {
+    if (!currentUser) return;
+    const claims = await (await sb.from('venue_claims')).eq('user_id', currentUser.id).get();
+    if (!Array.isArray(claims) || claims.length === 0) return;
+
+    const html = claims.map(c => `
+      <div class="venue-card">
+        <div class="venue-card-header">
+          <div>
+            <div class="venue-name">${c.venue_name || 'Your Venue'}</div>
+            <div class="venue-meta">${c.neighborhood || ''} · Submitted ${formatDate(c.created_at)}</div>
+          </div>
+          <span class="badge ${c.status === 'approved' ? 'badge-verified' : 'badge-pending'}">
+            ${c.status === 'approved' ? '✓ Verified' : '⏳ Pending'}
+          </span>
+        </div>
+        ${c.status === 'approved' ? `<button class="btn-outline btn-sm" onclick="openEdit('${c.venue_id}', '${c.status}')">Edit listing →</button>` : ''}
+      </div>
+    `).join('');
+
+    document.getElementById('dashboard-content').innerHTML = html;
+
+    // Update sidebar
+    if (claims.some(c => c.status === 'approved')) {
+      document.getElementById('sidebar-venues-section').style.display = 'block';
+    }
+  }
+
+  async function openEdit(venueId, status) {
+    const venues = await (await sb.from('venues')).eq('id', venueId).get();
+    if (!Array.isArray(venues) || !venues[0]) return;
+    const venue = venues[0];
+
+    document.getElementById('edit-venue-title').textContent = venue.name;
+    document.getElementById('edit-venue-subtitle').textContent = `${venue.neighborhood} · ${venue.city_slug}`;
+    document.getElementById('edit-pending-notice').style.display = status !== 'approved' ? 'flex' : 'none';
+    document.getElementById('edit-form').style.opacity = status !== 'approved' ? '0.4' : '1';
+    document.getElementById('edit-form').style.pointerEvents = status !== 'approved' ? 'none' : 'all';
+
+    // Populate hours
+    if (venue.hours) {
+      const [start, end] = venue.hours.split(' - ');
+      document.getElementById('edit-hours-start').value = start || '';
+      document.getElementById('edit-hours-end').value = end || '';
+    }
+    document.querySelectorAll('#days-picker .day-btn').forEach(btn => {
+      btn.classList.toggle('selected', (venue.days || []).includes(btn.dataset.day));
+    });
+
+    // Populate deals
+    renderDeals(venue.deals || []);
+
+    // Populate info
+    document.getElementById('edit-description').value = venue.description || '';
+    document.getElementById('edit-photo').value = venue.photo_url || '';
+    updateDescCount();
+
+    // Load events
+    loadVenueEvents(venueId);
+
+    window._editingVenueId = venueId;
+    showPage('edit');
+
+    // Add nav item
+    const sidebar = document.getElementById('sidebar-venues');
+    if (!document.getElementById('nav-venue-' + venueId)) {
+      sidebar.innerHTML += `<div class="sidebar-item" id="nav-venue-${venueId}" onclick="openEdit('${venueId}','${status}')"><span class="icon">📍</span> ${venue.name}</div>`;
+      document.getElementById('sidebar-venues-section').style.display = 'block';
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  // VENUE SEARCH FOR CLAIMING
+  // ─────────────────────────────────────────────
+  let searchTimeout;
+  let selectedVenueId = null;
+
+  async function searchVenues(q) {
+    clearTimeout(searchTimeout);
+    const el = document.getElementById('search-results');
+    if (q.length < 2) { el.style.display = 'none'; document.getElementById('not-listed-note').style.display = 'none'; return; }
+    searchTimeout = setTimeout(async () => {
+      const results = await fetch(
+        `${SUPABASE_URL}/rest/v1/venues?select=id,name,neighborhood,city_slug,address&name=ilike.*${encodeURIComponent(q)}*&limit=8`,
+        { headers: sb.headers() }
+      ).then(r => r.json());
+
+      if (!Array.isArray(results) || results.length === 0) {
+        el.style.display = 'block';
+        el.innerHTML = `<div class="search-result-item" style="cursor:default; color:var(--muted);">No results for "${q}"</div>`;
+        document.getElementById('not-listed-note').style.display = 'block';
+        return;
+      }
+
+      el.style.display = 'block';
+      document.getElementById('not-listed-note').style.display = 'block';
+      el.innerHTML = results.map(v => `
+        <div class="search-result-item" onclick="selectVenue('${v.id}','${v.name.replace(/'/g,"\\'")}','${v.neighborhood}','${v.city_slug}')">
+          <div class="result-name">${v.name}</div>
+          <div class="result-meta">${v.neighborhood} · ${v.city_slug}</div>
+        </div>
+      `).join('');
+    }, 300);
+  }
+
+  function selectVenue(id, name, neighborhood, city) {
+    selectedVenueId = id;
+    document.getElementById('search-results').style.display = 'none';
+    document.getElementById('venue-search').value = name;
+    document.getElementById('selected-venue-display').style.display = 'block';
+    document.getElementById('selected-venue-name').textContent = name;
+    document.getElementById('selected-venue-meta').textContent = `${neighborhood} · ${city}`;
+    document.getElementById('claiming-venue-name').textContent = name;
+    document.getElementById('claim-step-2').style.display = 'block';
+    document.getElementById('not-listed-note').style.display = 'none';
+  }
+
+  function clearVenueSelection() {
+    selectedVenueId = null;
+    document.getElementById('venue-search').value = '';
+    document.getElementById('selected-venue-display').style.display = 'none';
+    document.getElementById('claim-step-2').style.display = 'none';
+  }
+
+  function backToStep1() {
+    clearVenueSelection();
+  }
+
+  function showAddNew() {
+    showMsg('claim-msg', 'To add a new venue, email us at hello@spotd.com with your venue name, address, and happy hour info.', 'warn');
+  }
+
+  // ─────────────────────────────────────────────
+  // SUBMIT CLAIM
+  // ─────────────────────────────────────────────
+  async function submitClaim() {
+    if (!selectedVenueId) return showMsg('claim-msg', 'Please select a venue first.', 'error');
+    const name = document.getElementById('claim-name').value.trim();
+    const email = document.getElementById('claim-biz-email').value.trim();
+    const phone = document.getElementById('claim-phone').value.trim();
+    const notes = document.getElementById('claim-notes').value.trim();
+    if (!name || !email) return showMsg('claim-msg', 'Name and email are required.', 'error');
+
+    const table = await sb.from('venue_claims');
+    const res = await table.insert({
+      venue_id: selectedVenueId,
+      user_id: currentUser.id,
+      contact_name: name,
+      contact_email: email,
+      contact_phone: phone,
+      notes: notes,
+      status: 'pending'
+    });
+
+    if (Array.isArray(res) && res[0]) {
+      document.getElementById('claim-step-1').style.display = 'none';
+      document.getElementById('claim-step-2').style.display = 'none';
+      document.getElementById('claim-success').style.display = 'block';
+      document.getElementById('success-email').textContent = email;
+      loadDashboard();
+    } else {
+      showMsg('claim-msg', 'Something went wrong. Please try again.', 'error');
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  // EDIT SECTIONS
+  // ─────────────────────────────────────────────
+  function toggleSection(id) {
+    document.getElementById('section-' + id).classList.toggle('open');
+  }
+
+  function toggleDay(btn) {
+    btn.classList.toggle('selected');
+  }
+
+  function getSelectedDays(pickerId) {
+    return [...document.querySelectorAll(`#${pickerId} .day-btn.selected`)].map(b => b.dataset.day);
+  }
+
+  async function saveHours() {
+    const start = document.getElementById('edit-hours-start').value.trim();
+    const end = document.getElementById('edit-hours-end').value.trim();
+    const days = getSelectedDays('days-picker');
+    if (!start || !end) return alert('Please enter start and end times.');
+    const hours = `${start} - ${end}`;
+    await updateVenueField({ hours, days });
+    showSaveToast('Hours saved!');
+  }
+
+  // ── DEALS ──
+  let deals = [];
+
+  function renderDeals(list) {
+    deals = [...list];
+    const el = document.getElementById('deals-list');
+    el.innerHTML = deals.map((d, i) => `
+      <div class="deal-row">
+        <input type="text" value="${d}" oninput="deals[${i}]=this.value" placeholder="e.g. $5 wells" />
+        <button class="btn-remove" onclick="removeDeal(${i})">✕</button>
+      </div>
+    `).join('');
+  }
+
+  function addDeal() {
+    deals.push('');
+    renderDeals(deals);
+    document.querySelectorAll('.deal-row input').pop()?.focus();
+  }
+
+  function removeDeal(i) {
+    deals.splice(i, 1);
+    renderDeals(deals);
+  }
+
+  async function saveDeals() {
+    const clean = deals.map(d => d.trim()).filter(Boolean);
+    await updateVenueField({ deals: clean });
+    showSaveToast('Deals saved!');
+  }
+
+  // ── DESCRIPTION ──
+  document.getElementById('edit-description').addEventListener('input', updateDescCount);
+  function updateDescCount() {
+    const v = document.getElementById('edit-description').value.length;
+    document.getElementById('desc-count').textContent = `${v} / 300`;
+  }
+
+  async function saveInfo() {
+    const description = document.getElementById('edit-description').value.trim();
+    const photo_url = document.getElementById('edit-photo').value.trim();
+    await updateVenueField({ description, photo_url });
+    showSaveToast('Info saved!');
+  }
+
+  // ─────────────────────────────────────────────
+  // EVENTS
+  // ─────────────────────────────────────────────
+  function toggleEventDay(btn) { btn.classList.toggle('selected'); }
+
+  async function loadVenueEvents(venueId) {
+    const events = await fetch(
+      `${SUPABASE_URL}/rest/v1/events?venue_name=ilike.*&city_slug=eq.&select=*`,
+      { headers: sb.headers() }
+    ).then(r => r.json()).catch(() => []);
+
+    // Filter by venue - get events for this venue
+    const allEvents = await fetch(
+      `${SUPABASE_URL}/rest/v1/events?select=*&limit=20`,
+      { headers: sb.headers() }
+    ).then(r => r.json()).catch(() => []);
+
+    renderVenueEvents(Array.isArray(allEvents) ? allEvents.filter(e => e.venue_id === venueId || e.venue_name) : []);
+  }
+
+  function renderVenueEvents(events) {
+    const el = document.getElementById('events-list');
+    if (!events.length) {
+      el.innerHTML = `<p style="color:var(--muted); font-size:13px; margin-bottom:16px;">No events yet. Add one below.</p>`;
+      return;
+    }
+    el.innerHTML = events.map(e => `
+      <div class="event-card">
+        <div class="event-card-header">
+          <span>${e.name}</span>
+          <span style="font-size:12px; color:var(--muted);">${(e.days||[]).join(', ')} · ${e.hours || ''}</span>
+        </div>
+        <div style="font-size:13px; color:var(--muted);">${e.event_type} · ${e.price || 'Free'}</div>
+      </div>
+    `).join('');
+  }
+
+  async function addEvent() {
+    const name = document.getElementById('new-event-name').value.trim();
+    const type = document.getElementById('new-event-type').value;
+    const price = document.getElementById('new-event-price').value.trim();
+    const start = document.getElementById('new-event-start').value.trim();
+    const end = document.getElementById('new-event-end').value.trim();
+    const desc = document.getElementById('new-event-desc').value.trim();
+    const days = getSelectedDays('event-days-picker');
+
+    if (!name || !type) return alert('Event name and type are required.');
+    if (!days.length) return alert('Please select at least one day.');
+
+    // Get venue info for city_slug and address
+    const venues = await fetch(`${SUPABASE_URL}/rest/v1/venues?id=eq.${window._editingVenueId}&select=*`, { headers: sb.headers() }).then(r => r.json());
+    const venue = venues?.[0];
+    if (!venue) return alert('Venue not found.');
+
+    const table = await sb.from('events');
+    const res = await table.insert({
+      name,
+      event_type: type,
+      price: price || 'Free',
+      hours: `${start} - ${end}`,
+      days,
+      description: desc,
+      city_slug: venue.city_slug,
+      venue_name: venue.name,
+      neighborhood: venue.neighborhood,
+      address: venue.address,
+      lat: venue.lat,
+      lng: venue.lng,
+      active: true,
+      featured: false
+    });
+
+    if (Array.isArray(res) && res[0]) {
+      showSaveToast('Event added!');
+      // Clear form
+      ['new-event-name','new-event-start','new-event-end','new-event-price','new-event-desc'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('new-event-type').value = '';
+      document.querySelectorAll('#event-days-picker .day-btn').forEach(b => b.classList.remove('selected'));
+      loadVenueEvents(window._editingVenueId);
+    } else {
+      alert('Failed to add event. Please try again.');
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  // UPDATE VENUE
+  // ─────────────────────────────────────────────
+  async function updateVenueField(fields) {
+    const table = await sb.from('venues');
+    await table.eq('id', window._editingVenueId).update(fields);
+
+    // Log edit history
+    for (const [field, value] of Object.entries(fields)) {
+      const editTable = await sb.from('venue_edits');
+      await editTable.insert({
+        venue_id: window._editingVenueId,
+        user_id: currentUser.id,
+        field,
+        new_value: JSON.stringify(value)
+      });
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  // UTILITIES
+  // ─────────────────────────────────────────────
+  function showMsg(id, text, type) {
+    const el = document.getElementById(id);
+    el.textContent = text;
+    el.className = `msg ${type} show`;
+  }
+
+  function hideMsg(id) {
+    const el = document.getElementById(id);
+    if (el) el.className = 'msg';
+  }
+
+  let toastTimeout;
+  function showSaveToast(msg) {
+    const bar = document.getElementById('save-bar');
+    bar.innerHTML = `<span>✓ ${msg}</span>`;
+    bar.classList.add('show');
+    clearTimeout(toastTimeout);
+    toastTimeout = setTimeout(() => bar.classList.remove('show'), 2500);
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '';
+    return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  // ─────────────────────────────────────────────
+  // INIT
+  // ─────────────────────────────────────────────
+  window.addEventListener('DOMContentLoaded', () => {
+    if (checkSession()) {
+      enterApp();
+    }
+  });
+  </script>
+</body>
+</html>

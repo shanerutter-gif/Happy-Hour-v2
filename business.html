@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spotd for Business — Own the Happy Hour</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@400;500;700;800;900&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --navy:   #080C14;
+      --teal:   #00C2A8;
+      --teal2:  #00A891;
+      --white:  #F5F2EE;
+      --muted:  #8B9AAD;
+      --card:   #0F1620;
+      --border: rgba(255,255,255,0.07);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--navy);
+      color: var(--white);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 16px;
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 20px 48px;
+      background: rgba(8,12,20,0.85);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-logo {
+      font-family: 'Cabinet Grotesk', sans-serif;
+      font-weight: 900; font-size: 22px;
+      color: var(--teal);
+      text-decoration: none;
+      letter-spacing: -0.5px;
+    }
+    .nav-logo span { color: var(--white); }
+    .nav-right { display: flex; align-items: center; gap: 24px; }
+    .nav-link {
+      color: var(--muted); text-decoration: none;
+      font-size: 14px; font-weight: 500;
+      transition: color 0.2s;
+    }
+    .nav-link:hover { color: var(--white); }
+    .btn-nav {
+      background: var(--teal); color: var(--navy);
+      padding: 10px 20px; border-radius: 8px;
+      font-size: 14px; font-weight: 700;
+      text-decoration: none;
+      transition: background 0.2s, transform 0.15s;
+    }
+    .btn-nav:hover { background: var(--teal2); transform: translateY(-1px); }
+
+    /* ── HERO ── */
+    .hero {
+      min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      text-align: center;
+      padding: 120px 24px 80px;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute; inset: 0;
+      background:
+        radial-gradient(ellipse 80% 50% at 50% 0%, rgba(0,194,168,0.12) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 40% at 80% 80%, rgba(0,194,168,0.06) 0%, transparent 60%);
+      pointer-events: none;
+    }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(0,194,168,0.1);
+      border: 1px solid rgba(0,194,168,0.25);
+      color: var(--teal); border-radius: 100px;
+      padding: 6px 16px; font-size: 13px; font-weight: 500;
+      margin-bottom: 32px;
+    }
+    .hero-badge::before { content: '●'; font-size: 8px; }
+    h1 {
+      font-family: 'Cabinet Grotesk', sans-serif;
+      font-weight: 900; font-size: clamp(44px, 7vw, 88px);
+      line-height: 1.0; letter-spacing: -2px;
+      max-width: 900px;
+    }
+    h1 em {
+      font-style: normal;
+      color: var(--teal);
+    }
+    .hero-sub {
+      font-size: clamp(17px, 2vw, 20px);
+      color: var(--muted); max-width: 560px;
+      margin: 28px auto 0; font-weight: 300; line-height: 1.65;
+    }
+    .hero-ctas {
+      display: flex; gap: 16px; margin-top: 48px;
+      flex-wrap: wrap; justify-content: center;
+    }
+    .btn-primary {
+      background: var(--teal); color: var(--navy);
+      padding: 16px 36px; border-radius: 10px;
+      font-size: 16px; font-weight: 700;
+      text-decoration: none; display: inline-flex; align-items: center; gap: 8px;
+      transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+      box-shadow: 0 0 40px rgba(0,194,168,0.25);
+    }
+    .btn-primary:hover {
+      background: var(--teal2);
+      transform: translateY(-2px);
+      box-shadow: 0 0 60px rgba(0,194,168,0.35);
+    }
+    .btn-secondary {
+      background: transparent; color: var(--white);
+      padding: 16px 36px; border-radius: 10px;
+      border: 1px solid var(--border);
+      font-size: 16px; font-weight: 500;
+      text-decoration: none;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .btn-secondary:hover {
+      border-color: rgba(255,255,255,0.2);
+      background: rgba(255,255,255,0.04);
+    }
+    .hero-stats {
+      display: flex; gap: 48px; margin-top: 72px;
+      flex-wrap: wrap; justify-content: center;
+    }
+    .stat { text-align: center; }
+    .stat-num {
+      font-family: 'Cabinet Grotesk', sans-serif;
+      font-size: 36px; font-weight: 900; color: var(--white);
+      letter-spacing: -1px;
+    }
+    .stat-num span { color: var(--teal); }
+    .stat-label { font-size: 13px; color: var(--muted); margin-top: 4px; font-weight: 400; }
+
+    /* ── SECTION SHARED ── */
+    section { padding: 100px 24px; }
+    .container { max-width: 1100px; margin: 0 auto; }
+    .section-label {
+      font-size: 12px; font-weight: 700; letter-spacing: 3px;
+      text-transform: uppercase; color: var(--teal);
+      margin-bottom: 16px;
+    }
+    h2 {
+      font-family: 'Cabinet Grotesk', sans-serif;
+      font-weight: 800; font-size: clamp(30px, 4vw, 48px);
+      letter-spacing: -1px; line-height: 1.1;
+    }
+    .section-sub {
+      color: var(--muted); font-size: 18px; margin-top: 16px;
+      max-width: 540px; line-height: 1.65; font-weight: 300;
+    }
+
+    /* ── HOW IT WORKS ── */
+    .how { background: var(--card); }
+    .steps {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 32px; margin-top: 64px;
+    }
+    .step {
+      position: relative;
+      padding: 36px 28px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+    }
+    .step-num {
+      font-family: 'Cabinet Grotesk', sans-serif;
+      font-size: 64px; font-weight: 900;
+      color: rgba(0,194,168,0.12); line-height: 1;
+      margin-bottom: 16px;
+    }
+    .step h3 {
+      font-family: 'Cabinet Grotesk', sans-serif;
+      font-size: 20px; font-weight: 700; margin-bottom: 10px;
+    }
+    .step p { color: var(--muted); font-size: 15px; line-height: 1.6; }
+    .step-connector {
+      display: none;
+    }
+
+    /* ── FEATURES ── */
+    .features-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 24px; margin-top: 64px;
+    }
+    .feature-card {
+      padding: 32px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+    .feature-card:hover {
+      border-color: rgba(0,194,168,0.25);
+      transform: translateY(-2px);
+    }
+    .feature-icon {
+      width: 48px; height: 48px;
+      background: rgba(0,194,168,0.1);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; margin-bottom: 20px;
+    }
+    .feature-card h3 {
+      font-family: 'Cabinet Grotesk', sans-serif;
+      font-size: 18px; font-weight: 700; margin-bottom: 10px;
+    }
+    .feature-card p { color: var(--muted); font-size: 15px; line-height: 1.65; }
+
+    /* ── FREE BANNER ── */
+    .free-banner {
+      background: linear-gradient(135deg, rgba(0,194,168,0.15) 0%, rgba(0,194,168,0.05) 100%);
+      border: 1px solid rgba(0,194,168,0.2);
+      border-radius: 24px;
+      padding: 60px 48px;
+      text-align: center;
+      margin: 60px auto 0;
+      max-width: 700px;
+    }
+    .free-banner h2 { font-size: clamp(28px, 4vw, 42px); }
+    .free-banner p {
+      color: var(--muted); font-size: 17px; margin: 16px auto 36px;
+      max-width: 440px; font-weight: 300;
+    }
+    .free-badge {
+      display: inline-block;
+      background: var(--teal); color: var(--navy);
+      padding: 4px 14px; border-radius: 100px;
+      font-size: 12px; font-weight: 800;
+      letter-spacing: 1px; text-transform: uppercase;
+      margin-bottom: 20px;
+    }
+
+    /* ── FAQ ── */
+    .faq-list { margin-top: 56px; max-width: 720px; }
+    .faq-item {
+      border-bottom: 1px solid var(--border);
+      padding: 24px 0;
+    }
+    .faq-item:first-child { border-top: 1px solid var(--border); }
+    .faq-q {
+      font-family: 'Cabinet Grotesk', sans-serif;
+      font-size: 18px; font-weight: 700;
+      cursor: pointer;
+      display: flex; justify-content: space-between; align-items: center;
+      gap: 16px;
+    }
+    .faq-q::after {
+      content: '+'; font-size: 22px; color: var(--teal);
+      flex-shrink: 0; transition: transform 0.2s;
+    }
+    .faq-item.open .faq-q::after { transform: rotate(45deg); }
+    .faq-a {
+      color: var(--muted); font-size: 15px; line-height: 1.7;
+      max-height: 0; overflow: hidden;
+      transition: max-height 0.3s ease, padding 0.3s ease;
+    }
+    .faq-item.open .faq-a { max-height: 200px; padding-top: 16px; }
+
+    /* ── FOOTER ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 40px 48px;
+      display: flex; justify-content: space-between; align-items: center;
+      flex-wrap: wrap; gap: 16px;
+    }
+    .footer-logo {
+      font-family: 'Cabinet Grotesk', sans-serif;
+      font-weight: 900; font-size: 18px;
+      color: var(--teal);
+    }
+    .footer-logo span { color: var(--white); }
+    footer p { color: var(--muted); font-size: 13px; }
+    .footer-links { display: flex; gap: 24px; }
+    .footer-links a { color: var(--muted); font-size: 13px; text-decoration: none; }
+    .footer-links a:hover { color: var(--white); }
+
+    @media (max-width: 768px) {
+      nav { padding: 16px 20px; }
+      .hero-stats { gap: 32px; }
+      footer { padding: 32px 20px; flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav>
+    <a href="index.html" class="nav-logo">Spotd<span> for Business</span></a>
+    <div class="nav-right">
+      <a href="index.html" class="nav-link">Back to Spotd</a>
+      <a href="business-portal.html" class="btn-nav">Claim Your Business →</a>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-badge">Free for business owners</div>
+    <h1>Your happy hour,<br /><em>on the map.</em></h1>
+    <p class="hero-sub">Spotd puts your deals in front of thousands of people actively looking for somewhere to go tonight. Claim your listing in minutes — it's free, forever.</p>
+    <div class="hero-ctas">
+      <a href="business-portal.html" class="btn-primary">Claim Your Business →</a>
+      <a href="#how-it-works" class="btn-secondary">See how it works</a>
+    </div>
+    <div class="hero-stats">
+      <div class="stat">
+        <div class="stat-num">7<span>+</span></div>
+        <div class="stat-label">Cities & growing</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">500<span>+</span></div>
+        <div class="stat-label">Venues listed</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">100<span>%</span></div>
+        <div class="stat-label">Free for owners</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section class="how" id="how-it-works">
+    <div class="container">
+      <div class="section-label">How it works</div>
+      <h2>Live in three steps</h2>
+      <p class="section-sub">No sales calls. No contracts. No credit card. Just a quick claim and you're in control.</p>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">01</div>
+          <h3>Find your listing</h3>
+          <p>Search for your business on Spotd. We've already loaded hundreds of venues — there's a good chance you're already there.</p>
+        </div>
+        <div class="step">
+          <div class="step-num">02</div>
+          <h3>Submit a claim</h3>
+          <p>Fill out a quick form with your contact info. We verify ownership manually — usually within 24 hours.</p>
+        </div>
+        <div class="step">
+          <div class="step-num">03</div>
+          <h3>Take control</h3>
+          <p>Once approved, log in to your owner dashboard. Update hours, deals, photos, and events anytime.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section id="features">
+    <div class="container">
+      <div class="section-label">What you can do</div>
+      <h2>Everything you need<br />to run your listing</h2>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">🕐</div>
+          <h3>Update hours & days</h3>
+          <p>Keep your happy hour times accurate in real time. Seasonal changes, special closures — update instantly.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🍺</div>
+          <h3>Manage your deals</h3>
+          <p>List your specials exactly how you want. $3 Lone Star, half-off apps, two-for-one — your words, your deals.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📸</div>
+          <h3>Photos & description</h3>
+          <p>Add a photo and write a description that captures your vibe. First impressions matter.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🎉</div>
+          <h3>Post your events</h3>
+          <p>Trivia night, live music, drag bingo — post recurring and one-off events directly to your listing.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📍</div>
+          <h3>Appear on the map</h3>
+          <p>Verified listings get a badge and show up prominently in search results and on the city map.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">✏️</div>
+          <h3>Edit anytime</h3>
+          <p>No waiting for approval on edits. Once you're verified, changes go live immediately.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FREE FOREVER -->
+  <section style="padding: 0 24px 100px;">
+    <div class="container">
+      <div class="free-banner">
+        <div class="free-badge">Always free</div>
+        <h2>No fees. No catch.<br />Just more customers.</h2>
+        <p>Spotd is free for business owners today and will stay free. We're building something people actually use — and that means your listing needs to be accurate.</p>
+        <a href="business-portal.html" class="btn-primary">Get started now →</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section id="faq" style="padding: 0 24px 100px;">
+    <div class="container">
+      <div class="section-label">Questions</div>
+      <h2>FAQ</h2>
+      <div class="faq-list">
+        <div class="faq-item">
+          <div class="faq-q">My business isn't listed yet — can I add it?</div>
+          <div class="faq-a">Yes! In the owner portal you can submit your business for addition. We'll review and add it within 24–48 hours, then hand you the keys.</div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-q">How do you verify ownership?</div>
+          <div class="faq-a">We do a manual check — usually a quick look at your website, Google Business listing, or a brief email exchange. It's not automated (yet) so it typically takes less than a day.</div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-q">Can I list multiple locations?</div>
+          <div class="faq-a">Yes. Each location gets its own listing. Submit a claim for each one and they'll all be linked to your account.</div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-q">What if the info on my listing is wrong?</div>
+          <div class="faq-a">Claim the listing and fix it yourself — that's literally what this is for. Once you're verified you can update anything instantly.</div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-q">Is this actually free forever?</div>
+          <div class="faq-a">Yes. The base listing, all editing features, and event posting are free. We may offer optional paid features (like featured placement) in the future — but the core will always be free.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-logo">Spotd<span> for Business</span></div>
+    <p>© 2026 Spotd. All rights reserved.</p>
+    <div class="footer-links">
+      <a href="index.html">Back to Spotd</a>
+      <a href="business-portal.html">Owner Portal</a>
+    </div>
+  </footer>
+
+  <script>
+    // FAQ accordion
+    document.querySelectorAll('.faq-q').forEach(q => {
+      q.addEventListener('click', () => {
+        const item = q.closest('.faq-item');
+        const wasOpen = item.classList.contains('open');
+        document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('open'));
+        if (!wasOpen) item.classList.add('open');
+      });
+    });
+  </script>
+</body>
+</html>
