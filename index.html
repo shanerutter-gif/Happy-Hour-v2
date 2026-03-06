@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="San Diego Happy Hour Guide — 85+ venues with map, reviews & favorites.">
+<title>SD Happy Hour — San Diego's Drink Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,700;1,9..144,400&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<nav class="top-nav">
+  <div class="nav-brand">SD Happy Hour</div>
+  <div class="nav-right" id="navRight">
+    <button class="nav-btn nav-login" onclick="openAuth('signin')">Sign In</button>
+  </div>
+</nav>
+
+<header>
+  <div class="header-inner">
+    <div class="header-eyebrow">San Diego County · Est. Every Day After 3pm</div>
+    <h1>The Happy Hour<br><em>Guide</em></h1>
+    <p class="header-sub">85+ venues across all of SD County — drink well, spend less</p>
+    <div class="header-stats">
+      <div class="stat"><span class="stat-num">85+</span><span class="stat-label">Venues</span></div>
+      <div class="stat-div"></div>
+      <div class="stat"><span class="stat-num">25+</span><span class="stat-label">Neighborhoods</span></div>
+      <div class="stat-div"></div>
+      <div class="stat"><span class="stat-num">7</span><span class="stat-label">Days a Week</span></div>
+    </div>
+  </div>
+</header>
+
+<div class="controls" id="controls">
+  <div class="controls-top">
+    <input class="search-box" id="searchBox" type="text"
+      placeholder="Search venues, neighborhoods, drinks…"
+      oninput="applyFilters()" autocomplete="off" autocorrect="off">
+    <button class="filter-toggle" id="filterToggle" onclick="toggleFilters()">
+      Filters <span class="filter-dot" id="filterDot"></span>
+    </button>
+    <button class="view-toggle" id="viewToggle" onclick="toggleView()">
+      <span id="viewIcon">Map</span>
+    </button>
+  </div>
+  <div class="chips-row" id="chipsRow"></div>
+  <div class="filter-panel" id="filterPanel">
+    <div class="fp-inner">
+      <div class="filter-group">
+        <div class="fg-label">Day</div>
+        <div class="filter-scroll" id="dayFilters"></div>
+      </div>
+      <div class="filter-group">
+        <div class="fg-label">Neighborhood</div>
+        <div class="filter-scroll" id="areaFilters"></div>
+      </div>
+      <div class="filter-group">
+        <div class="fg-label">Cuisine</div>
+        <div class="filter-scroll" id="typeFilters"></div>
+      </div>
+      <div class="filter-group" id="favFilterGroup" style="display:none">
+        <div class="fg-label">My List</div>
+        <div class="filter-scroll">
+          <button class="pill" id="favFilterBtn" onclick="toggleFavFilter()">★ Saved</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<main>
+  <div id="listView" class="list-view active">
+    <div class="results-bar"><span id="resultsCount"></span></div>
+    <div class="cards-grid" id="cardsGrid"></div>
+  </div>
+  <div id="mapView" class="map-view">
+    <div id="map"></div>
+    <div class="map-sidebar" id="mapSidebar">
+      <div class="map-sidebar-title">Tap a pin to explore</div>
+      <div class="map-cards" id="mapCards"></div>
+    </div>
+  </div>
+</main>
+
+<!-- VENUE MODAL -->
+<div class="overlay" id="modalOverlay" onclick="closeModal(event)">
+  <div class="sheet" id="venueSheet">
+    <div class="sheet-handle"></div>
+    <button class="sheet-close" onclick="closeModal()">✕</button>
+    <div id="modalContent"></div>
+  </div>
+</div>
+
+<!-- AUTH MODAL -->
+<div class="overlay" id="authOverlay" onclick="closeAuth(event)">
+  <div class="sheet" id="authSheet">
+    <div class="sheet-handle"></div>
+    <button class="sheet-close" onclick="closeAuth()">✕</button>
+    <div id="authContent"></div>
+  </div>
+</div>
+
+<!-- PROFILE MODAL -->
+<div class="overlay" id="profileOverlay" onclick="closeProfile(event)">
+  <div class="sheet sheet--wide" id="profileSheet">
+    <div class="sheet-handle"></div>
+    <button class="sheet-close" onclick="closeProfile()">✕</button>
+    <div id="profileContent"></div>
+  </div>
+</div>
+
+<!-- EDIT REVIEW MODAL -->
+<div class="overlay" id="editOverlay" onclick="closeEditReview(event)">
+  <div class="sheet" id="editSheet">
+    <div class="sheet-handle"></div>
+    <button class="sheet-close" onclick="closeEditReview()">✕</button>
+    <div id="editContent"></div>
+  </div>
+</div>
+
+<footer>
+  <p>SD Happy Hour Guide · 2025 · Data from SD Magazine, Union-Tribune & venue sites · Always verify hours directly</p>
+</footer>
+
+<script src="data/venues.js"></script>
+<script src="js/db.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

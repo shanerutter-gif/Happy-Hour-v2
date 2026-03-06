@@ -1,0 +1,4 @@
+{
+  "version": 2,
+  "crons": [{ "path": "/api/weekly-digest", "schedule": "0 10 * * 1" }]
+}
