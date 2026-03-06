@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Spotd — Find tonight's best happy hours and events near you. Covering San Diego, LA, NYC, Chicago, Austin, Miami and more.">
+<title>Spotd — Happy Hours & Events Near You</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@400;500;700;800;900&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="top-nav" id="topNav">
+  <a class="nav-brand" href="#" onclick="showHome()">Spotd</a>
+  <div class="nav-right" id="navRight">
+    <button class="nav-btn nav-login" onclick="openAuth('signin')">Sign In</button>
+  </div>
+</nav>
+
+<!-- HOME / CITY SELECTOR -->
+<div id="homePage" class="home-page">
+  <div class="home-inner">
+    <div class="home-eyebrow">Happy Hours · Events · Trivia · Live Music</div>
+    <h1 class="home-title">Find tonight's<br><span class="home-accent">best spots</span></h1>
+    <p class="home-sub">Happy hours, trivia nights, live music, karaoke and more — curated for every major city</p>
+    <div class="city-grid" id="cityGrid"></div>
+    <p class="home-coming">More cities coming soon</p>
+  </div>
+  <div class="home-bg-glow"></div>
+</div>
+
+<!-- CITY APP VIEW -->
+<div id="appPage" class="app-page" style="display:none">
+
+  <div class="city-bar" id="cityBar">
+    <button class="city-back" onclick="showHome()">← All Cities</button>
+    <div class="city-bar-name" id="cityBarName"></div>
+    <div class="city-bar-right">
+      <button class="type-tab active" id="tabHH" onclick="setTab('happyhour')">Happy Hours</button>
+      <button class="type-tab" id="tabEV" onclick="setTab('events')">Events</button>
+    </div>
+  </div>
+
+  <div class="controls" id="controls">
+    <div class="controls-top">
+      <input class="search-box" id="searchBox" type="text" placeholder="Search venues, neighborhoods…" oninput="applyFilters()" autocomplete="off" autocorrect="off">
+      <button class="filter-toggle" id="filterToggle" onclick="toggleFilters()">Filters <span class="filter-dot" id="filterDot"></span></button>
+      <button class="view-toggle" id="viewToggle" onclick="toggleView()"><span id="viewIcon">Map</span></button>
+    </div>
+    <div class="chips-row" id="chipsRow"></div>
+    <div class="filter-panel" id="filterPanel">
+      <div class="fp-inner">
+        <div class="filter-group" id="fgDay">
+          <div class="fg-label">Day</div>
+          <div class="filter-scroll" id="dayFilters"></div>
+        </div>
+        <div class="filter-group">
+          <div class="fg-label">Neighborhood</div>
+          <div class="filter-scroll" id="areaFilters"></div>
+        </div>
+        <div class="filter-group" id="fgType">
+          <div class="fg-label">Type</div>
+          <div class="filter-scroll" id="typeFilters"></div>
+        </div>
+        <div class="filter-group" id="favFilterGroup" style="display:none">
+          <div class="fg-label">My List</div>
+          <div class="filter-scroll">
+            <button class="pill" id="favFilterBtn" onclick="toggleFavFilter()">★ Saved</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <main>
+    <div id="listView" class="list-view active">
+      <div class="results-bar"><span id="resultsCount"></span></div>
+      <div class="cards-grid" id="cardsGrid"></div>
+    </div>
+    <div id="mapView" class="map-view">
+      <div id="map"></div>
+      <div class="map-sidebar" id="mapSidebar">
+        <div class="map-sidebar-title">Tap a pin to explore</div>
+        <div class="map-cards" id="mapCards"></div>
+      </div>
+    </div>
+  </main>
+
+</div><!-- /appPage -->
+
+<!-- VENUE/EVENT MODAL -->
+<div class="overlay" id="modalOverlay" onclick="closeModal(event)">
+  <div class="sheet" id="venueSheet">
+    <div class="sheet-handle"></div>
+    <button class="sheet-close" onclick="closeModal()">✕</button>
+    <div id="modalContent"></div>
+  </div>
+</div>
+
+<!-- AUTH MODAL -->
+<div class="overlay" id="authOverlay" onclick="closeAuth(event)">
+  <div class="sheet" id="authSheet">
+    <div class="sheet-handle"></div>
+    <button class="sheet-close" onclick="closeAuth()">✕</button>
+    <div id="authContent"></div>
+  </div>
+</div>
+
+<!-- PROFILE MODAL -->
+<div class="overlay" id="profileOverlay" onclick="closeProfile(event)">
+  <div class="sheet sheet--wide" id="profileSheet">
+    <div class="sheet-handle"></div>
+    <button class="sheet-close" onclick="closeProfile()">✕</button>
+    <div id="profileContent"></div>
+  </div>
+</div>
+
+<!-- EDIT REVIEW MODAL -->
+<div class="overlay" id="editOverlay" onclick="closeEditReview(event)">
+  <div class="sheet" id="editSheet">
+    <div class="sheet-handle"></div>
+    <button class="sheet-close" onclick="closeEditReview()">✕</button>
+    <div id="editContent"></div>
+  </div>
+</div>
+
+<footer id="mainFooter">
+  <p>Spotd · Happy Hours & Events · 2025 · Always verify times directly with venues</p>
+</footer>
+
+<script src="js/db.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
