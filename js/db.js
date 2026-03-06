@@ -4,7 +4,7 @@
    ═══════════════════════════════════════════════════════ */
 
 const SUPABASE_URL      = 'https://opcskuzbdfrlnyhraysk.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9wY3NrdXpiZGZybG55aHJheXNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3NDQ3MTcsImV4cCI6MjA4ODMyMDcxN30.9LXr-oFTLmYEZrlVt1zOvRFvJ8998YkTmrHJ7yNv81E';
+const SUPABASE_ANON_KEY = 'sb_publishable_M97B-GmwsRF6xPVahp_ytw_49nI9igs';
 
 const { createClient } = supabase;
 const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -36,9 +36,7 @@ async function getSession() {
   return data.session;
 }
 
-// ── AUTH — goes through /api/auth proxy ────────────────
-// This ensures sign-in works on Chrome iOS, Safari, and
-// iPhone home screen (PWA) mode across all environments.
+// ── AUTH ───────────────────────────────────────────────
 async function authSignIn(email, password) {
   try {
     const res = await fetch('/api/auth', {
@@ -47,17 +45,25 @@ async function authSignIn(email, password) {
       body: JSON.stringify({ mode: 'signin', email, password })
     });
     const data = await res.json();
+
     if (data.error_description) return { error: { message: data.error_description } };
     if (data.error)             return { error: { message: data.error } };
     if (!data.access_token)     return { error: { message: 'No token received' } };
 
-    // Set session and force a refresh so onAuthStateChange fires
-    await db.auth.setSession({
+    // Store tokens in storage so Supabase client picks them up
+    const storageKey = `sb-${SUPABASE_URL.split('//')[1].split('.')[0]}-auth-token`;
+    const sessionData = {
       access_token:  data.access_token,
-      refresh_token: data.refresh_token
-    });
+      refresh_token: data.refresh_token,
+      expires_at:    data.expires_at,
+      expires_in:    data.expires_in,
+      token_type:    'bearer',
+      user:          data.user
+    };
+    try { localStorage.setItem(storageKey, JSON.stringify(sessionData)); }
+    catch { sessionStorage.setItem(storageKey, JSON.stringify(sessionData)); }
 
-    // Manually trigger auth state update in case onAuthStateChange doesn't fire
+    // Manually update state immediately without waiting for onAuthStateChange
     currentUser = data.user;
     await loadFavorites();
     if (typeof onAuthChange === 'function') onAuthChange(currentUser);
@@ -67,6 +73,7 @@ async function authSignIn(email, password) {
     return { error: { message: e.message } };
   }
 }
+
 async function authSignUp(email, password, displayName) {
   try {
     const res = await fetch('/api/auth', {
@@ -75,19 +82,24 @@ async function authSignUp(email, password, displayName) {
       body: JSON.stringify({ mode: 'signup', email, password, name: displayName })
     });
     const data = await res.json();
-    if (data.error_description || data.error) {
-      return { error: { message: data.error_description || data.error } };
-    }
+    if (data.error_description) return { error: { message: data.error_description } };
+    if (data.error)             return { error: { message: data.error } };
+
+    // If Supabase returned a session immediately (email confirm off), sign them in
     if (data.access_token) {
-      await db.auth.setSession({
-        access_token:  data.access_token,
-        refresh_token: data.refresh_token
-      });
+      return authSignIn(email, password);
     }
     return { data, error: null };
   } catch (e) {
     return { error: { message: e.message } };
   }
+}
+
+async function authSignOut() {
+  currentUser = null;
+  userFavorites = new Set();
+  await db.auth.signOut();
+  if (typeof onAuthChange === 'function') onAuthChange(null);
 }
 
 // ── PROFILE ────────────────────────────────────────────
