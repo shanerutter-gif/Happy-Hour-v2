@@ -3,8 +3,8 @@
    !! Replace the two placeholders below before deploying !!
    ═══════════════════════════════════════════════════════ */
 
-const SUPABASE_URL      = 'REPLACE_WITH_YOUR_SUPABASE_URL';
-const SUPABASE_ANON_KEY = 'REPLACE_WITH_YOUR_SUPABASE_ANON_KEY';
+const SUPABASE_URL      = 'https://opcskuzbdfrlnyhraysk.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_M97B-GmwsRF6xPVahp_ytw_49nI9igs';
 
 // Storage key — derived from your project ref
 const _projectRef  = SUPABASE_URL.match(/\/\/([^.]+)\./)?.[1] || 'project';
