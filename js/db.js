@@ -65,9 +65,8 @@ async function authSignIn(email, password) {
     if (data.error)             return { error: { message: data.error } };
     if (!data.access_token)     return { error: { message: 'No token received' } };
 
-    // Write session directly to storage — Supabase reads this key on page load
-    const projectRef = SUPABASE_URL.match(/\/\/([^.]+)\./)?.[1] || 'project';
-    const storageKey = `sb-${projectRef}-auth-token`;
+    // Use storageAdapter directly to avoid the lock conflict
+    const storageKey = 'sb-opcskuzbdfrlnyhraysk-auth-token';
     const session = JSON.stringify({
       access_token:  data.access_token,
       refresh_token: data.refresh_token,
@@ -76,12 +75,15 @@ async function authSignIn(email, password) {
       token_type:    'bearer',
       user:          data.user
     });
-    try { localStorage.setItem(storageKey, session); } catch { sessionStorage.setItem(storageKey, session); }
 
-    // Update app state immediately
+    // Write then immediately update state
+    localStorage.setItem(storageKey, session);
     currentUser = data.user;
     await loadFavorites();
     if (typeof onAuthChange === 'function') onAuthChange(currentUser);
+
+    // Quietly let Supabase catch up in background
+    db.auth.getSession();
 
     return { data, error: null };
   } catch (e) {
