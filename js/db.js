@@ -47,14 +47,23 @@ async function authSignIn(email, password) {
       body: JSON.stringify({ mode: 'signin', email, password })
     });
     const data = await res.json();
-    if (data.error_description || data.error) {
-      return { error: { message: data.error_description || data.error } };
+
+    // Surface the exact error so we can see what's wrong
+    if (data.error_description) return { error: { message: data.error_description } };
+    if (data.error)             return { error: { message: data.error } };
+    if (data.msg)               return { error: { message: data.msg } };
+
+    // Supabase returns access_token on success
+    if (!data.access_token) {
+      return { error: { message: 'No token returned — check SUPABASE_SERVICE_KEY in Vercel env vars' } };
     }
+
     const { error } = await db.auth.setSession({
       access_token:  data.access_token,
       refresh_token: data.refresh_token
     });
-    return { data, error };
+    if (error) return { error };
+    return { data, error: null };
   } catch (e) {
     return { error: { message: e.message } };
   }
