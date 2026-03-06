@@ -65,14 +65,20 @@ async function authSignIn(email, password) {
     if (data.error)             return { error: { message: data.error } };
     if (!data.access_token)     return { error: { message: 'No token received' } };
 
-    // Let the Supabase client store the session properly (works on all browsers)
-    const { error: sessionError } = await db.auth.setSession({
+    // Write session directly to storage — Supabase reads this key on page load
+    const projectRef = SUPABASE_URL.match(/\/\/([^.]+)\./)?.[1] || 'project';
+    const storageKey = `sb-${projectRef}-auth-token`;
+    const session = JSON.stringify({
       access_token:  data.access_token,
-      refresh_token: data.refresh_token
+      refresh_token: data.refresh_token,
+      expires_at:    data.expires_at,
+      expires_in:    data.expires_in,
+      token_type:    'bearer',
+      user:          data.user
     });
-    if (sessionError) return { error: sessionError };
+    try { localStorage.setItem(storageKey, session); } catch { sessionStorage.setItem(storageKey, session); }
 
-    // Also update state immediately without waiting for onAuthStateChange
+    // Update app state immediately
     currentUser = data.user;
     await loadFavorites();
     if (typeof onAuthChange === 'function') onAuthChange(currentUser);
