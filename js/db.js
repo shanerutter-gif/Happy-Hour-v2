@@ -47,28 +47,26 @@ async function authSignIn(email, password) {
       body: JSON.stringify({ mode: 'signin', email, password })
     });
     const data = await res.json();
-
-    // Surface the exact error so we can see what's wrong
     if (data.error_description) return { error: { message: data.error_description } };
     if (data.error)             return { error: { message: data.error } };
-    if (data.msg)               return { error: { message: data.msg } };
+    if (!data.access_token)     return { error: { message: 'No token received' } };
 
-    // Supabase returns access_token on success
-    if (!data.access_token) {
-      return { error: { message: 'No token returned — check SUPABASE_SERVICE_KEY in Vercel env vars' } };
-    }
-
-    const { error } = await db.auth.setSession({
+    // Set session and force a refresh so onAuthStateChange fires
+    await db.auth.setSession({
       access_token:  data.access_token,
       refresh_token: data.refresh_token
     });
-    if (error) return { error };
+
+    // Manually trigger auth state update in case onAuthStateChange doesn't fire
+    currentUser = data.user;
+    await loadFavorites();
+    if (typeof onAuthChange === 'function') onAuthChange(currentUser);
+
     return { data, error: null };
   } catch (e) {
     return { error: { message: e.message } };
   }
 }
-
 async function authSignUp(email, password, displayName) {
   try {
     const res = await fetch('/api/auth', {
