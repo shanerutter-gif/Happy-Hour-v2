@@ -24,11 +24,26 @@ const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 let currentUser   = null;
 let userFavorites = new Set();
 
+// Restore session on every page load — fixes logout on refresh
+(async () => {
+  const { data } = await db.auth.getSession();
+  if (data?.session?.user) {
+    currentUser = data.session.user;
+    await loadFavorites();
+    if (typeof onAuthChange === 'function') onAuthChange(currentUser);
+  }
+})();
+
+// Keep in sync when session changes (sign in/out in other tabs, token refresh)
 db.auth.onAuthStateChange(async (_event, session) => {
-  currentUser = session?.user ?? null;
-  if (currentUser) await loadFavorites();
-  else userFavorites = new Set();
-  if (typeof onAuthChange === 'function') onAuthChange(currentUser);
+  const incoming = session?.user ?? null;
+  // Only trigger update if user actually changed
+  if (incoming?.id !== currentUser?.id) {
+    currentUser = incoming;
+    if (currentUser) await loadFavorites();
+    else userFavorites = new Set();
+    if (typeof onAuthChange === 'function') onAuthChange(currentUser);
+  }
 });
 
 async function getSession() {
@@ -50,20 +65,14 @@ async function authSignIn(email, password) {
     if (data.error)             return { error: { message: data.error } };
     if (!data.access_token)     return { error: { message: 'No token received' } };
 
-    // Store tokens in storage so Supabase client picks them up
-    const storageKey = `sb-${SUPABASE_URL.split('//')[1].split('.')[0]}-auth-token`;
-    const sessionData = {
+    // Let the Supabase client store the session properly (works on all browsers)
+    const { error: sessionError } = await db.auth.setSession({
       access_token:  data.access_token,
-      refresh_token: data.refresh_token,
-      expires_at:    data.expires_at,
-      expires_in:    data.expires_in,
-      token_type:    'bearer',
-      user:          data.user
-    };
-    try { localStorage.setItem(storageKey, JSON.stringify(sessionData)); }
-    catch { sessionStorage.setItem(storageKey, JSON.stringify(sessionData)); }
+      refresh_token: data.refresh_token
+    });
+    if (sessionError) return { error: sessionError };
 
-    // Manually update state immediately without waiting for onAuthStateChange
+    // Also update state immediately without waiting for onAuthStateChange
     currentUser = data.user;
     await loadFavorites();
     if (typeof onAuthChange === 'function') onAuthChange(currentUser);
@@ -85,7 +94,7 @@ async function authSignUp(email, password, displayName) {
     if (data.error_description) return { error: { message: data.error_description } };
     if (data.error)             return { error: { message: data.error } };
 
-    // If Supabase returned a session immediately (email confirm off), sign them in
+    // Sign them in immediately after signup
     if (data.access_token) {
       return authSignIn(email, password);
     }
