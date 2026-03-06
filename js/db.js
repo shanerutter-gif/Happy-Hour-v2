@@ -3,8 +3,8 @@
    !! Replace the two placeholders below before deploying !!
    ═══════════════════════════════════════════════════════ */
 
-const SUPABASE_URL      = 'REPLACE_WITH_YOUR_SUPABASE_URL';
-const SUPABASE_ANON_KEY = 'REPLACE_WITH_YOUR_SUPABASE_ANON_KEY';
+const SUPABASE_URL      = 'https://opcskuzbdfrlnyhraysk.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9wY3NrdXpiZGZybG55aHJheXNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3NDQ3MTcsImV4cCI6MjA4ODMyMDcxN30.9LXr-oFTLmYEZrlVt1zOvRFvJ8998YkTmrHJ7yNv81E';
 
 const { createClient } = supabase;
 const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
