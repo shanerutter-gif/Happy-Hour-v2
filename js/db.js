@@ -72,16 +72,15 @@ async function authSignUp(email, password, displayName) {
       return { error: { message: data.error_description || data.error } };
     }
     if (data.access_token) {
-      await db.auth.setSession({ access_token: data.access_token, refresh_token: data.refresh_token });
+      await db.auth.setSession({
+        access_token:  data.access_token,
+        refresh_token: data.refresh_token
+      });
     }
     return { data, error: null };
   } catch (e) {
     return { error: { message: e.message } };
   }
-}
-
-async function authSignOut() {
-  await db.auth.signOut();
 }
 
 // ── PROFILE ────────────────────────────────────────────
