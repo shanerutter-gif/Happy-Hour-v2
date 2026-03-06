@@ -7,51 +7,32 @@ const SUPABASE_URL      = 'https://opcskuzbdfrlnyhraysk.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_M97B-GmwsRF6xPVahp_ytw_49nI9igs';
 
 const { createClient } = supabase;
-const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
-    storage: {
-      getItem:    k => { try { return localStorage.getItem(k);    } catch { return sessionStorage.getItem(k);    } },
-      setItem:    (k,v) => { try { localStorage.setItem(k,v);    } catch { sessionStorage.setItem(k,v);    } },
-      removeItem: k => { try { localStorage.removeItem(k);       } catch { sessionStorage.removeItem(k);       } }
-    }
-  }
-});
+const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// ── AUTH STATE ─────────────────────────────────────────
 let currentUser   = null;
 let userFavorites = new Set();
+let _accessToken  = null;
 
-// Restore session on every page load — fixes logout on refresh
+// Restore session on page load
 (async () => {
-  const { data } = await db.auth.getSession();
-  if (data?.session?.user) {
-    currentUser = data.session.user;
-    await loadFavorites();
-    if (typeof onAuthChange === 'function') onAuthChange(currentUser);
-  }
+  try {
+    const raw = localStorage.getItem('sb-opcskuzbdfrlnyhraysk-auth-token');
+    if (raw) {
+      const stored = JSON.parse(raw);
+      if (stored?.user && stored?.expires_at > Math.floor(Date.now()/1000)) {
+        currentUser  = stored.user;
+        _accessToken = stored.access_token;
+        await loadFavorites();
+        if (typeof onAuthChange === 'function') onAuthChange(currentUser);
+      }
+    }
+  } catch(e) {}
 })();
 
-// Keep in sync when session changes (sign in/out in other tabs, token refresh)
-db.auth.onAuthStateChange(async (_event, session) => {
-  const incoming = session?.user ?? null;
-  // Only trigger update if user actually changed
-  if (incoming?.id !== currentUser?.id) {
-    currentUser = incoming;
-    if (currentUser) await loadFavorites();
-    else userFavorites = new Set();
-    if (typeof onAuthChange === 'function') onAuthChange(currentUser);
-  }
-});
-
 async function getSession() {
-  const { data } = await db.auth.getSession();
-  return data.session;
+  return _accessToken ? { user: currentUser, access_token: _accessToken } : null;
 }
 
-// ── AUTH ───────────────────────────────────────────────
 async function authSignIn(email, password) {
   try {
     const res = await fetch('/api/auth', {
@@ -60,31 +41,24 @@ async function authSignIn(email, password) {
       body: JSON.stringify({ mode: 'signin', email, password })
     });
     const data = await res.json();
-
     if (data.error_description) return { error: { message: data.error_description } };
     if (data.error)             return { error: { message: data.error } };
     if (!data.access_token)     return { error: { message: 'No token received' } };
 
-    // Use storageAdapter directly to avoid the lock conflict
-    const storageKey = 'sb-opcskuzbdfrlnyhraysk-auth-token';
-    const session = JSON.stringify({
+    // Store for page reload persistence
+    localStorage.setItem('sb-opcskuzbdfrlnyhraysk-auth-token', JSON.stringify({
       access_token:  data.access_token,
       refresh_token: data.refresh_token,
       expires_at:    data.expires_at,
       expires_in:    data.expires_in,
       token_type:    'bearer',
       user:          data.user
-    });
+    }));
 
-    // Write then immediately update state
-    localStorage.setItem(storageKey, session);
-    currentUser = data.user;
+    currentUser  = data.user;
+    _accessToken = data.access_token;
     await loadFavorites();
     if (typeof onAuthChange === 'function') onAuthChange(currentUser);
-
-    // Quietly let Supabase catch up in background
-    db.auth.getSession();
-
     return { data, error: null };
   } catch (e) {
     return { error: { message: e.message } };
@@ -101,11 +75,7 @@ async function authSignUp(email, password, displayName) {
     const data = await res.json();
     if (data.error_description) return { error: { message: data.error_description } };
     if (data.error)             return { error: { message: data.error } };
-
-    // Sign them in immediately after signup
-    if (data.access_token) {
-      return authSignIn(email, password);
-    }
+    if (data.access_token) return authSignIn(email, password);
     return { data, error: null };
   } catch (e) {
     return { error: { message: e.message } };
@@ -113,7 +83,9 @@ async function authSignUp(email, password, displayName) {
 }
 
 async function authSignOut() {
-  currentUser = null;
+  localStorage.removeItem('sb-opcskuzbdfrlnyhraysk-auth-token');
+  currentUser  = null;
+  _accessToken = null;
   userFavorites = new Set();
   await db.auth.signOut();
   if (typeof onAuthChange === 'function') onAuthChange(null);
