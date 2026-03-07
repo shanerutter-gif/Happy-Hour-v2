@@ -385,7 +385,7 @@ function renderModal(v, type, reviews) {
     `}
     <div class="s-div"></div>
     <div class="s-actions">
-      ${v.url ? `<a class="btn-primary" href="${v.url}" target="_blank" rel="noopener">Website ↗</a>` : `<button class="btn-primary" disabled style="opacity:.3;cursor:default">No Website</button>`}
+      ${v.url ? `<a class="btn-primary" href="${v.url}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Website ↗</a>` : `<button class="btn-primary" disabled style="opacity:.3;cursor:default">No Website</button>`}
       <button class="btn-sec" onclick="goToMap('${v.id}')">Map</button>
       <button class="btn-sec" onclick="shareItem('${v.id}','${type}')">Share</button>
     </div>
