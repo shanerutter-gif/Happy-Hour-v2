@@ -6,7 +6,7 @@
 const DAYS    = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const TODAY   = DAYS[new Date().getDay()];
 const EVENT_TYPES = ['Trivia','Live Music','Karaoke','Bingo','Game Night','Comedy'];
-const HH_TYPES    = ['Bar','Brewery','Seafood','Mexican','Italian','Asian','BBQ','Wine Bar','Steakhouse','Beach Bar'];
+const HH_TYPES    = ['Bar','Brewery','Seafood','Mexican','Italian','Asian','BBQ','Wine Bar','Steakhouse','Beach Bar','Sports TV'];
 
 const state = {
   view: 'list', tab: 'happyhour',
@@ -199,9 +199,13 @@ function applyFilters() {
     if (day  && !(v.days || []).includes(day)) return false;
     if (area && v.neighborhood !== area)       return false;
     if (type) {
-      const t = type.toLowerCase();
-      const haystack = [v.name, v.neighborhood, v.cuisine, v.event_type, ...(v.deals || [])].join(' ').toLowerCase();
-      if (!haystack.includes(t)) return false;
+      if (type === 'Sports TV') {
+        if (!v.has_sports_tv) return false;
+      } else {
+        const t = type.toLowerCase();
+        const haystack = [v.name, v.neighborhood, v.cuisine, v.event_type, ...(v.deals || [])].join(' ').toLowerCase();
+        if (!haystack.includes(t)) return false;
+      }
     }
     if (search) {
       const h = [v.name, v.neighborhood, v.cuisine, v.address, v.event_type, ...(v.deals || [])].join(' ').toLowerCase();
@@ -252,6 +256,7 @@ function venueCardHTML(v) {
       ${v.neighborhood ? '<span class="card-sep">·</span>' : ''}
       <span class="card-when">${esc(v.hours || '')}</span>
     </div>
+    ${v.has_sports_tv ? `<span class="sports-badge">📺 Sports TV</span>` : ''}
     <ul class="deals">${(v.deals || []).slice(0, 3).map(d => `<li>${esc(d)}</li>`).join('')}${(v.deals || []).length > 3 ? `<li class="deals-more">+${v.deals.length - 3} more</li>` : ''}</ul>
     ${goingFireBadge(v.id)}
     <div class="card-foot">
@@ -280,7 +285,7 @@ function eventCardHTML(v) {
       <span>${esc(v.neighborhood || '')}</span>
       ${v.neighborhood ? '<span class="card-sep">·</span>' : ''}
       <span class="card-when">${esc(v.hours || '')}</span>
-      ${isToday ? '<span class="card-sep">·</span><span style="color:var(--teal-lt);font-size:11px">Tonight</span>' : ''}
+      ${isToday ? '<span class="card-sep">·</span><span style="color:var(--teal);font-size:11px">Tonight</span>' : ''}
     </div>
     ${v.description ? `<ul class="deals"><li>${esc(v.description)}</li></ul>` : ''}
     <div class="card-foot">
@@ -358,6 +363,7 @@ function renderModal(v, type, reviews) {
         <div class="s-name">${esc(v.name)}</div>
         <div class="s-hood">${esc(v.neighborhood || '')}</div>
         <div class="s-addr">📍 ${esc(v.address || '')}</div>
+      ${isVenue && v.has_sports_tv ? `<span class="sports-badge sports-badge--modal">📺 Sports TV</span>` : ''}
       </div>
       <button class="heart-btn heart-btn--lg${faved ? ' faved' : ''}" onclick="doFavorite('${v.id}','${type}',this)" style="margin-top:4px">${faved ? '★' : '☆'}</button>
     </div>
@@ -629,7 +635,7 @@ function updateMapMarkers() {
   state.filtered.forEach(v => {
     if (!v.lat || !v.lng) return;
     const isEvent = !!v.event_type;
-    const color   = isEvent ? '#a588ff' : (v.days||[]).includes(TODAY) ? '#00C2A8' : '#3A4560';
+    const color   = isEvent ? '#a588ff' : (v.days||[]).includes(TODAY) ? '#FF6B4A' : '#3A4560';
     const icon = L.divIcon({ className:'', html:`<div style="width:24px;height:24px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:${color};border:2px solid rgba(255,255,255,0.6);box-shadow:0 2px 8px rgba(0,0,0,.5)"></div>`, iconSize:[24,24], iconAnchor:[12,24], popupAnchor:[0,-26] });
     const marker = L.marker([v.lat, v.lng], { icon }).addTo(state.map).bindPopup(popupHTML(v), { maxWidth: 250 });
     marker.on('click', () => hlMapCard(v.id));
