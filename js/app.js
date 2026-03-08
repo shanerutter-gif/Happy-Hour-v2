@@ -230,7 +230,12 @@ function renderCards() {
   const grid = document.getElementById('cardsGrid');
   if (!grid) return;
   if (!state.filtered.length) {
-    grid.innerHTML = `<div class="no-results">No ${state.tab === 'happyhour' ? 'venues' : 'events'} match — try different filters</div>`;
+    grid.innerHTML = `<div class="no-results">
+      No ${state.tab === 'happyhour' ? 'venues' : 'events'} match — try different filters
+      <div style="margin-top:16px">
+        <button class="request-venue-btn request-venue-btn--empty" onclick="openRequestVenue()">+ Request a Venue</button>
+      </div>
+    </div>`;
     return;
   }
   grid.innerHTML = state.tab === 'happyhour'
@@ -732,4 +737,92 @@ function goingFireBadge(venueId) {
   const count = state.goingCounts[venueId] || 0;
   if (count < 2) return '';
   return `<span class="fire-badge">🔥 ${count} going tonight</span>`;
+}
+
+// ── REQUEST A VENUE ────────────────────────────────────
+function openRequestVenue() {
+  const areas = [...new Set(state.venues.map(v => v.neighborhood).filter(Boolean))].sort();
+  document.getElementById('requestContent').innerHTML = `
+    <div class="s-tag hh">Request a Venue</div>
+    <div class="s-name" style="font-size:22px;margin-bottom:4px">Know a great spot?</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.6">Tell us about a venue you'd like to see on Spotd. We'll review it and add it if it's a fit.</p>
+    <div class="field-group">
+      <div class="field-label">Venue name *</div>
+      <input class="field" id="req-name" type="text" placeholder="e.g. The Tipsy Crow" autocomplete="off">
+    </div>
+    <div class="field-group">
+      <div class="field-label">Neighborhood</div>
+      ${areas.length
+        ? `<select class="field" id="req-neighborhood">
+            <option value="">Select a neighborhood...</option>
+            ${areas.map(a => `<option value="${esc(a)}">${esc(a)}</option>`).join('')}
+            <option value="__other__">Other / Not sure</option>
+          </select>`
+        : `<input class="field" id="req-neighborhood" type="text" placeholder="e.g. Gaslamp Quarter">`
+      }
+    </div>
+    <div class="field-group">
+      <div class="field-label">Why should we add it?</div>
+      <textarea class="field" id="req-reason" rows="3" placeholder="Great happy hour deals, hidden gem, friend works there..."></textarea>
+    </div>
+    <div id="req-msg" style="display:none;font-size:13px;padding:10px 14px;border-radius:8px;margin-bottom:12px"></div>
+    <button class="btn-submit" id="req-btn" onclick="submitVenueRequest()" style="width:100%">Submit Request</button>
+    <p style="font-size:11px;color:var(--muted);text-align:center;margin-top:12px">We review all requests manually — usually within a few days.</p>
+  `;
+  openOverlay('requestOverlay');
+}
+
+function closeRequestVenue(e) {
+  if (e && e.target !== document.getElementById('requestOverlay')) return;
+  closeOverlay('requestOverlay');
+}
+
+async function submitVenueRequest() {
+  const name = document.getElementById('req-name')?.value.trim();
+  const rawNeighborhood = document.getElementById('req-neighborhood')?.value || '';
+  const neighborhood = rawNeighborhood === '__other__' ? '' : rawNeighborhood;
+  const reason = document.getElementById('req-reason')?.value.trim();
+  const msg = document.getElementById('req-msg');
+  const btn = document.getElementById('req-btn');
+
+  if (!name) {
+    msg.style.display = 'block';
+    msg.style.background = 'rgba(200,80,60,0.08)';
+    msg.style.border = '1px solid rgba(200,80,60,0.2)';
+    msg.style.color = 'rgba(200,80,60,0.85)';
+    msg.textContent = 'Please enter a venue name.';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Submitting…';
+
+  const { error } = await submitVenueRequestToDB({
+    venue_name: name,
+    neighborhood: neighborhood || null,
+    reason: reason || null,
+    city_slug: state.city?.slug || null,
+    user_id: currentUser?.id || null,
+    user_email: currentUser?.email || null,
+  });
+
+  if (error) {
+    btn.disabled = false;
+    btn.textContent = 'Submit Request';
+    msg.style.display = 'block';
+    msg.style.background = 'rgba(200,80,60,0.08)';
+    msg.style.border = '1px solid rgba(200,80,60,0.2)';
+    msg.style.color = 'rgba(200,80,60,0.85)';
+    msg.textContent = '❌ Something went wrong. Please try again.';
+    return;
+  }
+
+  document.getElementById('requestContent').innerHTML = `
+    <div style="text-align:center;padding:32px 16px">
+      <div style="font-size:48px;margin-bottom:16px">🙌</div>
+      <div class="s-name" style="font-size:22px;margin-bottom:8px">Request sent!</div>
+      <p style="font-size:14px;color:var(--muted);line-height:1.6">Thanks for the tip. We'll review <strong style="color:var(--text)">${esc(name)}</strong> and add it to Spotd if it's a great fit.</p>
+      <button class="btn-sec" style="margin:24px auto 0;display:flex" onclick="closeOverlay('requestOverlay')">Close</button>
+    </div>
+  `;
 }
