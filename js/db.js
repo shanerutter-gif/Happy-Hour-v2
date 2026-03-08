@@ -272,3 +272,10 @@ async function removeGoingTonight(userId, venueId, date) {
     return true;
   } catch(e) { console.warn('removeGoingTonight error', e); return false; }
 }
+
+// ── VENUE REQUESTS ─────────────────────────────────────
+async function submitVenueRequestToDB(payload) {
+  const { data, error } = await db.from('venue_requests').insert(payload);
+  if (error) console.error('submitVenueRequest error:', error);
+  return { data, error };
+}
