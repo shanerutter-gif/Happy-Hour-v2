@@ -153,7 +153,7 @@
 
   <main>
     <div id="listView" class="list-view active">
-      <div class="results-bar"><span id="resultsCount"></span></div>
+      <div class="results-bar"><span id="resultsCount"></span><button class="request-venue-btn" onclick="openRequestVenue()">+ Request a Venue</button></div>
       <div class="cards-grid" id="cardsGrid"></div>
     </div>
     <div id="mapView" class="map-view">
@@ -200,6 +200,15 @@
     <div class="sheet-handle"></div>
     <button class="sheet-close" onclick="closeEditReview()">✕</button>
     <div id="editContent"></div>
+  </div>
+</div>
+
+<!-- REQUEST VENUE MODAL -->
+<div class="overlay" id="requestOverlay" onclick="closeRequestVenue(event)">
+  <div class="sheet" id="requestSheet">
+    <div class="sheet-handle"></div>
+    <button class="sheet-close" onclick="closeRequestVenue()">✕</button>
+    <div id="requestContent"></div>
   </div>
 </div>
 
