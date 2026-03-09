@@ -199,52 +199,38 @@ function applyFilters() {
   const search = (document.getElementById('searchBox')?.value || '').toLowerCase().trim();
   state.filters.search = search;
 
-  // Build unified pool based on showFilter
+  // Build pool — venues are primary, standalone events appended for 'all'/'events' modes
   let pool;
-  if (state.showFilter === 'happyhour') pool = state.venues;
-  else if (state.showFilter === 'events') pool = state.events;
-  else pool = state.venues; // unified: venues (with events attached) — events-only shown too
-
-  // For 'all', also include event-only venues (events without a matching venue)
-  // We work from venues as primary items; events are shown as badges on cards
-  // But standalone events (no venue match) need to appear too
-  if (state.showFilter === 'all' || state.showFilter === 'events') {
-    // Find events whose venue_name doesn't match any venue in state.venues
+  if (state.showFilter === 'happyhour') {
+    pool = state.venues;
+  } else if (state.showFilter === 'events') {
+    pool = state.events;
+  } else {
+    // 'all' — venues + any events that don't have a matching venue
     const venueNames = new Set(state.venues.map(v => v.name.trim().toLowerCase()));
-    const standaloneEvents = state.events.filter(e => !e.venue_name || !venueNames.has(e.venue_name.trim().toLowerCase()));
-    pool = state.showFilter === 'events'
-      ? state.events
-      : [...state.venues, ...standaloneEvents];
+    const standaloneEvents = state.events.filter(e =>
+      !e.venue_name || !venueNames.has(e.venue_name.trim().toLowerCase())
+    );
+    pool = [...state.venues, ...standaloneEvents];
   }
 
   state.filtered = pool.filter(v => {
     const { day, area, type } = state.filters;
     const isEvent = !!v.event_type;
 
-    if (day) {
-      // For venues, check venue days. Also check if any attached event runs that day.
-      const venueDays = v.days || [];
-      const attachedEvents = isEvent ? [] : state.events.filter(e => e.venue_name && v.name && e.venue_name.trim().toLowerCase() === v.name.trim().toLowerCase());
-      const eventDays = attachedEvents.flatMap(e => e.days || []);
-      if (!venueDays.includes(day) && !eventDays.includes(day)) return false;
-    }
+    if (day && !(v.days || []).includes(day)) return false;
     if (area && v.neighborhood !== area) return false;
     if (type) {
       if (type === 'Sports TV') {
         if (!v.has_sports_tv) return false;
       } else {
         const t = type.toLowerCase();
-        // For venues, also search attached event types
-        const attachedEvents = isEvent ? [] : state.events.filter(e => e.venue_name && v.name && e.venue_name.trim().toLowerCase() === v.name.trim().toLowerCase());
-        const eventTypes = attachedEvents.map(e => e.event_type || '').join(' ').toLowerCase();
-        const haystack = [v.name, v.neighborhood, v.cuisine, v.event_type, eventTypes, ...(v.deals || [])].join(' ').toLowerCase();
+        const haystack = [v.name, v.neighborhood, v.cuisine, v.event_type, ...(v.deals || [])].join(' ').toLowerCase();
         if (!haystack.includes(t)) return false;
       }
     }
     if (search) {
-      const attachedEvents = isEvent ? [] : state.events.filter(e => e.venue_name && v.name && e.venue_name.trim().toLowerCase() === v.name.trim().toLowerCase());
-      const eventInfo = attachedEvents.map(e => `${e.name} ${e.event_type}`).join(' ');
-      const h = [v.name, v.neighborhood, v.cuisine, v.address, v.event_type, eventInfo, ...(v.deals || [])].join(' ').toLowerCase();
+      const h = [v.name, v.neighborhood, v.cuisine, v.address, v.event_type, ...(v.deals || [])].join(' ').toLowerCase();
       if (!h.includes(search)) return false;
     }
     if (state.favFilterOn && !isFavorite(v.id)) return false;
@@ -253,14 +239,8 @@ function applyFilters() {
 
   renderCards();
   if (state.view === 'map') updateMapMarkers();
-  const total = state.showFilter === 'events' ? state.events.length
-    : state.showFilter === 'happyhour' ? state.venues.length
-    : state.venues.length + state.events.filter(e => {
-        const venueNames = new Set(state.venues.map(v => v.name.trim().toLowerCase()));
-        return !e.venue_name || !venueNames.has(e.venue_name.trim().toLowerCase());
-      }).length;
   const rc = document.getElementById('resultsCount');
-  if (rc) rc.textContent = `${state.filtered.length} of ${total} venues`;
+  if (rc) rc.textContent = `${state.filtered.length} of ${pool.length} venues`;
 }
 function toggleFilters() {
   state.filtersOpen = !state.filtersOpen;
