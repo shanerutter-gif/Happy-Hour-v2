@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -37,51 +36,51 @@
 
 /* ── GOING TONIGHT ── */
 .fire-badge {
-display: inline-flex; align-items: center;
-background: rgba(255,140,0,0.12);
-border: 1px solid rgba(255,140,0,0.25);
-color: #FF8C00;
-font-size: 11px; font-weight: 700;
-padding: 3px 10px; border-radius: 100px;
-margin: 6px 16px 0;
+  display: inline-flex; align-items: center;
+  background: rgba(255,140,0,0.12);
+  border: 1px solid rgba(255,140,0,0.25);
+  color: #FF8C00;
+  font-size: 11px; font-weight: 700;
+  padding: 3px 10px; border-radius: 100px;
+  margin: 6px 16px 0;
 }
 .card-going {
-padding: 8px 16px 4px;
+  padding: 8px 16px 4px;
 }
 .going-btn {
-background: rgba(255,107,74,0.08);
-border: 1px solid rgba(255,107,74,0.2);
-color: #FF6B4A;
-font-size: 12px; font-weight: 600;
-padding: 7px 14px; border-radius: 8px;
-cursor: pointer; font-family: ‘DM Sans’, sans-serif;
-transition: background 0.15s, border-color 0.15s, transform 0.1s;
-width: 100%;
+  background: rgba(255,107,74,0.08);
+  border: 1px solid rgba(255,107,74,0.2);
+  color: #FF6B4A;
+  font-size: 12px; font-weight: 600;
+  padding: 7px 14px; border-radius: 8px;
+  cursor: pointer; font-family: 'DM Sans', sans-serif;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+  width: 100%;
 }
 .going-btn:hover {
-background: rgba(255,107,74,0.15);
-border-color: rgba(255,107,74,0.4);
-transform: translateY(-1px);
+  background: rgba(255,107,74,0.15);
+  border-color: rgba(255,107,74,0.4);
+  transform: translateY(-1px);
 }
 .going-btn.going-active {
-background: rgba(255,140,0,0.12);
-border-color: rgba(255,140,0,0.3);
-color: #FF8C00;
+  background: rgba(255,140,0,0.12);
+  border-color: rgba(255,140,0,0.3);
+  color: #FF8C00;
 }
 .going-btn.going-active:hover {
-background: rgba(255,140,0,0.2);
+  background: rgba(255,140,0,0.2);
 }
-.going-btn–lg {
-font-size: 14px; padding: 12px 20px;
-width: 100%; text-align: center;
+.going-btn--lg {
+  font-size: 14px; padding: 12px 20px;
+  width: 100%; text-align: center;
 }
 .s-going-wrap {
-margin: 0 0 8px;
+  margin: 0 0 8px;
 }
 .s-going-count {
-text-align: center;
-font-size: 12px; color: #FF8C00;
-margin-top: 8px; font-weight: 600;
+  text-align: center;
+  font-size: 12px; color: #FF8C00;
+  margin-top: 8px; font-weight: 600;
 }
 
 </style>
@@ -89,19 +88,17 @@ margin-top: 8px; font-weight: 600;
 <body>
 
 <!-- NAV -->
-
 <nav class="top-nav" id="topNav">
   <span class="nav-brand" onclick="goHome()">
   <img src="/spotd_logo_v5.png" alt="Spotd" class="nav-logo-img">
 </span>
   <div class="nav-right" id="navRight">
-    <a class="nav-btn nav-business" href="business-landing.html">For Business</a>
+    <a class="nav-btn nav-business" href="business.html">For Business</a>
     <button class="nav-btn nav-login" onclick="openAuth('signin')">Sign In</button>
   </div>
 </nav>
 
 <!-- HOME / CITY SELECTOR -->
-
 <div id="homePage" class="home-page">
   <div class="home-inner">
     <img >
@@ -115,16 +112,11 @@ margin-top: 8px; font-weight: 600;
 </div>
 
 <!-- CITY APP VIEW -->
-
 <div id="appPage" class="app-page" style="display:none">
 
   <div class="city-bar" id="cityBar">
     <button class="city-back" onclick="showHome()">← All Cities</button>
     <div class="city-bar-name" id="cityBarName"></div>
-    <div class="city-bar-right">
-      <button class="type-tab active" id="tabHH" onclick="setTab('happyhour')">Happy Hours</button>
-      <button class="type-tab" id="tabEV" onclick="setTab('events')">Events</button>
-    </div>
   </div>
 
   <div class="controls" id="controls">
@@ -154,6 +146,14 @@ margin-top: 8px; font-weight: 600;
             <button class="pill" id="favFilterBtn" onclick="toggleFavFilter()">★ Saved</button>
           </div>
         </div>
+        <div class="filter-group">
+          <div class="fg-label">Show</div>
+          <div class="filter-scroll" id="showFilters">
+            <button class="pill active" id="showAll" onclick="setShowFilter('all',this)">Everything</button>
+            <button class="pill" id="showHH" onclick="setShowFilter('happyhour',this)">Happy Hours</button>
+            <button class="pill" id="showEV" onclick="setShowFilter('events',this)">Events only</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -175,7 +175,6 @@ margin-top: 8px; font-weight: 600;
 </div><!-- /appPage -->
 
 <!-- VENUE/EVENT MODAL -->
-
 <div class="overlay" id="modalOverlay" onclick="closeModal(event)">
   <div class="sheet" id="venueSheet">
     <div class="sheet-handle"></div>
@@ -185,7 +184,6 @@ margin-top: 8px; font-weight: 600;
 </div>
 
 <!-- AUTH MODAL -->
-
 <div class="overlay" id="authOverlay" onclick="closeAuth(event)">
   <div class="sheet" id="authSheet">
     <div class="sheet-handle"></div>
@@ -195,7 +193,6 @@ margin-top: 8px; font-weight: 600;
 </div>
 
 <!-- PROFILE MODAL -->
-
 <div class="overlay" id="profileOverlay" onclick="closeProfile(event)">
   <div class="sheet sheet--wide" id="profileSheet">
     <div class="sheet-handle"></div>
@@ -205,7 +202,6 @@ margin-top: 8px; font-weight: 600;
 </div>
 
 <!-- EDIT REVIEW MODAL -->
-
 <div class="overlay" id="editOverlay" onclick="closeEditReview(event)">
   <div class="sheet" id="editSheet">
     <div class="sheet-handle"></div>
@@ -215,7 +211,6 @@ margin-top: 8px; font-weight: 600;
 </div>
 
 <!-- REQUEST VENUE MODAL -->
-
 <div class="overlay" id="requestOverlay" onclick="closeRequestVenue(event)">
   <div class="sheet" id="requestSheet">
     <div class="sheet-handle"></div>
@@ -229,7 +224,6 @@ margin-top: 8px; font-weight: 600;
 </footer>
 
 <!-- ADD TO HOME SCREEN BANNER (iOS only, shown once) -->
-
 <div id="a2hsBanner" style="display:none">
   <div class="a2hs-inner">
     <div class="a2hs-icon">📲</div>
@@ -314,8 +308,6 @@ function dismissA2HS() {
 </script>
 
 <script src="js/db.js"></script>
-
 <script src="js/app.js"></script>
-
 </body>
 </html>
