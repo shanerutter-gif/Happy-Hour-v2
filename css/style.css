@@ -17,7 +17,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
 /* NAV */
 .top-nav{display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:52px;background:rgba(245,239,230,0.97);border-bottom:1px solid var(--border2);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);position:sticky;top:0;z-index:300}
 .nav-brand{font-family:'Cabinet Grotesk',sans-serif;font-size:20px;font-weight:900;color:var(--teal);text-decoration:none;letter-spacing:-0.5px;cursor:pointer;display:flex;align-items:center}
-.nav-logo-img{height:30px;width:auto;display:block}
+.nav-logo-img{height:36px;width:auto;display:block}
 .hero-logo-img{height:56px;width:auto;display:block;margin-bottom:20px}
 .nav-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
 .nav-btn{background:transparent;border:1px solid var(--border2);border-radius:6px;color:var(--muted);background:transparent;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;padding:7px 14px;cursor:pointer;white-space:nowrap;min-height:36px;transition:all .18s}
