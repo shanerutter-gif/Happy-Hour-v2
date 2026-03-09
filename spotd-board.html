@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spotd — Project Board</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --cream: #F5EFE6;
+  --cream-dark: #EDE4D6;
+  --coral: #FF6B4A;
+  --coral-dark: #E55535;
+  --charcoal: #2A1F14;
+  --charcoal-light: #4A3828;
+  --muted: #9E8E7E;
+  --amber: #E8943A;
+  --green: #4CAF7D;
+  --blue: #4A90D9;
+  --purple: #8B6FBE;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: var(--cream);
+  color: var(--charcoal);
+  min-height: 100vh;
+  overflow-x: auto;
+}
+
+/* HEADER */
+header {
+  background: var(--charcoal);
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 12px rgba(42,31,20,0.3);
+}
+.logo { display: flex; align-items: center; gap: 10px; }
+.logo-mark {
+  width: 32px; height: 32px;
+  background: var(--coral);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px;
+}
+.logo-text { font-size: 20px; font-weight: 800; color: var(--cream); letter-spacing: -0.5px; }
+.logo-text span { color: var(--coral); }
+.board-tag {
+  font-size: 11px; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 1px;
+  font-family: monospace; margin-left: 6px;
+}
+.btn-add-main {
+  background: var(--coral); color: white; border: none;
+  padding: 8px 16px; border-radius: 8px;
+  font-weight: 700; font-size: 13px; cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-add-main:hover { background: var(--coral-dark); }
+
+/* FILTERS */
+.filters {
+  background: var(--cream-dark);
+  padding: 10px 24px;
+  display: flex; flex-wrap: wrap;
+  align-items: center; gap: 10px;
+  border-bottom: 1px solid rgba(42,31,20,0.09);
+}
+.filter-label {
+  font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.5px;
+  color: var(--muted);
+}
+.chip {
+  padding: 4px 12px; border-radius: 20px;
+  border: 1.5px solid rgba(42,31,20,0.15);
+  background: transparent; color: var(--charcoal-light);
+  font-size: 12px; font-weight: 500;
+  cursor: pointer; transition: all 0.12s;
+  font-family: inherit;
+}
+.chip:hover { background: rgba(42,31,20,0.07); }
+.chip.on { background: var(--charcoal); border-color: var(--charcoal); color: var(--cream); }
+.sep { width: 1px; height: 20px; background: rgba(42,31,20,0.12); }
+.search-wrap { margin-left: auto; position: relative; }
+.search-wrap input {
+  padding: 6px 14px 6px 32px;
+  border: 1.5px solid rgba(42,31,20,0.15);
+  border-radius: 20px; background: white;
+  font-size: 13px; color: var(--charcoal);
+  outline: none; width: 210px; font-family: inherit;
+  transition: border-color 0.15s;
+}
+.search-wrap input:focus { border-color: var(--coral); }
+.search-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); font-size: 13px; }
+
+/* BOARD */
+.board {
+  display: flex; gap: 14px;
+  padding: 22px 24px;
+  align-items: flex-start;
+  min-height: calc(100vh - 112px);
+}
+
+/* COLUMN */
+.column { width: 292px; flex-shrink: 0; }
+.col-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 13px;
+  background: var(--cream-dark);
+  border-radius: 10px 10px 0 0;
+}
+.col-head-left { display: flex; align-items: center; gap: 7px; }
+.col-dot { width: 9px; height: 9px; border-radius: 50%; }
+.col-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; }
+.col-count {
+  font-size: 11px; font-family: monospace; color: var(--muted);
+  background: rgba(42,31,20,0.08); padding: 1px 6px; border-radius: 10px;
+}
+.col-add-btn {
+  background: none; border: none; font-size: 18px;
+  color: var(--muted); cursor: pointer; padding: 1px 4px;
+  line-height: 1; border-radius: 4px;
+  transition: color 0.12s;
+}
+.col-add-btn:hover { color: var(--coral); }
+.col-body {
+  background: rgba(42,31,20,0.04);
+  border-radius: 0 0 10px 10px;
+  padding: 8px;
+  min-height: 60px;
+  border: 1.5px solid rgba(42,31,20,0.08);
+  border-top: none;
+  transition: background 0.12s, border-color 0.12s;
+}
+.col-body.drag-over {
+  background: rgba(255,107,74,0.07);
+  border-color: var(--coral);
+}
+
+/* CARD */
+.card {
+  background: white;
+  border-radius: 10px;
+  padding: 11px 13px;
+  box-shadow: 0 2px 8px rgba(42,31,20,0.09);
+  border: 1.5px solid rgba(42,31,20,0.07);
+  cursor: grab;
+  margin-bottom: 8px;
+  transition: box-shadow 0.15s, transform 0.15s, opacity 0.15s;
+}
+.card:hover {
+  box-shadow: 0 6px 20px rgba(42,31,20,0.14);
+  transform: translateY(-1px);
+}
+.card.dragging { opacity: 0.45; cursor: grabbing; }
+.card.done-card { opacity: 0.72; }
+.card.done-card .card-title { text-decoration: line-through; text-decoration-color: var(--muted); }
+
+.card-top { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 6px; }
+.card-title { flex: 1; font-size: 13.5px; font-weight: 600; color: var(--charcoal); line-height: 1.35; }
+.card-type {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.4px; padding: 2px 7px; border-radius: 6px;
+  white-space: nowrap; flex-shrink: 0;
+}
+.type-feature { background: rgba(74,144,217,0.13); color: var(--blue); }
+.type-bug     { background: rgba(255,107,74,0.13);  color: var(--coral-dark); }
+.type-todo    { background: rgba(42,31,20,0.09);     color: var(--charcoal-light); }
+.type-design  { background: rgba(139,111,190,0.13); color: var(--purple); }
+
+.card-desc {
+  font-size: 12px; color: var(--muted); line-height: 1.45; margin-bottom: 8px;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.card-footer { display: flex; align-items: center; justify-content: space-between; }
+.card-pri { font-size: 11px; font-weight: 600; }
+.pri-high { color: var(--coral); }
+.pri-med  { color: var(--amber); }
+.pri-low  { color: var(--muted); }
+.card-btns { display: flex; gap: 2px; opacity: 0; transition: opacity 0.15s; }
+.card:hover .card-btns { opacity: 1; }
+.card-btn {
+  background: none; border: none; cursor: pointer;
+  font-size: 12px; padding: 3px 5px; border-radius: 5px;
+  color: var(--muted); transition: background 0.12s;
+}
+.card-btn:hover { background: var(--cream-dark); }
+
+/* EMPTY */
+.empty {
+  text-align: center; padding: 18px 8px;
+  color: var(--muted); font-size: 12px;
+}
+.empty-icon { font-size: 22px; margin-bottom: 5px; }
+
+/* MODAL */
+.overlay {
+  position: fixed; inset: 0;
+  background: rgba(42,31,20,0.45);
+  backdrop-filter: blur(4px);
+  z-index: 200;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.18s;
+}
+.overlay.open { opacity: 1; pointer-events: all; }
+.modal {
+  background: var(--cream);
+  border-radius: 16px;
+  padding: 28px;
+  width: 470px; max-width: 95vw; max-height: 92vh; overflow-y: auto;
+  box-shadow: 0 16px 48px rgba(42,31,20,0.22);
+  transform: translateY(14px); transition: transform 0.18s;
+}
+.overlay.open .modal { transform: translateY(0); }
+.modal-header {
+  display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;
+}
+.modal-title { font-size: 17px; font-weight: 800; color: var(--charcoal); }
+.modal-close {
+  background: rgba(42,31,20,0.08); border: none;
+  width: 30px; height: 30px; border-radius: 8px;
+  cursor: pointer; font-size: 15px; color: var(--charcoal-light);
+  display: flex; align-items: center; justify-content: center;
+}
+.modal-close:hover { background: rgba(42,31,20,0.15); }
+
+.field-label {
+  display: block; font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.6px;
+  color: var(--muted); margin-bottom: 5px; margin-top: 14px;
+}
+.modal input, .modal textarea, .modal select {
+  width: 100%; padding: 9px 12px;
+  border: 1.5px solid rgba(42,31,20,0.14);
+  border-radius: 9px; background: white;
+  font-size: 14px; font-family: inherit; color: var(--charcoal);
+  outline: none; resize: none;
+  transition: border-color 0.15s;
+}
+.modal input:focus, .modal textarea:focus, .modal select:focus { border-color: var(--coral); }
+.modal textarea { min-height: 80px; }
+.modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.modal-btns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 22px; }
+.btn-cancel {
+  padding: 8px 16px; border-radius: 8px; border: none;
+  background: rgba(42,31,20,0.08); color: var(--charcoal-light);
+  font-weight: 600; font-size: 13px; cursor: pointer; font-family: inherit;
+}
+.btn-cancel:hover { background: rgba(42,31,20,0.14); }
+.btn-save {
+  padding: 8px 18px; border-radius: 8px; border: none;
+  background: var(--coral); color: white;
+  font-weight: 700; font-size: 13px; cursor: pointer; font-family: inherit;
+}
+.btn-save:hover { background: var(--coral-dark); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-mark">📍</div>
+    <div class="logo-text">Spot<span>d</span></div>
+    <span class="board-tag">Project Board</span>
+  </div>
+  <button class="btn-add-main" onclick="openModal()">＋ Add Card</button>
+</header>
+
+<div class="filters">
+  <span class="filter-label">Type</span>
+  <button class="chip on" data-filter="type" data-val="all" onclick="setFilter('type','all',this)">All</button>
+  <button class="chip" data-filter="type" data-val="feature" onclick="setFilter('type','feature',this)">✦ Feature</button>
+  <button class="chip" data-filter="type" data-val="bug" onclick="setFilter('type','bug',this)">🐛 Bug</button>
+  <button class="chip" data-filter="type" data-val="todo" onclick="setFilter('type','todo',this)">☑ Todo</button>
+  <button class="chip" data-filter="type" data-val="design" onclick="setFilter('type','design',this)">◈ Design</button>
+  <div class="sep"></div>
+  <span class="filter-label">Priority</span>
+  <button class="chip on" data-filter="pri" data-val="all" onclick="setFilter('pri','all',this)">All</button>
+  <button class="chip" data-filter="pri" data-val="high" onclick="setFilter('pri','high',this)">🔴 High</button>
+  <button class="chip" data-filter="pri" data-val="med" onclick="setFilter('pri','med',this)">🟡 Med</button>
+  <button class="chip" data-filter="pri" data-val="low" onclick="setFilter('pri','low',this)">⚪ Low</button>
+  <div class="search-wrap">
+    <span class="search-icon">🔍</span>
+    <input type="text" placeholder="Search cards…" oninput="onSearch(this.value)">
+  </div>
+</div>
+
+<div class="board" id="board"></div>
+
+<!-- MODAL -->
+<div class="overlay" id="overlay" onclick="overlayClick(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-title">New Card</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <label class="field-label">Title *</label>
+    <input type="text" id="m-title" placeholder="What needs to be done?">
+    <label class="field-label">Description</label>
+    <textarea id="m-desc" placeholder="More details…"></textarea>
+    <div class="modal-grid">
+      <div>
+        <label class="field-label">Type</label>
+        <select id="m-type">
+          <option value="feature">✦ Feature</option>
+          <option value="bug">🐛 Bug</option>
+          <option value="todo" selected>☑ Todo</option>
+          <option value="design">◈ Design</option>
+        </select>
+      </div>
+      <div>
+        <label class="field-label">Priority</label>
+        <select id="m-pri">
+          <option value="high">🔴 High</option>
+          <option value="med" selected>🟡 Medium</option>
+          <option value="low">⚪ Low</option>
+        </select>
+      </div>
+    </div>
+    <label class="field-label">Column</label>
+    <select id="m-col">
+      <option value="backlog">Backlog</option>
+      <option value="todo">To Do</option>
+      <option value="inprogress">In Progress</option>
+      <option value="done">Done</option>
+      <option value="blocked">Blocked</option>
+    </select>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-save" onclick="saveModal()">Save Card</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── CONFIG ────────────────────────────────────────────────────────────────────
+const COLS = [
+  { id:'backlog',    label:'Backlog',     dot:'#9E8E7E' },
+  { id:'todo',       label:'To Do',       dot:'#4A90D9' },
+  { id:'inprogress', label:'In Progress', dot:'#E8943A' },
+  { id:'done',       label:'Done',        dot:'#4CAF7D' },
+  { id:'blocked',    label:'Blocked',     dot:'#FF6B4A' },
+];
+
+const TYPE_LABEL = { feature:'✦ Feature', bug:'🐛 Bug', todo:'☑ Todo', design:'◈ Design' };
+const PRI_LABEL  = { high:'🔴 High', med:'🟡 Med', low:'⚪ Low' };
+const PRI_CLASS  = { high:'pri-high', med:'pri-med', low:'pri-low' };
+const COL_EMPTY_ICON = { done:'🎉', blocked:'🚧' };
+
+const SEED = [
+  {id:1,  col:'backlog',    type:'feature', priority:'high', title:'Weekly digest email',           desc:'Send users a weekly roundup of new deals in their saved neighborhoods.'},
+  {id:2,  col:'backlog',    type:'feature', priority:'high', title:'Push notifications',            desc:'Notify users when a favorite venue posts a new deal or event.'},
+  {id:3,  col:'backlog',    type:'feature', priority:'med',  title:'Tonight Mode',                  desc:'Surface only venues open right now with active deals. One-tap filter.'},
+  {id:4,  col:'backlog',    type:'feature', priority:'med',  title:'Native app (iOS/Android)',      desc:'Wrap the PWA or build a React Native client.'},
+  {id:5,  col:'backlog',    type:'feature', priority:'low',  title:'Activate LA, NYC, Chicago, Austin, Miami, OC', desc:'Cities are seeded. Need venues + marketing push per city.'},
+  {id:6,  col:'backlog',    type:'feature', priority:'med',  title:'User profile page',             desc:'Public-facing profile showing reviews, favorites count, Going Tonight history.'},
+  {id:7,  col:'backlog',    type:'design',  priority:'low',  title:'Onboarding flow',               desc:'First-time user walkthrough explaining key features.'},
+  {id:8,  col:'todo',       type:'feature', priority:'high', title:'Neighborhood follows UX',       desc:'UI for following/unfollowing neighborhoods. Table exists (neighborhood_follows), no frontend yet.'},
+  {id:9,  col:'todo',       type:'bug',     priority:'high', title:'Map pin clustering',            desc:'Dense pins in downtown SD are unclickable on mobile. Need marker clustering.'},
+  {id:10, col:'todo',       type:'todo',    priority:'med',  title:'Seed more SD venues',           desc:'Add 20+ additional happy hour spots across Mission Hills, North Park, Little Italy.'},
+  {id:11, col:'todo',       type:'feature', priority:'med',  title:'Venue photo gallery',           desc:'Support multiple photos per venue, not just photo_url. Carousel in modal.'},
+  {id:12, col:'todo',       type:'design',  priority:'low',  title:'Empty state illustrations',     desc:"Custom illustrations for 'no results' and 'no favorites' states."},
+  {id:13, col:'inprogress', type:'feature', priority:'high', title:'Business owner portal polish',  desc:'Claim flow + edit + sports TV toggle built. Needs edge cases + email confirmations.'},
+  {id:14, col:'inprogress', type:'bug',     priority:'high', title:'Going Tonight daily reset',     desc:'Verify cron/edge fn resets going_tonight at midnight PT. Test in production.'},
+  {id:15, col:'inprogress', type:'todo',    priority:'med',  title:'SEO meta tags per city/venue',  desc:'Dynamic OG tags and title for city pages and venue deep links.'},
+  {id:16, col:'done',       type:'bug',     priority:'high', title:'Website link-out redirect fix', desc:'stopPropagation() on anchor prevents modal from hijacking external links.'},
+  {id:17, col:'done',       type:'bug',     priority:'med',  title:'Star ratings invisible on light bg', desc:'Fixed to amber #E8943A lit, warm grey unlit.'},
+  {id:18, col:'done',       type:'design',  priority:'med',  title:'Card border-radius + grid gap', desc:'14px radius, box-shadow, 8px gap — cards no longer blend while scrolling.'},
+  {id:19, col:'done',       type:'design',  priority:'high', title:'Full design retheme',           desc:'Dark navy/teal → warm cream/coral.'},
+  {id:20, col:'done',       type:'bug',     priority:'high', title:'RLS reviews fix',               desc:'Star ratings & reviews now insert correctly with auth token sent on insert.'},
+  {id:21, col:'done',       type:'feature', priority:'med',  title:'iOS Add to Home Screen banner', desc:'PWA prompt shown to Safari users on first visit.'},
+  {id:22, col:'done',       type:'feature', priority:'high', title:'Sports TV badge + filter',      desc:'📺 badge + owner-togglable filter live. has_sports_tv field in venues.'},
+  {id:23, col:'done',       type:'feature', priority:'high', title:'Going Tonight social layer',    desc:'🔥 fire badge at 2+ people, daily reset, going_tonight table.'},
+  {id:24, col:'blocked',    type:'feature', priority:'high', title:'Email sending (weekly digest)', desc:'Blocked on: choosing email provider (Resend vs Postmark vs SendGrid) and email template design.'},
+  {id:25, col:'blocked',    type:'feature', priority:'med',  title:'Push notifications infra',      desc:'Blocked on: service worker setup and web push vs native push strategy.'},
+];
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let cards, nextId, filters = { type:'all', pri:'all' }, search = '', editId = null, dragId = null;
+
+function load() {
+  try {
+    const saved = localStorage.getItem('spotd-board-v2');
+    if (saved) { const d = JSON.parse(saved); cards = d.cards; nextId = d.nextId; return; }
+  } catch(e) {}
+  cards = JSON.parse(JSON.stringify(SEED));
+  nextId = 26;
+}
+
+function save() {
+  try { localStorage.setItem('spotd-board-v2', JSON.stringify({ cards, nextId })); } catch(e) {}
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────────
+function render() {
+  const board = document.getElementById('board');
+  board.innerHTML = '';
+
+  COLS.forEach(col => {
+    const all = cards.filter(c => c.col === col.id);
+    const visible = all.filter(c => {
+      if (filters.type !== 'all' && c.type !== filters.type) return false;
+      if (filters.pri  !== 'all' && c.priority !== filters.pri) return false;
+      if (search && !c.title.toLowerCase().includes(search) && !(c.desc||'').toLowerCase().includes(search)) return false;
+      return true;
+    });
+
+    const colEl = document.createElement('div');
+    colEl.className = 'column';
+
+    const emptyIcon = COL_EMPTY_ICON[col.id] || '○';
+
+    colEl.innerHTML = `
+      <div class="col-head" style="border-bottom: 2.5px solid ${col.dot}">
+        <div class="col-head-left">
+          <div class="col-dot" style="background:${col.dot}"></div>
+          <span class="col-title">${col.label}</span>
+          <span class="col-count">${all.length}</span>
+        </div>
+        <button class="col-add-btn" onclick="openModal('${col.id}')">＋</button>
+      </div>
+      <div class="col-body" id="cb-${col.id}"
+        ondragover="dragOver(event,'${col.id}')"
+        ondrop="drop(event,'${col.id}')"
+        ondragleave="dragLeave(event)">
+        ${visible.length === 0 ? `<div class="empty"><div class="empty-icon">${emptyIcon}</div>Drop cards here</div>` : ''}
+        ${visible.map(c => cardHTML(c)).join('')}
+      </div>`;
+    board.appendChild(colEl);
+  });
+}
+
+function cardHTML(c) {
+  const done = c.col === 'done';
+  return `
+    <div class="card${done?' done-card':''}" id="card-${c.id}"
+      draggable="true"
+      ondragstart="dragStart(event,${c.id})"
+      ondragend="dragEnd(event)">
+      <div class="card-top">
+        <div class="card-title">${esc(c.title)}</div>
+        <span class="card-type type-${c.type}">${TYPE_LABEL[c.type]}</span>
+      </div>
+      ${c.desc ? `<div class="card-desc">${esc(c.desc)}</div>` : ''}
+      <div class="card-footer">
+        <span class="card-pri ${PRI_CLASS[c.priority]}">${PRI_LABEL[c.priority]}</span>
+        <div class="card-btns">
+          <button class="card-btn" onclick="editCard(${c.id})" title="Edit">✏️</button>
+          <button class="card-btn" onclick="deleteCard(${c.id})" title="Delete">🗑</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+// ── DRAG & DROP ───────────────────────────────────────────────────────────────
+function dragStart(e, id) {
+  dragId = id;
+  setTimeout(() => { const el = document.getElementById('card-'+id); if(el) el.classList.add('dragging'); }, 0);
+}
+function dragEnd(e) {
+  const el = document.getElementById('card-'+dragId);
+  if (el) el.classList.remove('dragging');
+}
+function dragOver(e, colId) {
+  e.preventDefault();
+  document.getElementById('cb-'+colId)?.classList.add('drag-over');
+}
+function dragLeave(e) { e.currentTarget.classList.remove('drag-over'); }
+function drop(e, colId) {
+  e.preventDefault();
+  document.getElementById('cb-'+colId)?.classList.remove('drag-over');
+  if (dragId != null) {
+    const c = cards.find(x => x.id === dragId);
+    if (c) { c.col = colId; save(); render(); }
+  }
+  dragId = null;
+}
+
+// ── FILTERS ───────────────────────────────────────────────────────────────────
+function setFilter(key, val, btn) {
+  filters[key] = val;
+  document.querySelectorAll(`.chip[data-filter="${key}"]`).forEach(el => el.classList.remove('on'));
+  btn.classList.add('on');
+  render();
+}
+function onSearch(val) { search = val.toLowerCase(); render(); }
+
+// ── MODAL ─────────────────────────────────────────────────────────────────────
+function openModal(defaultCol) {
+  editId = null;
+  document.getElementById('modal-title').textContent = 'New Card';
+  document.getElementById('m-title').value = '';
+  document.getElementById('m-desc').value = '';
+  document.getElementById('m-type').value = 'todo';
+  document.getElementById('m-pri').value = 'med';
+  document.getElementById('m-col').value = defaultCol || 'todo';
+  document.getElementById('overlay').classList.add('open');
+  setTimeout(() => document.getElementById('m-title').focus(), 80);
+}
+
+function editCard(id) {
+  const c = cards.find(x => x.id === id);
+  if (!c) return;
+  editId = id;
+  document.getElementById('modal-title').textContent = 'Edit Card';
+  document.getElementById('m-title').value = c.title;
+  document.getElementById('m-desc').value = c.desc || '';
+  document.getElementById('m-type').value = c.type;
+  document.getElementById('m-pri').value = c.priority;
+  document.getElementById('m-col').value = c.col;
+  document.getElementById('overlay').classList.add('open');
+  setTimeout(() => document.getElementById('m-title').focus(), 80);
+}
+
+function saveModal() {
+  const title = document.getElementById('m-title').value.trim();
+  if (!title) { document.getElementById('m-title').style.borderColor = '#FF6B4A'; return; }
+  const data = {
+    title,
+    desc: document.getElementById('m-desc').value.trim(),
+    type: document.getElementById('m-type').value,
+    priority: document.getElementById('m-pri').value,
+    col: document.getElementById('m-col').value,
+  };
+  if (editId != null) {
+    const idx = cards.findIndex(c => c.id === editId);
+    if (idx >= 0) cards[idx] = { ...cards[idx], ...data };
+  } else {
+    cards.push({ id: nextId++, ...data });
+  }
+  save(); closeModal(); render();
+}
+
+function closeModal() {
+  document.getElementById('overlay').classList.remove('open');
+  editId = null;
+}
+
+function overlayClick(e) {
+  if (e.target === document.getElementById('overlay')) closeModal();
+}
+
+function deleteCard(id) {
+  if (!confirm('Delete this card?')) return;
+  cards = cards.filter(c => c.id !== id);
+  save(); render();
+}
+
+// ── UTILS ─────────────────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── KEYBOARD ──────────────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+  if (e.key === 'n' && !['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)
+      && !document.getElementById('overlay').classList.contains('open')) openModal();
+});
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+load();
+render();
+</script>
+</body>
+</html>
