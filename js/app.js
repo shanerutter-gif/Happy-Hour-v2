@@ -9,7 +9,8 @@ const EVENT_TYPES = ['Trivia','Live Music','Karaoke','Bingo','Game Night','Comed
 const HH_TYPES    = ['Bar','Brewery','Seafood','Mexican','Italian','Asian','BBQ','Wine Bar','Steakhouse','Beach Bar','Sports TV'];
 
 const state = {
-  view: 'list', tab: 'happyhour',
+  view: 'list',
+  showFilter: 'all', // 'all' | 'happyhour' | 'events'
   filtersOpen: false, favFilterOn: false,
   filters: { day: null, area: null, type: null, search: '' },
   city: null,
@@ -92,22 +93,25 @@ async function enterCity(slug, name, stateCode) {
   document.title = `Spotd — ${name} Happy Hours & Events`;
 
   // Reset
-  state.tab = 'happyhour';
+  state.showFilter = 'all';
   state.filters = { day: null, area: null, type: null, search: '' };
   state.favFilterOn = false;
   state.filtered = [];
   document.getElementById('searchBox').value = '';
-  document.getElementById('tabHH').classList.add('active');
-  document.getElementById('tabEV').classList.remove('active');
   document.getElementById('filterPanel').classList.remove('open');
   document.getElementById('filterDot').classList.remove('show');
   document.getElementById('filterToggle').classList.remove('active');
   document.getElementById('chipsRow').innerHTML = '';
+  // Reset show filter pills
+  ['showAll','showHH','showEV'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('active', id === 'showAll');
+  });
 
   // Show loading
   document.getElementById('cardsGrid').innerHTML = `<div class="loading-state"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div>`;
 
-  // Load data
+  // Load data — venues AND events together
   const [venues, events] = await Promise.all([fetchVenues(slug), fetchEvents(slug)]);
   state.venues = venues;
   state.events = events;
@@ -121,13 +125,11 @@ async function enterCity(slug, name, stateCode) {
   initMap();
 }
 
-// ── TABS ───────────────────────────────────────────────
-function setTab(tab) {
-  state.tab = tab;
-  document.getElementById('tabHH').classList.toggle('active', tab === 'happyhour');
-  document.getElementById('tabEV').classList.toggle('active', tab === 'events');
-  // Reset type filter when switching tabs
-  state.filters.type = null;
+// ── SHOW FILTER ────────────────────────────────────────
+function setShowFilter(val, btn) {
+  state.showFilter = val;
+  document.querySelectorAll('#showFilters .pill').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
   buildTypeFilters();
   applyFilters(); updateChips(); updateDot();
 }
@@ -139,9 +141,9 @@ function buildFilterPills() {
   df.innerHTML = '';
   DAYS.forEach(d => { const b = mkPill(d + (d === TODAY ? ' ★' : ''), () => setFilter('day', d, b)); df.appendChild(b); });
 
-  // Neighborhoods
-  const items = state.tab === 'happyhour' ? state.venues : state.events;
-  const areas = [...new Set(items.map(v => v.neighborhood).filter(Boolean))].sort();
+  // Neighborhoods — from both venues and events combined
+  const allItems = [...state.venues, ...state.events];
+  const areas = [...new Set(allItems.map(v => v.neighborhood).filter(Boolean))].sort();
   const af = document.getElementById('areaFilters');
   af.innerHTML = '';
   areas.forEach(a => { const b = mkPill(a, () => setFilter('area', a, b)); af.appendChild(b); });
@@ -152,10 +154,13 @@ function buildFilterPills() {
 function buildTypeFilters() {
   const tf = document.getElementById('typeFilters');
   tf.innerHTML = '';
-  const types = state.tab === 'happyhour' ? HH_TYPES : EVENT_TYPES;
+  // Show venue types + event types combined, or filtered by show mode
+  const types = state.showFilter === 'events'
+    ? EVENT_TYPES
+    : state.showFilter === 'happyhour'
+      ? HH_TYPES
+      : [...HH_TYPES, ...EVENT_TYPES]; // all
   types.forEach(t => { const b = mkPill(t, () => setFilter('type', t, b)); tf.appendChild(b); });
-  // Show/hide day filter for events (events have specific days too)
-  document.getElementById('fgDay').style.display = '';
 }
 
 function mkPill(label, onclick) {
@@ -193,31 +198,69 @@ function updateDot() {
 function applyFilters() {
   const search = (document.getElementById('searchBox')?.value || '').toLowerCase().trim();
   state.filters.search = search;
-  const items = state.tab === 'happyhour' ? state.venues : state.events;
-  state.filtered = items.filter(v => {
+
+  // Build unified pool based on showFilter
+  let pool;
+  if (state.showFilter === 'happyhour') pool = state.venues;
+  else if (state.showFilter === 'events') pool = state.events;
+  else pool = state.venues; // unified: venues (with events attached) — events-only shown too
+
+  // For 'all', also include event-only venues (events without a matching venue)
+  // We work from venues as primary items; events are shown as badges on cards
+  // But standalone events (no venue match) need to appear too
+  if (state.showFilter === 'all' || state.showFilter === 'events') {
+    // Find events whose venue_name doesn't match any venue in state.venues
+    const venueNames = new Set(state.venues.map(v => v.name.trim().toLowerCase()));
+    const standaloneEvents = state.events.filter(e => !e.venue_name || !venueNames.has(e.venue_name.trim().toLowerCase()));
+    pool = state.showFilter === 'events'
+      ? state.events
+      : [...state.venues, ...standaloneEvents];
+  }
+
+  state.filtered = pool.filter(v => {
     const { day, area, type } = state.filters;
-    if (day  && !(v.days || []).includes(day)) return false;
-    if (area && v.neighborhood !== area)       return false;
+    const isEvent = !!v.event_type;
+
+    if (day) {
+      // For venues, check venue days. Also check if any attached event runs that day.
+      const venueDays = v.days || [];
+      const attachedEvents = isEvent ? [] : state.events.filter(e => e.venue_name && v.name && e.venue_name.trim().toLowerCase() === v.name.trim().toLowerCase());
+      const eventDays = attachedEvents.flatMap(e => e.days || []);
+      if (!venueDays.includes(day) && !eventDays.includes(day)) return false;
+    }
+    if (area && v.neighborhood !== area) return false;
     if (type) {
       if (type === 'Sports TV') {
         if (!v.has_sports_tv) return false;
       } else {
         const t = type.toLowerCase();
-        const haystack = [v.name, v.neighborhood, v.cuisine, v.event_type, ...(v.deals || [])].join(' ').toLowerCase();
+        // For venues, also search attached event types
+        const attachedEvents = isEvent ? [] : state.events.filter(e => e.venue_name && v.name && e.venue_name.trim().toLowerCase() === v.name.trim().toLowerCase());
+        const eventTypes = attachedEvents.map(e => e.event_type || '').join(' ').toLowerCase();
+        const haystack = [v.name, v.neighborhood, v.cuisine, v.event_type, eventTypes, ...(v.deals || [])].join(' ').toLowerCase();
         if (!haystack.includes(t)) return false;
       }
     }
     if (search) {
-      const h = [v.name, v.neighborhood, v.cuisine, v.address, v.event_type, ...(v.deals || [])].join(' ').toLowerCase();
+      const attachedEvents = isEvent ? [] : state.events.filter(e => e.venue_name && v.name && e.venue_name.trim().toLowerCase() === v.name.trim().toLowerCase());
+      const eventInfo = attachedEvents.map(e => `${e.name} ${e.event_type}`).join(' ');
+      const h = [v.name, v.neighborhood, v.cuisine, v.address, v.event_type, eventInfo, ...(v.deals || [])].join(' ').toLowerCase();
       if (!h.includes(search)) return false;
     }
     if (state.favFilterOn && !isFavorite(v.id)) return false;
     return true;
   });
+
   renderCards();
   if (state.view === 'map') updateMapMarkers();
+  const total = state.showFilter === 'events' ? state.events.length
+    : state.showFilter === 'happyhour' ? state.venues.length
+    : state.venues.length + state.events.filter(e => {
+        const venueNames = new Set(state.venues.map(v => v.name.trim().toLowerCase()));
+        return !e.venue_name || !venueNames.has(e.venue_name.trim().toLowerCase());
+      }).length;
   const rc = document.getElementById('resultsCount');
-  if (rc) rc.textContent = `${state.filtered.length} of ${items.length} ${state.tab === 'happyhour' ? 'venues' : 'events'}`;
+  if (rc) rc.textContent = `${state.filtered.length} of ${total} venues`;
 }
 function toggleFilters() {
   state.filtersOpen = !state.filtersOpen;
@@ -231,16 +274,14 @@ function renderCards() {
   if (!grid) return;
   if (!state.filtered.length) {
     grid.innerHTML = `<div class="no-results">
-      No ${state.tab === 'happyhour' ? 'venues' : 'events'} match — try different filters
+      No venues match — try different filters
       <div style="margin-top:16px">
         <button class="request-venue-btn request-venue-btn--empty" onclick="openRequestVenue()">+ Request a Venue</button>
       </div>
     </div>`;
     return;
   }
-  grid.innerHTML = state.tab === 'happyhour'
-    ? state.filtered.map(v => venueCardHTML(v)).join('')
-    : state.filtered.map(v => eventCardHTML(v)).join('');
+  grid.innerHTML = state.filtered.map(v => v.event_type ? eventCardHTML(v) : venueCardHTML(v)).join('');
 }
 
 function venueCardHTML(v) {
@@ -248,6 +289,17 @@ function venueCardHTML(v) {
   const cached  = state.reviewCache[v.id] || [];
   const avg     = avgFromList(cached);
   const faved   = isFavorite(v.id);
+  // Find attached events for this venue — matched by venue_name since schema has no venue_id
+  const attachedEvents = state.events.filter(e =>
+    e.venue_name && v.name &&
+    e.venue_name.trim().toLowerCase() === v.name.trim().toLowerCase()
+  );
+  const eventPillsHTML = attachedEvents.length
+    ? `<div class="card-event-pills">${attachedEvents.slice(0,3).map(e => {
+        const evToday = (e.days||[]).includes(TODAY);
+        return `<span class="card-event-pill${evToday ? ' card-event-pill--today' : ''}">🎉 ${esc(e.event_type||'Event')} · ${(e.days||[]).slice(0,2).join('/')}${evToday ? ' · Tonight' : ''}</span>`;
+      }).join('')}</div>`
+    : '';
   return `<div class="card" data-id="${v.id}" onclick="openModal('${v.id}','venue')" role="button" tabindex="0">
     <div class="card-top">
       <div class="card-name">${esc(v.name)}</div>
@@ -263,6 +315,7 @@ function venueCardHTML(v) {
     </div>
     ${v.has_sports_tv ? `<span class="sports-badge">📺 Sports TV</span>` : ''}
     <ul class="deals">${(v.deals || []).slice(0, 3).map(d => `<li>${esc(d)}</li>`).join('')}${(v.deals || []).length > 3 ? `<li class="deals-more">+${v.deals.length - 3} more</li>` : ''}</ul>
+    ${eventPillsHTML}
     ${goingFireBadge(v.id)}
     <div class="card-foot">
       <span class="card-cuisine">${esc(v.cuisine || '')}</span>
@@ -381,6 +434,24 @@ function renderModal(v, type, reviews) {
       <div class="s-label">Deals &amp; Specials</div>
       <ul class="s-deals">${(v.deals || []).map(d => `<li>${esc(d)}</li>`).join('')}</ul>
       <div class="s-cuisine">${esc(v.cuisine || '')}</div>
+      ${(() => {
+        const evs = state.events.filter(e => e.venue_name && v.name && e.venue_name.trim().toLowerCase() === v.name.trim().toLowerCase());
+        if (!evs.length) return '';
+        return `<div class="s-div"></div>
+        <div class="s-label">Events at this venue</div>
+        <div class="s-events-list">${evs.map(e => {
+          const evToday = (e.days||[]).includes(TODAY);
+          return `<div class="s-event-item">
+            <div class="s-event-top">
+              <span class="s-event-name">${esc(e.name||e.event_type)}</span>
+              <span class="card-event-type">${esc(e.event_type||'')}</span>
+              ${evToday ? `<span style="font-size:10px;color:var(--teal);font-weight:700;font-family:'DM Mono',monospace">TONIGHT</span>` : ''}
+            </div>
+            <div class="s-event-meta">${(e.days||[]).join(', ')} · ${esc(e.hours||'')}${e.price && e.price !== 'Free' ? ` · ${esc(e.price)}` : ' · Free'}</div>
+            ${e.description ? `<div class="s-event-desc">${esc(e.description)}</div>` : ''}
+          </div>`;
+        }).join('')}</div>`;
+      })()}
     ` : `
       <div class="s-div"></div>
       <div class="s-label">About</div>
