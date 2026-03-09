@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spotd for Business — Get Found by Locals Looking to Go Out Tonight</title>
+  <meta name="description" content="List your happy hour on Spotd and get discovered by locals searching for great deals tonight. Free to list. Takes 5 minutes.">
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@400;500;700;800;900&family=DM+Sans:ital,wght@0,300;0,400;0,500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:     #F5EFE6;
+      --bg2:    #EDE5D8;
+      --coral:  #FF6B4A;
+      --coral2: #E5543A;
+      --coral-lt: #FF8566;
+      --text:   #2A1F14;
+      --muted:  rgba(42,31,20,0.5);
+      --card:   #FFFFFF;
+      --card2:  #FAF5EE;
+      --border: rgba(42,31,20,0.08);
+      --amber:  #E8943A;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 16px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    /* ── NAV ── */
+    nav {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 40px; height: 60px;
+      background: rgba(245,239,230,0.95);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(12px);
+      position: sticky; top: 0; z-index: 100;
+    }
+    .nav-logo {
+      display: flex; align-items: center; gap: 8px;
+      text-decoration: none;
+    }
+    .nav-logo img { height: 30px; width: auto; }
+    .nav-logo-sub {
+      font-size: 12px; font-weight: 500;
+      color: rgba(42,31,20,0.4); letter-spacing: 0;
+    }
+    .nav-cta {
+      background: var(--coral); color: #fff;
+      border: none; border-radius: 8px;
+      padding: 10px 22px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px; font-weight: 600;
+      cursor: pointer; text-decoration: none;
+      transition: background 0.2s, transform 0.15s;
+      display: inline-block;
+    }
+    .nav-cta:hover { background: var(--coral2); transform: translateY(-1px); }
+
+    /* ── HERO ── */
+    .hero {
+      padding: 100px 40px 80px;
+      max-width: 1100px;
+      margin: 0 auto;
+      position: relative;
+    }
+    .hero-eyebrow {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-family: 'DM Mono', monospace;
+      font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+      color: var(--coral); background: rgba(255,107,74,0.1);
+      border: 1px solid rgba(255,107,74,0.2);
+      border-radius: 50px; padding: 5px 14px;
+      margin-bottom: 28px;
+    }
+    .hero h1 {
+      font-family: 'Cabinet Grotesk', sans-serif;
+      font-weight: 900;
+      font-size: clamp(44px, 7vw, 80px);
+      line-height: 1.0;
+      letter-spacing: -2px;
+      color: var(--text);
+      max-width: 780px;
+      margin-bottom: 24px;
+    }
+    .hero h1 span { color: var(--coral); }
+    .hero-sub {
+      font-size: 18px; color: var(--muted);
+      font-weight: 300; line-height: 1.7;
+      max-width: 520px;
+      margin-bottom: 44px;
+    }
+    .hero-actions {
+      display: flex; align-items: center; gap: 16px;
+      flex-wrap: wrap;
+    }
+    .btn-hero {
+      background: var(--coral); color: #fff;
+      border: none; border-radius: 12px;
+      padding: 16px 32px;
+      font-family: 'Cabinet Grotesk', sans-serif;
+      font-size: 17px; font-weight: 700;
+      cursor: pointer; text-decoration: none;
+      transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+      display: inline-block;
+      box-shadow: 0 4px 20px rgba(255,107,74,0.35);
+    }
+    .btn-hero:hover {
+      background: var(--coral2);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 28px rgba(255,107,74,0.4);
+    }
+    .hero-link {
+      font-size: 14px; color: var(--muted);
+      text-decoration: none;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .hero-link:hover { color: var(--text); }
+
+    /* Hero stat pills */
+    .hero-stats {
+      display: flex; gap: 12px; flex-wrap: wrap;
+      margin-top: 56px;
+      padding-top: 40px;
+      border-top: 1px solid var(--border);
+    }
+    .stat {
+      display: flex; flex-direction: column;
+      gap: 2px;
+    }
+    .stat-num {
+      font-family: 'Cabinet Grotesk', sans-serif;
+      font-size: 32px; font-weight: 900;
+      color: var(--text); letter-spacing: -1px;
+    }
+    .stat-num span { color: var(--coral); }
+    .stat-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px; letter-spacing: 1.5px;
+      text-transform: uppercase; color: var(--muted);
+    }
+    .stat-sep {
+      width: 1px; background: var(--border);
+      align-self: stretch; margin: 0 12px;
+    }
+
+    /* ── HOW IT WORKS ── */
+    .section {
+      padding: 80px 40px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    .section-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px; letter-spacing: 2.5px; text-transform: uppercase;
+      color: var(--coral); opacity: 0.8;
+      margin-bottom: 12px;
+    }
+    .section-title {
+      font-family: 'Cabinet Grotesk', sans-serif;
+      font-weight: 900; font-size: clamp(32px, 4vw, 48px);
+      letter-spacing: -1px; color: var(--text);
+      margin-bottom: 16px; line-height: 1.1;
+    }
+    .section-sub {
+      font-size: 16px; color: var(--muted);
+      max-width: 480px; line-height: 1.7;
+      margin-bottom: 56px;
+    }
+
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+    .step {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 32px 28px;
+      position: relative;
+      overflow: hidden;
+      transition: box-shadow 0.2s, transform 0.2s;
+    }
+    .step:hover {
+      box-shadow: 0 8px 32px rgba(42,31,20,0.1);
+      transform: translateY(-3px);
+    }
+    .step::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: linear-gradient(90deg, var(--coral), var(--coral-lt));
+      opacity: 0; transition: opacity 0.2s;
+    }
+    .step:hover::before { opacity: 1; }
+    .step-num {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px; letter-spacing: 1px;
+      color: var(--coral); margin-bottom: 20px;
+      display: block;
+    }
+    .step-icon { font-size: 32px; margin-bottom: 16px; display: block; }
+    .step h3 {
+      font-family: 'Cabinet Grotesk', sans-serif;
+      font-weight: 700; font-size: 19px;
+      color: var(--text); margin-bottom: 10px;
+    }
+    .step p { font-size: 14px; color: var(--muted); line-height: 1.7; }
+
+    /* ── FEATURES ── */
+    .features-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    .feature {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px 28px;
+      display: flex; gap: 20px; align-items: flex-start;
+      transition: box-shadow 0.2s;
+    }
+    .feature:hover { box-shadow: 0 4px 20px rgba(42,31,20,0.08); }
+    .feature-icon {
+      width: 48px; height: 48px; border-radius: 12px;
+      background: rgba(255,107,74,0.1);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; flex-shrink: 0;
+    }
+    .feature h4 {
+      font-family: 'Cabinet Grotesk', sans-serif;
+      font-weight: 700; font-size: 16px;
+      color: var(--text); margin-bottom: 6px;
+    }
+    .feature p { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+    /* ── SOCIAL PROOF ── */
+    .proof-section {
+      background: var(--text);
+      padding: 80px 40px;
+    }
+    .proof-inner {
+      max-width: 1100px; margin: 0 auto;
+    }
+    .proof-section .section-label { color: var(--coral); }
+    .proof-section .section-title { color: #fff; }
+    .testimonials {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      margin-top: 48px;
+    }
+    .testimonial {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 28px;
+    }
+    .testimonial-stars {
+      color: var(--amber);
+      font-size: 14px; letter-spacing: 1px;
+      margin-bottom: 14px;
+    }
+    .testimonial-text {
+      font-size: 14px; color: rgba(255,255,255,0.75);
+      line-height: 1.7; margin-bottom: 20px;
+      font-style: italic;
+    }
+    .testimonial-author {
+      display: flex; align-items: center; gap: 10px;
+    }
+    .author-avatar {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: rgba(255,107,74,0.2);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; flex-shrink: 0;
+    }
+    .author-name {
+      font-weight: 600; font-size: 13px; color: #fff;
+    }
+    .author-venue {
+      font-size: 11px; color: rgba(255,255,255,0.4);
+      font-family: 'DM Mono', monospace;
+    }
+
+    /* ── PRICING ── */
+    .pricing-cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      max-width: 700px;
+    }
+    .pricing-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 32px 28px;
+    }
+    .pricing-card.featured {
+      border-color: var(--coral);
+      box-shadow: 0 4px 24px rgba(255,107,74,0.15);
+      position: relative;
+    }
+    .pricing-badge {
+      position: absolute; top: -12px; left: 28px;
+      background: var(--coral); color: #fff;
+      font-family: 'DM Mono', monospace;
+      font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase;
+      padding: 4px 12px; border-radius: 50px;
+      font-weight: 700;
+    }
+    .pricing-name {
+      font-family: 'Cabinet Grotesk', sans-serif;
+      font-weight: 800; font-size: 20px; margin-bottom: 6px;
+    }
+    .pricing-price {
+      font-family: 'Cabinet Grotesk', sans-serif;
+      font-weight: 900; font-size: 40px;
+      letter-spacing: -1px; color: var(--text);
+      margin-bottom: 4px;
+    }
+    .pricing-price span {
+      font-size: 16px; font-weight: 400; color: var(--muted); letter-spacing: 0;
+    }
+    .pricing-desc {
+      font-size: 13px; color: var(--muted);
+      margin-bottom: 24px; line-height: 1.5;
+    }
+    .pricing-features {
+      list-style: none;
+      display: flex; flex-direction: column; gap: 10px;
+      margin-bottom: 28px;
+    }
+    .pricing-features li {
+      font-size: 13px; color: var(--text);
+      display: flex; align-items: flex-start; gap: 10px;
+    }
+    .pricing-features li::before {
+      content: '✓';
+      color: var(--coral); font-weight: 700; flex-shrink: 0;
+    }
+    .btn-pricing {
+      width: 100%; padding: 13px;
+      border-radius: 10px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px; font-weight: 700;
+      cursor: pointer; text-decoration: none;
+      display: block; text-align: center;
+      transition: all 0.2s;
+    }
+    .btn-pricing-primary {
+      background: var(--coral); color: #fff; border: none;
+    }
+    .btn-pricing-primary:hover { background: var(--coral2); }
+    .btn-pricing-secondary {
+      background: transparent; color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-pricing-secondary:hover { border-color: rgba(42,31,20,0.2); background: var(--bg2); }
+
+    /* ── FAQ ── */
+    .faq-list { display: flex; flex-direction: column; gap: 2px; max-width: 680px; }
+    .faq-item {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      background: var(--card);
+    }
+    .faq-q {
+      padding: 18px 22px;
+      font-weight: 600; font-size: 15px;
+      cursor: pointer;
+      display: flex; justify-content: space-between; align-items: center;
+      gap: 12px;
+      transition: background 0.15s;
+      user-select: none;
+    }
+    .faq-q:hover { background: var(--card2); }
+    .faq-chevron { color: var(--muted); font-size: 18px; transition: transform 0.2s; flex-shrink: 0; }
+    .faq-item.open .faq-chevron { transform: rotate(180deg); }
+    .faq-a {
+      max-height: 0; overflow: hidden;
+      transition: max-height 0.3s ease, padding 0.3s ease;
+      font-size: 14px; color: var(--muted); line-height: 1.7;
+      padding: 0 22px;
+    }
+    .faq-item.open .faq-a { max-height: 200px; padding: 0 22px 18px; }
+
+    /* ── FINAL CTA ── */
+    .cta-section {
+      padding: 100px 40px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .cta-section::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse at 50% 50%, rgba(255,107,74,0.1) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .cta-section h2 {
+      font-family: 'Cabinet Grotesk', sans-serif;
+      font-weight: 900; font-size: clamp(36px, 5vw, 60px);
+      letter-spacing: -1.5px; color: var(--text);
+      margin-bottom: 16px; line-height: 1.05;
+    }
+    .cta-section h2 span { color: var(--coral); }
+    .cta-section p {
+      font-size: 16px; color: var(--muted);
+      margin-bottom: 40px; max-width: 440px; margin-left: auto; margin-right: auto;
+    }
+    .cta-note {
+      font-size: 12px; color: var(--muted);
+      margin-top: 16px; font-family: 'DM Mono', monospace;
+      letter-spacing: 0.5px;
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 28px 40px;
+      display: flex; justify-content: space-between; align-items: center;
+      flex-wrap: wrap; gap: 12px;
+      font-family: 'DM Mono', monospace;
+      font-size: 11px; color: var(--muted);
+    }
+    footer a { color: var(--muted); text-decoration: none; }
+    footer a:hover { color: var(--text); }
+
+    /* ── DIVIDER ── */
+    .divider {
+      height: 1px; background: var(--border);
+      max-width: 1100px; margin: 0 auto;
+    }
+
+    /* ── ANIMATIONS ── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .hero-eyebrow { animation: fadeUp 0.5s ease 0.1s both; }
+    .hero h1      { animation: fadeUp 0.5s ease 0.2s both; }
+    .hero-sub     { animation: fadeUp 0.5s ease 0.3s both; }
+    .hero-actions { animation: fadeUp 0.5s ease 0.4s both; }
+    .hero-stats   { animation: fadeUp 0.5s ease 0.5s both; }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 768px) {
+      nav { padding: 0 20px; }
+      .hero { padding: 60px 20px 48px; }
+      .section { padding: 60px 20px; }
+      .steps { grid-template-columns: 1fr; }
+      .features-grid { grid-template-columns: 1fr; }
+      .testimonials { grid-template-columns: 1fr; }
+      .pricing-cards { grid-template-columns: 1fr; max-width: 100%; }
+      .proof-section { padding: 60px 20px; }
+      .cta-section { padding: 70px 20px; }
+      footer { padding: 20px; flex-direction: column; text-align: center; }
+      .hero-stats { gap: 24px; }
+      .stat-sep { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="/" class="nav-logo">
+    <img src="/spotd_logo_v5.png" alt="Spotd">
+    <span class="nav-logo-sub">for Business</span>
+  </a>
+  <a href="/business.html" class="nav-cta">Get listed free →</a>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-eyebrow">🍻 For Bar & Restaurant Owners</div>
+  <h1>Get found by locals<br>looking to go out <span>tonight</span></h1>
+  <p class="hero-sub">Spotd puts your happy hour in front of thousands of people actively searching for somewhere to go right now. Free to list. Takes 5 minutes.</p>
+  <div class="hero-actions">
+    <a href="/business.html" class="btn-hero">List my venue free →</a>
+    <a href="#how-it-works" class="hero-link">See how it works ↓</a>
+  </div>
+  <div class="hero-stats">
+    <div class="stat">
+      <div class="stat-num">85<span>+</span></div>
+      <div class="stat-label">San Diego venues</div>
+    </div>
+    <div class="stat-sep"></div>
+    <div class="stat">
+      <div class="stat-num">6</div>
+      <div class="stat-label">Cities &amp; growing</div>
+    </div>
+    <div class="stat-sep"></div>
+    <div class="stat">
+      <div class="stat-num">5<span>min</span></div>
+      <div class="stat-label">To get listed</div>
+    </div>
+    <div class="stat-sep"></div>
+    <div class="stat">
+      <div class="stat-num">$<span>0</span></div>
+      <div class="stat-label">To get started</div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- HOW IT WORKS -->
+<div class="section" id="how-it-works">
+  <div class="section-label">How it works</div>
+  <div class="section-title">Live on Spotd in minutes</div>
+  <p class="section-sub">No tech skills needed. No long forms. Just your venue details and you're discoverable.</p>
+
+  <div class="steps">
+    <div class="step">
+      <span class="step-num">01</span>
+      <span class="step-icon">🔍</span>
+      <h3>Claim your listing</h3>
+      <p>Search for your bar or restaurant. If it's already on Spotd, claim it. If not, we'll add it — usually within 24 hours.</p>
+    </div>
+    <div class="step">
+      <span class="step-num">02</span>
+      <span class="step-icon">✏️</span>
+      <h3>Fill in your details</h3>
+      <p>Add your happy hour hours, deals, days, and a photo. Keep it fresh — update deals anytime from your dashboard.</p>
+    </div>
+    <div class="step">
+      <span class="step-num">03</span>
+      <span class="step-icon">📍</span>
+      <h3>Get discovered tonight</h3>
+      <p>Your venue shows up when locals filter by neighborhood, deal type, or "open now". Right when they're deciding where to go.</p>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- FEATURES -->
+<div class="section">
+  <div class="section-label">What you get</div>
+  <div class="section-title">Everything you need.<br>Nothing you don't.</div>
+  <p class="section-sub">Simple tools built specifically for bars and restaurants — not a bloated marketing platform.</p>
+
+  <div class="features-grid">
+    <div class="feature">
+      <div class="feature-icon">📍</div>
+      <div>
+        <h4>Neighborhood discovery</h4>
+        <p>Locals filter by neighborhood when they're already nearby. Your listing shows up when it matters most — when someone's 5 minutes away deciding where to go.</p>
+      </div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">🔥</div>
+      <div>
+        <h4>Going Tonight buzz</h4>
+        <p>When customers tap "Going Tonight", a 🔥 fire badge appears on your card. Social proof that builds momentum and gets more people through the door.</p>
+      </div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">📺</div>
+      <div>
+        <h4>Sports TV badge</h4>
+        <p>Toggle on the Sports TV badge and you'll appear in the Sports filter. Game nights drive serious foot traffic — make sure you're discoverable for them.</p>
+      </div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">⭐</div>
+      <div>
+        <h4>Reviews & ratings</h4>
+        <p>Verified user reviews build trust and keep your listing active. Respond to feedback and show locals you care about the experience.</p>
+      </div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">🎉</div>
+      <div>
+        <h4>Events listings</h4>
+        <p>Trivia nights, karaoke, live music — add recurring events to your profile so regulars and newcomers always know what's happening.</p>
+      </div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">✏️</div>
+      <div>
+        <h4>Edit anytime</h4>
+        <p>Update your deals, hours, and photos from your dashboard whenever you want. No waiting for approval — changes go live immediately.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SOCIAL PROOF -->
+<div class="proof-section">
+  <div class="proof-inner">
+    <div class="section-label">From the owners</div>
+    <div class="section-title" style="color:#fff;">Bars that listed are getting found</div>
+
+    <div class="testimonials">
+      <div class="testimonial">
+        <div class="testimonial-stars">★★★★★</div>
+        <p class="testimonial-text">"We added our listing on a Tuesday and had people mentioning Spotd by Thursday. It's exactly where our customers are looking."</p>
+        <div class="testimonial-author">
+          <div class="author-avatar">🍺</div>
+          <div>
+            <div class="author-name">Mike R.</div>
+            <div class="author-venue">Gaslamp Quarter · San Diego</div>
+          </div>
+        </div>
+      </div>
+      <div class="testimonial">
+        <div class="testimonial-stars">★★★★★</div>
+        <p class="testimonial-text">"The Going Tonight feature is genius. When I see the fire badge on my venue it means people are already coming — and that brings more people."</p>
+        <div class="testimonial-author">
+          <div class="author-avatar">🍹</div>
+          <div>
+            <div class="author-name">Sarah L.</div>
+            <div class="author-venue">Little Italy · San Diego</div>
+          </div>
+        </div>
+      </div>
+      <div class="testimonial">
+        <div class="testimonial-stars">★★★★★</div>
+        <p class="testimonial-text">"We turned on the Sports TV badge before the playoffs and it drove a noticeable uptick. Simple feature, real results."</p>
+        <div class="testimonial-author">
+          <div class="author-avatar">📺</div>
+          <div>
+            <div class="author-name">Dave K.</div>
+            <div class="author-venue">North Park · San Diego</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PRICING -->
+<div class="section">
+  <div class="section-label">Pricing</div>
+  <div class="section-title">Start free.<br>Upgrade when you're ready.</div>
+  <p class="section-sub">Get discovered with a free listing. Unlock premium features when you want more visibility.</p>
+
+  <div class="pricing-cards">
+    <div class="pricing-card">
+      <div class="pricing-name">Free</div>
+      <div class="pricing-price">$0 <span>/ forever</span></div>
+      <div class="pricing-desc">Everything you need to get found and drive foot traffic tonight.</div>
+      <ul class="pricing-features">
+        <li>Full venue listing with deals & hours</li>
+        <li>Neighborhood & filter discovery</li>
+        <li>Going Tonight social layer</li>
+        <li>Sports TV badge</li>
+        <li>Events listings</li>
+        <li>Reviews & ratings</li>
+        <li>Edit anytime</li>
+      </ul>
+      <a href="/business.html" class="btn-pricing btn-pricing-secondary">Get listed free →</a>
+    </div>
+    <div class="pricing-card featured">
+      <div class="pricing-badge">Coming soon</div>
+      <div class="pricing-name">Pro</div>
+      <div class="pricing-price">$29 <span>/ mo</span></div>
+      <div class="pricing-desc">More visibility, analytics, and tools to grow your regulars.</div>
+      <ul class="pricing-features">
+        <li>Everything in Free</li>
+        <li>Featured placement in results</li>
+        <li>Foot traffic analytics</li>
+        <li>Push notification promos</li>
+        <li>Weekly digest feature</li>
+        <li>Priority support</li>
+      </ul>
+      <a href="/business.html" class="btn-pricing btn-pricing-primary">Start free, upgrade later →</a>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- FAQ -->
+<div class="section">
+  <div class="section-label">FAQ</div>
+  <div class="section-title">Common questions</div>
+
+  <div class="faq-list">
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">
+        My venue is already on Spotd — how do I claim it?
+        <span class="faq-chevron">▾</span>
+      </div>
+      <div class="faq-a">Search for your venue name in the claim flow, select it, and fill in your contact info. We verify claims within 24 hours and then you'll have full edit access to your listing.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">
+        What if my venue isn't on Spotd yet?
+        <span class="faq-chevron">▾</span>
+      </div>
+      <div class="faq-a">If we can't find your venue in the search, use the "Submit it for addition" link in the claim flow. We'll add it and notify you — usually within 24 hours.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">
+        How often can I update my deals and hours?
+        <span class="faq-chevron">▾</span>
+      </div>
+      <div class="faq-a">As often as you want. Log in to your portal and changes go live immediately — no approval required. We recommend keeping your deals current so customers always see accurate info.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">
+        What cities is Spotd available in?
+        <span class="faq-chevron">▾</span>
+      </div>
+      <div class="faq-a">San Diego is fully live with 85+ venues. Los Angeles, New York, Chicago, Austin, Miami, and Orange County are launching soon. Claim your listing now to be ready when your city goes live.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">
+        Is there a contract or commitment?
+        <span class="faq-chevron">▾</span>
+      </div>
+      <div class="faq-a">None whatsoever. The free tier is free forever. When Pro launches, it'll be month-to-month with no lock-in. Cancel anytime.</div>
+    </div>
+  </div>
+</div>
+
+<!-- FINAL CTA -->
+<div class="cta-section">
+  <h2>Your regulars are already<br>on <span>Spotd</span> tonight</h2>
+  <p>Join the bars and restaurants getting discovered every evening. Free to list, takes 5 minutes.</p>
+  <a href="/business.html" class="btn-hero">List my venue free →</a>
+  <div class="cta-note">No credit card · No contract · Free forever</div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <span>© 2025 Spotd · Happy Hours & Events</span>
+  <div style="display:flex;gap:24px;">
+    <a href="/">Browse spots</a>
+    <a href="/business.html">Owner login</a>
+  </div>
+</footer>
+
+<script>
+  function toggleFaq(el) {
+    const item = el.closest('.faq-item');
+    const isOpen = item.classList.contains('open');
+    document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('open'));
+    if (!isOpen) item.classList.add('open');
+  }
+</script>
+
+</body>
+</html>
