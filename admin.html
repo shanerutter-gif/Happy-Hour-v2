@@ -505,7 +505,7 @@
       neighborhood: hood || null,
       address: addr || null,
       hours: hours || null,
-      days: days.length ? days : null,
+      days: days.length ? days : [],
       cuisine: cuisine || null,
       url: url || null,
       active: false,
@@ -516,7 +516,10 @@
 
     const result = await sb.insert('venues', venuePayload);
     if (!Array.isArray(result) || !result[0]) {
-      showToast('❌ Failed to create venue — check console'); console.error(result); return;
+      const msg = result?.message || result?.error || JSON.stringify(result);
+      showToast('❌ ' + (msg || 'Failed to create venue'));
+      console.error('Venue insert failed:', result);
+      return;
     }
 
     // Mark request approved
