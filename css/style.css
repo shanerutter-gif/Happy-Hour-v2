@@ -263,3 +263,17 @@ footer{text-align:center;padding:20px;font-family:'DM Mono',monospace;font-size:
 .request-venue-btn:hover{border-color:var(--teal);color:var(--teal)}
 .request-venue-btn--empty{font-size:13px;padding:9px 20px;border-color:rgba(255,107,74,0.3);color:var(--teal);margin-top:4px}
 .request-venue-btn--empty:hover{background:rgba(255,107,74,0.06)}
+
+/* ── EVENT PILLS ON CARDS ── */
+.card-event-pills{display:flex;flex-wrap:wrap;gap:5px;padding:6px 0 4px}
+.card-event-pill{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;font-family:'DM Sans',sans-serif;background:rgba(130,100,255,0.08);border:1px solid rgba(130,100,255,0.2);color:#a588ff;border-radius:50px;padding:3px 10px;white-space:nowrap}
+.card-event-pill--today{background:rgba(130,100,255,0.15);border-color:rgba(130,100,255,0.35);color:#b89eff}
+
+/* ── EVENTS IN MODAL ── */
+.s-events-list{display:flex;flex-direction:column;gap:2px}
+.s-event-item{padding:12px 0;border-bottom:1px solid var(--border2)}
+.s-event-item:last-child{border-bottom:none}
+.s-event-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px}
+.s-event-name{font-family:'Cabinet Grotesk',sans-serif;font-weight:700;font-size:15px;color:var(--text)}
+.s-event-meta{font-size:12px;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:0.3px}
+.s-event-desc{font-size:13px;color:rgba(42,31,20,0.6);margin-top:5px;line-height:1.5}
