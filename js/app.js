@@ -314,18 +314,18 @@ function applyFilters() {
   const search = (document.getElementById('searchBox')?.value || '').toLowerCase().trim();
   state.filters.search = search;
 
-  // Build pool — venues are primary, standalone events appended for 'all'/'events' modes
+  // Events that belong to a venue live only inside the venue modal — never as standalone cards.
+  const venueNames = new Set(state.venues.map(v => v.name.trim().toLowerCase()));
+  const standaloneEvents = state.events.filter(e =>
+    !e.venue_name || !venueNames.has(e.venue_name.trim().toLowerCase())
+  );
+
   let pool;
   if (state.showFilter === 'happyhour') {
     pool = state.venues;
   } else if (state.showFilter === 'events') {
-    pool = state.events;
+    pool = standaloneEvents;
   } else {
-    // 'all' — venues + any events that don't have a matching venue
-    const venueNames = new Set(state.venues.map(v => v.name.trim().toLowerCase()));
-    const standaloneEvents = state.events.filter(e =>
-      !e.venue_name || !venueNames.has(e.venue_name.trim().toLowerCase())
-    );
     pool = [...state.venues, ...standaloneEvents];
   }
 
@@ -566,7 +566,7 @@ async function openModal(id, type = 'venue') {
       const fb = document.getElementById(`venue-follow-btn-${id}`);
       if (fb) {
         fb.classList.toggle('following', following);
-        fb.textContent = following ? '🔔 Following' : '🔔 Follow';
+        fb.textContent = following ? 'Following' : 'Follow';
       }
     });
   }
@@ -667,17 +667,17 @@ function renderModal(v, type, reviews) {
       ${v.price ? `<div class="s-cuisine">Entry: ${esc(v.price)}</div>` : ''}
     `}
     <div class="s-div"></div>
-    <div class="s-actions">
-      ${v.url ? `<a class="btn-primary" href="${v.url}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Website ↗</a>` : `<a class="btn-primary btn-secondary" href="https://www.google.com/search?q=${encodeURIComponent(v.name + ' ' + (state.city?.name || 'San Diego'))}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Google ↗</a>`}
-      <button class="btn-sec" onclick="goToMap('${v.id}')">Map</button>
-      <button class="btn-sec" onclick="shareItem('${v.id}','${type}')">Share</button>
-      ${isVenue ? `<button class="venue-follow-btn" id="venue-follow-btn-${v.id}" onclick="toggleVenueFollow('${v.id}','${esc(v.name)}',this)">🔔 Follow</button>` : ''}
-    </div>
     ${isVenue ? `
     <div class="s-going-wrap">
       <button class="going-btn going-btn--lg${state.goingByMe.has(v.id) ? ' going-active' : ''}" id="modal-going-btn" onclick="doGoingTonight('${v.id}', this)">${checkInBtnLabel(state.goingCounts[v.id]||0, state.goingByMe.has(v.id))}</button>
-      ${(state.goingCounts[v.id]||0) >= 2 ? `<div class="s-going-count">🔥 ${state.goingCounts[v.id]} people are checked in tonight</div>` : ''}
+      ${(state.goingCounts[v.id]||0) >= 2 ? `<div class="s-going-count">🔥 ${state.goingCounts[v.id]} people are here tonight</div>` : ''}
     </div>` : ''}
+    <div class="s-secondary-actions">
+      ${v.url ? `<a class="s-act-btn s-act-primary" href="${v.url}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Website ↗</a>` : `<a class="s-act-btn s-act-primary" href="https://www.google.com/search?q=${encodeURIComponent(v.name + ' ' + (state.city?.name || 'San Diego'))}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Google ↗</a>`}
+      <button class="s-act-btn" onclick="goToMap('${v.id}')">Map</button>
+      <button class="s-act-btn" onclick="shareItem('${v.id}','${type}')">Share</button>
+      ${isVenue ? `<button class="s-act-btn" id="venue-follow-btn-${v.id}" onclick="toggleVenueFollow('${v.id}','${esc(v.name)}',this)">Follow</button>` : ''}
+    </div>
     ${isVenue ? `<div id="ugc-photos-${v.id}"></div>` : ''}
     <div class="s-div"></div>
     <div class="s-label">Reviews <span id="ravg-${v.id}">${avgHTML(reviews)}</span></div>
@@ -926,17 +926,17 @@ async function renderProfile(user) {
       const def = BADGE_DEFS[b.badge_key] || {};
       return '<span class="badge-chip" title="' + (def.desc||b.badge_key) + '">' + (def.emoji||'🏅') + ' ' + (def.label||b.badge_key) + '</span>';
     }).join('')}</div>` : ''}
-    <div class="profile-action-row">
-      <button class="profile-action-btn" onclick="openFindPeople()">🔍 Find People</button>
-      <button class="profile-action-btn" onclick="openActivityFeed()">📡 Activity</button>
-      <button class="profile-action-btn" onclick="openLeaderboard()">🏆 Leaderboard</button>
-    </div>
     <div class="pub-tabs">
-      <button class="pub-tab active" onclick="switchMyTab('checkins',this)">📍 Check-ins</button>
-      <button class="pub-tab" onclick="switchMyTab('reviews',this)">⭐ Reviews</button>
-      <button class="pub-tab" onclick="switchMyTab('saved',this)">♥ Saved</button>
-      <button class="pub-tab" onclick="switchMyTab('hoods',this)">🏘️ Areas</button>
-      <button class="pub-tab" onclick="switchMyTab('settings',this)">⚙️</button>
+      <button class="pub-tab active" onclick="switchMyTab('checkins',this)">Check-ins</button>
+      <button class="pub-tab" onclick="switchMyTab('reviews',this)">Reviews</button>
+      <button class="pub-tab" onclick="switchMyTab('saved',this)">Saved</button>
+      <button class="pub-tab" onclick="switchMyTab('hoods',this)">Areas</button>
+      <button class="pub-tab" onclick="switchMyTab('settings',this)">Settings</button>
+    </div>
+    <div class="profile-social-row">
+      <button class="profile-social-btn" onclick="openFindPeople()">Find People</button>
+      <button class="profile-social-btn" onclick="openActivityFeed()">Activity</button>
+      <button class="profile-social-btn" onclick="openLeaderboard()">Leaderboard</button>
     </div>
 
     <div id="my-tab-checkins" class="pub-tab-content active">
