@@ -214,6 +214,15 @@
   </div>
 </div>
 
+<!-- FIND PEOPLE OVERLAY -->
+<div class="overlay" id="findPeopleOverlay" onclick="if(event.target===this)closeOverlay('findPeopleOverlay')">
+  <div class="sheet sheet--wide" id="findPeopleSheet">
+    <div class="sheet-handle"></div>
+    <button class="sheet-close" onclick="closeOverlay('findPeopleOverlay')">✕</button>
+    <div id="findPeopleContent"></div>
+  </div>
+</div>
+
 <!-- ACTIVITY FEED OVERLAY -->
 <div class="overlay" id="feedOverlay" onclick="if(event.target===this)closeOverlay('feedOverlay')">
   <div class="sheet sheet--wide" id="feedSheet">
