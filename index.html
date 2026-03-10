@@ -167,9 +167,42 @@
   </div>
 </div>
 
-<!-- PROFILE PAGE (slide-in panel, not an overlay) -->
+<!-- PROFILE PAGE (slide-in panel) -->
 <div id="profilePage" class="profile-page" style="display:none">
   <div id="profileContent"></div>
+</div>
+
+<!-- FIND PEOPLE SUB-PAGE -->
+<div id="findPeoplePage" class="sub-page" style="display:none">
+  <div class="sub-page-header">
+    <button class="sub-page-back" onclick="closeSubPage('findPeoplePage')">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+    </button>
+    <span class="sub-page-title">Find People</span>
+  </div>
+  <div id="findPeopleContent"></div>
+</div>
+
+<!-- ACTIVITY FEED SUB-PAGE -->
+<div id="feedPage" class="sub-page" style="display:none">
+  <div class="sub-page-header">
+    <button class="sub-page-back" onclick="closeSubPage('feedPage')">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+    </button>
+    <span class="sub-page-title">Activity</span>
+  </div>
+  <div id="feedContent"></div>
+</div>
+
+<!-- LEADERBOARD SUB-PAGE -->
+<div id="leaderboardPage" class="sub-page" style="display:none">
+  <div class="sub-page-header">
+    <button class="sub-page-back" onclick="closeSubPage('leaderboardPage')">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+    </button>
+    <span class="sub-page-title">Leaderboard</span>
+  </div>
+  <div id="leaderboardContent"></div>
 </div>
 
 <!-- PUBLIC PROFILE OVERLAY -->
@@ -178,33 +211,6 @@
     <div class="sheet-handle"></div>
     <button class="sheet-close" onclick="closeOverlay('pubProfileOverlay')">✕</button>
     <div id="pubProfileContent"></div>
-  </div>
-</div>
-
-<!-- FIND PEOPLE OVERLAY -->
-<div class="overlay" id="findPeopleOverlay" onclick="if(event.target===this)closeOverlay('findPeopleOverlay')">
-  <div class="sheet sheet--wide" id="findPeopleSheet">
-    <div class="sheet-handle"></div>
-    <button class="sheet-close" onclick="closeOverlay('findPeopleOverlay')">✕</button>
-    <div id="findPeopleContent"></div>
-  </div>
-</div>
-
-<!-- ACTIVITY FEED OVERLAY -->
-<div class="overlay" id="feedOverlay" onclick="if(event.target===this)closeOverlay('feedOverlay')">
-  <div class="sheet sheet--wide" id="feedSheet">
-    <div class="sheet-handle"></div>
-    <button class="sheet-close" onclick="closeOverlay('feedOverlay')">✕</button>
-    <div id="feedContent"></div>
-  </div>
-</div>
-
-<!-- LEADERBOARD OVERLAY -->
-<div class="overlay" id="leaderboardOverlay" onclick="if(event.target===this)closeOverlay('leaderboardOverlay')">
-  <div class="sheet sheet--wide" id="leaderboardSheet">
-    <div class="sheet-handle"></div>
-    <button class="sheet-close" onclick="closeOverlay('leaderboardOverlay')">✕</button>
-    <div id="leaderboardContent"></div>
   </div>
 </div>
 
