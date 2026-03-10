@@ -94,13 +94,14 @@ function renderNav(user) {
 }
 
 function renderBottomNav(user) {
-  let bar = document.getElementById('bottomNav');
-  if (!state.city) {
+  if (!user) {
+    // No user — hide nav if it exists
+    const bar = document.getElementById('bottomNav');
     if (bar) bar.style.display = 'none';
     return;
   }
+  let bar = document.getElementById('bottomNav');
   if (!bar) {
-    // Build once and never rebuild — avoids losing active state
     bar = document.createElement('nav');
     bar.id = 'bottomNav';
     bar.className = 'bottom-nav';
@@ -111,14 +112,12 @@ function renderBottomNav(user) {
       </button>
       <button class="bottom-nav-btn" id="bnProfile" onclick="bottomNavProfile(this)">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
-        <span id="bnProfileLabel">${user ? (user.user_metadata?.full_name || 'Profile').split(' ')[0] : 'Sign In'}</span>
+        <span id="bnProfileLabel">${(user.user_metadata?.full_name || 'Profile').split(' ')[0]}</span>
       </button>`;
     document.body.appendChild(bar);
   } else {
-    // Already exists — just update the label
-    bar.style.display = 'flex';
     const lbl = document.getElementById('bnProfileLabel');
-    if (lbl) lbl.textContent = user ? (user.user_metadata?.full_name || 'Profile').split(' ')[0] : 'Sign In';
+    if (lbl) lbl.textContent = (user.user_metadata?.full_name || 'Profile').split(' ')[0];
   }
   bar.style.display = 'flex';
 }
@@ -126,7 +125,6 @@ function renderBottomNav(user) {
 function bottomNavFeed(btn) {
   document.querySelectorAll('.bottom-nav-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  // Close every layer — sub-pages, profile, modals
   closeSubPage('findPeoplePage');
   closeSubPage('feedPage');
   closeSubPage('leaderboardPage');
@@ -134,6 +132,8 @@ function bottomNavFeed(btn) {
   closeOverlay('modalOverlay');
   closeOverlay('authOverlay');
   closeOverlay('pubProfileOverlay');
+  // If no city selected, Feed just means "go home"
+  if (!state.city) showHome();
 }
 
 function bottomNavProfile(btn) {
@@ -919,7 +919,13 @@ async function renderProfile(user) {
     getFollowedNeighborhoods(user.id), fetchAllCheckIns(user.id),
     getUserBadges(user.id), getFollowing(user.id), getFollowers(user.id),
   ]);
-  const allItems = [...state.venues, ...state.events];
+
+  // If no city loaded yet, fetch San Diego venues so check-in names resolve
+  let venueList = state.venues;
+  if (!venueList.length && checkIns.length) {
+    try { venueList = await fetchVenues('san-diego'); } catch(e) { venueList = []; }
+  }
+  const allItems = [...venueList, ...state.events];
   const favIds   = new Set(favItems.map(f => String(f.item_id)));
   const favSpots = allItems.filter(v => favIds.has(String(v.id)));
   const displayName = profile?.display_name || user.user_metadata?.full_name || 'You';
