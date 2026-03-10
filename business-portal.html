@@ -1427,15 +1427,26 @@
         photo_url = await uploadVenuePhoto(window._editingVenueId, _pendingPhotoFile);
         _pendingPhotoFile = null;
         _currentPhotoUrl  = photo_url;
-        setPhotoStatus('✓ Photo uploaded', 'success');
+        setPhotoStatus('✓ Photo uploaded — saving…', 'success');
       } catch(err) {
-        setPhotoStatus('❌ ' + err.message, 'error');
+        setPhotoStatus('❌ Upload failed: ' + err.message, 'error');
         return;
       }
     } else {
       setPhotoStatus('', '');
     }
 
+    const table = await sb.from('venues');
+    const res = await table.eq('id', window._editingVenueId).update({ description, photo_url });
+    console.log('saveInfo patch response:', JSON.stringify(res));
+
+    if (res && res.code) {
+      // Supabase returned an error object
+      setPhotoStatus('❌ Save failed: ' + (res.message || res.code), 'error');
+      return;
+    }
+
+    // Also log edit history
     await updateVenueField({ description, photo_url });
     showSaveToast('Info saved!');
   }
@@ -1612,7 +1623,10 @@
   // ─────────────────────────────────────────────
   async function updateVenueField(fields) {
     const table = await sb.from('venues');
-    await table.eq('id', window._editingVenueId).update(fields);
+    const res = await table.eq('id', window._editingVenueId).update(fields);
+    if (!Array.isArray(res) || !res[0]) {
+      console.warn('updateVenueField response:', JSON.stringify(res));
+    }
 
     // Log edit history
     for (const [field, value] of Object.entries(fields)) {
