@@ -279,3 +279,191 @@ async function submitVenueRequestToDB(payload) {
   if (error) console.error('submitVenueRequest error:', error);
   return { data, error };
 }
+
+// ── CHECK-INS (renamed from going_tonight) ─────────────
+async function fetchCheckInCounts(citySlug, date) {
+  try {
+    const { data, error } = await db.from('check_ins')
+      .select('venue_id, count:id.count()')
+      .eq('city_slug', citySlug).eq('date', date);
+    if (error) throw error;
+    return data || [];
+  } catch(e) { console.warn('fetchCheckInCounts error', e); return []; }
+}
+async function fetchMyCheckIns(userId, date) {
+  try {
+    const { data } = await db.from('check_ins').select('venue_id').eq('user_id', userId).eq('date', date);
+    return data || [];
+  } catch(e) { return []; }
+}
+async function fetchAllCheckIns(userId) {
+  try {
+    const { data } = await db.from('check_ins').select('*').eq('user_id', userId).order('created_at', { ascending: false });
+    return data || [];
+  } catch(e) { return []; }
+}
+async function addCheckIn({ userId, venueId, citySlug, date, note }) {
+  try {
+    const { error } = await db.from('check_ins').insert({ user_id: userId, venue_id: venueId, city_slug: citySlug, date, note: note || null });
+    if (error) throw error;
+    // Log to activity feed
+    await logActivity(userId, 'check_in', venueId, { note });
+    // Check badges
+    await checkAndAwardBadges(userId);
+    return true;
+  } catch(e) { console.warn('addCheckIn error', e); return false; }
+}
+async function removeCheckIn(userId, venueId, date) {
+  try {
+    await db.from('check_ins').delete().eq('user_id', userId).eq('venue_id', venueId).eq('date', date);
+    return true;
+  } catch(e) { return false; }
+}
+
+// ── ACTIVITY FEED ──────────────────────────────────────
+async function logActivity(userId, type, venueId, meta = {}) {
+  try {
+    // Get venue info for denormalization
+    let venue_name = null, neighborhood = null;
+    if (venueId) {
+      const { data } = await db.from('venues').select('name, neighborhood').eq('id', venueId).single();
+      venue_name = data?.name; neighborhood = data?.neighborhood;
+    }
+    await db.from('activity_feed').insert({ user_id: userId, activity_type: type, venue_id: venueId, venue_name, neighborhood, meta });
+  } catch(e) { console.warn('logActivity error', e); }
+}
+async function fetchActivityFeed(userIds, limit = 30) {
+  try {
+    const { data } = await db.from('activity_feed')
+      .select('*, profiles(display_name, avatar_emoji, username)')
+      .in('user_id', userIds)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    return data || [];
+  } catch(e) { return []; }
+}
+async function fetchUserActivity(userId, limit = 20) {
+  try {
+    const { data } = await db.from('activity_feed')
+      .select('*').eq('user_id', userId)
+      .order('created_at', { ascending: false }).limit(limit);
+    return data || [];
+  } catch(e) { return []; }
+}
+
+// ── FOLLOWS ────────────────────────────────────────────
+async function followUser(followerId, followingId) {
+  try {
+    await db.from('user_follows').insert({ follower_id: followerId, following_id: followingId });
+    return true;
+  } catch(e) { return false; }
+}
+async function unfollowUser(followerId, followingId) {
+  try {
+    await db.from('user_follows').delete().eq('follower_id', followerId).eq('following_id', followingId);
+    return true;
+  } catch(e) { return false; }
+}
+async function getFollowing(userId) {
+  try {
+    const { data } = await db.from('user_follows').select('following_id').eq('follower_id', userId);
+    return (data || []).map(r => r.following_id);
+  } catch(e) { return []; }
+}
+async function getFollowers(userId) {
+  try {
+    const { data } = await db.from('user_follows').select('follower_id, profiles(display_name, avatar_emoji, username)').eq('following_id', userId);
+    return data || [];
+  } catch(e) { return []; }
+}
+async function isFollowing(followerId, followingId) {
+  try {
+    const { data } = await db.from('user_follows').select('id').eq('follower_id', followerId).eq('following_id', followingId).single();
+    return !!data;
+  } catch(e) { return false; }
+}
+async function fetchPublicProfile(userId) {
+  try {
+    const { data } = await db.from('profiles').select('*').eq('id', userId).eq('is_public', true).single();
+    return data;
+  } catch(e) { return null; }
+}
+async function searchProfiles(query) {
+  try {
+    const { data } = await db.from('profiles').select('id, display_name, avatar_emoji, username, bio, check_in_count')
+      .ilike('display_name', `%${query}%`).eq('is_public', true).limit(10);
+    return data || [];
+  } catch(e) { return []; }
+}
+
+// ── BADGES ─────────────────────────────────────────────
+const BADGE_DEFS = {
+  first_checkin:  { emoji: '📍', label: 'First Check-in',    desc: 'Checked in for the first time' },
+  regular:        { emoji: '🏅', label: 'Regular',           desc: 'Checked into the same spot 3+ times' },
+  explorer:       { emoji: '🧭', label: 'Neighborhood Explorer', desc: 'Checked into 5+ different neighborhoods' },
+  critic:         { emoji: '⭐', label: 'Critic',            desc: 'Left 10+ reviews' },
+  social:         { emoji: '🤝', label: 'Social Butterfly',  desc: 'Following 5+ people' },
+  streak_4:       { emoji: '🔥', label: '4-Week Streak',     desc: 'Checked in 4 weeks in a row' },
+  streak_8:       { emoji: '🔥🔥','label': '8-Week Streak',  desc: 'Checked in 8 weeks in a row' },
+  top_reviewer:   { emoji: '✍️', label: 'Top Reviewer',     desc: 'Left 25+ reviews' },
+};
+async function getUserBadges(userId) {
+  try {
+    const { data } = await db.from('user_badges').select('badge_key, earned_at').eq('user_id', userId);
+    return data || [];
+  } catch(e) { return []; }
+}
+async function awardBadge(userId, badgeKey) {
+  try {
+    await db.from('user_badges').insert({ user_id: userId, badge_key: badgeKey });
+    await logActivity(userId, 'badge', null, { badge_key: badgeKey });
+    return true;
+  } catch(e) { return false; } // unique constraint handles duplicates silently
+}
+async function checkAndAwardBadges(userId) {
+  try {
+    const [checkIns, reviews, following, existingBadges] = await Promise.all([
+      fetchAllCheckIns(userId),
+      fetchMyReviews(userId),
+      getFollowing(userId),
+      getUserBadges(userId),
+    ]);
+    const earned = new Set(existingBadges.map(b => b.badge_key));
+    const award = key => !earned.has(key) && awardBadge(userId, key);
+
+    // First check-in
+    if (checkIns.length >= 1) award('first_checkin');
+
+    // Regular — same venue 3+ times
+    const venueCounts = {};
+    checkIns.forEach(c => { venueCounts[c.venue_id] = (venueCounts[c.venue_id] || 0) + 1; });
+    if (Object.values(venueCounts).some(c => c >= 3)) award('regular');
+
+    // Explorer — 5+ distinct neighborhoods
+    const hoods = new Set(checkIns.map(c => c.neighborhood).filter(Boolean));
+    if (hoods.size >= 5) award('explorer');
+
+    // Critic / Top Reviewer
+    if (reviews.length >= 10) award('critic');
+    if (reviews.length >= 25) award('top_reviewer');
+
+    // Social
+    if (following.length >= 5) award('social');
+
+    // Streak — check for 4 and 8 consecutive weeks with a check-in
+    const weekSet = new Set(checkIns.map(c => {
+      const d = new Date(c.date || c.created_at);
+      const jan1 = new Date(d.getFullYear(), 0, 1);
+      return `${d.getFullYear()}-W${Math.ceil(((d - jan1) / 86400000 + 1) / 7)}`;
+    }));
+    const weeks = [...weekSet].sort();
+    let maxStreak = 1, cur = 1;
+    for (let i = 1; i < weeks.length; i++) {
+      // rough consecutive check
+      cur = weeks[i] > weeks[i-1] ? cur + 1 : 1;
+      maxStreak = Math.max(maxStreak, cur);
+    }
+    if (maxStreak >= 4) award('streak_4');
+    if (maxStreak >= 8) award('streak_8');
+  } catch(e) { console.warn('checkAndAwardBadges error', e); }
+}
