@@ -1224,8 +1224,7 @@ async function loadFeedTab(tab) {
       return;
     }
     activities = await fetchActivityFeed([...following]);
-    // Fetch profiles for everyone in the feed
-    const uids = [...new Set(activities.map(a => a.user_id))];
+    const uids = [...new Set(activities.map(a => a.user_id).filter(Boolean))];
     if (uids.length) {
       const { data } = await db.from('profiles').select('id, display_name, avatar_emoji').in('id', uids);
       (data || []).forEach(p => { profileMap[p.id] = p; });
