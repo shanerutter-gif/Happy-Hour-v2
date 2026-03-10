@@ -39,11 +39,18 @@ const CACHE_MS = 60000;
 
 document.addEventListener('DOMContentLoaded', () => {
   renderCityGrid();
+  // Re-render nav in case auth session was restored before DOM was ready
+  renderNav(currentUser);
+  const ffg = document.getElementById('favFilterGroup');
+  if (ffg) ffg.style.display = currentUser ? '' : 'none';
 });
 
 function onAuthChange(user) {
+  // Guard: DOM may not be ready if called during session restore
+  if (!document.getElementById('navRight')) return;
   renderNav(user);
-  document.getElementById('favFilterGroup').style.display = user ? '' : 'none';
+  const ffg = document.getElementById('favFilterGroup');
+  if (ffg) ffg.style.display = user ? '' : 'none';
   if (!user && state.favFilterOn) { state.favFilterOn = false; applyFilters(); }
   if (state.city) renderCards();
 }
