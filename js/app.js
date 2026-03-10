@@ -426,19 +426,34 @@ function venueCardHTML(v) {
         return `<span class="card-event-pill${evToday ? ' card-event-pill--today' : ''}">🎉 ${esc(e.event_type||'Event')} · ${(e.days||[]).slice(0,2).join('/')}${evToday ? ' · Tonight' : ''}</span>`;
       }).join('')}</div>`
     : '';
-  return `<div class="card" data-id="${v.id}" onclick="openModal('${v.id}','venue')" role="button" tabindex="0">
-    <div class="card-top">
+  const hasPhoto = !!(v.photo_url || (v.photo_urls && v.photo_urls.length));
+  const photoUrl = v.photo_url || (v.photo_urls && v.photo_urls[0]) || '';
+  const distBadge = state.sort === 'distance' && state.userLat !== null
+    ? fmtDistance(haversine(state.userLat, state.userLng, v.lat, v.lng)) : '';
+  const photoBlock = hasPhoto ? `
+    <div class="card-photo-wrap">
+      <img src="${photoUrl}" class="card-photo-img" alt="${esc(v.name)}" loading="lazy" onerror="this.closest('.card-photo-wrap').style.display='none';this.closest('.card').classList.add('card-no-photo')">
+      <div class="card-photo-gradient"></div>
+      <div class="card-photo-name-over">${esc(v.name)}</div>
+      ${distBadge ? `<div class="card-photo-dist-badge">${distBadge}</div>` : ''}
+      <button class="card-photo-heart${faved ? ' faved' : ''}" onclick="event.stopPropagation();doFavorite('${v.id}','venue',this);this.classList.toggle('faved');this.textContent=this.classList.contains('faved')?'★':'☆'">${faved ? '★' : '☆'}</button>
+      <div class="card-photo-badge ${isToday ? 'today' : 'dim'}">${isToday ? 'Today' : 'Open'}</div>
+    </div>` : '';
+  return `<div class="card${hasPhoto ? '' : ' card-no-photo'}" data-id="${v.id}" onclick="openModal('${v.id}','venue')" role="button" tabindex="0">
+    ${photoBlock}
+    <div class="card-body">
+    ${hasPhoto ? '' : `<div class="card-top">
       <div class="card-name">${esc(v.name)}</div>
       <div class="card-right">
         <button class="heart-btn${faved ? ' faved' : ''}" onclick="event.stopPropagation();doFavorite('${v.id}','venue',this)">${faved ? '★' : '☆'}</button>
         <div class="card-badge ${isToday ? 'today' : 'dim'}">${isToday ? 'Today' : 'Open'}</div>
       </div>
-    </div>
+    </div>`}
     <div class="card-meta">
       <span>${esc(v.neighborhood || '')}</span>
-      ${v.neighborhood ? '<span class="card-sep">·</span>' : ''}
-      <span class="card-when">${esc(v.hours || '')}</span>
-      ${state.sort === 'distance' && state.userLat !== null ? '<span class="card-sep">·</span><span class="card-dist">' + fmtDistance(haversine(state.userLat, state.userLng, v.lat, v.lng)) + '</span>' : ''}
+      ${v.neighborhood && v.hours ? '<span class="card-sep">·</span>' : ''}
+      ${v.hours ? `<span class="card-when">${esc(v.hours)}</span>` : ''}
+      ${!hasPhoto && distBadge ? `<span class="card-sep">·</span><span class="card-dist">${distBadge}</span>` : ''}
     </div>
     ${v.featured ? '<div class="featured-crown">⭐ Featured</div>' : ''}
     ${(() => {
@@ -448,6 +463,7 @@ function venueCardHTML(v) {
     <ul class="deals">${(v.deals || []).slice(0, 3).map(d => `<li>${esc(d)}</li>`).join('')}${(v.deals || []).length > 3 ? `<li class="deals-more">+${v.deals.length - 3} more</li>` : ''}</ul>
     ${eventPillsHTML}
     ${goingFireBadge(v.id)}
+    </div>
     <div class="card-foot">
       <span class="card-cuisine">${esc(v.cuisine || '')}</span>
       <div class="card-stars">${starHTML(avg, 5, 11)}<span class="card-rcount">${cached.length ? `(${cached.length})` : '—'}</span></div>
@@ -1184,6 +1200,12 @@ async function doGoingTonight(venueId, btn) {
     state.goingByMe.add(venueId);
     state.goingCounts[venueId] = (state.goingCounts[venueId] || 0) + 1;
     showToast('📍 Checked in!');
+    // Haptic feedback on native
+    if (typeof haptic === 'function') haptic('medium');
+    // Prompt for push notifications after first check-in
+    if (currentUser && typeof promptPushIfAppropriate === 'function') {
+      setTimeout(promptPushIfAppropriate, 1500);
+    }
   }
   const count = state.goingCounts[venueId] || 0;
   const nowIn = state.goingByMe.has(venueId);
