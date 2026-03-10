@@ -494,3 +494,84 @@ async function tagFriendAtCheckIn(fromUserId, toUserId, venueId, venueName) {
     return true;
   } catch(e) { console.warn('tagFriendAtCheckIn error', e); return false; }
 }
+
+// ── PHOTO CHECK-INS ────────────────────────────────────
+const CHECKIN_PHOTO_BUCKET = 'checkin-photos';
+
+async function uploadCheckinPhoto(file, userId) {
+  // Path: {userId}/{timestamp}-{random}.jpg  — bucket RLS enforces owner-only writes
+  const ext  = file.name.split('.').pop().replace('heic','jpg') || 'jpg';
+  const path = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+
+  const session = getSession();
+  const client  = session?.access_token
+    ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        global: { headers: { Authorization: `Bearer ${session.access_token}` } }
+      })
+    : db;
+
+  const { data, error } = await client.storage
+    .from(CHECKIN_PHOTO_BUCKET)
+    .upload(path, file, { contentType: file.type, upsert: false });
+
+  if (error) { console.error('uploadCheckinPhoto error', error); return null; }
+
+  const { data: urlData } = client.storage
+    .from(CHECKIN_PHOTO_BUCKET)
+    .getPublicUrl(path);
+
+  return { url: urlData.publicUrl, storagePath: path };
+}
+
+async function saveCheckinPhoto({ userId, venueId, citySlug, photoUrl, storagePath, caption }) {
+  try {
+    const session = getSession();
+    const client  = session?.access_token
+      ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+          global: { headers: { Authorization: `Bearer ${session.access_token}` } }
+        })
+      : db;
+    const { data, error } = await client.from('checkin_photos').insert({
+      user_id: userId, venue_id: venueId, city_slug: citySlug,
+      photo_url: photoUrl, storage_path: storagePath, caption: caption || null
+    }).select().single();
+    if (error) throw error;
+    return data;
+  } catch(e) { console.error('saveCheckinPhoto error', e); return null; }
+}
+
+async function fetchCheckinPhotos(venueId, limit = 20) {
+  try {
+    const { data, error } = await db.from('checkin_photos')
+      .select('*')
+      .eq('venue_id', venueId)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    if (error) throw error;
+    const rows = data || [];
+    // Enrich with display names
+    const userIds = [...new Set(rows.map(r => r.user_id).filter(Boolean))];
+    if (userIds.length) {
+      const { data: profiles } = await db.from('profiles')
+        .select('id, display_name, avatar_emoji').in('id', userIds);
+      const pMap = {};
+      (profiles || []).forEach(p => { pMap[p.id] = p; });
+      rows.forEach(r => { r.profile = pMap[r.user_id] || null; });
+    }
+    return rows;
+  } catch(e) { return []; }
+}
+
+async function deleteCheckinPhotoFromDB(photoId, storagePath) {
+  try {
+    const session = getSession();
+    const client  = session?.access_token
+      ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+          global: { headers: { Authorization: `Bearer ${session.access_token}` } }
+        })
+      : db;
+    await client.storage.from(CHECKIN_PHOTO_BUCKET).remove([storagePath]);
+    await client.from('checkin_photos').delete().eq('id', photoId);
+    return true;
+  } catch(e) { return false; }
+}
