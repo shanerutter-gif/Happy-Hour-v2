@@ -46,28 +46,21 @@
 </head>
 <body>
 
-<!-- NAV -->
-<nav class="top-nav" id="topNav">
-  <span class="nav-brand" onclick="goHome()">
-    <img src="/spotd_logo_v5.png" alt="Spotd" class="nav-logo-img" height="28"
-      onerror="this.style.display='none';this.nextElementSibling.style.display='inline'">
-    <span style="display:none">Spotd</span>
-  </span>
-  <div class="nav-right" id="navRight">
-    <a class="nav-btn nav-business" href="business-landing.html">For Business</a>
-    <button class="nav-btn nav-login" onclick="openAuth('signin')">Sign In</button>
-  </div>
-</nav>
 
 <!-- HOME / CITY SELECTOR -->
 <div id="homePage" class="home-page">
   <div class="home-inner">
-    <img >
+    <div class="home-logo-wrap">
+      <img src="/spotd_logo_v5.png" alt="Spotd" class="home-logo-img"
+        onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+      <span class="home-logo-fallback" style="display:none">Spotd</span>
+    </div>
     <div class="home-eyebrow">Happy Hours · Events · Trivia · Live Music</div>
     <h1 class="home-title">Find today's<br><span class="home-accent">best spots</span></h1>
     <p class="home-sub">Happy hours, trivia nights, live music, karaoke and more — curated for every major city</p>
     <div class="city-grid" id="cityGrid"></div>
     <p class="home-coming">More cities coming soon</p>
+    <div class="home-cta-row" id="homeCta"></div>
   </div>
   <div class="home-bg-glow"></div>
 </div>
