@@ -207,7 +207,7 @@ main{min-height:60vh}
 .sheet{background:var(--card);border:1px solid var(--border2);border-radius:20px 20px 0 0;width:100%;max-width:640px;max-height:92vh;overflow-y:auto;overflow-x:hidden;padding:16px 20px calc(72px + env(safe-area-inset-bottom, 0px));position:relative;animation:sheetUp .28s cubic-bezier(.32,1.1,.6,1);-webkit-overflow-scrolling:touch;box-shadow:0 -8px 40px rgba(0,0,0,0.35),0 -2px 12px rgba(0,0,0,0.2)}
 .sheet--wide{max-width:740px}
 @keyframes sheetUp{from{transform:translateY(60px);opacity:0}to{transform:none;opacity:1}}
-.sheet-handle{width:32px;height:3px;background:rgba(42,31,20,0.12);border-radius:2px;margin:0 auto 18px}
+.sheet-handle{width:40px;height:4px;background:rgba(42,31,20,0.18);border-radius:2px;margin:0 auto 16px;cursor:grab}
 .sheet-close{position:absolute;top:14px;right:16px;background:var(--bg2);border:1px solid var(--border2);color:var(--muted);width:32px;height:32px;border-radius:6px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center}
 .sheet-close:active{background:var(--card2)}
 .s-tag{display:inline-block;font-family:'DM Sans',sans-serif;font-size:9px;text-transform:uppercase;letter-spacing:1px;padding:3px 9px;border-radius:4px;margin-bottom:8px}
