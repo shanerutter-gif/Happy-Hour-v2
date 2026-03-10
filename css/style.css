@@ -1,8 +1,9 @@
 /* ═══════════════════════════════════════════════════════
    SPOTD — National Brand
    Palette: Warm cream · Coral · Charcoal · Sand
-   Font: Cabinet Grotesk (display) · DM Sans (body)
+   Font: Fraunces (hero/card) · Cabinet Grotesk (ui) · DM Sans (body)
    ═══════════════════════════════════════════════════════ */
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,700;0,9..144,900;1,9..144,700&display=swap');
 :root {
   --bg:#F5EFE6; --bg2:#EDE5D8; --card:#FFFFFF; --card2:#FAF5EE;
   --teal:#FF6B4A; --teal-dk:#E5543A; --teal-lt:#FF8566;
@@ -31,7 +32,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
 .home-bg-glow{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 0%,rgba(255,107,74,0.08) 0%,transparent 60%),radial-gradient(ellipse at 80% 80%,rgba(255,140,60,0.06) 0%,transparent 50%)}
 .home-inner{max-width:760px;width:100%;position:relative;z-index:1}
 .home-eyebrow{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:2.5px;text-transform:uppercase;color:var(--teal);opacity:.8;margin-bottom:16px}
-.home-title{font-family:'Cabinet Grotesk',sans-serif;font-weight:900;font-size:clamp(46px,10vw,92px);line-height:.95;letter-spacing:-3px;color:var(--white);margin-bottom:16px}
+.home-title{font-family:'Fraunces',serif;font-weight:900;font-size:clamp(46px,10vw,92px);line-height:.95;letter-spacing:-3px;color:var(--white);margin-bottom:16px}
 .home-accent{color:var(--teal)}
 .home-sub{font-size:15px;color:var(--muted);font-weight:300;line-height:1.6;max-width:480px;margin-bottom:36px}
 .city-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:10px;margin-bottom:20px}
@@ -91,10 +92,11 @@ main{min-height:60vh}
 .cards-grid{display:grid;grid-template-columns:1fr;gap:8px;padding:8px;border-top:none}
 
 /* CARD */
-.card{background:var(--card);padding:18px 20px;cursor:pointer;transition:all .15s;border:1px solid rgba(42,31,20,0.1);border-radius:14px;box-shadow:0 2px 8px rgba(42,31,20,0.07),0 0 0 1px rgba(42,31,20,0.04)}.s-photo-thumb{position:relative;margin:0 0 16px;border-radius:12px;overflow:hidden;height:180px;cursor:zoom-in;}.s-photo-thumb img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .2s;}.s-photo-thumb:hover img{transform:scale(1.02)}.s-photo-hint{position:absolute;bottom:8px;right:10px;background:rgba(0,0,0,0.45);color:#fff;font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px;backdrop-filter:blur(4px);pointer-events:none;}.s-photos-strip{display:flex;gap:8px;overflow-x:auto;margin:0 0 16px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;padding-bottom:4px;}.s-photos-strip::-webkit-scrollbar{height:3px;}.s-photos-strip::-webkit-scrollbar-thumb{background:rgba(42,31,20,0.15);border-radius:3px;}.s-photo-thumb--multi{flex-shrink:0;width:200px;height:150px;margin:0;border-radius:10px;}
+.card{background:var(--card);padding:0;cursor:pointer;transition:all .15s;border:1px solid rgba(42,31,20,0.08);border-radius:16px;box-shadow:0 2px 12px rgba(42,31,20,0.07),0 0 0 1px rgba(42,31,20,0.03);overflow:hidden}.s-photo-thumb{position:relative;margin:0 0 16px;border-radius:12px;overflow:hidden;height:180px;cursor:zoom-in;}.s-photo-thumb img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .2s;}.s-photo-thumb:hover img{transform:scale(1.02)}.s-photo-hint{position:absolute;bottom:8px;right:10px;background:rgba(0,0,0,0.45);color:#fff;font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px;backdrop-filter:blur(4px);pointer-events:none;}.s-photos-strip{display:flex;gap:8px;overflow-x:auto;margin:0 0 16px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;padding-bottom:4px;}.s-photos-strip::-webkit-scrollbar{height:3px;}.s-photos-strip::-webkit-scrollbar-thumb{background:rgba(42,31,20,0.15);border-radius:3px;}.s-photo-thumb--multi{flex-shrink:0;width:200px;height:150px;margin:0;border-radius:10px;}
 .card:active{background:var(--card2)}
+.card-body{padding:14px 16px 0}
 .card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:5px}
-.card-name{font-family:'Cabinet Grotesk',sans-serif;font-weight:700;font-size:17px;line-height:1.2;color:var(--white);flex:1}
+.card-name{font-family:'Fraunces',serif;font-weight:700;font-size:18px;line-height:1.15;color:var(--white);flex:1}
 .card-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
 .card-badge{font-family:'DM Mono',monospace;font-size:9px;padding:4px 9px;border-radius:4px;letter-spacing:.5px;text-transform:uppercase;white-space:nowrap}
 .card-badge.today{background:rgba(0,194,168,.12);border:1px solid rgba(0,194,168,.3);color:var(--teal)}
@@ -104,15 +106,15 @@ main{min-height:60vh}
 .heart-btn.faved{color:var(--teal)}
 .heart-btn:active{transform:scale(1.3)}
 .heart-btn--lg{font-size:22px}
-.card-meta{font-size:12px;color:var(--muted);margin-bottom:9px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.card-meta{font-size:12px;color:var(--muted);margin-bottom:9px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .card-sep{opacity:.3}
-.card-when{color:var(--teal-lt);font-weight:500}
+.card-when{background:var(--teal);color:#fff;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap;letter-spacing:0.2px}
 .card-event-type{font-family:'DM Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:1px;color:#a588ff;background:rgba(130,100,255,.08);border-radius:4px;padding:2px 7px}
 .deals{list-style:none;display:flex;flex-direction:column;margin-bottom:10px}
 .deals li{font-size:13px;color:rgba(42,31,20,0.65);padding:4px 0;border-bottom:1px solid var(--border2);display:flex;align-items:flex-start;gap:8px}
 .deals li::before{content:'—';color:var(--teal);opacity:.5;flex-shrink:0}
 .deals-more{opacity:.3}
-.card-foot{display:flex;align-items:center;justify-content:space-between;padding-top:8px}
+.card-foot{display:flex;align-items:center;justify-content:space-between;padding:8px 16px 12px}
 .amenity-tags{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}.amenity-tags--modal{margin-top:8px;margin-bottom:4px}.amenity-tag{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;font-family:'DM Mono',monospace;letter-spacing:.2px;border-radius:5px;padding:3px 8px;white-space:nowrap}.amenity-tag--has_sports_tv{background:rgba(30,120,255,0.08);border:1px solid rgba(30,120,255,0.2);color:#3B7FE8}.amenity-tag--is_dog_friendly{background:rgba(180,120,60,0.1);border:1px solid rgba(180,120,60,0.2);color:#8B5E2A}.amenity-tag--has_live_music{background:rgba(160,60,200,0.08);border:1px solid rgba(160,60,200,0.2);color:#9B3DC8}.amenity-tag--has_karaoke{background:rgba(255,80,120,0.08);border:1px solid rgba(255,80,120,0.2);color:#E03060}.amenity-tag--has_trivia{background:rgba(40,160,100,0.08);border:1px solid rgba(40,160,100,0.2);color:#1E8050}.amenity-tag--has_happy_hour{background:rgba(255,107,74,0.08);border:1px solid rgba(255,107,74,0.25);color:#CC4A28}.amenity-tag--has_bingo{background:rgba(255,160,0,0.08);border:1px solid rgba(255,160,0,0.2);color:#B07800}.amenity-tag--has_comedy{background:rgba(255,107,74,0.08);border:1px solid rgba(255,107,74,0.2);color:#CC4A28}.featured-crown{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;font-family:'DM Mono',monospace;letter-spacing:.5px;text-transform:uppercase;background:rgba(255,180,0,0.1);border:1px solid rgba(255,180,0,0.3);color:#B8860B;border-radius:5px;padding:2px 8px;margin-bottom:6px}
 .card-cuisine{font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:rgba(42,31,20,0.35)}
 .card-stars{display:flex;align-items:center;gap:4px}
@@ -122,6 +124,31 @@ main{min-height:60vh}
 .loading-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--teal);margin:0 3px;animation:ldpulse 1.2s ease-in-out infinite}
 .loading-dot:nth-child(2){animation-delay:.2s}.loading-dot:nth-child(3){animation-delay:.4s}
 @keyframes ldpulse{0%,100%{opacity:.2;transform:scale(.8)}50%{opacity:1;transform:scale(1)}}
+
+/* event cards (no card-body wrapper) get padding from direct child rules */
+.card > .card-top{padding:16px 16px 0}
+.card > .card-meta{padding:0 16px}
+.card > ul.deals{padding:0 16px}
+.card > .amenity-tags{padding:0 16px}
+.card > .card-event-pills{padding:0 16px}
+.card > .featured-crown{padding:0 16px}
+
+/* ── CARD PHOTO HEADER ── */
+.card-photo-wrap{width:100%;height:164px;position:relative;overflow:hidden;border-radius:0;flex-shrink:0}
+.card-photo-img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .3s}
+.card:active .card-photo-img{transform:scale(1.02)}
+.card-photo-gradient{position:absolute;inset:0;background:linear-gradient(to top,rgba(26,18,8,0.5) 0%,transparent 55%);pointer-events:none}
+.card-photo-name-over{position:absolute;bottom:10px;left:14px;right:48px;font-family:'Fraunces',serif;font-weight:900;font-size:18px;line-height:1.15;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,0.4)}
+.card-photo-dist-badge{position:absolute;bottom:10px;right:12px;background:rgba(0,0,0,0.42);color:#fff;font-size:11px;font-weight:700;padding:3px 8px;border-radius:20px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);white-space:nowrap}
+.card-photo-heart{position:absolute;top:10px;right:12px;background:rgba(255,255,255,0.18);border:none;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);color:rgba(255,255,255,0.85);transition:background .15s,transform .15s}
+.card-photo-heart.faved{color:#FF6B4A;background:rgba(255,255,255,0.28)}
+.card-photo-heart:active{transform:scale(1.25)}
+.card-photo-badge{position:absolute;top:10px;left:12px;font-family:'DM Mono',monospace;font-size:9px;padding:4px 9px;border-radius:20px;letter-spacing:.5px;text-transform:uppercase;white-space:nowrap;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.card-photo-badge.today{background:rgba(255,107,74,0.85);color:#fff;border:none}
+.card-photo-badge.dim{background:rgba(0,0,0,0.35);color:rgba(255,255,255,0.7);border:none}
+
+/* ── CARD WITH PHOTO: no-photo fallback keeps padding ── */
+.card-no-photo .card-body{padding-top:16px}
 
 /* MAP */
 .map-view{display:none;height:calc(100vh - 190px);flex-direction:column}
