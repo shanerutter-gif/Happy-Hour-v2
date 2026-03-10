@@ -58,7 +58,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
 .type-tab:not(.active):hover{border-color:var(--teal);color:var(--teal)}
 
 /* CONTROLS */
-.controls{position:sticky;top:44px;z-index:200;background:rgba(245,239,230,0.97);border-bottom:1px solid var(--border2);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+.controls{position:sticky;top:0;z-index:200;background:rgba(245,239,230,0.97);border-bottom:1px solid var(--border2);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
 .controls-top{display:flex;align-items:center;gap:8px;padding:10px 20px}
 .search-box{flex:1;background:var(--card2);border:1px solid var(--border2);border-radius:var(--r);padding:10px 14px;font-family:'DM Sans',sans-serif;font-size:16px;color:var(--text);outline:none;min-height:var(--tap);transition:border-color .2s}
 .search-box::placeholder{color:rgba(42,31,20,0.28)}
@@ -863,3 +863,16 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 #leaderboardContent {
   padding: 20px 20px 0;
 }
+
+/* ── HOME LOGO ── */
+.home-logo-wrap { margin-bottom: 24px; }
+.home-logo-img { height: 36px; width: auto; display: block; object-fit: contain; }
+.home-logo-fallback { font-family: 'Cabinet Grotesk', sans-serif; font-weight: 900; font-size: 28px; color: var(--teal); letter-spacing: -1px; }
+
+/* ── HOME CTA BUTTONS ── */
+.home-cta-row { display: flex; flex-direction: column; gap: 10px; margin-top: 28px; max-width: 400px; }
+.home-cta-btn { display: flex; align-items: center; justify-content: center; width: 100%; padding: 16px 24px; border-radius: 14px; font-family: 'Cabinet Grotesk', sans-serif; font-weight: 800; font-size: 16px; cursor: pointer; text-decoration: none; transition: all .18s; border: none; min-height: 54px; }
+.home-cta-primary { background: var(--teal); color: #fff; box-shadow: 0 4px 16px rgba(255,107,74,0.3); }
+.home-cta-primary:active { opacity: .88; transform: scale(.98); }
+.home-cta-sec { background: var(--card); color: var(--text); border: 1.5px solid var(--border2); }
+.home-cta-sec:active { border-color: var(--teal); color: var(--teal); }
