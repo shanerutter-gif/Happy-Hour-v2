@@ -360,22 +360,36 @@ async function isFollowing(followerId, followingId) {
 async function fetchPublicProfile(userId) {
   try {
     const { data, error } = await db.from('profiles')
-      .select('id, display_name, bio, avatar_emoji, username, digest_enabled')
+      .select('id, display_name, bio, avatar_emoji, username, digest_enabled, is_public')
       .eq('id', userId)
       .maybeSingle();
     if (error) {
-      console.warn('fetchPublicProfile error (may need social_profiles.sql migration):', error.message);
-      return null;
+      console.warn('fetchPublicProfile error:', error.message);
+      // Return a minimal stub so profile page still renders
+      return { id: userId, display_name: null, bio: null, avatar_emoji: '🍺', is_public: true };
     }
+    // If no profile row exists yet, return a stub (user exists but never set up profile)
+    if (!data) return { id: userId, display_name: null, bio: null, avatar_emoji: '🍺', is_public: true };
+    // Respect privacy — is_public defaults to true if column doesn't exist yet
+    if (data.is_public === false) return null;
     return data;
-  } catch(e) { return null; }
+  } catch(e) { return { id: userId, display_name: null, bio: null, avatar_emoji: '🍺', is_public: true }; }
 }
 async function searchProfiles(query) {
   try {
-    const { data } = await db.from('profiles').select('id, display_name, avatar_emoji, username, bio, check_in_count')
-      .ilike('display_name', `%${query}%`).eq('is_public', true).limit(10);
+    const { data, error } = await db.from('profiles')
+      .select('id, display_name, avatar_emoji, username, bio')
+      .ilike('display_name', `%${query}%`)
+      .limit(15);
+    if (error) return [];
     return data || [];
   } catch(e) { return []; }
+}
+async function savePrivacySetting(userId, isPublic) {
+  try {
+    await updateProfile(userId, { is_public: isPublic });
+    return true;
+  } catch(e) { return false; }
 }
 
 // ── BADGES ─────────────────────────────────────────────
