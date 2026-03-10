@@ -148,18 +148,23 @@ async function fetchCities() {
 async function fetchReviews(itemId, itemType = 'venue') {
   const col = itemType === 'venue' ? 'venue_id' : 'event_id';
   try {
-    // Try with profiles join first
     const { data, error } = await db.from('reviews')
-      .select('*, profiles(display_name)')
-      .eq(col, itemId)
-      .order('created_at', { ascending: false });
-    if (!error && data) return data;
-    // Fallback: fetch without join if profiles RLS blocks it
-    const { data: data2 } = await db.from('reviews')
       .select('*')
       .eq(col, itemId)
       .order('created_at', { ascending: false });
-    return data2 || [];
+    if (error) throw error;
+    // Enrich with display names from profiles
+    const reviews = data || [];
+    const userIds = [...new Set(reviews.map(r => r.user_id).filter(Boolean))];
+    if (userIds.length) {
+      const { data: profiles } = await db.from('profiles')
+        .select('id, display_name, avatar_emoji')
+        .in('id', userIds);
+      const pMap = {};
+      (profiles || []).forEach(p => { pMap[p.id] = p; });
+      reviews.forEach(r => { if (r.user_id) r.profiles = pMap[r.user_id] || null; });
+    }
+    return reviews;
   } catch(e) {
     return [];
   }
@@ -294,11 +299,19 @@ async function logActivity(userId, type, venueId, meta = {}) {
 async function fetchActivityFeed(userIds, limit = 30) {
   try {
     const { data } = await db.from('activity_feed')
-      .select('*, profiles(display_name, avatar_emoji, username)')
+      .select('*')
       .in('user_id', userIds)
       .order('created_at', { ascending: false })
       .limit(limit);
-    return data || [];
+    const rows = data || [];
+    const ids = [...new Set(rows.map(r => r.user_id).filter(Boolean))];
+    if (ids.length) {
+      const { data: profiles } = await db.from('profiles').select('id, display_name, avatar_emoji, username').in('id', ids);
+      const pMap = {};
+      (profiles || []).forEach(p => { pMap[p.id] = p; });
+      rows.forEach(r => { r.profiles = pMap[r.user_id] || null; });
+    }
+    return rows;
   } catch(e) { return []; }
 }
 async function fetchUserActivity(userId, limit = 20) {
@@ -331,7 +344,7 @@ async function getFollowing(userId) {
 }
 async function getFollowers(userId) {
   try {
-    const { data } = await db.from('user_follows').select('follower_id, profiles(display_name, avatar_emoji, username)').eq('following_id', userId);
+    const { data } = await db.from('user_follows').select('follower_id').eq('following_id', userId);
     return data || [];
   } catch(e) { return []; }
 }
