@@ -542,6 +542,16 @@ async function openModal(id, type = 'venue') {
   const ae = document.getElementById(`ravg-${id}`);
   if (le) le.innerHTML = renderReviewList(reviews, id, type);
   if (ae) ae.innerHTML = avgHTML(reviews);
+  // Load venue follow state (deal alerts button)
+  if (type === 'venue' && currentUser) {
+    isFollowingVenue(currentUser.id, id).then(following => {
+      const fb = document.getElementById(`venue-follow-btn-${id}`);
+      if (fb) {
+        fb.classList.toggle('following', following);
+        fb.textContent = following ? '🔔 Following' : '🔔 Follow';
+      }
+    });
+  }
 }
 
 async function getCachedReviews(id, type) {
@@ -636,6 +646,7 @@ function renderModal(v, type, reviews) {
       ${v.url ? `<a class="btn-primary" href="${v.url}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Website ↗</a>` : `<a class="btn-primary btn-secondary" href="https://www.google.com/search?q=${encodeURIComponent(v.name + ' ' + (state.city?.name || 'San Diego'))}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Google ↗</a>`}
       <button class="btn-sec" onclick="goToMap('${v.id}')">Map</button>
       <button class="btn-sec" onclick="shareItem('${v.id}','${type}')">Share</button>
+      ${isVenue ? `<button class="venue-follow-btn" id="venue-follow-btn-${v.id}" onclick="toggleVenueFollow('${v.id}','${esc(v.name)}',this)">🔔 Follow</button>` : ''}
     </div>
     ${isVenue ? `
     <div class="s-going-wrap">
@@ -856,6 +867,7 @@ async function renderProfile(user) {
   const displayName = profile?.display_name || user.user_metadata?.full_name || 'You';
   const avatar = profile?.avatar_emoji || '🍺';
   const totalVenues = new Set(checkIns.map(c => c.venue_id)).size;
+  const currentStreak = computeCurrentStreak(checkIns);
   const AVATARS = ['🍺','🍹','🍷','🥂','🍸','🎉','🌮','🔥','🎸','🏄','🌊','🎭'];
 
   document.getElementById('profileContent').innerHTML = `
@@ -872,6 +884,7 @@ async function renderProfile(user) {
         <div class="my-stats" id="myStatBar">
           <div class="my-stat" onclick="openActivityFeed()" style="cursor:pointer"><span>${checkIns.length}</span>Check-ins</div>
           <div class="my-stat"><span>${myReviews.length}</span>Reviews</div>
+          ${currentStreak >= 2 ? `<div class="my-stat streak-stat" title="${currentStreak}-week check-in streak"><span>${currentStreak}🔥</span>Streak</div>` : ''}
           <div class="my-stat" onclick="openFindPeople()" style="cursor:pointer"><span id="stat-following">${following.length}</span>Following</div>
           <div class="my-stat" style="cursor:pointer"><span id="stat-followers">${followers.length}</span>Followers</div>
         </div>
@@ -1259,6 +1272,8 @@ async function doGoingTonight(venueId, btn) {
     if (currentUser && typeof promptPushIfAppropriate === 'function') {
       setTimeout(promptPushIfAppropriate, 1500);
     }
+    setTimeout(() => checkStreakAfterCheckIn(), 2200);
+    setTimeout(() => maybeOpenTagFriends(venueId), 3500);
   }
   const count = state.goingCounts[venueId] || 0;
   const nowIn = state.goingByMe.has(venueId);
@@ -1657,4 +1672,147 @@ async function submitVenueRequest() {
       <button class="btn-sec" style="margin:24px auto 0;display:flex" onclick="closeOverlay('requestOverlay')">Close</button>
     </div>
   `;
+}
+
+// ══════════════════════════════════════════════
+// WAVE 2: Streaks · Deal Alerts · Tag a Friend
+// ══════════════════════════════════════════════
+
+// ── STREAKS ────────────────────────────────────────────
+function computeCurrentStreak(checkIns) {
+  if (!checkIns.length) return 0;
+
+  // Convert each check-in date to an ISO year-week string "YYYY-WW"
+  // Uses ISO 8601 week (Monday start, Thursday determines the year)
+  function toIsoWeek(dateStr) {
+    const d = new Date(dateStr);
+    const day = d.getDay() || 7; // Sunday=0 → 7
+    const thu = new Date(d); thu.setDate(d.getDate() + 4 - day);
+    const jan1 = new Date(thu.getFullYear(), 0, 1);
+    const week = Math.ceil(((thu - jan1) / 86400000 + 1) / 7);
+    return `${thu.getFullYear()}-${String(week).padStart(2, '0')}`;
+  }
+
+  const weekSet = new Set(checkIns.map(c => toIsoWeek(c.date || c.created_at)));
+  const weeks = [...weekSet].sort().reverse(); // most recent first
+
+  const currentWeek = toIsoWeek(new Date().toISOString());
+  const lastWeek    = toIsoWeek(new Date(Date.now() - 7 * 86400000).toISOString());
+
+  // Streak only counts if they checked in this week or last week
+  if (weeks[0] !== currentWeek && weeks[0] !== lastWeek) return 0;
+
+  let streak = 1;
+  for (let i = 1; i < weeks.length; i++) {
+    const [y1, w1] = weeks[i - 1].split('-').map(Number);
+    const [y2, w2] = weeks[i].split('-').map(Number);
+    // Consecutive: same year and w1-w2===1, or year boundary (w1=1, w2=52or53)
+    const consecutive = (y1 === y2 && w1 - w2 === 1)
+      || (y1 - y2 === 1 && w1 === 1 && w2 >= 52);
+    if (consecutive) streak++;
+    else break;
+  }
+  return streak;
+}
+
+async function checkStreakAfterCheckIn() {
+  if (!currentUser) return;
+  try {
+    const checkIns = await fetchAllCheckIns(currentUser.id);
+    const streak = computeCurrentStreak(checkIns);
+    if (streak >= 2) showStreakCelebration(streak);
+  } catch(e) {}
+}
+
+function showStreakCelebration(streak) {
+  // Only celebrate on milestones to avoid being annoying every single week
+  const milestones = { 2:'2 weeks in a row', 3:'3-week streak', 4:'4-week streak 🏆', 8:'8-week streak 🏆🏆' };
+  const label = milestones[streak] || (streak % 4 === 0 ? `${streak}-week streak!` : null);
+  if (!label) return;
+
+  // Remove any existing banner
+  document.querySelectorAll('.streak-banner').forEach(b => b.remove());
+  const banner = document.createElement('div');
+  banner.className = 'streak-banner';
+  banner.textContent = `🔥 ${label} — you're on a roll!`;
+  document.body.appendChild(banner);
+  setTimeout(() => banner.remove(), 3800);
+}
+
+// ── DEAL ALERTS (venue follows) ────────────────────────
+async function toggleVenueFollow(venueId, venueName, btn) {
+  if (!currentUser) { openAuth('signin'); showToast('Sign in to follow venues'); return; }
+  const currently = btn.classList.contains('following');
+  btn.disabled = true;
+  if (currently) {
+    await unfollowVenue(currentUser.id, venueId);
+    btn.classList.remove('following');
+    btn.textContent = '🔔 Follow';
+    showToast(`Unfollowed ${venueName}`);
+  } else {
+    await followVenue(currentUser.id, venueId);
+    btn.classList.add('following');
+    btn.textContent = '🔔 Following';
+    showToast(`🔔 Following ${venueName} — you'll be notified of new deals`);
+  }
+  btn.disabled = false;
+}
+
+// ── TAG A FRIEND ────────────────────────────────────────
+async function maybeOpenTagFriends(venueId) {
+  if (!currentUser) return;
+  // Only show if user follows at least one person
+  const followingIds = await getFollowing(currentUser.id);
+  if (!followingIds.length) return;
+  const venue = state.venues.find(x => String(x.id) === String(venueId));
+  openTagFriends(venueId, venue?.name || 'this spot', followingIds);
+}
+
+async function openTagFriends(venueId, venueName, followingIds) {
+  const el = document.getElementById('tagFriendsContent');
+  if (!el) return;
+
+  el.innerHTML = `<div class="tag-prompt-title">Who'd you go with?</div>
+    <div class="tag-prompt-sub">Tag a friend at ${esc(venueName)} and they'll see it in their feed.</div>
+    <div class="tag-friends-grid" id="tagFriendsGrid">
+      <div style="color:var(--muted);font-size:13px">Loading friends…</div>
+    </div>
+    <button class="tag-skip-btn" onclick="closeOverlay('tagFriendsOverlay')">Skip</button>`;
+
+  openOverlay('tagFriendsOverlay');
+
+  // Fetch profiles for everyone the user follows
+  try {
+    const { data: profiles } = await db.from('profiles')
+      .select('id, display_name, avatar_emoji')
+      .in('id', followingIds)
+      .not('display_name', 'is', null)
+      .limit(12);
+
+    const grid = document.getElementById('tagFriendsGrid');
+    if (!grid) return;
+    if (!profiles?.length) {
+      grid.innerHTML = `<div style="color:var(--muted);font-size:13px">No friends to tag yet — follow people first.</div>`;
+      return;
+    }
+    grid.innerHTML = profiles.map(p => `
+      <button class="tag-friend-chip" id="tag-chip-${p.id}"
+        onclick="tagFriend('${p.id}','${esc(p.display_name || '')}','${venueId}','${esc(venueName)}',this)">
+        <span class="tag-friend-chip-avatar">${p.avatar_emoji || '🍺'}</span>
+        <span class="tag-friend-chip-name">${esc(p.display_name || 'Friend')}</span>
+      </button>`).join('');
+  } catch(e) {
+    const grid = document.getElementById('tagFriendsGrid');
+    if (grid) grid.innerHTML = `<div style="color:var(--muted);font-size:13px">Couldn't load friends right now.</div>`;
+  }
+}
+
+async function tagFriend(toUserId, toName, venueId, venueName, chip) {
+  if (chip.classList.contains('tagged')) return; // already tagged
+  chip.classList.add('tagged');
+  chip.style.pointerEvents = 'none';
+  await tagFriendAtCheckIn(currentUser.id, toUserId, venueId, venueName);
+  showToast(`Tagged ${toName} at ${venueName} 👋`);
+  // Close overlay after a brief moment so user sees the chip light up
+  setTimeout(() => closeOverlay('tagFriendsOverlay'), 900);
 }
