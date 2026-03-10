@@ -293,6 +293,15 @@
   </div>
 </div>
 
+<!-- PHOTO CHECK-IN OVERLAY -->
+<div class="overlay" id="photoCheckinOverlay" onclick="if(event.target===this)closeOverlay('photoCheckinOverlay')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <button class="sheet-close" onclick="closeOverlay('photoCheckinOverlay')">✕</button>
+    <div id="photoCheckinContent"></div>
+  </div>
+</div>
+
 <footer id="mainFooter">
   <p>Spotd · Happy Hours & Events · 2025 · Always verify times directly with venues</p>
 </footer>
