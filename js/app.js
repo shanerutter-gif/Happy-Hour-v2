@@ -8,13 +8,18 @@ const TODAY   = DAYS[new Date().getDay()];
 const EVENT_TYPES = ['Trivia','Live Music','Karaoke','Bingo','Game Night','Comedy'];
 const HH_TYPES    = ['Bar','Brewery','Seafood','Mexican','Italian','Asian','BBQ','Wine Bar','Steakhouse','Beach Bar'];
 const AMENITIES   = [
-  { key: 'has_happy_hour',  label: 'Happy Hour', emoji: '🍺' },
-  { key: 'has_sports_tv',   label: 'Sports TV',  emoji: '📺' },
-  { key: 'is_dog_friendly', label: 'Dog Friendly',emoji: '🐶' },
-  { key: 'has_live_music',  label: 'Live Music',  emoji: '🎵' },
-  { key: 'has_karaoke',     label: 'Karaoke',     emoji: '🎤' },
-  { key: 'has_trivia',      label: 'Trivia',      emoji: '🧠' },
+  { key: 'has_happy_hour',  label: 'Happy Hour',  emoji: '🍺', eventType: null },
+  { key: 'has_sports_tv',   label: 'Sports TV',   emoji: '📺', eventType: null },
+  { key: 'is_dog_friendly', label: 'Dog Friendly', emoji: '🐶', eventType: null },
+  { key: 'has_live_music',  label: 'Live Music',   emoji: '🎵', eventType: 'Live Music' },
+  { key: 'has_karaoke',     label: 'Karaoke',      emoji: '🎤', eventType: 'Karaoke' },
+  { key: 'has_trivia',      label: 'Trivia',       emoji: '🧠', eventType: 'Trivia' },
+  { key: 'has_bingo',       label: 'Bingo',        emoji: '🎯', eventType: 'Bingo' },
+  { key: 'has_comedy',      label: 'Comedy',       emoji: '🎭', eventType: 'Comedy' },
 ];
+// Map event_type string → amenity config
+const EVENT_TYPE_AMENITY = {};
+AMENITIES.forEach(a => { if (a.eventType) EVENT_TYPE_AMENITY[a.eventType] = a; });
 
 const state = {
   view: 'list',
@@ -250,7 +255,13 @@ function applyFilters() {
       if (!haystack.includes(t)) return false;
     }
     if (amenity) {
-      if (isEvent || !v[amenity]) return false;
+      const amenityDef = AMENITIES.find(a => a.key === amenity);
+      if (isEvent) {
+        // Events only pass through if their event_type matches this amenity
+        if (!amenityDef?.eventType || v.event_type !== amenityDef.eventType) return false;
+      } else {
+        if (!v[amenity]) return false;
+      }
     }
     if (search) {
       const h = [v.name, v.neighborhood, v.cuisine, v.address, v.event_type, ...(v.deals || [])].join(' ').toLowerCase();
@@ -346,7 +357,7 @@ function eventCardHTML(v) {
       <div class="card-name">${esc(v.name)}</div>
       <div class="card-right">
         <button class="heart-btn${faved ? ' faved' : ''}" onclick="event.stopPropagation();doFavorite('${v.id}','event',this)">${faved ? '★' : '☆'}</button>
-        <div class="card-badge event-badge">${esc(v.event_type || 'Event')}</div>
+        <div class="card-badge event-badge event-badge--${(v.event_type||'event').toLowerCase().replace(/\s+/g,'-')}">${EVENT_TYPE_AMENITY[v.event_type]?.emoji || '🎉'} ${esc(v.event_type || 'Event')}</div>
       </div>
     </div>
     <div class="card-meta">
@@ -358,7 +369,7 @@ function eventCardHTML(v) {
     ${v.description ? `<ul class="deals"><li>${esc(v.description)}</li></ul>` : ''}
     <div class="card-foot">
       <span class="card-cuisine">${esc(v.venue_name || '')}</span>
-      <span class="card-event-type">${esc(v.event_type || '')}</span>
+
     </div>
   </div>`;
 }
