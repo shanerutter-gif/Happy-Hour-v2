@@ -22,6 +22,9 @@ const EVENT_TYPE_AMENITY = {};
 AMENITIES.forEach(a => { if (a.eventType) EVENT_TYPE_AMENITY[a.eventType] = a; });
 
 const state = {
+  sort: 'default',
+  userLat: null,
+  userLng: null,
   view: 'list',
   showFilter: 'all', // 'all' | 'happyhour' | 'events'
   filtersOpen: false, favFilterOn: false,
@@ -305,14 +308,80 @@ function applyFilters() {
     return true;
   });
 
-  // Featured venues float to the top
-  state.filtered.sort((a, b) => (b.featured ? 1 : 0) - (a.featured ? 1 : 0));
+  // Sort
+  if (state.sort === 'distance' && state.userLat !== null) {
+    state.filtered.sort((a, b) => {
+      const da = haversine(state.userLat, state.userLng, a.lat, a.lng);
+      const db = haversine(state.userLat, state.userLng, b.lat, b.lng);
+      return da - db;
+    });
+  } else if (state.sort === 'name') {
+    state.filtered.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  } else {
+    // Default: featured first, then alphabetical
+    state.filtered.sort((a, b) => {
+      if (b.featured !== a.featured) return (b.featured ? 1 : 0) - (a.featured ? 1 : 0);
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  }
 
   renderCards();
   if (state.view === 'map') updateMapMarkers();
   const rc = document.getElementById('resultsCount');
   if (rc) rc.textContent = `${state.filtered.length} of ${pool.length} venues`;
 }
+// ── SORT & GEO ────────────────────────────────────────
+function haversine(lat1, lng1, lat2, lng2) {
+  if (lat2 == null || lng2 == null) return Infinity;
+  const R = 3958.8; // miles
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function fmtDistance(miles) {
+  if (miles === Infinity || miles == null) return '';
+  if (miles < 0.1) return 'Here';
+  if (miles < 10) return miles.toFixed(1) + ' mi';
+  return Math.round(miles) + ' mi';
+}
+
+function setSort(val, btn) {
+  state.sort = val;
+  document.querySelectorAll('#sortFilters .pill').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  if (val === 'distance') {
+    if (state.userLat !== null) {
+      applyFilters();
+    } else {
+      btn.textContent = '📍 Locating…';
+      btn.disabled = true;
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          state.userLat = pos.coords.latitude;
+          state.userLng = pos.coords.longitude;
+          btn.textContent = '📍 Nearest';
+          btn.disabled = false;
+          applyFilters();
+        },
+        err => {
+          showToast('Location access denied — enable in browser settings');
+          state.sort = 'default';
+          btn.textContent = '📍 Nearest';
+          btn.disabled = false;
+          document.getElementById('sort-default')?.classList.add('active');
+          btn.classList.remove('active');
+        },
+        { timeout: 8000 }
+      );
+    }
+  } else {
+    applyFilters();
+  }
+}
+
 function toggleFilters() {
   state.filtersOpen = !state.filtersOpen;
   document.getElementById('filterPanel').classList.toggle('open', state.filtersOpen);
@@ -363,6 +432,7 @@ function venueCardHTML(v) {
       <span>${esc(v.neighborhood || '')}</span>
       ${v.neighborhood ? '<span class="card-sep">·</span>' : ''}
       <span class="card-when">${esc(v.hours || '')}</span>
+      ${state.sort === 'distance' && state.userLat !== null ? '<span class="card-sep">·</span><span class="card-dist">' + fmtDistance(haversine(state.userLat, state.userLng, v.lat, v.lng)) + '</span>' : ''}
     </div>
     ${v.featured ? '<div class="featured-crown">⭐ Featured</div>' : ''}
     ${(() => {
