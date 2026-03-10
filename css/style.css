@@ -374,3 +374,10 @@ footer{text-align:center;padding:20px;font-family:'DM Mono',monospace;font-size:
 .feed-avatar--link{cursor:pointer}
 .feed-name--link{cursor:pointer;color:var(--teal)}
 .people-section-label{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px}
+
+/* ── FILTER PANEL CLOSE + SORT ───────────────────────── */
+.fp-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+.fp-title{font-size:15px;font-weight:700;color:var(--text)}
+.fp-close{background:none;border:1.5px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s}
+.fp-close:hover{border-color:var(--text);color:var(--text)}
+.card-dist{color:var(--teal);font-weight:600;font-size:12px}
