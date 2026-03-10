@@ -326,9 +326,6 @@ async function fetchUserActivity(userId, limit = 20) {
 // ── FOLLOWS ────────────────────────────────────────────
 async function followUser(followerId, followingId) {
   try {
-    // Ensure both users have a profile row (FK requirement)
-    await db.from('profiles').upsert({ id: followingId }, { onConflict: 'id', ignoreDuplicates: true });
-    await db.from('profiles').upsert({ id: followerId  }, { onConflict: 'id', ignoreDuplicates: true });
     const { error } = await db.from('user_follows').insert({ follower_id: followerId, following_id: followingId });
     if (error) { console.warn('followUser error:', error.message); return false; }
     return true;
