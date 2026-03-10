@@ -1224,76 +1224,159 @@
   // ─────────────────────────────────────────────
   function toggleEventDay(btn) { btn.classList.toggle('selected'); }
 
+  // ── EVENTS ──────────────────────────────────────────
+
+  let _venueEvents = [];
+
   async function loadVenueEvents(venueId) {
+    // Fetch only events that belong to this venue by name
+    const venues = await fetch(`${SUPABASE_URL}/rest/v1/venues?id=eq.${venueId}&select=name,city_slug`, { headers: sb.headers() }).then(r => r.json()).catch(() => []);
+    const venue = venues?.[0];
+    if (!venue) return;
+
+    const encodedName = encodeURIComponent(venue.name);
     const events = await fetch(
-      `${SUPABASE_URL}/rest/v1/events?venue_name=ilike.*&city_slug=eq.&select=*`,
+      `${SUPABASE_URL}/rest/v1/events?venue_name=ilike.${encodedName}&select=*&order=created_at.asc`,
       { headers: sb.headers() }
     ).then(r => r.json()).catch(() => []);
 
-    // Filter by venue - get events for this venue
-    const allEvents = await fetch(
-      `${SUPABASE_URL}/rest/v1/events?select=*&limit=20`,
-      { headers: sb.headers() }
-    ).then(r => r.json()).catch(() => []);
-
-    renderVenueEvents(Array.isArray(allEvents) ? allEvents.filter(e => e.venue_id === venueId || e.venue_name) : []);
+    _venueEvents = Array.isArray(events) ? events : [];
+    renderVenueEvents();
   }
 
-  function renderVenueEvents(events) {
+  function renderVenueEvents() {
     const el = document.getElementById('events-list');
-    if (!events.length) {
-      el.innerHTML = `<p style="color:var(--muted); font-size:13px; margin-bottom:16px;">No events yet. Add one below.</p>`;
+    if (!_venueEvents.length) {
+      el.innerHTML = `<p style="color:var(--muted); font-size:13px; margin-bottom:16px;">No events yet — add your first one below.</p>`;
       return;
     }
-    el.innerHTML = events.map(e => `
-      <div class="event-card">
+    el.innerHTML = _venueEvents.map(e => `
+      <div class="event-card" id="event-card-${e.id}">
         <div class="event-card-header">
-          <span>${e.name}</span>
-          <span style="font-size:12px; color:var(--muted);">${(e.days||[]).join(', ')} · ${e.hours || ''}</span>
+          <div>
+            <div style="font-weight:700; font-size:15px;">${esc(e.name)}</div>
+            <div style="font-size:12px; color:var(--muted); margin-top:2px;">${esc(e.event_type)} · ${(e.days||[]).join(', ')} · ${esc(e.hours||'')} · ${esc(e.price||'Free')}</div>
+            ${e.description ? `<div style="font-size:13px; color:var(--muted); margin-top:4px;">${esc(e.description)}</div>` : ''}
+          </div>
+          <div style="display:flex;gap:6px;flex-shrink:0;">
+            <button onclick="editEventInline('${e.id}')" style="background:rgba(255,107,74,0.08);border:1px solid rgba(255,107,74,0.2);color:var(--teal);border-radius:7px;padding:6px 12px;cursor:pointer;font-size:12px;font-weight:600;">Edit</button>
+            <button onclick="deleteEvent('${e.id}')" style="background:rgba(192,57,43,0.06);border:1px solid rgba(192,57,43,0.15);color:#C0392B;border-radius:7px;padding:6px 12px;cursor:pointer;font-size:12px;font-weight:600;">Delete</button>
+          </div>
         </div>
-        <div style="font-size:13px; color:var(--muted);">${e.event_type} · ${e.price || 'Free'}</div>
       </div>
     `).join('');
   }
 
+  function editEventInline(eventId) {
+    const e = _venueEvents.find(x => x.id === eventId);
+    if (!e) return;
+    const card = document.getElementById('event-card-' + eventId);
+    const [start, end] = (e.hours || '').split(' - ');
+    card.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div class="form-row">
+          <div class="form-group" style="flex:2">
+            <label>Event name</label>
+            <input type="text" id="edit-ev-name-${eventId}" value="${esc(e.name)}" />
+          </div>
+          <div class="form-group">
+            <label>Type</label>
+            <select id="edit-ev-type-${eventId}">
+              ${['Trivia','Karaoke','Live Music','Comedy','Bingo','Game Night','Other'].map(t => `<option${e.event_type===t?' selected':''}>${t}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Start</label><input type="text" id="edit-ev-start-${eventId}" value="${esc(start||'')}" placeholder="7pm" /></div>
+          <div class="form-group"><label>End</label><input type="text" id="edit-ev-end-${eventId}" value="${esc(end||'')}" placeholder="9pm" /></div>
+          <div class="form-group"><label>Price</label><input type="text" id="edit-ev-price-${eventId}" value="${esc(e.price||'')}" placeholder="Free" /></div>
+        </div>
+        <div class="form-group">
+          <label>Days</label>
+          <div class="days-picker" id="edit-ev-days-${eventId}">
+            ${['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d => `<button class="day-btn${(e.days||[]).includes(d)?' selected':''}" data-day="${d}" onclick="this.classList.toggle('selected')">${d}</button>`).join('')}
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Description</label>
+          <textarea id="edit-ev-desc-${eventId}" style="min-height:60px;">${esc(e.description||'')}</textarea>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button onclick="saveEventEdit('${eventId}')" class="btn btn-sm" style="width:auto;">Save event</button>
+          <button onclick="loadVenueEvents(window._editingVenueId)" style="background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:7px;padding:8px 14px;cursor:pointer;font-size:13px;">Cancel</button>
+        </div>
+      </div>
+    `;
+  }
+
+  async function saveEventEdit(eventId) {
+    const name  = document.getElementById('edit-ev-name-' + eventId)?.value.trim();
+    const type  = document.getElementById('edit-ev-type-' + eventId)?.value;
+    const start = document.getElementById('edit-ev-start-' + eventId)?.value.trim();
+    const end   = document.getElementById('edit-ev-end-' + eventId)?.value.trim();
+    const price = document.getElementById('edit-ev-price-' + eventId)?.value.trim();
+    const desc  = document.getElementById('edit-ev-desc-' + eventId)?.value.trim();
+    const days  = [...document.querySelectorAll(`#edit-ev-days-${eventId} .day-btn.selected`)].map(b => b.dataset.day);
+
+    if (!name) return alert('Event name is required.');
+
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/events?id=eq.${eventId}`, {
+      method: 'PATCH',
+      headers: { ...sb.headers(), 'Prefer': 'return=representation' },
+      body: JSON.stringify({ name, event_type: type, hours: `${start} - ${end}`, price: price||'Free', description: desc, days })
+    }).then(r => r.json()).catch(() => null);
+
+    if (Array.isArray(r) && r[0]) {
+      showSaveToast('Event updated!');
+      loadVenueEvents(window._editingVenueId);
+    } else {
+      alert('Failed to save. Please try again.');
+    }
+  }
+
+  async function deleteEvent(eventId) {
+    if (!confirm('Delete this event?')) return;
+    await fetch(`${SUPABASE_URL}/rest/v1/events?id=eq.${eventId}`, {
+      method: 'DELETE',
+      headers: sb.headers()
+    });
+    _venueEvents = _venueEvents.filter(e => e.id !== eventId);
+    renderVenueEvents();
+    showSaveToast('Event deleted.');
+  }
+
   async function addEvent() {
-    const name = document.getElementById('new-event-name').value.trim();
-    const type = document.getElementById('new-event-type').value;
+    const name  = document.getElementById('new-event-name').value.trim();
+    const type  = document.getElementById('new-event-type').value;
     const price = document.getElementById('new-event-price').value.trim();
     const start = document.getElementById('new-event-start').value.trim();
-    const end = document.getElementById('new-event-end').value.trim();
-    const desc = document.getElementById('new-event-desc').value.trim();
-    const days = getSelectedDays('event-days-picker');
+    const end   = document.getElementById('new-event-end').value.trim();
+    const desc  = document.getElementById('new-event-desc').value.trim();
+    const days  = getSelectedDays('event-days-picker');
 
     if (!name || !type) return alert('Event name and type are required.');
     if (!days.length) return alert('Please select at least one day.');
 
-    // Get venue info for city_slug and address
     const venues = await fetch(`${SUPABASE_URL}/rest/v1/venues?id=eq.${window._editingVenueId}&select=*`, { headers: sb.headers() }).then(r => r.json());
     const venue = venues?.[0];
     if (!venue) return alert('Venue not found.');
 
     const table = await sb.from('events');
     const res = await table.insert({
-      name,
-      event_type: type,
+      name, event_type: type,
       price: price || 'Free',
       hours: `${start} - ${end}`,
-      days,
-      description: desc,
+      days, description: desc,
       city_slug: venue.city_slug,
       venue_name: venue.name,
       neighborhood: venue.neighborhood,
       address: venue.address,
-      lat: venue.lat,
-      lng: venue.lng,
-      active: true,
-      featured: false
+      lat: venue.lat, lng: venue.lng,
+      active: true, featured: false
     });
 
     if (Array.isArray(res) && res[0]) {
       showSaveToast('Event added!');
-      // Clear form
       ['new-event-name','new-event-start','new-event-end','new-event-price','new-event-desc'].forEach(id => document.getElementById(id).value = '');
       document.getElementById('new-event-type').value = '';
       document.querySelectorAll('#event-days-picker .day-btn').forEach(b => b.classList.remove('selected'));
