@@ -353,3 +353,24 @@ footer{text-align:center;padding:20px;font-family:'DM Mono',monospace;font-size:
 @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
 .review-author--link{cursor:pointer;color:var(--teal);text-decoration:underline;text-underline-offset:2px}
 .review-author--link:hover{opacity:.75}
+
+/* ── FIND PEOPLE ──────────────────────────────────────── */
+.people-row{display:flex;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)}
+.people-row:last-child{border-bottom:none}
+.people-info{flex:1;min-width:0}
+.people-name{font-weight:700;font-size:14px;margin-bottom:2px}
+.people-bio{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.people-follow-btn{flex-shrink:0;padding:7px 14px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;background:var(--teal);color:#fff;border:none}
+.people-follow-btn.following{background:transparent;color:var(--teal);border:1.5px solid var(--teal)}
+.people-follow-btn:hover{opacity:.85}
+
+/* ── FEED TABS ────────────────────────────────────────── */
+.feed-header{display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.feed-header .s-name{flex:1;min-width:0}
+.feed-tab-btn{padding:6px 14px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;background:transparent;border:1.5px solid var(--border);color:var(--muted);transition:all .15s}
+.feed-tab-btn.active{background:var(--teal);color:#fff;border-color:var(--teal)}
+.feed-row--link{cursor:pointer}
+.feed-row--link:hover{background:rgba(255,107,74,0.04);border-radius:10px;margin:0 -8px;padding:14px 8px}
+.feed-avatar--link{cursor:pointer}
+.feed-name--link{cursor:pointer;color:var(--teal)}
+.people-section-label{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px}
