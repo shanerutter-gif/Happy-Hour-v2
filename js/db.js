@@ -99,7 +99,7 @@ async function authSignOut() {
 
 // ── PROFILE ────────────────────────────────────────────
 async function getProfile(userId) {
-  const { data } = await db.from('profiles').select('*').eq('id', userId).single();
+  const { data } = await db.from('profiles').select('*').eq('id', userId).maybeSingle();
   return data;
 }
 async function updateProfile(userId, updates) {
@@ -326,8 +326,11 @@ async function fetchUserActivity(userId, limit = 20) {
 // ── FOLLOWS ────────────────────────────────────────────
 async function followUser(followerId, followingId) {
   try {
+    // Ensure both users have a profile row (FK requirement)
+    await db.from('profiles').upsert({ id: followingId }, { onConflict: 'id', ignoreDuplicates: true });
+    await db.from('profiles').upsert({ id: followerId  }, { onConflict: 'id', ignoreDuplicates: true });
     const { error } = await db.from('user_follows').insert({ follower_id: followerId, following_id: followingId });
-    if (error) { console.warn('followUser error (run social_profiles.sql migration):', error.message); return false; }
+    if (error) { console.warn('followUser error:', error.message); return false; }
     return true;
   } catch(e) { return false; }
 }
