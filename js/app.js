@@ -711,6 +711,7 @@ async function renderProfile(user) {
       return '<span class="badge-chip" title="' + (def.desc||b.badge_key) + '">' + (def.emoji||'🏅') + ' ' + (def.label||b.badge_key) + '</span>';
     }).join('')}</div>` : ''}
     <div class="profile-action-row">
+      <button class="profile-action-btn" onclick="openFindPeople()">🔍 Find People</button>
       <button class="profile-action-btn" onclick="openActivityFeed()">📡 Activity</button>
       <button class="profile-action-btn" onclick="openLeaderboard()">🏆 Leaderboard</button>
     </div>
@@ -782,6 +783,14 @@ async function renderProfile(user) {
           <span class="t-text">Email me new happy hours & events weekly</span>
         </label>
       </div>
+      <div class="p-section">
+        <div class="p-section-title">Privacy</div>
+        <label class="toggle-row">
+          <input type="checkbox" id="publicCb" ${profile?.is_public !== false ? 'checked' : ''} onchange="savePrivacy(this.checked)">
+          <span class="t-track"><span class="t-thumb"></span></span>
+          <span class="t-text">Public profile — others can view your check-ins & reviews</span>
+        </label>
+      </div>
       ${areas.length ? '<div class="p-section"><div class="p-section-title">Followed Neighborhoods</div><div class="hood-grid">' + areas.map(a => '<button class="hood-pill' + (followed.includes(a) ? ' on' : '') + '" onclick="toggleHood(\'' + a + '\',this)">' + a + '</button>').join('') + '</div></div>' : ''}
     </div>`;
 }
@@ -805,7 +814,106 @@ async function pickAvatar(emoji) {
 async function saveName() { const n = document.getElementById('pName').value.trim(); if (!n) return; await updateProfile(currentUser.id, { display_name: n }); showToast('Name saved'); }
 async function saveBio() { const b = document.getElementById('pBio').value.trim(); await updateProfile(currentUser.id, { bio: b }); showToast('Bio saved'); }
 async function saveDigest(v) { await setDigestPreference(currentUser.id, v); showToast(v ? 'Digest enabled' : 'Digest off'); }
+async function savePrivacy(isPublic) { await savePrivacySetting(currentUser.id, isPublic); showToast(isPublic ? 'Profile is now public' : 'Profile is now private'); }
 async function toggleHood(hood, btn) { if (!currentUser) return; const added = await toggleNeighborhoodFollow(currentUser.id, hood); btn.classList.toggle('on', added); showToast(added ? `Following ${hood}` : `Unfollowed ${hood}`); }
+
+// ── FIND PEOPLE ────────────────────────────────────────
+async function openFindPeople() {
+  if (!currentUser) { openAuth('signin'); return; }
+  openOverlay('findPeopleOverlay');
+  const following = await getFollowing(currentUser.id);
+  state._following = new Set(following);
+  renderFindPeople('', following);
+}
+
+async function renderFindPeople(query, followingIds) {
+  const container = document.getElementById('findPeopleContent');
+  const isSearch = query.length >= 2;
+  const followingSet = followingIds ? new Set(followingIds) : state._following || new Set();
+
+  container.innerHTML = `
+    <div class="s-name" style="font-size:20px;margin-bottom:12px">Find People</div>
+    <div style="position:relative;margin-bottom:20px">
+      <input class="field" id="peopleSearch" type="text" placeholder="Search by name…"
+        oninput="debouncePeopleSearch(this.value)" value="${esc(query)}"
+        style="width:100%;box-sizing:border-box;padding-right:36px">
+      ${query ? `<button onclick="clearPeopleSearch()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer">✕</button>` : ''}
+    </div>
+    <div id="peopleResults"><div style="text-align:center;padding:20px;color:var(--muted)">Loading…</div></div>`;
+
+  setTimeout(() => document.getElementById('peopleSearch')?.focus(), 100);
+
+  if (isSearch) {
+    const results = await searchProfiles(query);
+    renderPeopleResults(results.filter(p => p.id !== currentUser.id), followingSet);
+  } else {
+    // Show who you're already following
+    if (followingSet.size === 0) {
+      document.getElementById('peopleResults').innerHTML =
+        `<div class="pub-empty">Search for friends by name to follow them 👆</div>`;
+      return;
+    }
+    // Fetch following profiles
+    const ids = [...followingSet];
+    const { data } = await db.from('profiles').select('id, display_name, avatar_emoji, bio').in('id', ids);
+    const label = `<div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px">Following</div>`;
+    document.getElementById('peopleResults').innerHTML = label;
+    renderPeopleResults(data || [], followingSet, true);
+  }
+}
+
+function renderPeopleResults(people, followingSet, append = false) {
+  const el = document.getElementById('peopleResults');
+  if (!people.length) {
+    if (!append) el.innerHTML = `<div class="pub-empty">No one found</div>`;
+    return;
+  }
+  const html = people.map(p => {
+    const isFollowing = followingSet.has(p.id);
+    const name = p.display_name || 'Spotd User';
+    return `<div class="people-row">
+      <div class="feed-avatar" onclick="closeOverlay('findPeopleOverlay');openPublicProfile('${p.id}')" style="cursor:pointer">${p.avatar_emoji || '🍺'}</div>
+      <div class="people-info" onclick="closeOverlay('findPeopleOverlay');openPublicProfile('${p.id}')" style="cursor:pointer;flex:1">
+        <div class="people-name">${esc(name)}</div>
+        ${p.bio ? `<div class="people-bio">${esc(p.bio)}</div>` : ''}
+      </div>
+      <button class="people-follow-btn ${isFollowing ? 'following' : ''}"
+        id="pf-${p.id}" onclick="toggleFollowFromSearch('${p.id}', this)">
+        ${isFollowing ? '✓ Following' : '+ Follow'}
+      </button>
+    </div>`;
+  }).join('');
+  if (append) el.innerHTML += html;
+  else el.innerHTML = html;
+}
+
+let _peopleSearchTimer = null;
+function debouncePeopleSearch(val) {
+  clearTimeout(_peopleSearchTimer);
+  _peopleSearchTimer = setTimeout(() => renderFindPeople(val, state._following), 300);
+}
+function clearPeopleSearch() {
+  renderFindPeople('', state._following);
+}
+
+async function toggleFollowFromSearch(userId, btn) {
+  if (!currentUser) return;
+  const isNowFollowing = btn.classList.contains('following');
+  if (isNowFollowing) {
+    await unfollowUser(currentUser.id, userId);
+    state._following?.delete(userId);
+    btn.classList.remove('following');
+    btn.textContent = '+ Follow';
+    showToast('Unfollowed');
+  } else {
+    await followUser(currentUser.id, userId);
+    state._following?.add(userId);
+    btn.classList.add('following');
+    btn.textContent = '✓ Following';
+    showToast('Following!');
+    await checkAndAwardBadges(currentUser.id);
+  }
+}
 
 
 
@@ -975,14 +1083,16 @@ async function renderPublicProfile(userId) {
   ]);
 
   if (!profile) {
-    document.getElementById('pubProfileContent').innerHTML = `<div style="text-align:center;padding:40px;color:var(--muted)">Profile not found or private.</div>`;
+    document.getElementById('pubProfileContent').innerHTML = `<div style="text-align:center;padding:40px;color:var(--muted)">This profile is private.</div>`;
     return;
   }
 
   const allItems = [...state.venues, ...state.events];
   const favSpots = allItems.filter(v => new Set(favItems.map(f=>String(f.item_id))).has(String(v.id)));
   const recentCheckIns = checkIns.slice(0, 20);
-  const displayName = profile.display_name || 'Spotd User';
+  // Fall back to name from their reviews if no display_name set
+  const reviewerName = reviews.length ? (reviews[0].name || null) : null;
+  const displayName = profile.display_name || reviewerName || 'Spotd User';
   const avatar = profile.avatar_emoji || '🍺';
   const totalVenues = new Set(checkIns.map(c => c.venue_id)).size;
 
