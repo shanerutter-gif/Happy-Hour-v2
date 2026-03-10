@@ -378,7 +378,7 @@ async function fetchPublicProfile(userId) {
 async function searchProfiles(query) {
   try {
     const { data, error } = await db.from('profiles')
-      .select('id, display_name, avatar_emoji, username, bio')
+      .select('id, display_name, avatar_emoji, bio')
       .ilike('display_name', `%${query}%`)
       .limit(15);
     if (error) return [];
