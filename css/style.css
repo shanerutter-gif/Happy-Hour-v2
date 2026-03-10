@@ -150,7 +150,32 @@ main{min-height:60vh}
 /* ── CARD WITH PHOTO: no-photo fallback keeps padding ── */
 .card-no-photo .card-body{padding-top:16px}
 
-/* MAP */
+/* ── VERIFIED BADGE ── */
+.verified-badge{display:inline-flex;align-items:center;gap:3px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.25);color:#16a34a;font-size:10px;font-weight:700;font-family:'DM Mono',monospace;letter-spacing:.3px;padding:2px 8px;border-radius:20px;white-space:nowrap;vertical-align:middle}
+.verified-badge--card{font-size:9px;padding:2px 6px;margin-left:6px}
+.verified-badge--modal{font-size:11px;padding:3px 10px;margin-top:4px;display:inline-flex}
+
+/* ── CHECK-IN COUNTER ── */
+.checkin-counter{display:flex;align-items:center;justify-content:space-between;padding:8px 16px 0;font-size:12px;color:var(--muted)}
+.checkin-counter-dots{display:flex;gap:4px}
+.checkin-dot{width:8px;height:8px;border-radius:50%;background:rgba(42,31,20,0.12);transition:background .2s}
+.checkin-dot.used{background:var(--teal)}
+.checkin-dot.used:nth-child(5){background:#FF8C00}
+.checkin-limit-msg{text-align:center;padding:10px 16px;font-size:12px;color:rgba(42,31,20,0.5);font-style:italic}
+
+/* ── NEIGHBORHOOD FOLLOW SECTION (city bar) ── */
+.hood-follow-bar{padding:8px 20px 10px;display:flex;align-items:center;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;border-bottom:1px solid var(--border2);background:var(--bg)}
+.hood-follow-bar::-webkit-scrollbar{display:none}
+.hood-follow-bar-label{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:rgba(42,31,20,0.35);white-space:nowrap;flex-shrink:0}
+.hood-follow-pill{background:var(--card);border:1px solid var(--border2);color:var(--muted);border-radius:50px;padding:5px 12px;font-size:12px;font-weight:500;font-family:'DM Sans',sans-serif;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all .15s;min-height:30px;display:flex;align-items:center;gap:5px}
+.hood-follow-pill.following{background:rgba(255,107,74,0.1);border-color:rgba(255,107,74,0.3);color:var(--teal);font-weight:700}
+.hood-follow-pill:active{transform:scale(.95)}
+
+/* ── NO RESULTS / EMPTY ILLUSTRATIONS ── */
+.empty-state{text-align:center;padding:48px 24px 32px;grid-column:1/-1;display:flex;flex-direction:column;align-items:center;gap:12px}
+.empty-state svg{opacity:.55}
+.empty-state-title{font-family:'Fraunces',serif;font-size:20px;font-weight:700;color:var(--white);line-height:1.2}
+.empty-state-sub{font-size:13px;color:var(--muted);line-height:1.5;max-width:240px}
 .map-view{display:none;height:calc(100vh - 190px);flex-direction:column}
 .map-view.active{display:flex}
 #map{flex:1;min-height:300px;z-index:1}
@@ -177,9 +202,9 @@ main{min-height:60vh}
 .map-card-when{font-size:11px;color:var(--muted);margin-top:4px}
 
 /* SHEET */
-.overlay{position:fixed;inset:0;background:rgba(26,18,8,0.75);z-index:1000;display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+.overlay{position:fixed;inset:0;background:rgba(10,6,2,0.82);z-index:1000;display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 .overlay.open{display:flex}
-.sheet{background:var(--card);border:1px solid var(--border2);border-radius:20px 20px 0 0;width:100%;max-width:640px;max-height:92vh;overflow-y:auto;overflow-x:hidden;padding:16px 20px 52px;position:relative;animation:sheetUp .28s cubic-bezier(.32,1.1,.6,1);-webkit-overflow-scrolling:touch}
+.sheet{background:var(--card);border:1px solid var(--border2);border-radius:20px 20px 0 0;width:100%;max-width:640px;max-height:92vh;overflow-y:auto;overflow-x:hidden;padding:16px 20px 52px;position:relative;animation:sheetUp .28s cubic-bezier(.32,1.1,.6,1);-webkit-overflow-scrolling:touch;box-shadow:0 -8px 40px rgba(0,0,0,0.35),0 -2px 12px rgba(0,0,0,0.2)}
 .sheet--wide{max-width:740px}
 @keyframes sheetUp{from{transform:translateY(60px);opacity:0}to{transform:none;opacity:1}}
 .sheet-handle{width:32px;height:3px;background:rgba(42,31,20,0.12);border-radius:2px;margin:0 auto 18px}
