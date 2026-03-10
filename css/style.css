@@ -227,7 +227,7 @@ main{min-height:60vh}
 .s-deals li{font-size:14px;color:rgba(42,31,20,0.8);padding:9px 0;border-bottom:1px solid var(--border2);display:flex;align-items:flex-start;gap:10px}
 .s-deals li::before{content:'—';color:var(--teal);opacity:.6;flex-shrink:0;margin-top:1px}
 .s-cuisine{font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:rgba(42,31,20,0.35);margin-top:10px}
-.s-actions{display:grid;grid-template-columns:1fr auto auto;gap:8px;margin:4px 0}
+/* s-actions replaced by s-secondary-actions */
 .btn-primary{background:var(--teal);color:#FFFFFF;border:none;border-radius:var(--r);padding:13px 18px;font-family:'DM Sans',sans-serif;font-weight:700;font-size:14px;cursor:pointer;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center;min-height:var(--tap);transition:opacity .15s,transform .15s}
 .btn-primary:active{opacity:.85;transform:scale(.98)}
 .btn-sec{background:var(--card);border:1px solid var(--border2);border-radius:var(--r);color:var(--muted);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;padding:13px 14px;cursor:pointer;white-space:nowrap;min-height:var(--tap);display:flex;align-items:center;gap:5px;transition:all .15s}
@@ -344,9 +344,7 @@ footer{text-align:center;padding:20px;font-family:'DM Mono',monospace;font-size:
 .my-stat{text-align:center;min-width:48px}
 .my-stat span{display:block;font-family:'Cabinet Grotesk',sans-serif;font-weight:800;font-size:18px;color:var(--teal)}
 .my-stat{font-size:11px;color:var(--muted);font-weight:500}
-.profile-action-row{display:flex;gap:8px;margin:12px 0 16px}
-.profile-action-btn{flex:1;background:rgba(255,107,74,0.08);border:1px solid rgba(255,107,74,0.2);color:var(--teal);border-radius:10px;padding:10px 8px;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:background .15s}
-.profile-action-btn:hover{background:rgba(255,107,74,0.15)}
+/* profile-action-btn replaced */
 
 /* Badges */
 .pub-badges{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
@@ -647,34 +645,102 @@ footer{text-align:center;padding:20px;font-family:'DM Mono',monospace;font-size:
   justify-content: space-between; gap: 8px;
 }
 
-/* ── GOING BUTTON — rounder, cleaner ── */
-.going-btn {
-  background: rgba(255,107,74,0.07);
-  border: 1.5px solid rgba(255,107,74,0.2);
-  color: var(--teal);
-  font-size: 13px; font-weight: 700;
-  padding: 10px 16px; border-radius: 50px;
+
+/* ══════════════════════════════════════════════
+   MODAL ACTION BUTTONS — redesigned
+   ══════════════════════════════════════════════ */
+
+/* Check-in / Going button — full width pill, prominent */
+.s-going-wrap { margin: 16px 0 4px; }
+.going-btn--lg {
+  width: 100%; padding: 14px 20px;
+  border-radius: 50px; font-size: 15px; font-weight: 700;
+  background: var(--teal); color: #fff; border: none;
   cursor: pointer; font-family: 'DM Sans', sans-serif;
-  transition: background .15s, border-color .15s, transform .1s;
-  width: 100%; letter-spacing: .1px;
+  transition: opacity .15s, transform .1s;
+  letter-spacing: .1px;
 }
-.going-btn:active { transform: scale(.98); }
-.going-btn.going-active {
-  background: rgba(255,140,0,0.1);
-  border-color: rgba(255,140,0,0.3);
-  color: #E07800;
+.going-btn--lg:active { opacity: .88; transform: scale(.98); }
+.going-btn--lg.going-active {
+  background: rgba(255,140,0,0.12);
+  border: 2px solid rgba(255,140,0,0.35);
+  color: #C87000;
 }
 
-/* ── MODAL ACTION BUTTONS — rounded pill row ── */
-.s-actions {
-  display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 4px;
+/* Secondary action row — compact equal-width pill buttons */
+.s-secondary-actions {
+  display: flex; gap: 8px; margin: 12px 0 4px;
 }
-.s-actions a.btn-primary,
-.s-actions .btn-sec,
-.s-actions .venue-follow-btn {
-  flex: 1; min-width: 0;
-  padding: 11px 12px; border-radius: 50px;
-  font-size: 13px; font-weight: 700; text-align: center;
-  font-family: 'DM Sans', sans-serif;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+.s-act-btn {
+  flex: 1; padding: 10px 6px;
+  border-radius: 50px;
+  background: var(--card); border: 1.5px solid var(--border2);
+  color: var(--charcoal); font-family: 'DM Sans', sans-serif;
+  font-size: 13px; font-weight: 600;
+  cursor: pointer; text-align: center; text-decoration: none;
+  display: flex; align-items: center; justify-content: center;
+  transition: border-color .15s, background .15s;
+  white-space: nowrap;
+}
+.s-act-btn:active { background: rgba(42,31,20,.07); }
+.s-act-primary {
+  background: var(--teal); color: #fff; border-color: var(--teal);
+}
+.s-act-primary:hover, .s-act-primary:active { opacity: .88; background: var(--teal); }
+
+/* ══════════════════════════════════════════════
+   PROFILE — clean tab strip + social row
+   ══════════════════════════════════════════════ */
+
+/* Tab strip: clean underline style, no emojis */
+.pub-tabs {
+  display: flex; overflow-x: auto; border-bottom: 1px solid var(--border2);
+  margin: 16px 0 0; gap: 0;
+  scrollbar-width: none;
+}
+.pub-tabs::-webkit-scrollbar { display: none; }
+.pub-tab {
+  background: transparent; border: none;
+  padding: 10px 14px; font-size: 13px; font-weight: 600;
+  color: var(--muted); cursor: pointer; white-space: nowrap;
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+  font-family: 'DM Sans', sans-serif; transition: color .15s;
+  flex-shrink: 0;
+}
+.pub-tab.active { color: var(--teal); border-bottom-color: var(--teal); }
+
+/* Social row: 3 small ghost links below avatar */
+.profile-social-row {
+  display: flex; gap: 8px; margin: 12px 0 4px;
+}
+.profile-social-btn {
+  flex: 1; padding: 9px 8px; border-radius: 50px;
+  background: transparent;
+  border: 1.5px solid var(--border2);
+  color: rgba(42,31,20,.55); font-family: 'DM Sans', sans-serif;
+  font-size: 12px; font-weight: 600; cursor: pointer; text-align: center;
+  transition: border-color .15s, color .15s;
+}
+.profile-social-btn:active { border-color: var(--teal); color: var(--teal); }
+
+/* ══════════════════════════════════════════════
+   CARD going-btn — pill, clean
+   ══════════════════════════════════════════════ */
+.going-btn {
+  width: 100%; padding: 11px 16px; border-radius: 50px;
+  background: rgba(255,107,74,0.06); border: 1.5px solid rgba(255,107,74,0.18);
+  color: var(--teal); font-family: 'DM Sans', sans-serif;
+  font-size: 13px; font-weight: 700; cursor: pointer;
+  transition: background .15s, border-color .15s;
+  letter-spacing: .1px;
+}
+.going-btn.going-active {
+  background: rgba(255,140,0,0.1); border-color: rgba(255,140,0,0.3); color: #C87000;
+}
+
+/* Follow button active state */
+.s-act-btn.following {
+  background: rgba(0,194,168,0.08);
+  border-color: rgba(0,194,168,0.3);
+  color: var(--teal);
 }
