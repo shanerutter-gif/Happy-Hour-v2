@@ -669,7 +669,7 @@ function renderModal(v, type, reviews) {
             <div class="s-event-top">
               <span class="s-event-name">${esc(e.name||e.event_type)}</span>
               <span class="card-event-type">${esc(e.event_type||'')}</span>
-              ${evToday ? `<span style="font-size:10px;color:var(--teal);font-weight:700;font-family:'DM Mono',monospace">TONIGHT</span>` : ''}
+              ${evToday ? `<span style="font-size:10px;color:var(--teal);font-weight:700;font-family:'DM Sans',sans-serif">TONIGHT</span>` : ''}
             </div>
             <div class="s-event-meta">${(e.days||[]).join(', ')} · ${esc(e.hours||'')}${e.price && e.price !== 'Free' ? ` · ${esc(e.price)}` : ' · Free'}</div>
             ${e.description ? `<div class="s-event-desc">${esc(e.description)}</div>` : ''}
