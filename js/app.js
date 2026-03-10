@@ -436,7 +436,19 @@ function renderModal(v, type, reviews) {
   const faved   = isFavorite(v.id);
   const isVenue = type === 'venue';
   document.getElementById('modalContent').innerHTML = `
-    ${v.photo_url ? `<div class="s-photo-thumb" onclick="openPhotoLightbox('${v.photo_url}','${esc(v.name)}')" title="Tap to enlarge"><img src="${v.photo_url}" alt="${esc(v.name)}" loading="lazy" onerror="this.parentElement.remove()"><div class="s-photo-hint">📷 Tap to expand</div></div>` : ''}
+    ${(() => {
+      const photos = v.photo_urls?.length ? v.photo_urls : (v.photo_url ? [v.photo_url] : []);
+      if (!photos.length) return '';
+      if (photos.length === 1) {
+        return `<div class="s-photo-thumb" onclick="openPhotoLightbox('${photos[0]}','${esc(v.name)}')" title="Tap to enlarge"><img src="${photos[0]}" alt="${esc(v.name)}" loading="lazy" onerror="this.parentElement.remove()"><div class="s-photo-hint">📷 Tap to expand</div></div>`;
+      }
+      return `<div class="s-photos-strip">${photos.map((url, i) =>
+        `<div class="s-photo-thumb s-photo-thumb--multi" onclick="openPhotoLightbox('${url}','${esc(v.name)}')" title="Tap to enlarge">
+          <img src="${url}" alt="${esc(v.name)} photo ${i+1}" loading="lazy" onerror="this.parentElement.remove()">
+          <div class="s-photo-hint">📷 ${i+1}/${photos.length}</div>
+        </div>`
+      ).join('')}</div>`;
+    })()}
     <div class="s-tag ${isVenue ? 'hh' : 'ev'}">${isVenue ? 'Happy Hour' : esc(v.event_type || 'Event')}</div>
     <div style="display:flex;align-items:flex-start;gap:10px;padding-right:38px">
       <div style="flex:1">
