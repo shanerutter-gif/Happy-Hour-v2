@@ -128,6 +128,18 @@
     <div class="chips-row" id="chipsRow"></div>
     <div class="filter-panel" id="filterPanel">
       <div class="fp-inner">
+        <div class="fp-header">
+          <div class="fp-title">Filters &amp; Sort</div>
+          <button class="fp-close" onclick="toggleFilters()">✕ Close</button>
+        </div>
+        <div class="filter-group">
+          <div class="fg-label">Sort by</div>
+          <div class="filter-scroll" id="sortFilters">
+            <button class="pill active" id="sort-default" onclick="setSort('default',this)">Featured</button>
+            <button class="pill" id="sort-distance" onclick="setSort('distance',this)">📍 Nearest</button>
+            <button class="pill" id="sort-name" onclick="setSort('name',this)">A–Z</button>
+          </div>
+        </div>
         <div class="filter-group" id="fgDay">
           <div class="fg-label">Day</div>
           <div class="filter-scroll" id="dayFilters"></div>
