@@ -35,7 +35,8 @@ const state = {
   reviewCache: {}, reviewCacheTime: {},
   map: null, markers: {},
   goingCounts: {},
-  goingByMe: new Set()
+  goingByMe: new Set(),
+  todayCheckInCount: 0   // tracked locally; enforces 5/day cap
 };
 
 const CACHE_MS = 60000;
@@ -176,8 +177,9 @@ async function enterCity(slug, name, stateCode) {
   // Load checked in tonight counts
   loadGoingTonight(slug);
 
-  // Build filter pills
+  // Build filter pills + neighborhood follow bar
   buildFilterPills();
+  renderHoodFollowBar();
   applyFilters();
   initMap();
 }
@@ -399,11 +401,17 @@ function renderCards() {
   const grid = document.getElementById('cardsGrid');
   if (!grid) return;
   if (!state.filtered.length) {
-    grid.innerHTML = `<div class="no-results">
-      No venues match — try different filters
-      <div style="margin-top:16px">
-        <button class="request-venue-btn request-venue-btn--empty" onclick="openRequestVenue()">+ Request a Venue</button>
-      </div>
+    grid.innerHTML = `<div class="empty-state">
+      <svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="48" cy="48" r="40" fill="rgba(255,107,74,0.08)"/>
+        <circle cx="44" cy="44" r="18" stroke="#FF6B4A" stroke-width="3" fill="none"/>
+        <line x1="57" y1="57" x2="70" y2="70" stroke="#FF6B4A" stroke-width="3" stroke-linecap="round"/>
+        <circle cx="44" cy="38" r="3" fill="rgba(255,107,74,0.4)"/>
+        <path d="M37 47 Q44 54 51 47" stroke="rgba(255,107,74,0.4)" stroke-width="2" stroke-linecap="round" fill="none"/>
+      </svg>
+      <div class="empty-state-title">No spots found</div>
+      <div class="empty-state-sub">Try removing a filter or searching something different</div>
+      <button class="request-venue-btn request-venue-btn--empty" onclick="openRequestVenue()">+ Request a Venue</button>
     </div>`;
     return;
   }
@@ -443,7 +451,7 @@ function venueCardHTML(v) {
     ${photoBlock}
     <div class="card-body">
     ${hasPhoto ? '' : `<div class="card-top">
-      <div class="card-name">${esc(v.name)}</div>
+      <div class="card-name">${esc(v.name)}${v.owner_verified ? ' <span class="verified-badge verified-badge--card">✓</span>' : ''}</div>
       <div class="card-right">
         <button class="heart-btn${faved ? ' faved' : ''}" onclick="event.stopPropagation();doFavorite('${v.id}','venue',this)">${faved ? '★' : '☆'}</button>
         <div class="card-badge ${isToday ? 'today' : 'dim'}">${isToday ? 'Today' : 'Open'}</div>
@@ -465,10 +473,11 @@ function venueCardHTML(v) {
     ${goingFireBadge(v.id)}
     </div>
     <div class="card-foot">
-      <span class="card-cuisine">${esc(v.cuisine || '')}</span>
+      <span class="card-cuisine">${esc(v.cuisine || '')}${v.owner_verified ? ' <span class="verified-badge verified-badge--card">✓ Verified</span>' : ''}</span>
       <div class="card-stars">${starHTML(avg, 5, 11)}<span class="card-rcount">${cached.length ? `(${cached.length})` : '—'}</span></div>
     </div>
     <div class="card-going">
+      ${currentUser && !hasPhoto ? `<div class="checkin-counter"><span style="font-size:11px;color:var(--muted)">Today: ${state.todayCheckInCount}/${CHECK_IN_DAILY_LIMIT}</span><div class="checkin-counter-dots">${[0,1,2,3,4].map(i=>`<div class="checkin-dot${i < state.todayCheckInCount ? ' used' : ''}"></div>`).join('')}</div></div>` : ''}
       <button class="going-btn${state.goingByMe.has(v.id) ? ' going-active' : ''}" onclick="event.stopPropagation();doGoingTonight('${v.id}',this)">${checkInBtnLabel(state.goingCounts[v.id]||0, state.goingByMe.has(v.id))}</button>
     </div>
     ${!v.owner_verified ? `<div class="card-claim"><a href="business-portal.html" onclick="event.stopPropagation()" class="claim-link">Own this spot? Claim it →</a></div>` : ''}
@@ -578,7 +587,7 @@ function renderModal(v, type, reviews) {
     <div class="s-tag ${isVenue ? 'hh' : 'ev'}">${isVenue ? 'Happy Hour' : esc(v.event_type || 'Event')}</div>
     <div style="display:flex;align-items:flex-start;gap:10px;padding-right:38px">
       <div style="flex:1">
-        <div class="s-name">${esc(v.name)}</div>
+        <div class="s-name">${esc(v.name)}${v.owner_verified ? ' <span class="verified-badge verified-badge--modal">✓ Verified</span>' : ''}</div>
         <div class="s-hood">${esc(v.neighborhood || '')}</div>
         <div class="s-addr">📍 ${esc(v.address || '')}</div>
       ${isVenue ? (() => {
@@ -881,6 +890,7 @@ async function renderProfile(user) {
       <button class="pub-tab active" onclick="switchMyTab('checkins',this)">📍 Check-ins</button>
       <button class="pub-tab" onclick="switchMyTab('reviews',this)">⭐ Reviews</button>
       <button class="pub-tab" onclick="switchMyTab('saved',this)">♥ Saved</button>
+      <button class="pub-tab" onclick="switchMyTab('hoods',this)">🏘️ Areas</button>
       <button class="pub-tab" onclick="switchMyTab('settings',this)">⚙️</button>
     </div>
 
@@ -919,7 +929,21 @@ async function renderProfile(user) {
         + '<div class="pub-activity-icon">♥</div>'
         + '<div class="pub-activity-body"><div class="pub-activity-title">' + esc(v.name) + '</div>'
         + '<div class="pub-activity-meta">' + esc(v.neighborhood||'') + ' · ' + esc(v.hours||'') + '</div></div></div>'
-      ).join('') : '<div class="pub-empty">Nothing saved yet</div>'}
+      ).join('') : `<div class="empty-state" style="padding:32px 16px">
+        <svg width="72" height="72" viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="36" cy="36" r="30" fill="rgba(255,107,74,0.07)"/>
+          <path d="M36 50 C36 50 20 40 20 28 C20 22 25 18 30 18 C33 18 35 20 36 22 C37 20 39 18 42 18 C47 18 52 22 52 28 C52 40 36 50 36 50Z" stroke="#FF6B4A" stroke-width="2.5" fill="rgba(255,107,74,0.12)" stroke-linejoin="round"/>
+        </svg>
+        <div class="empty-state-title">No saved spots yet</div>
+        <div class="empty-state-sub">Tap the ★ on any venue to save it here</div>
+      </div>`}
+    </div>
+
+    <div id="my-tab-hoods" class="pub-tab-content" style="display:none">
+      <div style="margin-bottom:12px;font-size:13px;color:var(--muted);line-height:1.5">Follow neighborhoods to get notified when new deals are added nearby.</div>
+      ${areas.length ? `<div class="hood-grid">${areas.map(a =>
+        `<button class="hood-pill${followed.includes(a) ? ' on' : ''}" onclick="toggleHood('${a.replace(/'/g,"\\'")}',this)">${a}</button>`
+      ).join('')}</div>` : '<div class="pub-empty">No neighborhoods found for this city yet.</div>'}
     </div>
 
     <div id="my-tab-settings" class="pub-tab-content" style="display:none">
@@ -953,7 +977,7 @@ async function renderProfile(user) {
           <span class="t-text">Public profile — others can view your check-ins & reviews</span>
         </label>
       </div>
-      ${areas.length ? '<div class="p-section"><div class="p-section-title">Followed Neighborhoods</div><div class="hood-grid">' + areas.map(a => '<button class="hood-pill' + (followed.includes(a) ? ' on' : '') + '" onclick="toggleHood(\'' + a + '\',this)">' + a + '</button>').join('') + '</div></div>' : ''}
+      ${areas.length ? '' /* Neighborhoods now in dedicated tab */ : ''}
     </div>`;
 }
 
@@ -977,6 +1001,28 @@ async function saveName() { const n = document.getElementById('pName').value.tri
 async function saveBio() { const b = document.getElementById('pBio').value.trim(); await updateProfile(currentUser.id, { bio: b }); showToast('Bio saved'); }
 async function saveDigest(v) { await setDigestPreference(currentUser.id, v); showToast(v ? 'Digest enabled' : 'Digest off'); }
 async function savePrivacy(isPublic) { await savePrivacySetting(currentUser.id, isPublic); showToast(isPublic ? 'Profile is now public' : 'Profile is now private'); }
+async function renderHoodFollowBar() {
+  const bar = document.getElementById('hoodFollowBar');
+  if (!bar) return;
+  const areas = [...new Set([...state.venues, ...state.events].map(v => v.neighborhood).filter(Boolean))].sort();
+  if (!areas.length) { bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  let followed = [];
+  if (currentUser) {
+    try { followed = await getFollowedNeighborhoods(currentUser.id); } catch(e) {}
+  }
+  bar.innerHTML = `<span class="hood-follow-bar-label">Neighborhoods</span>`
+    + areas.map(a => `<button class="hood-follow-pill${followed.includes(a) ? ' following' : ''}" onclick="toggleHoodFromBar('${a.replace(/'/g,"\\'")}',this)">${followed.includes(a) ? '✓ ' : ''}${a}</button>`).join('');
+}
+
+async function toggleHoodFromBar(hood, btn) {
+  if (!currentUser) { openAuth('signin'); showToast('Sign in to follow neighborhoods'); return; }
+  const added = await toggleNeighborhoodFollow(currentUser.id, hood);
+  btn.classList.toggle('following', added);
+  btn.textContent = (added ? '✓ ' : '') + hood;
+  showToast(added ? `Following ${hood} 🏘️` : `Unfollowed ${hood}`);
+}
+
 async function toggleHood(hood, btn) { if (!currentUser) return; const added = await toggleNeighborhoodFollow(currentUser.id, hood); btn.classList.toggle('on', added); showToast(added ? `Following ${hood}` : `Unfollowed ${hood}`); }
 
 // ── FIND PEOPLE ────────────────────────────────────────
@@ -1179,12 +1225,15 @@ async function loadGoingTonight(citySlug) {
     state.goingCounts = {};
     (counts || []).forEach(r => { state.goingCounts[r.venue_id] = r.count; });
     state.goingByMe = new Set();
+    state.todayCheckInCount = 0;
     if (currentUser) {
       const mine = await fetchMyCheckIns(currentUser.id, today);
-      (mine || []).forEach(r => state.goingByMe.add(r.venue_id));
+      (mine || []).forEach(r => { state.goingByMe.add(r.venue_id); state.todayCheckInCount++; });
     }
   } catch(e) { console.warn('Check-in load failed', e); }
 }
+
+const CHECK_IN_DAILY_LIMIT = 5;
 
 async function doGoingTonight(venueId, btn) {
   if (!currentUser) { openAuth('signin'); showToast('Sign in to check in'); return; }
@@ -1193,16 +1242,20 @@ async function doGoingTonight(venueId, btn) {
   if (isCheckedIn) {
     await removeCheckIn(currentUser.id, venueId, today);
     state.goingByMe.delete(venueId);
+    state.todayCheckInCount = Math.max(0, state.todayCheckInCount - 1);
     state.goingCounts[venueId] = Math.max(0, (state.goingCounts[venueId] || 1) - 1);
     showToast('Check-in removed');
   } else {
+    if (state.todayCheckInCount >= CHECK_IN_DAILY_LIMIT) {
+      showToast(`You've hit the ${CHECK_IN_DAILY_LIMIT} check-in limit for today 🙌`);
+      return;
+    }
     await addCheckIn({ userId: currentUser.id, venueId, citySlug: state.city.slug, date: today });
     state.goingByMe.add(venueId);
+    state.todayCheckInCount++;
     state.goingCounts[venueId] = (state.goingCounts[venueId] || 0) + 1;
     showToast('📍 Checked in!');
-    // Haptic feedback on native
     if (typeof haptic === 'function') haptic('medium');
-    // Prompt for push notifications after first check-in
     if (currentUser && typeof promptPushIfAppropriate === 'function') {
       setTimeout(promptPushIfAppropriate, 1500);
     }
@@ -1215,11 +1268,33 @@ async function doGoingTonight(venueId, btn) {
     if (count >= 2) { badge.textContent = `🔥 ${count} here tonight`; badge.style.display = 'inline-flex'; }
     else badge.style.display = 'none';
   }
+  refreshCheckInCounters();
 }
 
 function checkInBtnLabel(count, isIn) {
   if (isIn) return count > 1 ? `📍 You + ${count - 1} here` : "📍 You're here!";
+  if (state.todayCheckInCount >= CHECK_IN_DAILY_LIMIT) return '🙌 Limit reached for today';
   return count > 0 ? `🔥 ${count} here — join?` : '📍 Check In';
+}
+
+function refreshCheckInCounters() {
+  // Update all check-in counter dots on visible cards
+  document.querySelectorAll('.checkin-counter').forEach(el => {
+    const n = state.todayCheckInCount;
+    el.querySelectorAll('.checkin-dot').forEach((dot, i) => {
+      dot.classList.toggle('used', i < n);
+    });
+  });
+  // Update all going buttons labels
+  document.querySelectorAll('.going-btn').forEach(btn => {
+    const card = btn.closest('[data-id]');
+    const vid = card?.dataset.id || btn.dataset.vid;
+    if (!vid) return;
+    const count = state.goingCounts[vid] || 0;
+    const isIn = state.goingByMe.has(vid);
+    btn.classList.toggle('going-active', isIn);
+    btn.innerHTML = checkInBtnLabel(count, isIn);
+  });
 }
 
 function goingFireBadge(venueId) {
