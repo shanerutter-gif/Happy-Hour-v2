@@ -76,12 +76,14 @@ function onAuthChange(user) {
 // ── NAV ────────────────────────────────────────────────
 function renderNav(user) {
   const r = document.getElementById('navRight');
+  const onHome = !state.city;
+  const bizLink = onHome ? `<a class="nav-btn nav-business" href="business-landing.html">For Business</a>` : '';
   r.innerHTML = user
-    ? `<a class="nav-btn nav-business" href="business-landing.html">For Business</a>
+    ? `${bizLink}
        <button class="nav-btn" onclick="openFavView()">★ Saved</button>
        <button class="nav-btn nav-profile" onclick="openProfile()">${(user.user_metadata?.full_name || user.email).split(' ')[0]} ↗</button>
        <button class="nav-btn nav-signout" onclick="doSignOut()">Sign out</button>`
-    : `<a class="nav-btn nav-business" href="business-landing.html">For Business</a>
+    : `${bizLink}
        <button class="nav-btn nav-login" onclick="openAuth('signin')">Sign In / Join</button>`;
 }
 async function doSignOut() { await authSignOut(); showToast('Signed out'); }
@@ -126,6 +128,7 @@ function showHome() {
   state.filters = { day: null, area: null, type: null, search: '' };
   state.favFilterOn = false;
   if (state.map) { state.map.remove(); state.map = null; state.markers = {}; }
+  renderNav(currentUser);
 }
 
 async function enterCity(slug, name, stateCode) {
@@ -134,6 +137,7 @@ async function enterCity(slug, name, stateCode) {
   document.getElementById('appPage').style.display  = 'block';
   document.getElementById('cityBarName').textContent = `${name}, ${stateCode}`;
   document.title = `Spotd — ${name} Happy Hours & Events`;
+  renderNav(currentUser);
 
   // Reset
   state.showFilter = 'all';
