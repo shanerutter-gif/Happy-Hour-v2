@@ -552,6 +552,13 @@ async function openModal(id, type = 'venue') {
       }
     });
   }
+  // Load UGC check-in photos
+  if (type === 'venue') {
+    fetchCheckinPhotos(id).then(photos => {
+      const el = document.getElementById(`ugc-photos-${id}`);
+      if (el) el.innerHTML = renderCheckinPhotos(photos, id);
+    });
+  }
 }
 
 async function getCachedReviews(id, type) {
@@ -653,6 +660,7 @@ function renderModal(v, type, reviews) {
       <button class="going-btn going-btn--lg${state.goingByMe.has(v.id) ? ' going-active' : ''}" id="modal-going-btn" onclick="doGoingTonight('${v.id}', this)">${checkInBtnLabel(state.goingCounts[v.id]||0, state.goingByMe.has(v.id))}</button>
       ${(state.goingCounts[v.id]||0) >= 2 ? `<div class="s-going-count">🔥 ${state.goingCounts[v.id]} people are checked in tonight</div>` : ''}
     </div>` : ''}
+    ${isVenue ? `<div id="ugc-photos-${v.id}"></div>` : ''}
     <div class="s-div"></div>
     <div class="s-label">Reviews <span id="ravg-${v.id}">${avgHTML(reviews)}</span></div>
     <div class="review-form">
@@ -1273,7 +1281,7 @@ async function doGoingTonight(venueId, btn) {
       setTimeout(promptPushIfAppropriate, 1500);
     }
     setTimeout(() => checkStreakAfterCheckIn(), 2200);
-    setTimeout(() => maybeOpenTagFriends(venueId), 3500);
+    setTimeout(() => maybeOpenPhotoCheckin(venueId), 3200);
   }
   const count = state.goingCounts[venueId] || 0;
   const nowIn = state.goingByMe.has(venueId);
@@ -1815,4 +1823,163 @@ async function tagFriend(toUserId, toName, venueId, venueName, chip) {
   showToast(`Tagged ${toName} at ${venueName} 👋`);
   // Close overlay after a brief moment so user sees the chip light up
   setTimeout(() => closeOverlay('tagFriendsOverlay'), 900);
+}
+
+// ══════════════════════════════════════════════
+// PHOTO CHECK-INS
+// ══════════════════════════════════════════════
+
+// Render the UGC photos strip inside the venue modal
+function renderCheckinPhotos(photos, venueId) {
+  if (!photos.length) return '';
+  const isOwn = id => currentUser && id === currentUser.id;
+  return `
+    <div class="s-div"></div>
+    <div class="ugc-photos-section">
+      <div class="ugc-photos-label">📸 From the crowd <span style="font-weight:400;font-size:10px">${photos.length} photo${photos.length !== 1 ? 's' : ''}</span></div>
+      <div class="ugc-photos-strip">
+        ${photos.map(p => `
+          <div class="ugc-photo-thumb" onclick="openPhotoLightbox('${esc(p.photo_url)}','${esc(p.profile?.display_name || 'Photo')}')">
+            <img src="${esc(p.photo_url)}" alt="Check-in photo" loading="lazy" onerror="this.closest('.ugc-photo-thumb').remove()">
+            <div class="ugc-photo-meta">${esc(p.profile?.display_name || 'Someone')}${p.caption ? ' · ' + esc(p.caption) : ''}</div>
+            ${isOwn(p.user_id) ? `<button class="ugc-photo-delete" onclick="event.stopPropagation();doDeleteCheckinPhoto('${p.id}','${esc(p.storage_path)}','${venueId}',this)" title="Delete">✕</button>` : ''}
+          </div>`).join('')}
+      </div>
+    </div>`;
+}
+
+// Prompt to add a photo after check-in (shown automatically)
+async function maybeOpenPhotoCheckin(venueId) {
+  if (!currentUser) {
+    // Skip photo, go straight to tag friends
+    const followingIds = await getFollowing(currentUser?.id).catch(() => []);
+    if (followingIds.length) maybeOpenTagFriends(venueId);
+    return;
+  }
+  const venue = state.venues.find(x => String(x.id) === String(venueId));
+  openPhotoCheckinPrompt(venueId, venue?.name || 'this spot');
+}
+
+function openPhotoCheckinPrompt(venueId, venueName) {
+  const el = document.getElementById('photoCheckinContent');
+  if (!el) return;
+
+  el.innerHTML = `
+    <div class="photo-prompt-title">Add a photo? 📸</div>
+    <div class="photo-prompt-sub">Show others what's happening at ${esc(venueName)} right now.</div>
+    <div class="photo-upload-area" id="photoUploadArea"
+      ondragover="event.preventDefault();this.classList.add('dragover')"
+      ondragleave="this.classList.remove('dragover')"
+      ondrop="handlePhotoDropOrChange(event,'${venueId}','${esc(venueName)}')">
+      <input type="file" accept="image/*" capture="environment"
+        onchange="handlePhotoDropOrChange(event,'${venueId}','${esc(venueName)}')">
+      <div class="photo-upload-icon">📷</div>
+      <div class="photo-upload-hint">Tap to take a photo or<br><strong>choose from your library</strong></div>
+    </div>
+    <div class="photo-preview-wrap" id="photoPreviewWrap">
+      <img id="photoPreviewImg" src="" alt="Preview">
+      <button class="photo-preview-remove" onclick="clearPhotoPreview()">✕</button>
+    </div>
+    <textarea class="photo-caption-field" id="photoCaptionField"
+      placeholder="Add a caption (optional)…" rows="2"></textarea>
+    <button class="photo-submit-btn" id="photoSubmitBtn" disabled
+      onclick="submitPhotoCheckin('${venueId}','${esc(venueName)}')">Share Photo</button>
+    <button class="photo-skip-btn" onclick="skipToTagFriends('${venueId}')">Skip →</button>`;
+
+  openOverlay('photoCheckinOverlay');
+}
+
+// Shared handler for both file input change and drag-drop
+function handlePhotoDropOrChange(event, venueId, venueName) {
+  event.preventDefault();
+  document.getElementById('photoUploadArea')?.classList.remove('dragover');
+  const file = event.dataTransfer?.files?.[0] || event.target?.files?.[0];
+  if (!file || !file.type.startsWith('image/')) { showToast('Please choose an image file'); return; }
+  if (file.size > 5 * 1024 * 1024) { showToast('Photo must be under 5 MB'); return; }
+
+  // Store file reference on the window so submitPhotoCheckin can grab it
+  window._pendingCheckinPhoto = file;
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    const wrap = document.getElementById('photoPreviewWrap');
+    const img  = document.getElementById('photoPreviewImg');
+    const area = document.getElementById('photoUploadArea');
+    const btn  = document.getElementById('photoSubmitBtn');
+    if (wrap) { wrap.style.display = 'block'; }
+    if (img)  { img.src = e.target.result; }
+    if (area) { area.style.display = 'none'; }
+    if (btn)  { btn.disabled = false; }
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearPhotoPreview() {
+  window._pendingCheckinPhoto = null;
+  const wrap = document.getElementById('photoPreviewWrap');
+  const area = document.getElementById('photoUploadArea');
+  const btn  = document.getElementById('photoSubmitBtn');
+  const img  = document.getElementById('photoPreviewImg');
+  if (wrap) wrap.style.display = 'none';
+  if (img)  img.src = '';
+  if (area) area.style.display = '';
+  if (btn)  btn.disabled = true;
+}
+
+async function submitPhotoCheckin(venueId, venueName) {
+  const file    = window._pendingCheckinPhoto;
+  const caption = document.getElementById('photoCaptionField')?.value.trim() || '';
+  const btn     = document.getElementById('photoSubmitBtn');
+  if (!file || !currentUser) return;
+
+  btn.disabled = true;
+  btn.textContent = 'Uploading…';
+
+  const uploaded = await uploadCheckinPhoto(file, currentUser.id);
+  if (!uploaded) {
+    btn.disabled = false; btn.textContent = 'Share Photo';
+    showToast('Upload failed — please try again'); return;
+  }
+
+  await saveCheckinPhoto({
+    userId: currentUser.id, venueId, citySlug: state.city?.slug || '',
+    photoUrl: uploaded.url, storagePath: uploaded.storagePath, caption
+  });
+
+  window._pendingCheckinPhoto = null;
+  showToast('📸 Photo shared!');
+  closeOverlay('photoCheckinOverlay');
+
+  // Refresh UGC strip if the modal for this venue is open
+  const ugcEl = document.getElementById(`ugc-photos-${venueId}`);
+  if (ugcEl) {
+    fetchCheckinPhotos(venueId).then(photos => {
+      ugcEl.innerHTML = renderCheckinPhotos(photos, venueId);
+    });
+  }
+
+  // Now open tag friends (the full post-check-in chain: photo → tag)
+  setTimeout(() => maybeOpenTagFriends(venueId), 600);
+}
+
+async function doDeleteCheckinPhoto(photoId, storagePath, venueId, btn) {
+  btn.textContent = '…';
+  const ok = await deleteCheckinPhotoFromDB(photoId, storagePath);
+  if (ok) {
+    btn.closest('.ugc-photo-thumb').remove();
+    // If strip is now empty, remove the whole section
+    const strip = document.querySelector(`#ugc-photos-${venueId} .ugc-photos-strip`);
+    if (strip && !strip.children.length) {
+      const el = document.getElementById(`ugc-photos-${venueId}`);
+      if (el) el.innerHTML = '';
+    }
+  } else {
+    btn.textContent = '✕';
+    showToast('Could not delete — please try again');
+  }
+}
+
+function skipToTagFriends(venueId) {
+  closeOverlay('photoCheckinOverlay');
+  setTimeout(() => maybeOpenTagFriends(venueId), 300);
 }
