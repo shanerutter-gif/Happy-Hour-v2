@@ -249,8 +249,8 @@ function applyFilters() {
       const haystack = [v.name, v.neighborhood, v.cuisine, v.event_type, ...(v.deals || [])].join(' ').toLowerCase();
       if (!haystack.includes(t)) return false;
     }
-    if (amenity && !isEvent) {
-      if (!v[amenity]) return false;
+    if (amenity) {
+      if (isEvent || !v[amenity]) return false;
     }
     if (search) {
       const h = [v.name, v.neighborhood, v.cuisine, v.address, v.event_type, ...(v.deals || [])].join(' ').toLowerCase();
