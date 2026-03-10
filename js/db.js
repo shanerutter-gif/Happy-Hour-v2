@@ -241,10 +241,12 @@ async function submitVenueRequestToDB(payload) {
 async function fetchCheckInCounts(citySlug, date) {
   try {
     const { data, error } = await db.from('check_ins')
-      .select('venue_id, count:id.count()')
+      .select('venue_id')
       .eq('city_slug', citySlug).eq('date', date);
     if (error) throw error;
-    return data || [];
+    const counts = {};
+    (data || []).forEach(r => { counts[r.venue_id] = (counts[r.venue_id] || 0) + 1; });
+    return Object.entries(counts).map(([venue_id, count]) => ({ venue_id, count }));
   } catch(e) { console.warn('fetchCheckInCounts error', e); return []; }
 }
 async function fetchMyCheckIns(userId, date) {
