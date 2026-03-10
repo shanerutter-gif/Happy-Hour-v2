@@ -393,11 +393,83 @@
     .save-bar.show { display: flex; color: #fff; }
     .save-bar span { color: rgba(255,255,255,0.8); }
 
+    /* ── MOBILE NAV ── */
+    .mobile-bottom-nav { display: none; }
+
     @media (max-width: 700px) {
-      .main { padding: 24px 16px; }
-      .auth-card { padding: 32px 24px; }
-      .form-row { grid-template-columns: 1fr; }
-      nav { padding: 14px 16px; }
+      /* Nav */
+      nav { padding: 12px 16px; }
+      #nav-user { display: none; }
+
+      /* Layout */
+      .app { flex-direction: column; }
+      .sidebar { display: none !important; }
+      .main { padding: 20px 16px 90px; max-width: 100%; }
+
+      /* Mobile bottom nav */
+      .mobile-bottom-nav {
+        display: flex;
+        position: fixed; bottom: 0; left: 0; right: 0;
+        background: rgba(245,239,230,0.97);
+        border-top: 1px solid var(--border);
+        backdrop-filter: blur(12px);
+        z-index: 200;
+        padding: 0 0 env(safe-area-inset-bottom);
+      }
+      .mob-nav-btn {
+        flex: 1; display: flex; flex-direction: column; align-items: center;
+        justify-content: center; padding: 10px 4px 8px;
+        background: transparent; border: none; cursor: pointer;
+        color: var(--muted); font-family: 'DM Sans', sans-serif;
+        font-size: 9px; font-weight: 600; letter-spacing: .5px;
+        text-transform: uppercase; gap: 4px; transition: color .15s;
+        position: relative;
+      }
+      .mob-nav-btn .mob-icon { font-size: 20px; line-height: 1; }
+      .mob-nav-btn.active { color: var(--teal); }
+
+      /* Auth */
+      .auth-card { padding: 28px 20px; border-radius: 16px; margin: 0 4px; }
+      .auth-wrap { padding: 24px 16px; align-items: flex-start; }
+
+      /* Forms */
+      .form-row { grid-template-columns: 1fr; gap: 0; }
+      input, select, textarea { font-size: 16px !important; } /* prevent iOS zoom */
+
+      /* Page header */
+      .page-header { margin-bottom: 24px; }
+      .page-header h1 { font-size: 24px; }
+
+      /* Edit sections */
+      .edit-section { border-radius: 12px; }
+      .edit-section-header { padding: 16px; }
+      .edit-section-body { padding: 0 16px 16px; }
+
+      /* Buttons - full width on mobile */
+      .btn { width: 100%; }
+      .btn-outline { width: 100%; }
+
+      /* Event cards - stack actions */
+      .event-card-header { flex-direction: column; gap: 10px; align-items: flex-start; }
+      .event-card-header > div:last-child { width: 100%; display: flex; gap: 8px; }
+      .event-card-header > div:last-child button { flex: 1; padding: 10px !important; }
+
+      /* Deal rows */
+      .deal-row input { font-size: 16px; }
+
+      /* Claim steps */
+      .claim-card { padding: 24px 16px; }
+
+      /* Save bar higher for mobile nav */
+      .save-bar { bottom: 70px; }
+
+      /* Amenity rows */
+      .amenity-row { padding: 12px 14px; }
+      .amenity-row-desc { display: none; } /* hide desc on small screens */
+
+      /* Days picker - wrap nicely */
+      .days-picker { gap: 6px; }
+      .day-btn { padding: 8px 10px; font-size: 13px; flex: 1; text-align: center; min-width: 36px; }
     }
   </style>
 </head>
@@ -458,6 +530,22 @@
         </div>
       </div>
     </div>
+  </div>
+
+  <!-- MOBILE BOTTOM NAV -->
+  <div class="mobile-bottom-nav" id="mob-bottom-nav" style="display:none;">
+    <button class="mob-nav-btn active" id="mob-btn-dashboard" onclick="showPage('dashboard')">
+      <span class="mob-icon">🏠</span>Dashboard
+    </button>
+    <button class="mob-nav-btn" id="mob-btn-claim" onclick="showPage('claim')">
+      <span class="mob-icon">📍</span>Claim
+    </button>
+    <button class="mob-nav-btn" id="mob-btn-edit" onclick="showPage('edit')" style="display:none;">
+      <span class="mob-icon">✏️</span>Edit
+    </button>
+    <button class="mob-nav-btn" onclick="doLogout()">
+      <span class="mob-icon">👋</span>Sign Out
+    </button>
   </div>
 
   <!-- MAIN APP -->
@@ -915,13 +1003,16 @@
     const email = currentUser?.email || '';
     document.getElementById('nav-user').textContent = email;
     document.getElementById('btn-logout').style.display = 'block';
+    document.getElementById('mob-bottom-nav').style.display = 'flex';
     loadDashboard();
   }
 
-  document.getElementById('btn-logout').addEventListener('click', () => {
+  function doLogout() {
     clearSession();
     location.reload();
-  });
+  }
+
+  document.getElementById('btn-logout').addEventListener('click', doLogout);
 
   // ─────────────────────────────────────────────
   // NAVIGATION
@@ -929,8 +1020,12 @@
   function showPage(page) {
     document.querySelectorAll('.main .screen').forEach(s => s.classList.remove('active'));
     document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+    document.querySelectorAll('.mob-nav-btn').forEach(i => i.classList.remove('active'));
     document.getElementById('page-' + page)?.classList.add('active');
     document.getElementById('nav-' + page)?.classList.add('active');
+    document.getElementById('mob-btn-' + page)?.classList.add('active');
+    // Scroll to top on page change
+    window.scrollTo(0, 0);
   }
 
   // ─────────────────────────────────────────────
@@ -1002,6 +1097,9 @@
     loadVenueEvents(venueId);
 
     window._editingVenueId = venueId;
+    // Show Edit tab in mobile nav
+    const mobEditBtn = document.getElementById('mob-btn-edit');
+    if (mobEditBtn) mobEditBtn.style.display = 'flex';
     showPage('edit');
 
     // Add nav item
