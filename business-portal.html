@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -31,467 +30,463 @@
       min-height: 100vh;
     }
 
-```
-/* ── NAV ── */
-nav {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 16px 40px;
-  border-bottom: 1px solid var(--border);
-  background: rgba(245,239,230,0.95);
-  backdrop-filter: blur(12px);
-  position: sticky; top: 0; z-index: 100;
-}
-.nav-logo {
-  font-family: 'Cabinet Grotesk', sans-serif;
-  font-weight: 900; font-size: 20px;
-  color: var(--teal); text-decoration: none; letter-spacing: -0.5px;
-}
-.nav-logo span { color: var(--white); }
-.nav-right { display: flex; align-items: center; gap: 16px; }
-#nav-user { font-size: 13px; color: var(--muted); }
-#btn-logout {
-  background: transparent; border: 1px solid var(--border);
-  color: var(--muted); padding: 8px 16px; border-radius: 7px;
-  font-size: 13px; cursor: pointer; font-family: 'DM Sans', sans-serif;
-  transition: border-color 0.2s, color 0.2s;
-  display: none;
-}
-#btn-logout:hover { border-color: rgba(42,31,20,0.2); color: var(--white); }
+    /* ── NAV ── */
+    nav {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 40px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(245,239,230,0.95);
+      backdrop-filter: blur(12px);
+      position: sticky; top: 0; z-index: 100;
+    }
+    .nav-logo {
+      font-family: 'Cabinet Grotesk', sans-serif;
+      font-weight: 900; font-size: 20px;
+      color: var(--teal); text-decoration: none; letter-spacing: -0.5px;
+    }
+    .nav-logo span { color: var(--white); }
+    .nav-right { display: flex; align-items: center; gap: 16px; }
+    #nav-user { font-size: 13px; color: var(--muted); }
+    #btn-logout {
+      background: transparent; border: 1px solid var(--border);
+      color: var(--muted); padding: 8px 16px; border-radius: 7px;
+      font-size: 13px; cursor: pointer; font-family: 'DM Sans', sans-serif;
+      transition: border-color 0.2s, color 0.2s;
+      display: none;
+    }
+    #btn-logout:hover { border-color: rgba(42,31,20,0.2); color: var(--white); }
 
-/* ── LAYOUT ── */
-.app { display: flex; min-height: calc(100vh - 57px); }
+    /* ── LAYOUT ── */
+    .app { display: flex; min-height: calc(100vh - 57px); }
 
-/* ── SIDEBAR ── */
-.sidebar {
-  width: 240px; flex-shrink: 0;
-  border-right: 1px solid var(--border);
-  padding: 32px 0;
-  display: none;
-}
-.sidebar.visible { display: block; }
-.sidebar-section {
-  padding: 0 16px;
-  margin-bottom: 8px;
-}
-.sidebar-label {
-  font-size: 10px; font-weight: 700; letter-spacing: 2px;
-  text-transform: uppercase; color: var(--muted);
-  padding: 8px 12px;
-}
-.sidebar-item {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 12px; border-radius: 8px;
-  cursor: pointer; color: var(--muted);
-  font-size: 14px; font-weight: 500;
-  transition: background 0.15s, color 0.15s;
-  user-select: none;
-}
-.sidebar-item:hover { background: rgba(255,107,74,0.06); color: var(--white); }
-.sidebar-item.active { background: rgba(255,107,74,0.1); color: var(--teal); }
-.sidebar-item .icon { font-size: 16px; }
+    /* ── SIDEBAR ── */
+    .sidebar {
+      width: 240px; flex-shrink: 0;
+      border-right: 1px solid var(--border);
+      padding: 32px 0;
+      display: none;
+    }
+    .sidebar.visible { display: block; }
+    .sidebar-section {
+      padding: 0 16px;
+      margin-bottom: 8px;
+    }
+    .sidebar-label {
+      font-size: 10px; font-weight: 700; letter-spacing: 2px;
+      text-transform: uppercase; color: var(--muted);
+      padding: 8px 12px;
+    }
+    .sidebar-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px; border-radius: 8px;
+      cursor: pointer; color: var(--muted);
+      font-size: 14px; font-weight: 500;
+      transition: background 0.15s, color 0.15s;
+      user-select: none;
+    }
+    .sidebar-item:hover { background: rgba(255,107,74,0.06); color: var(--white); }
+    .sidebar-item.active { background: rgba(255,107,74,0.1); color: var(--teal); }
+    .sidebar-item .icon { font-size: 16px; }
 
-/* ── MAIN ── */
-.main {
-  flex: 1;
-  padding: 40px;
-  max-width: 900px;
-}
+    /* ── MAIN ── */
+    .main {
+      flex: 1;
+      padding: 40px;
+      max-width: 900px;
+    }
 
-/* ── SCREENS ── */
-.screen { display: none; }
-.screen.active { display: block; }
+    /* ── SCREENS ── */
+    .screen { display: none; }
+    .screen.active { display: block; }
 
-/* ── AUTH SCREEN ── */
-.auth-wrap {
-  min-height: calc(100vh - 57px);
-  display: flex; align-items: center; justify-content: center;
-  padding: 40px 24px;
-}
-.auth-card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  padding: 48px;
-  width: 100%; max-width: 440px;
-}
-.auth-card h2 {
-  font-family: 'Cabinet Grotesk', sans-serif;
-  font-size: 28px; font-weight: 800; margin-bottom: 8px;
-  letter-spacing: -0.5px;
-}
-.auth-card .sub {
-  color: var(--muted); font-size: 14px; margin-bottom: 32px;
-}
-.auth-tabs {
-  display: flex; gap: 4px;
-  background: rgba(42,31,20,0.04);
-  padding: 4px; border-radius: 10px;
-  margin-bottom: 28px;
-}
-.auth-tab {
-  flex: 1; padding: 9px;
-  border-radius: 7px; font-size: 14px; font-weight: 500;
-  cursor: pointer; text-align: center;
-  color: var(--muted); transition: background 0.15s, color 0.15s;
-  border: none; background: transparent; font-family: 'DM Sans', sans-serif;
-}
-.auth-tab.active { background: var(--card2); color: var(--white); }
+    /* ── AUTH SCREEN ── */
+    .auth-wrap {
+      min-height: calc(100vh - 57px);
+      display: flex; align-items: center; justify-content: center;
+      padding: 40px 24px;
+    }
+    .auth-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 48px;
+      width: 100%; max-width: 440px;
+    }
+    .auth-card h2 {
+      font-family: 'Cabinet Grotesk', sans-serif;
+      font-size: 28px; font-weight: 800; margin-bottom: 8px;
+      letter-spacing: -0.5px;
+    }
+    .auth-card .sub {
+      color: var(--muted); font-size: 14px; margin-bottom: 32px;
+    }
+    .auth-tabs {
+      display: flex; gap: 4px;
+      background: rgba(42,31,20,0.04);
+      padding: 4px; border-radius: 10px;
+      margin-bottom: 28px;
+    }
+    .auth-tab {
+      flex: 1; padding: 9px;
+      border-radius: 7px; font-size: 14px; font-weight: 500;
+      cursor: pointer; text-align: center;
+      color: var(--muted); transition: background 0.15s, color 0.15s;
+      border: none; background: transparent; font-family: 'DM Sans', sans-serif;
+    }
+    .auth-tab.active { background: var(--card2); color: var(--white); }
 
-/* ── FORM ELEMENTS ── */
-.form-group { margin-bottom: 18px; }
-label { display: block; font-size: 13px; font-weight: 500; color: var(--muted); margin-bottom: 7px; }
-input[type=text], input[type=email], input[type=password], input[type=tel], input[type=url],
-input[type=time], textarea, select {
-  width: 100%;
-  background: rgba(42,31,20,0.04);
-  border: 1px solid var(--border);
-  border-radius: 9px;
-  padding: 12px 14px;
-  color: var(--white);
-  font-family: 'DM Sans', sans-serif;
-  font-size: 15px;
-  transition: border-color 0.2s;
-  outline: none;
-}
-input:focus, textarea:focus, select:focus {
-  border-color: rgba(255,107,74,0.5);
-}
-textarea { resize: vertical; min-height: 90px; }
-select option { background: #1a2235; }
-.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    /* ── FORM ELEMENTS ── */
+    .form-group { margin-bottom: 18px; }
+    label { display: block; font-size: 13px; font-weight: 500; color: var(--muted); margin-bottom: 7px; }
+    input[type=text], input[type=email], input[type=password], input[type=tel], input[type=url],
+    input[type=time], textarea, select {
+      width: 100%;
+      background: rgba(42,31,20,0.04);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 12px 14px;
+      color: var(--white);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      transition: border-color 0.2s;
+      outline: none;
+    }
+    input:focus, textarea:focus, select:focus {
+      border-color: rgba(255,107,74,0.5);
+    }
+    textarea { resize: vertical; min-height: 90px; }
+    select option { background: #1a2235; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 
-.btn {
-  width: 100%; padding: 14px;
-  background: var(--teal); color: var(--teal);
-  border: none; border-radius: 10px;
-  font-family: 'Cabinet Grotesk', sans-serif;
-  font-size: 16px; font-weight: 700;
-  cursor: pointer;
-  transition: background 0.2s, transform 0.15s;
-}
-.btn:hover { background: var(--teal2); transform: translateY(-1px); }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-.btn-outline {
-  background: transparent; color: var(--white);
-  border: 1px solid var(--border);
-  padding: 12px 24px; border-radius: 9px;
-  font-family: 'DM Sans', sans-serif;
-  font-size: 14px; font-weight: 500; cursor: pointer;
-  transition: border-color 0.2s, background 0.2s;
-}
-.btn-outline:hover { border-color: rgba(42,31,20,0.2); background: rgba(42,31,20,0.04); }
-.btn-sm {
-  padding: 8px 18px; font-size: 13px; width: auto; border-radius: 8px;
-}
-.btn-danger {
-  background: rgba(255,92,92,0.15); color: var(--error);
-  border: 1px solid rgba(255,92,92,0.2);
-}
-.btn-danger:hover { background: rgba(255,92,92,0.25); }
+    .btn {
+      width: 100%; padding: 14px;
+      background: var(--teal); color: var(--teal);
+      border: none; border-radius: 10px;
+      font-family: 'Cabinet Grotesk', sans-serif;
+      font-size: 16px; font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.15s;
+    }
+    .btn:hover { background: var(--teal2); transform: translateY(-1px); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .btn-outline {
+      background: transparent; color: var(--white);
+      border: 1px solid var(--border);
+      padding: 12px 24px; border-radius: 9px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px; font-weight: 500; cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .btn-outline:hover { border-color: rgba(42,31,20,0.2); background: rgba(42,31,20,0.04); }
+    .btn-sm {
+      padding: 8px 18px; font-size: 13px; width: auto; border-radius: 8px;
+    }
+    .btn-danger {
+      background: rgba(255,92,92,0.15); color: var(--error);
+      border: 1px solid rgba(255,92,92,0.2);
+    }
+    .btn-danger:hover { background: rgba(255,92,92,0.25); }
 
-.msg {
-  padding: 12px 16px; border-radius: 9px;
-  font-size: 14px; margin-bottom: 20px;
-  display: none;
-}
-.msg.error { background: rgba(255,92,92,0.1); border: 1px solid rgba(255,92,92,0.2); color: var(--error); }
-.msg.success { background: rgba(255,107,74,0.1); border: 1px solid rgba(255,107,74,0.2); color: var(--teal); }
-.msg.warn { background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.2); color: var(--warn); }
-.msg.show { display: block; }
+    .msg {
+      padding: 12px 16px; border-radius: 9px;
+      font-size: 14px; margin-bottom: 20px;
+      display: none;
+    }
+    .msg.error { background: rgba(255,92,92,0.1); border: 1px solid rgba(255,92,92,0.2); color: var(--error); }
+    .msg.success { background: rgba(255,107,74,0.1); border: 1px solid rgba(255,107,74,0.2); color: var(--teal); }
+    .msg.warn { background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.2); color: var(--warn); }
+    .msg.show { display: block; }
 
-/* ── DASHBOARD ── */
-.page-header { margin-bottom: 36px; }
-.page-header h1 {
-  font-family: 'Cabinet Grotesk', sans-serif;
-  font-size: 32px; font-weight: 900;
-  letter-spacing: -0.5px;
-}
-.page-header p { color: var(--muted); font-size: 15px; margin-top: 6px; }
+    /* ── DASHBOARD ── */
+    .page-header { margin-bottom: 36px; }
+    .page-header h1 {
+      font-family: 'Cabinet Grotesk', sans-serif;
+      font-size: 32px; font-weight: 900;
+      letter-spacing: -0.5px;
+    }
+    .page-header p { color: var(--muted); font-size: 15px; margin-top: 6px; }
 
-.venue-card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 28px;
-  margin-bottom: 16px;
-}
-.venue-card-header {
-  display: flex; justify-content: space-between; align-items: flex-start;
-  gap: 16px; margin-bottom: 16px;
-}
-.venue-name {
-  font-family: 'Cabinet Grotesk', sans-serif;
-  font-size: 20px; font-weight: 800;
-}
-.venue-meta { color: var(--muted); font-size: 13px; margin-top: 3px; }
-.badge {
-  display: inline-flex; align-items: center; gap: 5px;
-  padding: 4px 10px; border-radius: 100px;
-  font-size: 12px; font-weight: 600; flex-shrink: 0;
-}
-.badge-verified { background: rgba(255,107,74,0.1); color: var(--teal); border: 1px solid rgba(255,107,74,0.2); }
-.badge-pending  { background: rgba(245,158,11,0.1); color: var(--warn); border: 1px solid rgba(245,158,11,0.2); }
+    .venue-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      margin-bottom: 16px;
+    }
+    .venue-card-header {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      gap: 16px; margin-bottom: 16px;
+    }
+    .venue-name {
+      font-family: 'Cabinet Grotesk', sans-serif;
+      font-size: 20px; font-weight: 800;
+    }
+    .venue-meta { color: var(--muted); font-size: 13px; margin-top: 3px; }
+    .badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 4px 10px; border-radius: 100px;
+      font-size: 12px; font-weight: 600; flex-shrink: 0;
+    }
+    .badge-verified { background: rgba(255,107,74,0.1); color: var(--teal); border: 1px solid rgba(255,107,74,0.2); }
+    .badge-pending  { background: rgba(245,158,11,0.1); color: var(--warn); border: 1px solid rgba(245,158,11,0.2); }
 
-/* ── EDIT SECTIONS ── */
-.edit-section {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  margin-bottom: 20px;
-  overflow: hidden;
-}
-.edit-section-header {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 20px 28px;
-  border-bottom: 1px solid var(--border);
-  cursor: pointer;
-}
-.edit-section-header h3 {
-  font-family: 'Cabinet Grotesk', sans-serif;
-  font-size: 17px; font-weight: 700;
-  display: flex; align-items: center; gap: 10px;
-}
-.edit-section-header .toggle {
-  color: var(--muted); transition: transform 0.2s;
-  font-size: 18px;
-}
-.edit-section.open .toggle { transform: rotate(180deg); }
-.edit-section-body {
-  padding: 0 28px;
-  max-height: 0; overflow: hidden;
-  transition: max-height 0.3s ease, padding 0.3s ease;
-}
-.edit-section.open .edit-section-body {
-  max-height: 1200px;
-  padding: 24px 28px;
-}
+    /* ── EDIT SECTIONS ── */
+    .edit-section {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+    .edit-section-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 20px 28px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+    }
+    .edit-section-header h3 {
+      font-family: 'Cabinet Grotesk', sans-serif;
+      font-size: 17px; font-weight: 700;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .edit-section-header .toggle {
+      color: var(--muted); transition: transform 0.2s;
+      font-size: 18px;
+    }
+    .edit-section.open .toggle { transform: rotate(180deg); }
+    .edit-section-body {
+      padding: 0 28px;
+      max-height: 0; overflow: hidden;
+      transition: max-height 0.3s ease, padding 0.3s ease;
+    }
+    .edit-section.open .edit-section-body {
+      max-height: 1200px;
+      padding: 24px 28px;
+    }
 
-/* ── DAYS PICKER ── */
-.days-picker { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
-.day-btn {
-  padding: 7px 14px; border-radius: 7px; font-size: 13px; font-weight: 600;
-  cursor: pointer; border: 1px solid var(--border);
-  background: transparent; color: var(--muted);
-  font-family: 'DM Sans', sans-serif;
-  transition: all 0.15s;
-}
-.day-btn.selected {
-  background: rgba(255,107,74,0.15); color: var(--teal);
-  border-color: rgba(255,107,74,0.3);
-}
+    /* ── DAYS PICKER ── */
+    .days-picker { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+    .day-btn {
+      padding: 7px 14px; border-radius: 7px; font-size: 13px; font-weight: 600;
+      cursor: pointer; border: 1px solid var(--border);
+      background: transparent; color: var(--muted);
+      font-family: 'DM Sans', sans-serif;
+      transition: all 0.15s;
+    }
+    .day-btn.selected {
+      background: rgba(255,107,74,0.15); color: var(--teal);
+      border-color: rgba(255,107,74,0.3);
+    }
 
-/* ── DEALS LIST ── */
-.deal-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
-.deal-row input { flex: 1; }
-.btn-remove {
-  background: rgba(255,92,92,0.1); border: 1px solid rgba(255,92,92,0.15);
-  color: var(--error); border-radius: 7px; padding: 8px 12px;
-  cursor: pointer; font-size: 16px; flex-shrink: 0;
-  transition: background 0.15s;
-}
-.btn-remove:hover { background: rgba(255,92,92,0.2); }
-.photo-upload-area {
-  border: 2px dashed var(--border); border-radius: 12px;
-  height: 180px; cursor: pointer; overflow: hidden;
-  display: flex; align-items: center; justify-content: center;
-  background: var(--card2); transition: border-color .2s, background .2s;
-  position: relative;
-}
-.photo-upload-area:hover { border-color: var(--teal); background: rgba(255,107,74,0.03); }
-.photo-upload-area.has-photo { border-style: solid; border-color: var(--border); }
-#photo-upload-placeholder { text-align: center; pointer-events: none; }
-#photo-preview-wrap { position: absolute; inset: 0; }
-.amenity-row { display:flex; align-items:center; justify-content:space-between; background:var(--card); border:1px solid var(--border); border-radius:10px; padding:14px 16px; }
-.amenity-row-left { display:flex; align-items:center; gap:12px; }
-.amenity-row-icon { font-size:20px; line-height:1; }
-.amenity-row-label { font-size:14px; font-weight:600; color:var(--white); }
-.amenity-row-desc { font-size:12px; color:var(--muted); margin-top:1px; }
-.amenity-switch { position:relative; width:44px; height:24px; flex-shrink:0; }
-.amenity-switch input { opacity:0; width:0; height:0; position:absolute; }
-.amenity-switch-track { position:absolute; inset:0; background:var(--border-solid, rgba(42,31,20,0.15)); border-radius:50px; cursor:pointer; transition:background .2s; }
-.amenity-switch input:checked + .amenity-switch-track { background:var(--teal); }
-.amenity-switch-track::after { content:''; position:absolute; width:18px; height:18px; background:#fff; border-radius:50%; top:3px; left:3px; transition:transform .2s; box-shadow:0 1px 3px rgba(0,0,0,0.2); }
-.amenity-switch input:checked + .amenity-switch-track::after { transform:translateX(20px); }
-.btn-add-deal {
-  background: transparent; border: 1px dashed rgba(255,107,74,0.3);
-  color: var(--teal); border-radius: 8px; padding: 10px;
-  cursor: pointer; width: 100%; font-size: 14px; font-weight: 500;
-  font-family: 'DM Sans', sans-serif;
-  transition: background 0.15s;
-  margin-top: 4px;
-}
-.btn-add-deal:hover { background: rgba(255,107,74,0.05); }
+    /* ── DEALS LIST ── */
+    .deal-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+    .deal-row input { flex: 1; }
+    .btn-remove {
+      background: rgba(255,92,92,0.1); border: 1px solid rgba(255,92,92,0.15);
+      color: var(--error); border-radius: 7px; padding: 8px 12px;
+      cursor: pointer; font-size: 16px; flex-shrink: 0;
+      transition: background 0.15s;
+    }
+    .btn-remove:hover { background: rgba(255,92,92,0.2); }
+    .photo-upload-area {
+      border: 2px dashed var(--border); border-radius: 12px;
+      height: 180px; cursor: pointer; overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--card2); transition: border-color .2s, background .2s;
+      position: relative;
+    }
+    .photo-upload-area:hover { border-color: var(--teal); background: rgba(255,107,74,0.03); }
+    .photo-upload-area.has-photo { border-style: solid; border-color: var(--border); }
+    #photo-upload-placeholder { text-align: center; pointer-events: none; }
+    #photo-preview-wrap { position: absolute; inset: 0; }
+    .amenity-row { display:flex; align-items:center; justify-content:space-between; background:var(--card); border:1px solid var(--border); border-radius:10px; padding:14px 16px; }
+    .amenity-row-left { display:flex; align-items:center; gap:12px; }
+    .amenity-row-icon { font-size:20px; line-height:1; }
+    .amenity-row-label { font-size:14px; font-weight:600; color:var(--white); }
+    .amenity-row-desc { font-size:12px; color:var(--muted); margin-top:1px; }
+    .amenity-switch { position:relative; width:44px; height:24px; flex-shrink:0; }
+    .amenity-switch input { opacity:0; width:0; height:0; position:absolute; }
+    .amenity-switch-track { position:absolute; inset:0; background:var(--border-solid, rgba(42,31,20,0.15)); border-radius:50px; cursor:pointer; transition:background .2s; }
+    .amenity-switch input:checked + .amenity-switch-track { background:var(--teal); }
+    .amenity-switch-track::after { content:''; position:absolute; width:18px; height:18px; background:#fff; border-radius:50%; top:3px; left:3px; transition:transform .2s; box-shadow:0 1px 3px rgba(0,0,0,0.2); }
+    .amenity-switch input:checked + .amenity-switch-track::after { transform:translateX(20px); }
+    .btn-add-deal {
+      background: transparent; border: 1px dashed rgba(255,107,74,0.3);
+      color: var(--teal); border-radius: 8px; padding: 10px;
+      cursor: pointer; width: 100%; font-size: 14px; font-weight: 500;
+      font-family: 'DM Sans', sans-serif;
+      transition: background 0.15s;
+      margin-top: 4px;
+    }
+    .btn-add-deal:hover { background: rgba(255,107,74,0.05); }
 
-/* ── EVENTS ── */
-.event-card {
-  background: rgba(42,31,20,0.03);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 20px;
-  margin-bottom: 12px;
-}
-.event-card-header {
-  display: flex; justify-content: space-between; align-items: center;
-  margin-bottom: 12px;
-}
-.event-card-header span {
-  font-family: 'Cabinet Grotesk', sans-serif;
-  font-weight: 700; font-size: 15px;
-}
+    /* ── EVENTS ── */
+    .event-card {
+      background: rgba(42,31,20,0.03);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 12px;
+    }
+    .event-card-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 12px;
+    }
+    .event-card-header span {
+      font-family: 'Cabinet Grotesk', sans-serif;
+      font-weight: 700; font-size: 15px;
+    }
 
-/* ── SEARCH ── */
-.search-wrap { position: relative; margin-bottom: 16px; }
-.search-wrap input { padding-left: 40px; }
-.search-icon {
-  position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
-  color: var(--muted); font-size: 16px; pointer-events: none;
-}
-.search-results {
-  background: var(--card2);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  overflow: hidden;
-  max-height: 280px;
-  overflow-y: auto;
-}
-.search-result-item {
-  padding: 14px 16px;
-  cursor: pointer;
-  border-bottom: 1px solid var(--border);
-  transition: background 0.15s;
-}
-.search-result-item:last-child { border-bottom: none; }
-.search-result-item:hover { background: rgba(42,31,20,0.04); }
-.result-name { font-weight: 600; font-size: 14px; }
-.result-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    /* ── SEARCH ── */
+    .search-wrap { position: relative; margin-bottom: 16px; }
+    .search-wrap input { padding-left: 40px; }
+    .search-icon {
+      position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+      color: var(--muted); font-size: 16px; pointer-events: none;
+    }
+    .search-results {
+      background: var(--card2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      max-height: 280px;
+      overflow-y: auto;
+    }
+    .search-result-item {
+      padding: 14px 16px;
+      cursor: pointer;
+      border-bottom: 1px solid var(--border);
+      transition: background 0.15s;
+    }
+    .search-result-item:last-child { border-bottom: none; }
+    .search-result-item:hover { background: rgba(42,31,20,0.04); }
+    .result-name { font-weight: 600; font-size: 14px; }
+    .result-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
 
-/* ── CLAIM FORM ── */
-.claim-wrap { max-width: 600px; }
+    /* ── CLAIM FORM ── */
+    .claim-wrap { max-width: 600px; }
 
-/* ── EMPTY STATE ── */
-.empty-state {
-  text-align: center; padding: 60px 40px;
-  color: var(--muted);
-}
-.empty-icon { font-size: 40px; margin-bottom: 16px; }
-.empty-state h3 {
-  font-family: 'Cabinet Grotesk', sans-serif;
-  font-size: 20px; font-weight: 700;
-  color: var(--white); margin-bottom: 8px;
-}
+    /* ── EMPTY STATE ── */
+    .empty-state {
+      text-align: center; padding: 60px 40px;
+      color: var(--muted);
+    }
+    .empty-icon { font-size: 40px; margin-bottom: 16px; }
+    .empty-state h3 {
+      font-family: 'Cabinet Grotesk', sans-serif;
+      font-size: 20px; font-weight: 700;
+      color: var(--white); margin-bottom: 8px;
+    }
 
-/* ── PENDING NOTICE ── */
-.pending-notice {
-  background: rgba(245,158,11,0.08);
-  border: 1px solid rgba(245,158,11,0.2);
-  border-radius: 12px;
-  padding: 20px 24px;
-  margin-bottom: 24px;
-  display: flex; gap: 14px; align-items: flex-start;
-}
-.pending-notice .icon { font-size: 20px; flex-shrink: 0; }
-.pending-notice h4 { font-weight: 700; font-size: 15px; color: var(--warn); }
-.pending-notice p { font-size: 13px; color: var(--muted); margin-top: 4px; }
+    /* ── PENDING NOTICE ── */
+    .pending-notice {
+      background: rgba(245,158,11,0.08);
+      border: 1px solid rgba(245,158,11,0.2);
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin-bottom: 24px;
+      display: flex; gap: 14px; align-items: flex-start;
+    }
+    .pending-notice .icon { font-size: 20px; flex-shrink: 0; }
+    .pending-notice h4 { font-weight: 700; font-size: 15px; color: var(--warn); }
+    .pending-notice p { font-size: 13px; color: var(--muted); margin-top: 4px; }
 
-/* ── SAVE BAR ── */
-.save-bar {
-  display: none;
-  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
-  background: #2A1F14; border: 1px solid rgba(255,107,74,0.3);
-  border-radius: 12px; padding: 14px 24px;
-  display: none; align-items: center; gap: 16px;
-  box-shadow: 0 8px 32px rgba(42,31,20,0.2);
-  z-index: 200; font-size: 14px; white-space: nowrap;
-}
-.save-bar.show { display: flex; color: #fff; }
-.save-bar span { color: rgba(255,255,255,0.8); }
+    /* ── SAVE BAR ── */
+    .save-bar {
+      display: none;
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: #2A1F14; border: 1px solid rgba(255,107,74,0.3);
+      border-radius: 12px; padding: 14px 24px;
+      display: none; align-items: center; gap: 16px;
+      box-shadow: 0 8px 32px rgba(42,31,20,0.2);
+      z-index: 200; font-size: 14px; white-space: nowrap;
+    }
+    .save-bar.show { display: flex; color: #fff; }
+    .save-bar span { color: rgba(255,255,255,0.8); }
 
-/* ── MOBILE NAV ── */
-.mobile-bottom-nav { display: none; }
+    /* ── MOBILE NAV ── */
+    .mobile-bottom-nav { display: none; }
 
-@media (max-width: 700px) {
-  /* Nav */
-  nav { padding: 12px 16px; }
-  #nav-user { display: none; }
+    @media (max-width: 700px) {
+      /* Nav */
+      nav { padding: 12px 16px; }
+      #nav-user { display: none; }
 
-  /* Layout */
-  .app { flex-direction: column; }
-  .sidebar { display: none !important; }
-  .main { padding: 20px 16px 90px; max-width: 100%; }
+      /* Layout */
+      .app { flex-direction: column; }
+      .sidebar { display: none !important; }
+      .main { padding: 20px 16px 90px; max-width: 100%; }
 
-  /* Mobile bottom nav */
-  .mobile-bottom-nav {
-    display: flex;
-    position: fixed; bottom: 0; left: 0; right: 0;
-    background: rgba(245,239,230,0.97);
-    border-top: 1px solid var(--border);
-    backdrop-filter: blur(12px);
-    z-index: 200;
-    padding: 0 0 env(safe-area-inset-bottom);
-  }
-  .mob-nav-btn {
-    flex: 1; display: flex; flex-direction: column; align-items: center;
-    justify-content: center; padding: 10px 4px 8px;
-    background: transparent; border: none; cursor: pointer;
-    color: var(--muted); font-family: 'DM Sans', sans-serif;
-    font-size: 9px; font-weight: 600; letter-spacing: .5px;
-    text-transform: uppercase; gap: 4px; transition: color .15s;
-    position: relative;
-  }
-  .mob-nav-btn .mob-icon { font-size: 20px; line-height: 1; }
-  .mob-nav-btn.active { color: var(--teal); }
+      /* Mobile bottom nav */
+      .mobile-bottom-nav {
+        display: flex;
+        position: fixed; bottom: 0; left: 0; right: 0;
+        background: rgba(245,239,230,0.97);
+        border-top: 1px solid var(--border);
+        backdrop-filter: blur(12px);
+        z-index: 200;
+        padding: 0 0 env(safe-area-inset-bottom);
+      }
+      .mob-nav-btn {
+        flex: 1; display: flex; flex-direction: column; align-items: center;
+        justify-content: center; padding: 10px 4px 8px;
+        background: transparent; border: none; cursor: pointer;
+        color: var(--muted); font-family: 'DM Sans', sans-serif;
+        font-size: 9px; font-weight: 600; letter-spacing: .5px;
+        text-transform: uppercase; gap: 4px; transition: color .15s;
+        position: relative;
+      }
+      .mob-nav-btn .mob-icon { font-size: 20px; line-height: 1; }
+      .mob-nav-btn.active { color: var(--teal); }
 
-  /* Auth */
-  .auth-card { padding: 28px 20px; border-radius: 16px; margin: 0 4px; }
-  .auth-wrap { padding: 24px 16px; align-items: flex-start; }
+      /* Auth */
+      .auth-card { padding: 28px 20px; border-radius: 16px; margin: 0 4px; }
+      .auth-wrap { padding: 24px 16px; align-items: flex-start; }
 
-  /* Forms */
-  .form-row { grid-template-columns: 1fr; gap: 0; }
-  input, select, textarea { font-size: 16px !important; } /* prevent iOS zoom */
+      /* Forms */
+      .form-row { grid-template-columns: 1fr; gap: 0; }
+      input, select, textarea { font-size: 16px !important; } /* prevent iOS zoom */
 
-  /* Page header */
-  .page-header { margin-bottom: 24px; }
-  .page-header h1 { font-size: 24px; }
+      /* Page header */
+      .page-header { margin-bottom: 24px; }
+      .page-header h1 { font-size: 24px; }
 
-  /* Edit sections */
-  .edit-section { border-radius: 12px; }
-  .edit-section-header { padding: 16px; }
-  .edit-section-body { padding: 0 16px 16px; }
+      /* Edit sections */
+      .edit-section { border-radius: 12px; }
+      .edit-section-header { padding: 16px; }
+      .edit-section-body { padding: 0 16px 16px; }
 
-  /* Buttons - full width on mobile */
-  .btn { width: 100%; }
-  .btn-outline { width: 100%; }
+      /* Buttons - full width on mobile */
+      .btn { width: 100%; }
+      .btn-outline { width: 100%; }
 
-  /* Event cards - stack actions */
-  .event-card-header { flex-direction: column; gap: 10px; align-items: flex-start; }
-  .event-card-header > div:last-child { width: 100%; display: flex; gap: 8px; }
-  .event-card-header > div:last-child button { flex: 1; padding: 10px !important; }
+      /* Event cards - stack actions */
+      .event-card-header { flex-direction: column; gap: 10px; align-items: flex-start; }
+      .event-card-header > div:last-child { width: 100%; display: flex; gap: 8px; }
+      .event-card-header > div:last-child button { flex: 1; padding: 10px !important; }
 
-  /* Deal rows */
-  .deal-row input { font-size: 16px; }
+      /* Deal rows */
+      .deal-row input { font-size: 16px; }
 
-  /* Claim steps */
-  .claim-card { padding: 24px 16px; }
+      /* Claim steps */
+      .claim-card { padding: 24px 16px; }
 
-  /* Save bar higher for mobile nav */
-  .save-bar { bottom: 70px; }
+      /* Save bar higher for mobile nav */
+      .save-bar { bottom: 70px; }
 
-  /* Amenity rows */
-  .amenity-row { padding: 12px 14px; }
-  .amenity-row-desc { display: none; } /* hide desc on small screens */
+      /* Amenity rows */
+      .amenity-row { padding: 12px 14px; }
+      .amenity-row-desc { display: none; } /* hide desc on small screens */
 
-  /* Days picker - wrap nicely */
-  .days-picker { gap: 6px; }
-  .day-btn { padding: 8px 10px; font-size: 13px; flex: 1; text-align: center; min-width: 36px; }
-}
-```
-
+      /* Days picker - wrap nicely */
+      .days-picker { gap: 6px; }
+      .day-btn { padding: 8px 10px; font-size: 13px; flex: 1; text-align: center; min-width: 36px; }
+    }
   </style>
 </head>
 <body>
 
   <!-- NAV -->
-
   <nav>
     <a href="business.html" class="nav-logo" style="display:flex;align-items:center;gap:8px;text-decoration:none;">
       <img src="/spotd_logo_v5.png" alt="Spotd" style="height:30px;width:auto;display:block;">
@@ -504,56 +499,51 @@ select option { background: #1a2235; }
   </nav>
 
   <!-- AUTH SCREEN -->
-
   <div id="screen-auth" class="screen active">
     <div class="auth-wrap">
       <div class="auth-card">
         <h2>Owner Portal</h2>
         <p class="sub">Sign in or create an account to manage your listing.</p>
 
-```
-    <div class="auth-tabs">
-      <button class="auth-tab active" onclick="switchTab('login')">Sign in</button>
-      <button class="auth-tab" onclick="switchTab('signup')">Create account</button>
+        <div class="auth-tabs">
+          <button class="auth-tab active" onclick="switchTab('login')">Sign in</button>
+          <button class="auth-tab" onclick="switchTab('signup')">Create account</button>
+        </div>
+
+        <div id="auth-msg" class="msg"></div>
+
+        <div id="tab-login">
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="login-email" placeholder="you@yourbar.com" />
+          </div>
+          <div class="form-group">
+            <label>Password</label>
+            <input type="password" id="login-password" placeholder="••••••••" />
+          </div>
+          <button class="btn" onclick="handleLogin()">Sign in →</button>
+        </div>
+
+        <div id="tab-signup" style="display:none;">
+          <div class="form-group">
+            <label>Your name</label>
+            <input type="text" id="signup-name" placeholder="Jane Smith" />
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="signup-email" placeholder="you@yourbar.com" />
+          </div>
+          <div class="form-group">
+            <label>Password</label>
+            <input type="password" id="signup-password" placeholder="Min. 8 characters" />
+          </div>
+          <button class="btn" onclick="handleSignup()">Create account →</button>
+        </div>
+      </div>
     </div>
-
-    <div id="auth-msg" class="msg"></div>
-
-    <div id="tab-login">
-      <div class="form-group">
-        <label>Email</label>
-        <input type="email" id="login-email" placeholder="you@yourbar.com" />
-      </div>
-      <div class="form-group">
-        <label>Password</label>
-        <input type="password" id="login-password" placeholder="••••••••" />
-      </div>
-      <button class="btn" onclick="handleLogin()">Sign in →</button>
-    </div>
-
-    <div id="tab-signup" style="display:none;">
-      <div class="form-group">
-        <label>Your name</label>
-        <input type="text" id="signup-name" placeholder="Jane Smith" />
-      </div>
-      <div class="form-group">
-        <label>Email</label>
-        <input type="email" id="signup-email" placeholder="you@yourbar.com" />
-      </div>
-      <div class="form-group">
-        <label>Password</label>
-        <input type="password" id="signup-password" placeholder="Min. 8 characters" />
-      </div>
-      <button class="btn" onclick="handleSignup()">Create account →</button>
-    </div>
-  </div>
-</div>
-```
-
   </div>
 
   <!-- MOBILE BOTTOM NAV -->
-
   <div class="mobile-bottom-nav" id="mob-bottom-nav" style="display:none;">
     <button class="mob-nav-btn active" id="mob-btn-dashboard" onclick="showPage('dashboard')">
       <span class="mob-icon">🏠</span>Dashboard
@@ -570,7 +560,6 @@ select option { background: #1a2235; }
   </div>
 
   <!-- MAIN APP -->
-
   <div id="screen-app" class="screen" style="display:none; flex: 1;">
     <div class="app">
       <!-- SIDEBAR -->
@@ -590,297 +579,293 @@ select option { background: #1a2235; }
         </div>
       </div>
 
-```
-  <!-- PAGES -->
-  <div class="main">
+      <!-- PAGES -->
+      <div class="main">
 
-    <!-- DASHBOARD -->
-    <div id="page-dashboard" class="screen active">
-      <div class="page-header">
-        <h1>Dashboard</h1>
-        <p>Manage your venue listings and claims.</p>
-      </div>
-      <div id="dashboard-content">
-        <div class="empty-state">
-          <div class="empty-icon">🏪</div>
-          <h3>No listings yet</h3>
-          <p>Claim your business to get started.</p>
-          <br />
-          <button class="btn-outline" onclick="showPage('claim')">Claim a business →</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- CLAIM PAGE -->
-    <div id="page-claim" class="screen">
-      <div class="page-header">
-        <h1>Claim a Business</h1>
-        <p>Search for your venue and submit a claim. We'll verify and approve within 24 hours.</p>
-      </div>
-
-      <div class="claim-wrap">
-        <div id="claim-msg" class="msg"></div>
-
-        <!-- STEP 1: Search -->
-        <div id="claim-step-1">
-          <div class="form-group">
-            <label>Search for your venue</label>
-            <div class="search-wrap">
-              <span class="search-icon">🔍</span>
-              <input type="text" id="venue-search" placeholder="Type your bar or restaurant name..." oninput="searchVenues(this.value)" autocomplete="off" />
-            </div>
-            <div id="search-results" class="search-results" style="display:none;"></div>
+        <!-- DASHBOARD -->
+        <div id="page-dashboard" class="screen active">
+          <div class="page-header">
+            <h1>Dashboard</h1>
+            <p>Manage your venue listings and claims.</p>
           </div>
-
-          <div id="selected-venue-display" style="display:none;" class="venue-card">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-              <div>
-                <div class="venue-name" id="selected-venue-name"></div>
-                <div class="venue-meta" id="selected-venue-meta"></div>
-              </div>
-              <button class="btn-outline btn-sm" onclick="clearVenueSelection()">Change</button>
+          <div id="dashboard-content">
+            <div class="empty-state">
+              <div class="empty-icon">🏪</div>
+              <h3>No listings yet</h3>
+              <p>Claim your business to get started.</p>
+              <br />
+              <button class="btn-outline" onclick="showPage('claim')">Claim a business →</button>
             </div>
           </div>
-
-          <div id="not-listed-note" style="margin-bottom:16px; display:none;">
-            <p style="color:var(--muted); font-size:13px;">Can't find your venue? <a href="#" onclick="showAddNew()" style="color:var(--teal);">Submit it for addition →</a></p>
-          </div>
         </div>
 
-        <!-- STEP 2: Contact info -->
-        <div id="claim-step-2" style="display:none;">
-          <div style="background:rgba(255,107,74,0.06); border:1px solid rgba(255,107,74,0.15); border-radius:12px; padding:16px 20px; margin-bottom:24px;">
-            <p style="font-size:13px; color:var(--muted);">Claiming: <strong style="color:var(--white);" id="claiming-venue-name"></strong></p>
+        <!-- CLAIM PAGE -->
+        <div id="page-claim" class="screen">
+          <div class="page-header">
+            <h1>Claim a Business</h1>
+            <p>Search for your venue and submit a claim. We'll verify and approve within 24 hours.</p>
           </div>
 
-          <div class="form-row">
-            <div class="form-group">
-              <label>Your name *</label>
-              <input type="text" id="claim-name" placeholder="Jane Smith" />
-            </div>
-            <div class="form-group">
-              <label>Phone number</label>
-              <input type="tel" id="claim-phone" placeholder="(555) 555-5555" />
-            </div>
-          </div>
-          <div class="form-group">
-            <label>Your role at this business</label>
-            <select id="claim-role">
-              <option value="">Select...</option>
-              <option>Owner</option>
-              <option>General Manager</option>
-              <option>Marketing Manager</option>
-              <option>Other</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Business email (for verification)</label>
-            <input type="email" id="claim-biz-email" placeholder="manager@yourbar.com" />
-          </div>
-          <div class="form-group">
-            <label>Anything you want us to know? (optional)</label>
-            <textarea id="claim-notes" placeholder="e.g. 'I'm the owner, been open since 2018. Happy to verify via our website...'"></textarea>
-          </div>
-          <div style="display:flex; gap:12px;">
-            <button class="btn-outline" onclick="backToStep1()">← Back</button>
-            <button class="btn" style="flex:1;" onclick="submitClaim()">Submit claim request →</button>
-          </div>
-        </div>
+          <div class="claim-wrap">
+            <div id="claim-msg" class="msg"></div>
 
-        <!-- SUCCESS -->
-        <div id="claim-success" style="display:none; text-align:center; padding:40px 0;">
-          <div style="font-size:48px; margin-bottom:16px;">🎉</div>
-          <h3 style="font-family:'Cabinet Grotesk',sans-serif; font-size:24px; font-weight:800; margin-bottom:8px;">Claim submitted!</h3>
-          <p style="color:var(--muted); max-width:380px; margin:0 auto;">We'll review your claim and get back to you at <span id="success-email" style="color:var(--white);"></span> within 24 hours.</p>
-        </div>
-      </div>
-    </div>
-
-    <!-- EDIT VENUE PAGE -->
-    <div id="page-edit" class="screen">
-      <div class="page-header">
-        <h1 id="edit-venue-title">Edit Listing</h1>
-        <p id="edit-venue-subtitle"></p>
-      </div>
-
-      <div id="edit-pending-notice" class="pending-notice" style="display:none;">
-        <span class="icon">⏳</span>
-        <div>
-          <h4>Claim pending review</h4>
-          <p>Your claim is being reviewed. Once approved you'll be able to edit your listing. Usually within 24 hours.</p>
-        </div>
-      </div>
-
-      <div id="edit-form">
-
-        <!-- Happy Hour Hours -->
-        <div class="edit-section" id="section-hours">
-          <div class="edit-section-header" onclick="toggleSection('hours')">
-            <h3><span>🕐</span> Happy Hour Hours</h3>
-            <span class="toggle">▾</span>
-          </div>
-          <div class="edit-section-body">
-            <div class="form-row">
+            <!-- STEP 1: Search -->
+            <div id="claim-step-1">
               <div class="form-group">
-                <label>Start time</label>
-                <input type="text" id="edit-hours-start" placeholder="e.g. 4pm" />
-              </div>
-              <div class="form-group">
-                <label>End time</label>
-                <input type="text" id="edit-hours-end" placeholder="e.g. 7pm" />
-              </div>
-            </div>
-            <div class="form-group">
-              <label>Days</label>
-              <div class="days-picker" id="days-picker">
-                <button class="day-btn" data-day="Mon" onclick="toggleDay(this)">Mon</button>
-                <button class="day-btn" data-day="Tue" onclick="toggleDay(this)">Tue</button>
-                <button class="day-btn" data-day="Wed" onclick="toggleDay(this)">Wed</button>
-                <button class="day-btn" data-day="Thu" onclick="toggleDay(this)">Thu</button>
-                <button class="day-btn" data-day="Fri" onclick="toggleDay(this)">Fri</button>
-                <button class="day-btn" data-day="Sat" onclick="toggleDay(this)">Sat</button>
-                <button class="day-btn" data-day="Sun" onclick="toggleDay(this)">Sun</button>
-              </div>
-            </div>
-            <button class="btn btn-sm" style="width:auto;" onclick="saveHours()">Save hours</button>
-          </div>
-        </div>
-
-        <!-- Deals -->
-        <div class="edit-section" id="section-deals">
-          <div class="edit-section-header" onclick="toggleSection('deals')">
-            <h3><span>🍺</span> Deals & Specials</h3>
-            <span class="toggle">▾</span>
-          </div>
-          <div class="edit-section-body">
-            <p style="color:var(--muted); font-size:13px; margin-bottom:16px;">List each deal on its own line. Be specific — people search for "$5 wells", "half-off apps", etc.</p>
-            <div id="deals-list"></div>
-            <button class="btn-add-deal" onclick="addDeal()">+ Add a deal</button>
-            <br /><br />
-            <button class="btn btn-sm" style="width:auto;" onclick="saveDeals()">Save deals</button>
-          </div>
-        </div>
-
-        <!-- Description & Photo -->
-        <div class="edit-section" id="section-info">
-          <div class="edit-section-header" onclick="toggleSection('info')">
-            <h3><span>📸</span> Description & Photo</h3>
-            <span class="toggle">▾</span>
-          </div>
-          <div class="edit-section-body">
-            <div class="form-group">
-              <label>Description <span style="color:var(--muted); font-weight:400;">(up to 300 chars)</span></label>
-              <textarea id="edit-description" maxlength="300" placeholder="What makes your happy hour special? Rooftop patio, $1 oysters, live music every Friday..."></textarea>
-              <div style="text-align:right; font-size:12px; color:var(--muted); margin-top:4px;" id="desc-count">0 / 300</div>
-            </div>
-            <div class="form-group">
-              <label>Venue Photo</label>
-              <div class="photo-upload-area" id="photo-upload-area" onclick="document.getElementById('photo-file-input').click()">
-                <div id="photo-preview-wrap" style="display:none">
-                  <img id="photo-preview-img" src="" alt="Preview" style="width:100%;height:100%;object-fit:cover;border-radius:10px;display:block;">
+                <label>Search for your venue</label>
+                <div class="search-wrap">
+                  <span class="search-icon">🔍</span>
+                  <input type="text" id="venue-search" placeholder="Type your bar or restaurant name..." oninput="searchVenues(this.value)" autocomplete="off" />
                 </div>
-                <div id="photo-upload-placeholder">
-                  <div style="font-size:32px;margin-bottom:8px">📸</div>
-                  <div style="font-weight:600;font-size:14px;color:var(--white)">Click to upload a photo</div>
-                  <div style="font-size:12px;color:var(--muted);margin-top:4px">JPG or PNG · Max 5MB</div>
-                </div>
-                <input type="file" id="photo-file-input" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="handlePhotoSelected(this)">
+                <div id="search-results" class="search-results" style="display:none;"></div>
               </div>
-              <div id="photo-upload-status" style="font-size:12px;color:var(--muted);margin-top:6px;min-height:18px;"></div>
-            </div>
-            <button class="btn btn-sm" style="width:auto;" onclick="saveInfo()">Save info</button>
-          </div>
-        </div>
 
-        <!-- Events -->
-        <div class="edit-section" id="section-events">
-          <div class="edit-section-header" onclick="toggleSection('events')">
-            <h3><span>🎉</span> Events</h3>
-            <span class="toggle">▾</span>
-          </div>
-          <div class="edit-section-body">
-            <div id="events-list"></div>
-            <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:12px; padding:20px; margin-top:8px;">
-              <h4 style="font-family:'Cabinet Grotesk',sans-serif; font-weight:700; margin-bottom:16px; font-size:15px;">Add an event</h4>
-              <div class="form-group">
-                <label>Event name</label>
-                <input type="text" id="new-event-name" placeholder="e.g. Trivia Night, Drag Bingo, Live Jazz" />
+              <div id="selected-venue-display" style="display:none;" class="venue-card">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <div>
+                    <div class="venue-name" id="selected-venue-name"></div>
+                    <div class="venue-meta" id="selected-venue-meta"></div>
+                  </div>
+                  <button class="btn-outline btn-sm" onclick="clearVenueSelection()">Change</button>
+                </div>
               </div>
+
+              <div id="not-listed-note" style="margin-bottom:16px; display:none;">
+                <p style="color:var(--muted); font-size:13px;">Can't find your venue? <a href="#" onclick="showAddNew()" style="color:var(--teal);">Submit it for addition →</a></p>
+              </div>
+            </div>
+
+            <!-- STEP 2: Contact info -->
+            <div id="claim-step-2" style="display:none;">
+              <div style="background:rgba(255,107,74,0.06); border:1px solid rgba(255,107,74,0.15); border-radius:12px; padding:16px 20px; margin-bottom:24px;">
+                <p style="font-size:13px; color:var(--muted);">Claiming: <strong style="color:var(--white);" id="claiming-venue-name"></strong></p>
+              </div>
+
               <div class="form-row">
                 <div class="form-group">
-                  <label>Event type</label>
-                  <select id="new-event-type">
-                    <option value="">Select...</option>
-                    <option>Trivia</option>
-                    <option>Karaoke</option>
-                    <option>Live Music</option>
-                    <option>Comedy</option>
-                    <option>Bingo</option>
-                    <option>Game Night</option>
-                    <option>Other</option>
-                  </select>
+                  <label>Your name *</label>
+                  <input type="text" id="claim-name" placeholder="Jane Smith" />
                 </div>
                 <div class="form-group">
-                  <label>Price</label>
-                  <input type="text" id="new-event-price" placeholder="Free / $5 / Varies" />
-                </div>
-              </div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Start time</label>
-                  <input type="text" id="new-event-start" placeholder="e.g. 7pm" />
-                </div>
-                <div class="form-group">
-                  <label>End time</label>
-                  <input type="text" id="new-event-end" placeholder="e.g. 9pm" />
+                  <label>Phone number</label>
+                  <input type="tel" id="claim-phone" placeholder="(555) 555-5555" />
                 </div>
               </div>
               <div class="form-group">
-                <label>Days</label>
-                <div class="days-picker" id="event-days-picker">
-                  <button class="day-btn" data-day="Mon" onclick="toggleEventDay(this)">Mon</button>
-                  <button class="day-btn" data-day="Tue" onclick="toggleEventDay(this)">Tue</button>
-                  <button class="day-btn" data-day="Wed" onclick="toggleEventDay(this)">Wed</button>
-                  <button class="day-btn" data-day="Thu" onclick="toggleEventDay(this)">Thu</button>
-                  <button class="day-btn" data-day="Fri" onclick="toggleEventDay(this)">Fri</button>
-                  <button class="day-btn" data-day="Sat" onclick="toggleEventDay(this)">Sat</button>
-                  <button class="day-btn" data-day="Sun" onclick="toggleEventDay(this)">Sun</button>
-                </div>
+                <label>Your role at this business</label>
+                <select id="claim-role">
+                  <option value="">Select...</option>
+                  <option>Owner</option>
+                  <option>General Manager</option>
+                  <option>Marketing Manager</option>
+                  <option>Other</option>
+                </select>
               </div>
               <div class="form-group">
-                <label>Description (optional)</label>
-                <textarea id="new-event-desc" placeholder="Brief description of the event..." style="min-height:70px;"></textarea>
+                <label>Business email (for verification)</label>
+                <input type="email" id="claim-biz-email" placeholder="manager@yourbar.com" />
               </div>
-              <button class="btn btn-sm" style="width:auto;" onclick="addEvent()">Add event</button>
+              <div class="form-group">
+                <label>Anything you want us to know? (optional)</label>
+                <textarea id="claim-notes" placeholder="e.g. 'I'm the owner, been open since 2018. Happy to verify via our website...'"></textarea>
+              </div>
+              <div style="display:flex; gap:12px;">
+                <button class="btn-outline" onclick="backToStep1()">← Back</button>
+                <button class="btn" style="flex:1;" onclick="submitClaim()">Submit claim request →</button>
+              </div>
+            </div>
+
+            <!-- SUCCESS -->
+            <div id="claim-success" style="display:none; text-align:center; padding:40px 0;">
+              <div style="font-size:48px; margin-bottom:16px;">🎉</div>
+              <h3 style="font-family:'Cabinet Grotesk',sans-serif; font-size:24px; font-weight:800; margin-bottom:8px;">Claim submitted!</h3>
+              <p style="color:var(--muted); max-width:380px; margin:0 auto;">We'll review your claim and get back to you at <span id="success-email" style="color:var(--white);"></span> within 24 hours.</p>
             </div>
           </div>
         </div>
 
-        <!-- Amenities -->
-        <div class="edit-section" id="section-amenities">
-          <div class="edit-section-header" onclick="toggleSection('amenities')">
-            <h3><span>✨</span> Amenities & Vibes</h3>
-            <span class="toggle">▾</span>
+        <!-- EDIT VENUE PAGE -->
+        <div id="page-edit" class="screen">
+          <div class="page-header">
+            <h1 id="edit-venue-title">Edit Listing</h1>
+            <p id="edit-venue-subtitle"></p>
           </div>
-          <div class="edit-section-body">
-            <p style="color:var(--muted); font-size:13px; margin-bottom:20px;">Let guests know what makes your spot special. These appear as tags on your listing.</p>
-            <div id="amenity-toggles" style="display:flex; flex-direction:column; gap:12px;"></div>
-            <br />
-            <button class="btn btn-sm" style="width:auto;" onclick="saveAmenities()">Save amenities</button>
+
+          <div id="edit-pending-notice" class="pending-notice" style="display:none;">
+            <span class="icon">⏳</span>
+            <div>
+              <h4>Claim pending review</h4>
+              <p>Your claim is being reviewed. Once approved you'll be able to edit your listing. Usually within 24 hours.</p>
+            </div>
           </div>
-        </div>
 
-      </div><!-- /edit-form -->
-    </div><!-- /page-edit -->
+          <div id="edit-form">
 
-  </div><!-- /main -->
-</div><!-- /app -->
-```
+            <!-- Happy Hour Hours -->
+            <div class="edit-section" id="section-hours">
+              <div class="edit-section-header" onclick="toggleSection('hours')">
+                <h3><span>🕐</span> Happy Hour Hours</h3>
+                <span class="toggle">▾</span>
+              </div>
+              <div class="edit-section-body">
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Start time</label>
+                    <input type="text" id="edit-hours-start" placeholder="e.g. 4pm" />
+                  </div>
+                  <div class="form-group">
+                    <label>End time</label>
+                    <input type="text" id="edit-hours-end" placeholder="e.g. 7pm" />
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label>Days</label>
+                  <div class="days-picker" id="days-picker">
+                    <button class="day-btn" data-day="Mon" onclick="toggleDay(this)">Mon</button>
+                    <button class="day-btn" data-day="Tue" onclick="toggleDay(this)">Tue</button>
+                    <button class="day-btn" data-day="Wed" onclick="toggleDay(this)">Wed</button>
+                    <button class="day-btn" data-day="Thu" onclick="toggleDay(this)">Thu</button>
+                    <button class="day-btn" data-day="Fri" onclick="toggleDay(this)">Fri</button>
+                    <button class="day-btn" data-day="Sat" onclick="toggleDay(this)">Sat</button>
+                    <button class="day-btn" data-day="Sun" onclick="toggleDay(this)">Sun</button>
+                  </div>
+                </div>
+                <button class="btn btn-sm" style="width:auto;" onclick="saveHours()">Save hours</button>
+              </div>
+            </div>
 
+            <!-- Deals -->
+            <div class="edit-section" id="section-deals">
+              <div class="edit-section-header" onclick="toggleSection('deals')">
+                <h3><span>🍺</span> Deals & Specials</h3>
+                <span class="toggle">▾</span>
+              </div>
+              <div class="edit-section-body">
+                <p style="color:var(--muted); font-size:13px; margin-bottom:16px;">List each deal on its own line. Be specific — people search for "$5 wells", "half-off apps", etc.</p>
+                <div id="deals-list"></div>
+                <button class="btn-add-deal" onclick="addDeal()">+ Add a deal</button>
+                <br /><br />
+                <button class="btn btn-sm" style="width:auto;" onclick="saveDeals()">Save deals</button>
+              </div>
+            </div>
+
+            <!-- Description & Photo -->
+            <div class="edit-section" id="section-info">
+              <div class="edit-section-header" onclick="toggleSection('info')">
+                <h3><span>📸</span> Description & Photo</h3>
+                <span class="toggle">▾</span>
+              </div>
+              <div class="edit-section-body">
+                <div class="form-group">
+                  <label>Description <span style="color:var(--muted); font-weight:400;">(up to 300 chars)</span></label>
+                  <textarea id="edit-description" maxlength="300" placeholder="What makes your happy hour special? Rooftop patio, $1 oysters, live music every Friday..."></textarea>
+                  <div style="text-align:right; font-size:12px; color:var(--muted); margin-top:4px;" id="desc-count">0 / 300</div>
+                </div>
+                <div class="form-group">
+                  <label>Venue Photo</label>
+                  <div class="photo-upload-area" id="photo-upload-area" onclick="document.getElementById('photo-file-input').click()">
+                    <div id="photo-preview-wrap" style="display:none">
+                      <img id="photo-preview-img" src="" alt="Preview" style="width:100%;height:100%;object-fit:cover;border-radius:10px;display:block;">
+                    </div>
+                    <div id="photo-upload-placeholder">
+                      <div style="font-size:32px;margin-bottom:8px">📸</div>
+                      <div style="font-weight:600;font-size:14px;color:var(--white)">Click to upload a photo</div>
+                      <div style="font-size:12px;color:var(--muted);margin-top:4px">JPG or PNG · Max 5MB</div>
+                    </div>
+                    <input type="file" id="photo-file-input" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="handlePhotoSelected(this)">
+                  </div>
+                  <div id="photo-upload-status" style="font-size:12px;color:var(--muted);margin-top:6px;min-height:18px;"></div>
+                </div>
+                <button class="btn btn-sm" style="width:auto;" onclick="saveInfo()">Save info</button>
+              </div>
+            </div>
+
+            <!-- Events -->
+            <div class="edit-section" id="section-events">
+              <div class="edit-section-header" onclick="toggleSection('events')">
+                <h3><span>🎉</span> Events</h3>
+                <span class="toggle">▾</span>
+              </div>
+              <div class="edit-section-body">
+                <div id="events-list"></div>
+                <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:12px; padding:20px; margin-top:8px;">
+                  <h4 style="font-family:'Cabinet Grotesk',sans-serif; font-weight:700; margin-bottom:16px; font-size:15px;">Add an event</h4>
+                  <div class="form-group">
+                    <label>Event name</label>
+                    <input type="text" id="new-event-name" placeholder="e.g. Trivia Night, Drag Bingo, Live Jazz" />
+                  </div>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label>Event type</label>
+                      <select id="new-event-type">
+                        <option value="">Select...</option>
+                        <option>Trivia</option>
+                        <option>Karaoke</option>
+                        <option>Live Music</option>
+                        <option>Comedy</option>
+                        <option>Bingo</option>
+                        <option>Game Night</option>
+                        <option>Other</option>
+                      </select>
+                    </div>
+                    <div class="form-group">
+                      <label>Price</label>
+                      <input type="text" id="new-event-price" placeholder="Free / $5 / Varies" />
+                    </div>
+                  </div>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label>Start time</label>
+                      <input type="text" id="new-event-start" placeholder="e.g. 7pm" />
+                    </div>
+                    <div class="form-group">
+                      <label>End time</label>
+                      <input type="text" id="new-event-end" placeholder="e.g. 9pm" />
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label>Days</label>
+                    <div class="days-picker" id="event-days-picker">
+                      <button class="day-btn" data-day="Mon" onclick="toggleEventDay(this)">Mon</button>
+                      <button class="day-btn" data-day="Tue" onclick="toggleEventDay(this)">Tue</button>
+                      <button class="day-btn" data-day="Wed" onclick="toggleEventDay(this)">Wed</button>
+                      <button class="day-btn" data-day="Thu" onclick="toggleEventDay(this)">Thu</button>
+                      <button class="day-btn" data-day="Fri" onclick="toggleEventDay(this)">Fri</button>
+                      <button class="day-btn" data-day="Sat" onclick="toggleEventDay(this)">Sat</button>
+                      <button class="day-btn" data-day="Sun" onclick="toggleEventDay(this)">Sun</button>
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label>Description (optional)</label>
+                    <textarea id="new-event-desc" placeholder="Brief description of the event..." style="min-height:70px;"></textarea>
+                  </div>
+                  <button class="btn btn-sm" style="width:auto;" onclick="addEvent()">Add event</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Amenities -->
+            <div class="edit-section" id="section-amenities">
+              <div class="edit-section-header" onclick="toggleSection('amenities')">
+                <h3><span>✨</span> Amenities & Vibes</h3>
+                <span class="toggle">▾</span>
+              </div>
+              <div class="edit-section-body">
+                <p style="color:var(--muted); font-size:13px; margin-bottom:20px;">Let guests know what makes your spot special. These appear as tags on your listing.</p>
+                <div id="amenity-toggles" style="display:flex; flex-direction:column; gap:12px;"></div>
+                <br />
+                <button class="btn btn-sm" style="width:auto;" onclick="saveAmenities()">Save amenities</button>
+              </div>
+            </div>
+
+          </div><!-- /edit-form -->
+        </div><!-- /page-edit -->
+
+      </div><!-- /main -->
+    </div><!-- /app -->
   </div><!-- /screen-app -->
 
   <!-- SAVE BAR -->
-
   <div class="save-bar" id="save-bar">
     <span>Unsaved changes</span>
   </div>
@@ -937,21 +922,27 @@ select option { background: #1a2235; }
     },
 
     async signIn(email, password) {
-      const r = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+      const r = await fetch('/api/auth', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON },
-        body: JSON.stringify({ email, password })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'signin', email, password })
       });
-      return r.json();
+      const data = await r.json();
+      if (data.error_description) return { error: { message: data.error_description } };
+      if (data.error) return { error: { message: data.error } };
+      return data;
     },
 
     async signUp(email, password, name) {
-      const r = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
+      const r = await fetch('/api/auth', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON },
-        body: JSON.stringify({ email, password, data: { full_name: name } })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'signup', email, password, name })
       });
-      return r.json();
+      const data = await r.json();
+      if (data.error_description) return { error: { message: data.error_description } };
+      if (data.error) return { error: { message: data.error } };
+      return data;
     }
   };
 
@@ -1014,8 +1005,11 @@ select option { background: #1a2235; }
     if (!email || !pass) return showMsg('auth-msg', 'Please enter your email and password.', 'error');
     showMsg('auth-msg', 'Signing in...', 'warn');
     const data = await sb.signIn(email, pass);
-    if (data.error || !data.access_token) return showMsg('auth-msg', data.error?.message || 'Sign in failed.', 'error');
-    saveSession(data);
+    if (data.error) return showMsg('auth-msg', data.error.message || 'Sign in failed.', 'error');
+    // Proxy may return { data: { access_token, user } } or flat { access_token, user }
+    const session = data.data || data;
+    if (!session.access_token) return showMsg('auth-msg', 'Sign in failed — no token received.', 'error');
+    saveSession(session);
     enterApp();
   }
 
@@ -1527,161 +1521,147 @@ select option { background: #1a2235; }
         <div class="form-group">
           <label>Description</label>
           <textarea id="edit-ev-desc-${eventId}" style="min-height:60px;">${esc(e.description||'')}</textarea>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button onclick="saveEventEdit('${eventId}')" class="btn btn-sm" style="width:auto;">Save event</button>
+          <button onclick="loadVenueEvents(window._editingVenueId)" style="background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:7px;padding:8px 14px;cursor:pointer;font-size:13px;">Cancel</button>
+        </div>
+      </div>
+    `;
+  }
 
-```
-    </div>
-    <div style="display:flex;gap:8px;">
-      <button onclick="saveEventEdit('${eventId}')" class="btn btn-sm" style="width:auto;">Save event</button>
-      <button onclick="loadVenueEvents(window._editingVenueId)" style="background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:7px;padding:8px 14px;cursor:pointer;font-size:13px;">Cancel</button>
-    </div>
-  </div>
-`;
-```
+  async function saveEventEdit(eventId) {
+    const name  = document.getElementById('edit-ev-name-' + eventId)?.value.trim();
+    const type  = document.getElementById('edit-ev-type-' + eventId)?.value;
+    const start = document.getElementById('edit-ev-start-' + eventId)?.value.trim();
+    const end   = document.getElementById('edit-ev-end-' + eventId)?.value.trim();
+    const price = document.getElementById('edit-ev-price-' + eventId)?.value.trim();
+    const desc  = document.getElementById('edit-ev-desc-' + eventId)?.value.trim();
+    const days  = [...document.querySelectorAll(`#edit-ev-days-${eventId} .day-btn.selected`)].map(b => b.dataset.day);
 
-}
+    if (!name) return alert('Event name is required.');
 
-async function saveEventEdit(eventId) {
-const name  = document.getElementById(‘edit-ev-name-’ + eventId)?.value.trim();
-const type  = document.getElementById(‘edit-ev-type-’ + eventId)?.value;
-const start = document.getElementById(‘edit-ev-start-’ + eventId)?.value.trim();
-const end   = document.getElementById(‘edit-ev-end-’ + eventId)?.value.trim();
-const price = document.getElementById(‘edit-ev-price-’ + eventId)?.value.trim();
-const desc  = document.getElementById(‘edit-ev-desc-’ + eventId)?.value.trim();
-const days  = […document.querySelectorAll(`#edit-ev-days-${eventId} .day-btn.selected`)].map(b => b.dataset.day);
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/events?id=eq.${eventId}`, {
+      method: 'PATCH',
+      headers: { ...sb.headers(), 'Prefer': 'return=representation' },
+      body: JSON.stringify({ name, event_type: type, hours: `${start} - ${end}`, price: price||'Free', description: desc, days })
+    }).then(r => r.json()).catch(() => null);
 
-```
-if (!name) return alert('Event name is required.');
+    if (Array.isArray(r) && r[0]) {
+      showSaveToast('Event updated!');
+      loadVenueEvents(window._editingVenueId);
+    } else {
+      alert('Failed to save. Please try again.');
+    }
+  }
 
-const r = await fetch(`${SUPABASE_URL}/rest/v1/events?id=eq.${eventId}`, {
-  method: 'PATCH',
-  headers: { ...sb.headers(), 'Prefer': 'return=representation' },
-  body: JSON.stringify({ name, event_type: type, hours: `${start} - ${end}`, price: price||'Free', description: desc, days })
-}).then(r => r.json()).catch(() => null);
+  async function deleteEvent(eventId) {
+    if (!confirm('Delete this event?')) return;
+    await fetch(`${SUPABASE_URL}/rest/v1/events?id=eq.${eventId}`, {
+      method: 'DELETE',
+      headers: sb.headers()
+    });
+    _venueEvents = _venueEvents.filter(e => e.id !== eventId);
+    renderVenueEvents();
+    showSaveToast('Event deleted.');
+  }
 
-if (Array.isArray(r) && r[0]) {
-  showSaveToast('Event updated!');
-  loadVenueEvents(window._editingVenueId);
-} else {
-  alert('Failed to save. Please try again.');
-}
-```
+  async function addEvent() {
+    const name  = document.getElementById('new-event-name').value.trim();
+    const type  = document.getElementById('new-event-type').value;
+    const price = document.getElementById('new-event-price').value.trim();
+    const start = document.getElementById('new-event-start').value.trim();
+    const end   = document.getElementById('new-event-end').value.trim();
+    const desc  = document.getElementById('new-event-desc').value.trim();
+    const days  = getSelectedDays('event-days-picker');
 
-}
+    if (!name || !type) return alert('Event name and type are required.');
+    if (!days.length) return alert('Please select at least one day.');
 
-async function deleteEvent(eventId) {
-if (!confirm(‘Delete this event?’)) return;
-await fetch(`${SUPABASE_URL}/rest/v1/events?id=eq.${eventId}`, {
-method: ‘DELETE’,
-headers: sb.headers()
-});
-_venueEvents = _venueEvents.filter(e => e.id !== eventId);
-renderVenueEvents();
-showSaveToast(‘Event deleted.’);
-}
+    const venues = await fetch(`${SUPABASE_URL}/rest/v1/venues?id=eq.${window._editingVenueId}&select=*`, { headers: sb.headers() }).then(r => r.json());
+    const venue = venues?.[0];
+    if (!venue) return alert('Venue not found.');
 
-async function addEvent() {
-const name  = document.getElementById(‘new-event-name’).value.trim();
-const type  = document.getElementById(‘new-event-type’).value;
-const price = document.getElementById(‘new-event-price’).value.trim();
-const start = document.getElementById(‘new-event-start’).value.trim();
-const end   = document.getElementById(‘new-event-end’).value.trim();
-const desc  = document.getElementById(‘new-event-desc’).value.trim();
-const days  = getSelectedDays(‘event-days-picker’);
+    const table = await sb.from('events');
+    const res = await table.insert({
+      name, event_type: type,
+      price: price || 'Free',
+      hours: `${start} - ${end}`,
+      days, description: desc,
+      city_slug: venue.city_slug,
+      venue_name: venue.name,
+      neighborhood: venue.neighborhood,
+      address: venue.address,
+      lat: venue.lat, lng: venue.lng,
+      active: true, featured: false
+    });
 
-```
-if (!name || !type) return alert('Event name and type are required.');
-if (!days.length) return alert('Please select at least one day.');
+    if (Array.isArray(res) && res[0]) {
+      showSaveToast('Event added!');
+      ['new-event-name','new-event-start','new-event-end','new-event-price','new-event-desc'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('new-event-type').value = '';
+      document.querySelectorAll('#event-days-picker .day-btn').forEach(b => b.classList.remove('selected'));
+      loadVenueEvents(window._editingVenueId);
+    } else {
+      alert('Failed to add event. Please try again.');
+    }
+  }
 
-const venues = await fetch(`${SUPABASE_URL}/rest/v1/venues?id=eq.${window._editingVenueId}&select=*`, { headers: sb.headers() }).then(r => r.json());
-const venue = venues?.[0];
-if (!venue) return alert('Venue not found.');
+  // ─────────────────────────────────────────────
+  // UPDATE VENUE
+  // ─────────────────────────────────────────────
+  async function updateVenueField(fields) {
+    const table = await sb.from('venues');
+    await table.eq('id', window._editingVenueId).update(fields);
 
-const table = await sb.from('events');
-const res = await table.insert({
-  name, event_type: type,
-  price: price || 'Free',
-  hours: `${start} - ${end}`,
-  days, description: desc,
-  city_slug: venue.city_slug,
-  venue_name: venue.name,
-  neighborhood: venue.neighborhood,
-  address: venue.address,
-  lat: venue.lat, lng: venue.lng,
-  active: true, featured: false
-});
+    // Log edit history
+    for (const [field, value] of Object.entries(fields)) {
+      const editTable = await sb.from('venue_edits');
+      await editTable.insert({
+        venue_id: window._editingVenueId,
+        user_id: currentUser.id,
+        field,
+        new_value: JSON.stringify(value)
+      });
+    }
+  }
 
-if (Array.isArray(res) && res[0]) {
-  showSaveToast('Event added!');
-  ['new-event-name','new-event-start','new-event-end','new-event-price','new-event-desc'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('new-event-type').value = '';
-  document.querySelectorAll('#event-days-picker .day-btn').forEach(b => b.classList.remove('selected'));
-  loadVenueEvents(window._editingVenueId);
-} else {
-  alert('Failed to add event. Please try again.');
-}
-```
+  // ─────────────────────────────────────────────
+  // UTILITIES
+  // ─────────────────────────────────────────────
+  function showMsg(id, text, type) {
+    const el = document.getElementById(id);
+    el.textContent = text;
+    el.className = `msg ${type} show`;
+  }
 
-}
+  function hideMsg(id) {
+    const el = document.getElementById(id);
+    if (el) el.className = 'msg';
+  }
 
-// ─────────────────────────────────────────────
-// UPDATE VENUE
-// ─────────────────────────────────────────────
-async function updateVenueField(fields) {
-const table = await sb.from(‘venues’);
-await table.eq(‘id’, window._editingVenueId).update(fields);
+  let toastTimeout;
+  function showSaveToast(msg) {
+    const bar = document.getElementById('save-bar');
+    bar.innerHTML = `<span>✓ ${msg}</span>`;
+    bar.classList.add('show');
+    clearTimeout(toastTimeout);
+    toastTimeout = setTimeout(() => bar.classList.remove('show'), 2500);
+  }
 
-```
-// Log edit history
-for (const [field, value] of Object.entries(fields)) {
-  const editTable = await sb.from('venue_edits');
-  await editTable.insert({
-    venue_id: window._editingVenueId,
-    user_id: currentUser.id,
-    field,
-    new_value: JSON.stringify(value)
+  function formatDate(iso) {
+    if (!iso) return '';
+    return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  // ─────────────────────────────────────────────
+  // INIT
+  // ─────────────────────────────────────────────
+  window.addEventListener('DOMContentLoaded', () => {
+    if (checkSession()) {
+      enterApp();
+    }
   });
-}
-```
-
-}
-
-// ─────────────────────────────────────────────
-// UTILITIES
-// ─────────────────────────────────────────────
-function showMsg(id, text, type) {
-const el = document.getElementById(id);
-el.textContent = text;
-el.className = `msg ${type} show`;
-}
-
-function hideMsg(id) {
-const el = document.getElementById(id);
-if (el) el.className = ‘msg’;
-}
-
-let toastTimeout;
-function showSaveToast(msg) {
-const bar = document.getElementById(‘save-bar’);
-bar.innerHTML = `<span>✓ ${msg}</span>`;
-bar.classList.add(‘show’);
-clearTimeout(toastTimeout);
-toastTimeout = setTimeout(() => bar.classList.remove(‘show’), 2500);
-}
-
-function formatDate(iso) {
-if (!iso) return ‘’;
-return new Date(iso).toLocaleDateString(‘en-US’, { month: ‘short’, day: ‘numeric’, year: ‘numeric’ });
-}
-
-// ─────────────────────────────────────────────
-// INIT
-// ─────────────────────────────────────────────
-window.addEventListener(‘DOMContentLoaded’, () => {
-if (checkSession()) {
-enterApp();
-}
-});
-</script>
-
+  </script>
 </body>
 </html>
