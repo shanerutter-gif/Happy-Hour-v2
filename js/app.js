@@ -900,6 +900,17 @@ function closeProfile(e) {
   document.getElementById('bnProfile')?.classList.remove('active');
 }
 
+function openSubPage(id) {
+  const page = document.getElementById(id);
+  page.style.display = 'block';
+  requestAnimationFrame(() => requestAnimationFrame(() => page.classList.add('sub-page--open')));
+}
+function closeSubPage(id) {
+  const page = document.getElementById(id);
+  page.classList.remove('sub-page--open');
+  setTimeout(() => { page.style.display = 'none'; }, 230);
+}
+
 async function renderProfile(user) {
   const areas = [...new Set([...state.venues, ...state.events].map(v => v.neighborhood).filter(Boolean))].sort();
   const [profile, myReviews, favItems, followed, checkIns, badges, following, followers] = await Promise.all([
@@ -1085,18 +1096,15 @@ async function toggleHood(hood, btn) { if (!currentUser) return; const added = a
 // ── FIND PEOPLE ────────────────────────────────────────
 async function openFindPeople() {
   if (!currentUser) { openAuth('signin'); return; }
-  // Open and render shell immediately — no awaiting before showing
   document.getElementById('findPeopleContent').innerHTML = `
-    <div class="s-name" style="font-size:20px;margin-bottom:12px">Find People</div>
     <div style="position:relative;margin-bottom:16px">
       <input class="field" id="peopleSearch" type="text" placeholder="Search by name…"
         oninput="debouncePeopleSearch(this.value)"
         style="width:100%;box-sizing:border-box">
     </div>
     <div id="peopleResults"><div style="text-align:center;padding:32px;color:var(--muted)">Loading…</div></div>`;
-  openOverlay('findPeopleOverlay');
-  setTimeout(() => document.getElementById('peopleSearch')?.focus(), 200);
-  // Load data after overlay is visible
+  openSubPage('findPeoplePage');
+  setTimeout(() => document.getElementById('peopleSearch')?.focus(), 300);
   const following = await getFollowing(currentUser.id);
   state._following = new Set(following);
   await loadPeopleResults('');
@@ -1131,8 +1139,8 @@ function peopleRowHTML(p, followingSet) {
   const isF = followingSet.has(p.id);
   const name = p.display_name || 'Spotd User';
   return `<div class="people-row">
-    <div class="feed-avatar" onclick="closeOverlay('findPeopleOverlay');openPublicProfile('${p.id}')" style="cursor:pointer">${p.avatar_emoji || '🍺'}</div>
-    <div class="people-info" onclick="closeOverlay('findPeopleOverlay');openPublicProfile('${p.id}')" style="cursor:pointer;flex:1;min-width:0">
+    <div class="feed-avatar" onclick="closeSubPage('findPeoplePage');openPublicProfile('${p.id}')" style="cursor:pointer">${p.avatar_emoji || '🍺'}</div>
+    <div class="people-info" onclick="closeSubPage('findPeoplePage');openPublicProfile('${p.id}')" style="cursor:pointer;flex:1;min-width:0">
       <div class="people-name">${esc(name)}</div>
       ${p.bio ? `<div class="people-bio">${esc(p.bio)}</div>` : ''}
     </div>
@@ -1489,14 +1497,13 @@ async function toggleFollowUser(userId, btn) {
 // ── ACTIVITY FEED OVERLAY ──────────────────────────────
 async function openActivityFeed() {
   if (!currentUser) { openAuth('signin'); return; }
-  openOverlay('feedOverlay');
   document.getElementById('feedContent').innerHTML = `
     <div class="feed-header">
-      <div class="s-name" style="font-size:20px">Activity Feed</div>
       <button class="feed-tab-btn active" id="ftab-following" onclick="switchFeedTab('following',this)">Following</button>
       <button class="feed-tab-btn" id="ftab-mine" onclick="switchFeedTab('mine',this)">My Activity</button>
     </div>
     <div id="feedRows"><div style="text-align:center;padding:40px;color:var(--muted)">Loading…</div></div>`;
+  openSubPage('feedPage');
   await loadFeedTab('following');
 }
 
@@ -1520,7 +1527,7 @@ async function loadFeedTab(tab) {
           <div style="font-size:32px;margin-bottom:12px">👋</div>
           <div style="font-weight:600;margin-bottom:8px">No activity yet</div>
           <div style="color:var(--muted);font-size:13px">Follow people to see their check-ins & reviews here</div>
-          <button class="profile-action-btn" style="margin-top:16px;max-width:180px" onclick="closeOverlay('feedOverlay');openFindPeople()">🔍 Find People</button>
+          <button class="profile-action-btn" style="margin-top:16px;max-width:180px" onclick="closeSubPage('feedPage');openFindPeople()">🔍 Find People</button>
         </div>`;
       return;
     }
@@ -1555,9 +1562,9 @@ async function loadFeedTab(tab) {
     const avatar = p.avatar_emoji || '🍺';
     const venue = a.venue_id ? allItems.find(x => String(x.id) === String(a.venue_id)) : null;
     const clickable = !!venue;
-    const venueClick = clickable ? ' onclick="closeOverlay(\'feedOverlay\');openModal(\''+a.venue_id+'\',\'venue\')"' : '';
-    const avatarClick = !isMe ? ' onclick="event.stopPropagation();closeOverlay(\'feedOverlay\');openPublicProfile(\''+a.user_id+'\')"' : '';
-    const nameClick   = !isMe ? ' onclick="event.stopPropagation();closeOverlay(\'feedOverlay\');openPublicProfile(\''+a.user_id+'\')"' : '';
+    const venueClick = clickable ? ' onclick="closeSubPage('feedPage');openModal(\''+a.venue_id+'\',\'venue\')"' : '';
+    const avatarClick = !isMe ? ' onclick="event.stopPropagation();closeSubPage('feedPage');openPublicProfile(\''+a.user_id+'\')"' : '';
+    const nameClick   = !isMe ? ' onclick="event.stopPropagation();closeSubPage('feedPage');openPublicProfile(\''+a.user_id+'\')"' : '';
     return '<div class="feed-row' + (clickable ? ' feed-row--link' : '') + '"' + venueClick + '>'
       + '<div class="feed-avatar' + (!isMe ? ' feed-avatar--link' : '') + '"' + avatarClick + '>' + avatar + '</div>'
       + '<div class="feed-body">'
@@ -1571,7 +1578,7 @@ async function loadFeedTab(tab) {
 // ── LEADERBOARD ────────────────────────────────────────
 async function openLeaderboard() {
   document.getElementById('leaderboardContent').innerHTML = `<div style="text-align:center;padding:40px;color:var(--muted)">Loading…</div>`;
-  openOverlay('leaderboardOverlay');
+  openSubPage('leaderboardPage');
 
   const today = new Date();
   const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0,10);
@@ -1615,7 +1622,7 @@ async function openLeaderboard() {
       : ranked.map((u, i) => {
           const p = profileMap[u.uid] || {};
           const isMe = u.uid === currentUser?.id;
-          const lbClick = !isMe ? ' onclick="closeOverlay(\'leaderboardOverlay\');openPublicProfile(\''+u.uid+'\')" style="cursor:pointer"' : '';
+          const lbClick = !isMe ? ' onclick="closeSubPage('leaderboardPage');openPublicProfile(\''+u.uid+'\')" style="cursor:pointer"' : '';
           return '<div class="leaderboard-row"' + lbClick + '>'
             + '<div class="lb-rank">' + (medals[i] || '#' + (i+1)) + '</div>'
             + '<div class="lb-avatar">' + (p.avatar_emoji || '🍺') + '</div>'
