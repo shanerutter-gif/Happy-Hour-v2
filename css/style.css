@@ -870,7 +870,7 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 .home-logo-fallback { font-family: 'Cabinet Grotesk', sans-serif; font-weight: 900; font-size: 28px; color: var(--teal); letter-spacing: -1px; }
 
 /* ── HOME CTA BUTTONS ── */
-.home-cta-row { display: flex; flex-direction: column; gap: 10px; margin-top: 28px; max-width: 400px; }
+.home-cta-row { display: flex; flex-direction: column; gap: 10px; margin-top: 28px; margin-bottom: 32px; max-width: 400px; }
 .home-cta-btn { display: flex; align-items: center; justify-content: center; width: 100%; padding: 16px 24px; border-radius: 14px; font-family: 'Cabinet Grotesk', sans-serif; font-weight: 800; font-size: 16px; cursor: pointer; text-decoration: none; transition: all .18s; border: none; min-height: 54px; }
 .home-cta-primary { background: var(--teal); color: #fff; box-shadow: 0 4px 16px rgba(255,107,74,0.3); }
 .home-cta-primary:active { opacity: .88; transform: scale(.98); }
