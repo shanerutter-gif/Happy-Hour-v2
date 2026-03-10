@@ -326,7 +326,8 @@ async function fetchUserActivity(userId, limit = 20) {
 // ── FOLLOWS ────────────────────────────────────────────
 async function followUser(followerId, followingId) {
   try {
-    await db.from('user_follows').insert({ follower_id: followerId, following_id: followingId });
+    const { error } = await db.from('user_follows').insert({ follower_id: followerId, following_id: followingId });
+    if (error) { console.warn('followUser error (run social_profiles.sql migration):', error.message); return false; }
     return true;
   } catch(e) { return false; }
 }
@@ -338,7 +339,8 @@ async function unfollowUser(followerId, followingId) {
 }
 async function getFollowing(userId) {
   try {
-    const { data } = await db.from('user_follows').select('following_id').eq('follower_id', userId);
+    const { data, error } = await db.from('user_follows').select('following_id').eq('follower_id', userId);
+    if (error) return [];
     return (data || []).map(r => r.following_id);
   } catch(e) { return []; }
 }
@@ -350,13 +352,21 @@ async function getFollowers(userId) {
 }
 async function isFollowing(followerId, followingId) {
   try {
-    const { data } = await db.from('user_follows').select('id').eq('follower_id', followerId).eq('following_id', followingId).single();
+    const { data, error } = await db.from('user_follows').select('id').eq('follower_id', followerId).eq('following_id', followingId).maybeSingle();
+    if (error) return false;
     return !!data;
   } catch(e) { return false; }
 }
 async function fetchPublicProfile(userId) {
   try {
-    const { data } = await db.from('profiles').select('*').eq('id', userId).eq('is_public', true).single();
+    const { data, error } = await db.from('profiles')
+      .select('id, display_name, bio, avatar_emoji, username, digest_enabled')
+      .eq('id', userId)
+      .maybeSingle();
+    if (error) {
+      console.warn('fetchPublicProfile error (may need social_profiles.sql migration):', error.message);
+      return null;
+    }
     return data;
   } catch(e) { return null; }
 }
