@@ -457,3 +457,40 @@ async function checkAndAwardBadges(userId) {
     if (maxStreak >= 8) award('streak_8');
   } catch(e) { console.warn('checkAndAwardBadges error', e); }
 }
+
+// ── VENUE FOLLOWS (deal alerts) ────────────────────────
+async function followVenue(userId, venueId) {
+  try {
+    const { error } = await db.from('venue_follows').insert({ user_id: userId, venue_id: venueId });
+    if (error) throw error;
+    return true;
+  } catch(e) { return false; }
+}
+async function unfollowVenue(userId, venueId) {
+  try {
+    await db.from('venue_follows').delete().eq('user_id', userId).eq('venue_id', venueId);
+    return true;
+  } catch(e) { return false; }
+}
+async function isFollowingVenue(userId, venueId) {
+  try {
+    const { data } = await db.from('venue_follows').select('id').eq('user_id', userId).eq('venue_id', venueId).maybeSingle();
+    return !!data;
+  } catch(e) { return false; }
+}
+
+// ── TAG A FRIEND ───────────────────────────────────────
+// Writes an activity_feed entry visible on the tagged user's feed.
+// No new table needed — reuses existing activity_feed infrastructure.
+async function tagFriendAtCheckIn(fromUserId, toUserId, venueId, venueName) {
+  try {
+    await db.from('activity_feed').insert({
+      user_id:       toUserId,        // appears on the tagged user's feed
+      activity_type: 'tagged_at',
+      venue_id:      venueId,
+      venue_name:    venueName,
+      meta:          { tagged_by: fromUserId }
+    });
+    return true;
+  } catch(e) { console.warn('tagFriendAtCheckIn error', e); return false; }
+}
