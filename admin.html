@@ -788,6 +788,8 @@
         ${chk('ev-music',     v.has_live_music,  '🎵 Live Music')}
         ${chk('ev-karaoke',   v.has_karaoke,     '🎤 Karaoke')}
         ${chk('ev-trivia',    v.has_trivia,      '🧠 Trivia')}
+        ${chk('ev-bingo',     v.has_bingo,       '🎯 Bingo')}
+        ${chk('ev-comedy',    v.has_comedy,      '🎭 Comedy')}
       </div>
     `;
     renderEditDeals();
@@ -860,6 +862,8 @@
         has_live_music:  document.getElementById('ev-music')?.checked       ?? false,
         has_karaoke:     document.getElementById('ev-karaoke')?.checked     ?? false,
         has_trivia:      document.getElementById('ev-trivia')?.checked      ?? false,
+        has_bingo:       document.getElementById('ev-bingo')?.checked       ?? false,
+        has_comedy:      document.getElementById('ev-comedy')?.checked      ?? false,
       };
 
       const result = await sb.patch('venues', editingVenue.id, payload);
@@ -887,13 +891,6 @@
     }
   }
 
-  // Intercept showPage to lazy-load venues
-  const _origShowPage = showPage;
-  showPage = function(page) {
-    _origShowPage(page);
-    if (page === 'venues') loadVenues();
-  };
-
   // Close edit modal on backdrop click
   document.getElementById('editVenueModal').addEventListener('click', e => {
     if (e.target === document.getElementById('editVenueModal')) closeEditVenueModal();
@@ -909,6 +906,7 @@
     document.getElementById('page-'+page)?.classList.add('active');
     document.getElementById('nav-'+page)?.classList.add('active');
     document.getElementById('mob-nav-'+page)?.classList.add('active');
+    if (page === 'venues') loadVenues();
   }
 
   function handleLogout() {
