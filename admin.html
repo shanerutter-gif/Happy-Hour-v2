@@ -816,6 +816,8 @@
     document.getElementById('editVenueModal').classList.remove('open');
     editingVenue = null;
     editDeals = [];
+    const btn = document.getElementById('edit-save-btn');
+    if (btn) { btn.disabled = false; btn.textContent = 'Save Changes →'; }
   }
 
   async function saveVenueEdit() {
