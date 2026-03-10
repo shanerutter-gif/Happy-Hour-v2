@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -37,51 +36,51 @@
 
 /* ── GOING TONIGHT ── */
 .fire-badge {
-display: inline-flex; align-items: center;
-background: rgba(255,140,0,0.12);
-border: 1px solid rgba(255,140,0,0.25);
-color: #FF8C00;
-font-size: 11px; font-weight: 700;
-padding: 3px 10px; border-radius: 100px;
-margin: 6px 16px 0;
+  display: inline-flex; align-items: center;
+  background: rgba(255,140,0,0.12);
+  border: 1px solid rgba(255,140,0,0.25);
+  color: #FF8C00;
+  font-size: 11px; font-weight: 700;
+  padding: 3px 10px; border-radius: 100px;
+  margin: 6px 16px 0;
 }
 .card-going {
-padding: 8px 16px 4px;
+  padding: 8px 16px 4px;
 }
 .going-btn {
-background: rgba(255,107,74,0.08);
-border: 1px solid rgba(255,107,74,0.2);
-color: #FF6B4A;
-font-size: 12px; font-weight: 600;
-padding: 7px 14px; border-radius: 8px;
-cursor: pointer; font-family: ‘DM Sans’, sans-serif;
-transition: background 0.15s, border-color 0.15s, transform 0.1s;
-width: 100%;
+  background: rgba(255,107,74,0.08);
+  border: 1px solid rgba(255,107,74,0.2);
+  color: #FF6B4A;
+  font-size: 12px; font-weight: 600;
+  padding: 7px 14px; border-radius: 8px;
+  cursor: pointer; font-family: 'DM Sans', sans-serif;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+  width: 100%;
 }
 .going-btn:hover {
-background: rgba(255,107,74,0.15);
-border-color: rgba(255,107,74,0.4);
-transform: translateY(-1px);
+  background: rgba(255,107,74,0.15);
+  border-color: rgba(255,107,74,0.4);
+  transform: translateY(-1px);
 }
 .going-btn.going-active {
-background: rgba(255,140,0,0.12);
-border-color: rgba(255,140,0,0.3);
-color: #FF8C00;
+  background: rgba(255,140,0,0.12);
+  border-color: rgba(255,140,0,0.3);
+  color: #FF8C00;
 }
 .going-btn.going-active:hover {
-background: rgba(255,140,0,0.2);
+  background: rgba(255,140,0,0.2);
 }
-.going-btn–lg {
-font-size: 14px; padding: 12px 20px;
-width: 100%; text-align: center;
+.going-btn--lg {
+  font-size: 14px; padding: 12px 20px;
+  width: 100%; text-align: center;
 }
 .s-going-wrap {
-margin: 0 0 8px;
+  margin: 0 0 8px;
 }
 .s-going-count {
-text-align: center;
-font-size: 12px; color: #FF8C00;
-margin-top: 8px; font-weight: 600;
+  text-align: center;
+  font-size: 12px; color: #FF8C00;
+  margin-top: 8px; font-weight: 600;
 }
 
 </style>
@@ -89,7 +88,6 @@ margin-top: 8px; font-weight: 600;
 <body>
 
 <!-- NAV -->
-
 <nav class="top-nav" id="topNav">
   <span class="nav-brand" onclick="goHome()">
   <img src="/spotd_logo_v5.png" alt="Spotd" class="nav-logo-img">
@@ -101,7 +99,6 @@ margin-top: 8px; font-weight: 600;
 </nav>
 
 <!-- HOME / CITY SELECTOR -->
-
 <div id="homePage" class="home-page">
   <div class="home-inner">
     <img >
@@ -115,7 +112,6 @@ margin-top: 8px; font-weight: 600;
 </div>
 
 <!-- CITY APP VIEW -->
-
 <div id="appPage" class="app-page" style="display:none">
 
   <div class="city-bar" id="cityBar">
@@ -183,7 +179,6 @@ margin-top: 8px; font-weight: 600;
 </div><!-- /appPage -->
 
 <!-- VENUE/EVENT MODAL -->
-
 <div class="overlay" id="modalOverlay" onclick="closeModal(event)">
   <div class="sheet" id="venueSheet">
     <div class="sheet-handle"></div>
@@ -193,7 +188,6 @@ margin-top: 8px; font-weight: 600;
 </div>
 
 <!-- AUTH MODAL -->
-
 <div class="overlay" id="authOverlay" onclick="closeAuth(event)">
   <div class="sheet" id="authSheet">
     <div class="sheet-handle"></div>
@@ -203,7 +197,6 @@ margin-top: 8px; font-weight: 600;
 </div>
 
 <!-- PROFILE MODAL -->
-
 <div class="overlay" id="profileOverlay" onclick="closeProfile(event)">
   <div class="sheet sheet--wide" id="profileSheet">
     <div class="sheet-handle"></div>
@@ -212,8 +205,34 @@ margin-top: 8px; font-weight: 600;
   </div>
 </div>
 
-<!-- EDIT REVIEW MODAL -->
+<!-- PUBLIC PROFILE OVERLAY -->
+<div class="overlay" id="pubProfileOverlay" onclick="if(event.target===this)closeOverlay('pubProfileOverlay')">
+  <div class="sheet sheet--wide" id="pubProfileSheet">
+    <div class="sheet-handle"></div>
+    <button class="sheet-close" onclick="closeOverlay('pubProfileOverlay')">✕</button>
+    <div id="pubProfileContent"></div>
+  </div>
+</div>
 
+<!-- ACTIVITY FEED OVERLAY -->
+<div class="overlay" id="feedOverlay" onclick="if(event.target===this)closeOverlay('feedOverlay')">
+  <div class="sheet sheet--wide" id="feedSheet">
+    <div class="sheet-handle"></div>
+    <button class="sheet-close" onclick="closeOverlay('feedOverlay')">✕</button>
+    <div id="feedContent"></div>
+  </div>
+</div>
+
+<!-- LEADERBOARD OVERLAY -->
+<div class="overlay" id="leaderboardOverlay" onclick="if(event.target===this)closeOverlay('leaderboardOverlay')">
+  <div class="sheet sheet--wide" id="leaderboardSheet">
+    <div class="sheet-handle"></div>
+    <button class="sheet-close" onclick="closeOverlay('leaderboardOverlay')">✕</button>
+    <div id="leaderboardContent"></div>
+  </div>
+</div>
+
+<!-- EDIT REVIEW MODAL -->
 <div class="overlay" id="editOverlay" onclick="closeEditReview(event)">
   <div class="sheet" id="editSheet">
     <div class="sheet-handle"></div>
@@ -223,7 +242,6 @@ margin-top: 8px; font-weight: 600;
 </div>
 
 <!-- REQUEST VENUE MODAL -->
-
 <div class="overlay" id="requestOverlay" onclick="closeRequestVenue(event)">
   <div class="sheet" id="requestSheet">
     <div class="sheet-handle"></div>
@@ -237,7 +255,6 @@ margin-top: 8px; font-weight: 600;
 </footer>
 
 <!-- ADD TO HOME SCREEN BANNER (iOS only, shown once) -->
-
 <div id="a2hsBanner" style="display:none">
   <div class="a2hs-inner">
     <div class="a2hs-icon">📲</div>
@@ -322,8 +339,6 @@ function dismissA2HS() {
 </script>
 
 <script src="js/db.js"></script>
-
 <script src="js/app.js"></script>
-
 </body>
 </html>
