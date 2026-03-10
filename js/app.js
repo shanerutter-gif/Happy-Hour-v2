@@ -97,26 +97,31 @@ function renderNav(user) {
 function renderBottomNav(user) {
   let bar = document.getElementById('bottomNav');
   if (!state.city) {
-    // On home page: hide bottom nav
     if (bar) bar.style.display = 'none';
     return;
   }
   if (!bar) {
+    // Build once and never rebuild — avoids losing active state
     bar = document.createElement('nav');
     bar.id = 'bottomNav';
     bar.className = 'bottom-nav';
+    bar.innerHTML = `
+      <button class="bottom-nav-btn active" id="bnFeed" onclick="bottomNavFeed(this)">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        <span>Feed</span>
+      </button>
+      <button class="bottom-nav-btn" id="bnProfile" onclick="bottomNavProfile(this)">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+        <span id="bnProfileLabel">${user ? (user.user_metadata?.full_name || 'Profile').split(' ')[0] : 'Sign In'}</span>
+      </button>`;
     document.body.appendChild(bar);
+  } else {
+    // Already exists — just update the label
+    bar.style.display = 'flex';
+    const lbl = document.getElementById('bnProfileLabel');
+    if (lbl) lbl.textContent = user ? (user.user_metadata?.full_name || 'Profile').split(' ')[0] : 'Sign In';
   }
   bar.style.display = 'flex';
-  bar.innerHTML = `
-    <button class="bottom-nav-btn active" id="bnFeed" onclick="bottomNavFeed(this)">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-      <span>Feed</span>
-    </button>
-    <button class="bottom-nav-btn" id="bnProfile" onclick="bottomNavProfile(this)">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
-      <span>${user ? (user.user_metadata?.full_name || 'Profile').split(' ')[0] : 'Sign In'}</span>
-    </button>`;
 }
 
 function bottomNavFeed(btn) {
@@ -1080,11 +1085,7 @@ async function toggleHood(hood, btn) { if (!currentUser) return; const added = a
 // ── FIND PEOPLE ────────────────────────────────────────
 async function openFindPeople() {
   if (!currentUser) { openAuth('signin'); return; }
-  openOverlay('findPeopleOverlay');
-  const following = await getFollowing(currentUser.id);
-  state._following = new Set(following);
-
-  // Render shell ONCE — only results area gets updated after
+  // Open and render shell immediately — no awaiting before showing
   document.getElementById('findPeopleContent').innerHTML = `
     <div class="s-name" style="font-size:20px;margin-bottom:12px">Find People</div>
     <div style="position:relative;margin-bottom:16px">
@@ -1092,9 +1093,12 @@ async function openFindPeople() {
         oninput="debouncePeopleSearch(this.value)"
         style="width:100%;box-sizing:border-box">
     </div>
-    <div id="peopleResults"></div>`;
-
-  setTimeout(() => document.getElementById('peopleSearch')?.focus(), 150);
+    <div id="peopleResults"><div style="text-align:center;padding:32px;color:var(--muted)">Loading…</div></div>`;
+  openOverlay('findPeopleOverlay');
+  setTimeout(() => document.getElementById('peopleSearch')?.focus(), 200);
+  // Load data after overlay is visible
+  const following = await getFollowing(currentUser.id);
+  state._following = new Set(following);
   await loadPeopleResults('');
 }
 
@@ -1248,8 +1252,16 @@ function buildMapSidebar() {
 }
 
 // ── OVERLAY HELPERS ────────────────────────────────────
-function openOverlay(id)  { document.getElementById(id).classList.add('open');    document.body.style.overflow = 'hidden'; }
-function closeOverlay(id) { document.getElementById(id).classList.remove('open'); if (!document.querySelector('.overlay.open')) document.body.style.overflow = ''; }
+function openOverlay(id)  {
+  document.getElementById(id).classList.add('open');
+  // Don't lock body scroll if the profile page is handling its own scroll
+  const profileOpen = document.getElementById('profilePage')?.classList.contains('profile-page--open');
+  if (!profileOpen) document.body.style.overflow = 'hidden';
+}
+function closeOverlay(id) {
+  document.getElementById(id).classList.remove('open');
+  if (!document.querySelector('.overlay.open')) document.body.style.overflow = '';
+}
 
 // ── UTILS ──────────────────────────────────────────────
 function avgFromList(r)    { return r.length ? r.reduce((s,x) => s+x.rating, 0)/r.length : 0; }
