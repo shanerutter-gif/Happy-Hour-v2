@@ -502,3 +502,103 @@ footer{text-align:center;padding:20px;font-family:'DM Mono',monospace;font-size:
   font-family: "DM Sans", sans-serif;
 }
 .tag-skip-btn:hover { color: var(--text); }
+
+/* ══════════════════════════════════════════════
+   PHOTO CHECK-INS
+   ══════════════════════════════════════════════ */
+
+/* ── UGC photo strip on venue modal ── */
+.ugc-photos-section { margin: 0 0 4px; }
+.ugc-photos-label {
+  font-size: 11px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--muted);
+  font-family: 'DM Mono', monospace; margin-bottom: 10px;
+  display: flex; align-items: center; gap: 8px;
+}
+.ugc-photos-strip {
+  display: flex; gap: 8px; overflow-x: auto;
+  -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  padding-bottom: 4px;
+}
+.ugc-photos-strip::-webkit-scrollbar { display: none; }
+.ugc-photo-thumb {
+  flex-shrink: 0; width: 96px; height: 96px;
+  border-radius: 10px; overflow: hidden; position: relative;
+  cursor: pointer; background: var(--bg2);
+}
+.ugc-photo-thumb img {
+  width: 100%; height: 100%; object-fit: cover;
+  transition: transform .2s;
+}
+.ugc-photo-thumb:active img { transform: scale(.97); }
+.ugc-photo-meta {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  background: linear-gradient(transparent, rgba(0,0,0,0.65));
+  padding: 18px 6px 5px;
+  font-size: 9px; color: rgba(255,255,255,0.9); font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ugc-photo-delete {
+  position: absolute; top: 4px; right: 4px;
+  background: rgba(0,0,0,0.55); border: none; border-radius: 50%;
+  width: 22px; height: 22px; font-size: 11px; color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; opacity: 0; transition: opacity .15s;
+}
+.ugc-photo-thumb:hover .ugc-photo-delete,
+.ugc-photo-thumb:focus-within .ugc-photo-delete { opacity: 1; }
+
+/* ── Photo upload prompt (post check-in sheet) ── */
+.photo-prompt-title {
+  font-family: 'Fraunces', serif; font-size: 19px; font-weight: 700;
+  color: var(--white); margin-bottom: 4px;
+}
+.photo-prompt-sub {
+  font-size: 13px; color: var(--muted); margin-bottom: 20px; line-height: 1.5;
+}
+.photo-upload-area {
+  border: 2px dashed var(--border); border-radius: 14px;
+  padding: 28px 20px; text-align: center;
+  background: var(--bg); cursor: pointer; transition: all .2s; margin-bottom: 14px;
+  position: relative;
+}
+.photo-upload-area.dragover,
+.photo-upload-area:hover { border-color: var(--teal); background: rgba(255,107,74,0.04); }
+.photo-upload-area input[type=file] {
+  position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+}
+.photo-upload-icon  { font-size: 32px; margin-bottom: 8px; }
+.photo-upload-hint  { font-size: 13px; color: var(--muted); }
+.photo-upload-hint strong { color: var(--teal); }
+.photo-preview-wrap {
+  position: relative; border-radius: 14px; overflow: hidden;
+  margin-bottom: 14px; background: var(--bg2); max-height: 240px; display: none;
+}
+.photo-preview-wrap img { width: 100%; max-height: 240px; object-fit: cover; display: block; }
+.photo-preview-remove {
+  position: absolute; top: 8px; right: 8px;
+  background: rgba(0,0,0,0.6); border: none; border-radius: 50%;
+  width: 30px; height: 30px; color: #fff; font-size: 14px;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.photo-caption-field {
+  width: 100%; padding: 10px 14px; border-radius: 10px;
+  border: 1.5px solid var(--border2); background: var(--card);
+  font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--text);
+  margin-bottom: 14px; outline: none; resize: none;
+}
+.photo-caption-field:focus { border-color: var(--teal); }
+.photo-submit-btn {
+  width: 100%; padding: 13px; border-radius: 12px;
+  background: var(--teal); color: #fff; border: none;
+  font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 700;
+  cursor: pointer; transition: opacity .15s;
+}
+.photo-submit-btn:disabled { opacity: .45; cursor: default; }
+.photo-submit-btn:not(:disabled):active { opacity: .85; }
+.photo-skip-btn {
+  display: block; width: 100%; text-align: center;
+  padding: 10px; font-size: 13px; color: var(--muted);
+  background: none; border: none; cursor: pointer;
+  font-family: 'DM Sans', sans-serif; margin-top: 4px;
+}
