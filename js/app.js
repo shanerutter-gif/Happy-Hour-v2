@@ -123,7 +123,7 @@ function bottomNavFeed(btn) {
   document.querySelectorAll('.bottom-nav-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   // Close any open profile/auth overlays and return to feed
-  closeOverlay('profileOverlay'); closeOverlay('authOverlay');
+  closeProfile(); closeOverlay('authOverlay');
 }
 
 function bottomNavProfile(btn) {
@@ -877,11 +877,20 @@ const BADGE_DEFS = {
   top_reviewer:   { emoji: '✍️', label: 'Top Reviewer',         desc: 'Left 25+ reviews' },
 };
 
-async function openProfile() { if (!currentUser) { openAuth('signin'); return; } await renderProfile(currentUser); openOverlay('profileOverlay'); }
+async function openProfile() {
+  if (!currentUser) { openAuth('signin'); return; }
+  const page = document.getElementById('profilePage');
+  page.style.display = 'block';
+  // Double rAF: first frame registers display:block, second triggers transition
+  requestAnimationFrame(() => requestAnimationFrame(() => page.classList.add('profile-page--open')));
+  document.getElementById('bnProfile')?.classList.add('active');
+  document.getElementById('bnFeed')?.classList.remove('active');
+  await renderProfile(currentUser);
+}
 function closeProfile(e) {
-  if (e && e.target !== document.getElementById('profileOverlay')) return;
-  closeOverlay('profileOverlay');
-  // Reset bottom nav active to Feed
+  const page = document.getElementById('profilePage');
+  page.classList.remove('profile-page--open');
+  setTimeout(() => { page.style.display = 'none'; }, 220);
   document.getElementById('bnFeed')?.classList.add('active');
   document.getElementById('bnProfile')?.classList.remove('active');
 }
@@ -940,7 +949,7 @@ async function renderProfile(user) {
     <div id="my-tab-checkins" class="pub-tab-content active">
       ${checkIns.length ? checkIns.slice(0,30).map(c => {
         const v = allItems.find(x => String(x.id) === String(c.venue_id));
-        return '<div class="pub-activity-row"' + (v ? ' onclick="closeOverlay(\'profileOverlay\');openModal(\'' + c.venue_id + '\',\'venue\')" style="cursor:pointer"' : '') + '>'
+        return '<div class="pub-activity-row"' + (v ? ' onclick="closeProfile();openModal(\'' + c.venue_id + '\',\'venue\')" style="cursor:pointer"' : '') + '>'
           + '<div class="pub-activity-icon">📍</div>'
           + '<div class="pub-activity-body">'
           + '<div class="pub-activity-title">' + (v ? esc(v.name) : esc(c.venue_name||'A spot')) + '</div>'
@@ -956,7 +965,7 @@ async function renderProfile(user) {
         return '<div class="pub-activity-row">'
           + '<div class="pub-activity-icon">⭐</div>'
           + '<div class="pub-activity-body" style="flex:1">'
-          + '<div class="pub-activity-title" onclick="closeOverlay(\'profileOverlay\');openModal(\'' + (r.venue_id||r.event_id) + '\',\'' + itype + '\')" style="cursor:pointer">' + (item ? esc(item.name) : 'Unknown Spot') + '</div>'
+          + '<div class="pub-activity-title" onclick="closeProfile();openModal(\'' + (r.venue_id||r.event_id) + '\',\'' + itype + '\')" style="cursor:pointer">' + (item ? esc(item.name) : 'Unknown Spot') + '</div>'
           + '<div class="pub-activity-meta">' + starHTML(r.rating,5,11) + ' · ' + fmtDate(r.created_at) + '</div>'
           + (r.text ? '<div class="pub-activity-note">"' + esc(r.text) + '"</div>' : '')
           + '<div class="review-acts">'
@@ -968,7 +977,7 @@ async function renderProfile(user) {
 
     <div id="my-tab-saved" class="pub-tab-content" style="display:none">
       ${favSpots.length ? favSpots.map(v =>
-        '<div class="pub-activity-row" onclick="closeOverlay(\'profileOverlay\');openModal(\'' + v.id + '\',\'' + (v.event_type?'event':'venue') + '\')" style="cursor:pointer">'
+        '<div class="pub-activity-row" onclick="closeProfile();openModal(\'' + v.id + '\',\'' + (v.event_type?'event':'venue') + '\')" style="cursor:pointer">'
         + '<div class="pub-activity-icon">♥</div>'
         + '<div class="pub-activity-body"><div class="pub-activity-title">' + esc(v.name) + '</div>'
         + '<div class="pub-activity-meta">' + esc(v.neighborhood||'') + ' · ' + esc(v.hours||'') + '</div></div></div>'
@@ -1240,7 +1249,7 @@ function buildMapSidebar() {
 
 // ── OVERLAY HELPERS ────────────────────────────────────
 function openOverlay(id)  { document.getElementById(id).classList.add('open');    document.body.style.overflow = 'hidden'; }
-function closeOverlay(id) { document.getElementById(id).classList.remove('open'); document.body.style.overflow = ''; }
+function closeOverlay(id) { document.getElementById(id).classList.remove('open'); if (!document.querySelector('.overlay.open')) document.body.style.overflow = ''; }
 
 // ── UTILS ──────────────────────────────────────────────
 function avgFromList(r)    { return r.length ? r.reduce((s,x) => s+x.rating, 0)/r.length : 0; }
