@@ -79,17 +79,16 @@ function onAuthChange(user) {
 
 // ── NAV ────────────────────────────────────────────────
 function renderNav(user) {
-  const r = document.getElementById('navRight');
-  const onHome = !state.city;
-  // Top nav: only show on home page
-  const topNav = document.getElementById('topNav');
-  if (topNav) topNav.style.display = onHome ? '' : 'none';
-  if (r) {
-    r.innerHTML = onHome
-      ? `<a class="nav-btn nav-business" href="business-landing.html">For Business</a>
-         ${user ? `<button class="nav-btn nav-profile" onclick="openProfile()">${(user.user_metadata?.full_name || user.email).split(' ')[0]}</button>`
-                : `<button class="nav-btn nav-login" onclick="openAuth('signin')">Sign In</button>`}`
-      : '';
+  // No top nav — render home CTA buttons
+  const cta = document.getElementById('homeCta');
+  if (cta) {
+    if (!state.city) {
+      cta.innerHTML = user
+        ? `<button class="home-cta-btn home-cta-primary" onclick="openProfile()">👤 ${(user.user_metadata?.full_name || user.email).split(' ')[0]}'s Profile</button>
+           <a class="home-cta-btn home-cta-sec" href="business-landing.html">For Business</a>`
+        : `<button class="home-cta-btn home-cta-primary" onclick="openAuth('signin')">Sign In / Sign Up</button>
+           <a class="home-cta-btn home-cta-sec" href="business-landing.html">For Business</a>`;
+    }
   }
   renderBottomNav(user);
 }
@@ -181,9 +180,17 @@ async function renderCityGrid() {
   grid.innerHTML = buildGrid(fallback);
 
   // Then try to load live data and swap in if successful
+  // Always force non-San Diego cities to coming soon
   try {
     const cities = await fetchCities();
-    if (cities.length) grid.innerHTML = buildGrid(cities);
+    if (cities.length) {
+      const enforced = cities.map(c => ({
+        ...c,
+        active: c.slug === 'san-diego' ? true : false,
+        venue_count: c.slug === 'san-diego' ? (c.venue_count || 85) : 0
+      }));
+      grid.innerHTML = buildGrid(enforced);
+    }
   } catch(e) { /* fallback already showing */ }
 }
 
