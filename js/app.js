@@ -77,10 +77,12 @@ function onAuthChange(user) {
 function renderNav(user) {
   const r = document.getElementById('navRight');
   r.innerHTML = user
-    ? `<button class="nav-btn" onclick="openFavView()">★ Saved</button>
+    ? `<a class="nav-btn nav-business" href="business-landing.html">For Business</a>
+       <button class="nav-btn" onclick="openFavView()">★ Saved</button>
        <button class="nav-btn nav-profile" onclick="openProfile()">${(user.user_metadata?.full_name || user.email).split(' ')[0]} ↗</button>
        <button class="nav-btn nav-signout" onclick="doSignOut()">Sign out</button>`
-    : `<button class="nav-btn nav-login" onclick="openAuth('signin')">Sign In / Join</button>`;
+    : `<a class="nav-btn nav-business" href="business-landing.html">For Business</a>
+       <button class="nav-btn nav-login" onclick="openAuth('signin')">Sign In / Join</button>`;
 }
 async function doSignOut() { await authSignOut(); showToast('Signed out'); }
 
