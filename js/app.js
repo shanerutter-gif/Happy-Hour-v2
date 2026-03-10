@@ -698,11 +698,11 @@ async function renderProfile(user) {
       <div class="my-profile-info">
         <div class="my-name">${esc(displayName)}</div>
         <div class="profile-email">${esc(user.email)}</div>
-        <div class="my-stats">
+        <div class="my-stats" id="myStatBar">
           <div class="my-stat" onclick="openActivityFeed()" style="cursor:pointer"><span>${checkIns.length}</span>Check-ins</div>
           <div class="my-stat"><span>${myReviews.length}</span>Reviews</div>
-          <div class="my-stat"><span>${totalVenues}</span>Venues</div>
-          <div class="my-stat" onclick="switchMyTab('settings',document.querySelectorAll('.pub-tab')[3])" style="cursor:pointer"><span>${following.length}</span>Following</div>
+          <div class="my-stat" onclick="openFindPeople()" style="cursor:pointer"><span id="stat-following">${following.length}</span>Following</div>
+          <div class="my-stat" style="cursor:pointer"><span id="stat-followers">${followers.length}</span>Followers</div>
         </div>
       </div>
     </div>
@@ -823,77 +823,72 @@ async function openFindPeople() {
   openOverlay('findPeopleOverlay');
   const following = await getFollowing(currentUser.id);
   state._following = new Set(following);
-  renderFindPeople('', following);
+
+  // Render shell ONCE — only results area gets updated after
+  document.getElementById('findPeopleContent').innerHTML = `
+    <div class="s-name" style="font-size:20px;margin-bottom:12px">Find People</div>
+    <div style="position:relative;margin-bottom:16px">
+      <input class="field" id="peopleSearch" type="text" placeholder="Search by name…"
+        oninput="debouncePeopleSearch(this.value)"
+        style="width:100%;box-sizing:border-box">
+    </div>
+    <div id="peopleResults"></div>`;
+
+  setTimeout(() => document.getElementById('peopleSearch')?.focus(), 150);
+  await loadPeopleResults('');
 }
 
-async function renderFindPeople(query, followingIds) {
-  const container = document.getElementById('findPeopleContent');
-  const isSearch = query.length >= 2;
-  const followingSet = followingIds ? new Set(followingIds) : state._following || new Set();
+async function loadPeopleResults(query) {
+  const el = document.getElementById('peopleResults');
+  if (!el) return;
+  const followingSet = state._following || new Set();
 
-  container.innerHTML = `
-    <div class="s-name" style="font-size:20px;margin-bottom:12px">Find People</div>
-    <div style="position:relative;margin-bottom:20px">
-      <input class="field" id="peopleSearch" type="text" placeholder="Search by name…"
-        oninput="debouncePeopleSearch(this.value)" value="${esc(query)}"
-        style="width:100%;box-sizing:border-box;padding-right:36px">
-      ${query ? `<button onclick="clearPeopleSearch()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer">✕</button>` : ''}
-    </div>
-    <div id="peopleResults"><div style="text-align:center;padding:20px;color:var(--muted)">Loading…</div></div>`;
-
-  setTimeout(() => document.getElementById('peopleSearch')?.focus(), 100);
-
-  if (isSearch) {
+  if (query.length >= 2) {
+    el.innerHTML = `<div style="text-align:center;padding:16px;color:var(--muted);font-size:13px">Searching…</div>`;
     const results = await searchProfiles(query);
-    renderPeopleResults(results.filter(p => p.id !== currentUser.id), followingSet);
+    const filtered = results.filter(p => p.id !== currentUser.id);
+    if (!filtered.length) { el.innerHTML = `<div class="pub-empty">No one found for "${esc(query)}"</div>`; return; }
+    el.innerHTML = filtered.map(p => peopleRowHTML(p, followingSet)).join('');
   } else {
-    // Show who you're already following
+    // Show following list
     if (followingSet.size === 0) {
-      document.getElementById('peopleResults').innerHTML =
-        `<div class="pub-empty">Search for friends by name to follow them 👆</div>`;
+      el.innerHTML = `<div class="pub-empty" style="padding-top:32px">Search above to find friends 👆</div>`;
       return;
     }
-    // Fetch following profiles
+    el.innerHTML = `<div class="people-section-label">Following (${followingSet.size})</div><div style="text-align:center;padding:12px;color:var(--muted);font-size:13px">Loading…</div>`;
     const ids = [...followingSet];
     const { data } = await db.from('profiles').select('id, display_name, avatar_emoji, bio').in('id', ids);
-    const label = `<div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px">Following</div>`;
-    document.getElementById('peopleResults').innerHTML = label;
-    renderPeopleResults(data || [], followingSet, true);
+    el.innerHTML = `<div class="people-section-label">Following (${followingSet.size})</div>` +
+      (data || []).map(p => peopleRowHTML(p, followingSet)).join('');
   }
 }
 
-function renderPeopleResults(people, followingSet, append = false) {
-  const el = document.getElementById('peopleResults');
-  if (!people.length) {
-    if (!append) el.innerHTML = `<div class="pub-empty">No one found</div>`;
-    return;
-  }
-  const html = people.map(p => {
-    const isFollowing = followingSet.has(p.id);
-    const name = p.display_name || 'Spotd User';
-    return `<div class="people-row">
-      <div class="feed-avatar" onclick="closeOverlay('findPeopleOverlay');openPublicProfile('${p.id}')" style="cursor:pointer">${p.avatar_emoji || '🍺'}</div>
-      <div class="people-info" onclick="closeOverlay('findPeopleOverlay');openPublicProfile('${p.id}')" style="cursor:pointer;flex:1">
-        <div class="people-name">${esc(name)}</div>
-        ${p.bio ? `<div class="people-bio">${esc(p.bio)}</div>` : ''}
-      </div>
-      <button class="people-follow-btn ${isFollowing ? 'following' : ''}"
-        id="pf-${p.id}" onclick="toggleFollowFromSearch('${p.id}', this)">
-        ${isFollowing ? '✓ Following' : '+ Follow'}
-      </button>
-    </div>`;
-  }).join('');
-  if (append) el.innerHTML += html;
-  else el.innerHTML = html;
+function peopleRowHTML(p, followingSet) {
+  const isF = followingSet.has(p.id);
+  const name = p.display_name || 'Spotd User';
+  return `<div class="people-row">
+    <div class="feed-avatar" onclick="closeOverlay('findPeopleOverlay');openPublicProfile('${p.id}')" style="cursor:pointer">${p.avatar_emoji || '🍺'}</div>
+    <div class="people-info" onclick="closeOverlay('findPeopleOverlay');openPublicProfile('${p.id}')" style="cursor:pointer;flex:1;min-width:0">
+      <div class="people-name">${esc(name)}</div>
+      ${p.bio ? `<div class="people-bio">${esc(p.bio)}</div>` : ''}
+    </div>
+    <button class="people-follow-btn ${isF ? 'following' : ''}" onclick="toggleFollowFromSearch('${p.id}',this)">
+      ${isF ? '✓ Following' : '+ Follow'}
+    </button>
+  </div>`;
 }
 
 let _peopleSearchTimer = null;
 function debouncePeopleSearch(val) {
   clearTimeout(_peopleSearchTimer);
-  _peopleSearchTimer = setTimeout(() => renderFindPeople(val, state._following), 300);
+  _peopleSearchTimer = setTimeout(() => loadPeopleResults(val), 300);
 }
-function clearPeopleSearch() {
-  renderFindPeople('', state._following);
+
+function refreshFollowStats() {
+  const f = state._following?.size ?? 0;
+  const followingEl = document.getElementById('stat-following');
+  if (followingEl) followingEl.textContent = f;
+  // Also update pub-follow-btn in open public profiles
 }
 
 async function toggleFollowFromSearch(userId, btn) {
@@ -910,9 +905,10 @@ async function toggleFollowFromSearch(userId, btn) {
     state._following?.add(userId);
     btn.classList.add('following');
     btn.textContent = '✓ Following';
-    showToast('Following!');
+    showToast('Following! 🎉');
     await checkAndAwardBadges(currentUser.id);
   }
+  refreshFollowStats();
 }
 
 
@@ -1171,67 +1167,105 @@ function switchPubTab(tab, btn) {
 
 async function toggleFollowUser(userId, btn) {
   if (!currentUser) { openAuth('signin'); return; }
-  const following = btn.classList.contains('following');
-  if (following) {
+  const isFollowing = btn.classList.contains('following');
+  if (isFollowing) {
     await unfollowUser(currentUser.id, userId);
+    state._following?.delete(userId);
     btn.classList.remove('following');
     btn.textContent = '+ Follow';
     showToast('Unfollowed');
   } else {
     await followUser(currentUser.id, userId);
+    state._following?.add(userId);
     btn.classList.add('following');
     btn.textContent = '✓ Following';
-    showToast('Following!');
+    showToast('Following! 🎉');
     await checkAndAwardBadges(currentUser.id);
   }
+  refreshFollowStats();
 }
 
 // ── ACTIVITY FEED OVERLAY ──────────────────────────────
 async function openActivityFeed() {
   if (!currentUser) { openAuth('signin'); return; }
-  document.getElementById('feedContent').innerHTML = `<div style="text-align:center;padding:40px;color:var(--muted)">Loading…</div>`;
   openOverlay('feedOverlay');
-  const following = await getFollowing(currentUser.id);
-  const feedUserIds = [currentUser.id, ...following];
-  const activities = await fetchActivityFeed(feedUserIds);
+  document.getElementById('feedContent').innerHTML = `
+    <div class="feed-header">
+      <div class="s-name" style="font-size:20px">Activity Feed</div>
+      <button class="feed-tab-btn active" id="ftab-following" onclick="switchFeedTab('following',this)">Following</button>
+      <button class="feed-tab-btn" id="ftab-mine" onclick="switchFeedTab('mine',this)">My Activity</button>
+    </div>
+    <div id="feedRows"><div style="text-align:center;padding:40px;color:var(--muted)">Loading…</div></div>`;
+  await loadFeedTab('following');
+}
+
+async function switchFeedTab(tab, btn) {
+  document.querySelectorAll('.feed-tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('feedRows').innerHTML = `<div style="text-align:center;padding:32px;color:var(--muted)">Loading…</div>`;
+  await loadFeedTab(tab);
+}
+
+async function loadFeedTab(tab) {
   const allItems = [...state.venues, ...state.events];
+  let activities = [];
+  let profileMap = {};
+
+  if (tab === 'following') {
+    const following = await getFollowing(currentUser.id);
+    if (!following.length) {
+      document.getElementById('feedRows').innerHTML = `
+        <div class="pub-empty" style="padding:40px 16px">
+          <div style="font-size:32px;margin-bottom:12px">👋</div>
+          <div style="font-weight:600;margin-bottom:8px">No activity yet</div>
+          <div style="color:var(--muted);font-size:13px">Follow people to see their check-ins & reviews here</div>
+          <button class="profile-action-btn" style="margin-top:16px;max-width:180px" onclick="closeOverlay('feedOverlay');openFindPeople()">🔍 Find People</button>
+        </div>`;
+      return;
+    }
+    activities = await fetchActivityFeed([...following]);
+    // Fetch profiles for everyone in the feed
+    const uids = [...new Set(activities.map(a => a.user_id))];
+    if (uids.length) {
+      const { data } = await db.from('profiles').select('id, display_name, avatar_emoji').in('id', uids);
+      (data || []).forEach(p => { profileMap[p.id] = p; });
+    }
+  } else {
+    activities = await fetchUserActivity(currentUser.id, 40);
+    profileMap[currentUser.id] = { display_name: 'You', avatar_emoji: '🍺' };
+  }
 
   if (!activities.length) {
-    document.getElementById('feedContent').innerHTML = `
-      <div class="s-name" style="font-size:20px;margin-bottom:8px">Activity</div>
-      <div class="pub-empty" style="margin-top:24px">Follow friends to see their activity here 👋</div>`;
+    document.getElementById('feedRows').innerHTML = `<div class="pub-empty">No activity yet</div>`;
     return;
   }
 
-  const activityIcon = type => ({ check_in:'📍', review:'⭐', favorite:'♥', badge:'🏅' }[type] || '•');
   const activityLabel = (a) => {
-    if (a.activity_type === 'check_in') return `checked in at <strong>${esc(a.venue_name||'a spot')}</strong>`;
-    if (a.activity_type === 'review') return `reviewed <strong>${esc(a.venue_name||'a spot')}</strong>`;
-    if (a.activity_type === 'favorite') return `saved <strong>${esc(a.venue_name||'a spot')}</strong>`;
-    if (a.activity_type === 'badge') { const def = BADGE_DEFS[a.meta?.badge_key]||{}; return `earned the ${def.emoji||'🏅'} <strong>${def.label||'badge'}</strong>`; }
-    return 'did something';
+    if (a.activity_type === 'check_in') return 'checked in at <strong>' + esc(a.venue_name||'a spot') + '</strong>';
+    if (a.activity_type === 'review') return 'reviewed <strong>' + esc(a.venue_name||'a spot') + '</strong>';
+    if (a.activity_type === 'favorite') return 'saved <strong>' + esc(a.venue_name||'a spot') + '</strong>';
+    if (a.activity_type === 'badge') { const def = BADGE_DEFS[a.meta?.badge_key]||{}; return 'earned ' + (def.emoji||'🏅') + ' <strong>' + (def.label||'a badge') + '</strong>'; }
+    return 'was active';
   };
 
-  document.getElementById('feedContent').innerHTML = `
-    <div class="s-name" style="font-size:20px;margin-bottom:16px">Activity</div>
-    ${activities.map(a => {
-      const name = a.profiles?.display_name || 'Someone';
-      const avatar = a.profiles?.avatar_emoji || '🍺';
-      const isMe = a.user_id === currentUser?.id;
-      const venue = allItems.find(x => String(x.id) === String(a.venue_id));
-      return `<div class="feed-row" ${venue ? `onclick="closeOverlay('feedOverlay');openModal('${a.venue_id}','venue')" style="cursor:pointer"` : ''}>
-        <div class="feed-avatar" ${!isMe ? `onclick="event.stopPropagation();openPublicProfile('${a.user_id}')"` : ''} style="${!isMe ? 'cursor:pointer' : ''}">${avatar}</div>
-        <div class="feed-body">
-          <div class="feed-text">
-            <span class="feed-name" ${!isMe ? `onclick="event.stopPropagation();openPublicProfile('${a.user_id}')"` : ''} style="${!isMe ? 'cursor:pointer' : ''}">${isMe ? 'You' : esc(name)}</span>
-            ${activityLabel(a)}
-          </div>
-          ${a.neighborhood ? `<div class="feed-meta">📍 ${esc(a.neighborhood)} · ${fmtDate(a.created_at)}</div>` : `<div class="feed-meta">${fmtDate(a.created_at)}</div>`}
-          ${a.meta?.note ? `<div class="pub-activity-note">"${esc(a.meta.note)}"</div>` : ''}
-          ${a.meta?.review_text ? `<div class="pub-activity-note">"${esc(a.meta.review_text)}"</div>` : ''}
-        </div>
-      </div>`;
-    }).join('')}`;
+  document.getElementById('feedRows').innerHTML = activities.map(a => {
+    const p = profileMap[a.user_id] || {};
+    const isMe = a.user_id === currentUser.id;
+    const name = isMe ? 'You' : (p.display_name || 'Someone');
+    const avatar = p.avatar_emoji || '🍺';
+    const venue = a.venue_id ? allItems.find(x => String(x.id) === String(a.venue_id)) : null;
+    const clickable = !!venue;
+    const venueClick = clickable ? ' onclick="closeOverlay(\'feedOverlay\');openModal(\''+a.venue_id+'\',\'venue\')"' : '';
+    const avatarClick = !isMe ? ' onclick="event.stopPropagation();closeOverlay(\'feedOverlay\');openPublicProfile(\''+a.user_id+'\')"' : '';
+    const nameClick   = !isMe ? ' onclick="event.stopPropagation();closeOverlay(\'feedOverlay\');openPublicProfile(\''+a.user_id+'\')"' : '';
+    return '<div class="feed-row' + (clickable ? ' feed-row--link' : '') + '"' + venueClick + '>'
+      + '<div class="feed-avatar' + (!isMe ? ' feed-avatar--link' : '') + '"' + avatarClick + '>' + avatar + '</div>'
+      + '<div class="feed-body">'
+      + '<div class="feed-text"><span class="feed-name' + (!isMe ? ' feed-name--link' : '') + '"' + nameClick + '>' + esc(name) + '</span> ' + activityLabel(a) + '</div>'
+      + '<div class="feed-meta">' + (a.neighborhood ? '📍 ' + esc(a.neighborhood) + ' · ' : '') + fmtDate(a.created_at) + '</div>'
+      + (a.meta?.note ? '<div class="pub-activity-note">"' + esc(a.meta.note) + '"</div>' : '')
+      + '</div></div>';
+  }).join('');
 }
 
 // ── LEADERBOARD ────────────────────────────────────────
@@ -1245,7 +1279,7 @@ async function openLeaderboard() {
   // Fetch this month's check-ins with profile info
   try {
     const { data } = await db.from('check_ins')
-      .select('user_id, venue_id, profiles(display_name, avatar_emoji, username)')
+      .select('user_id, venue_id')
       .gte('created_at', monthStart)
       .eq('city_slug', state.city?.slug || 'san-diego');
 
@@ -1253,34 +1287,43 @@ async function openLeaderboard() {
     const userMap = {};
     (data || []).forEach(row => {
       const uid = row.user_id;
-      if (!userMap[uid]) userMap[uid] = { profile: row.profiles, count: 0, venues: new Set() };
+      if (!userMap[uid]) userMap[uid] = { count: 0, venues: new Set() };
       userMap[uid].count++;
       if (row.venue_id) userMap[uid].venues.add(row.venue_id);
     });
 
+    // Fetch profiles for ranked users
+    const rankedUids = Object.keys(userMap);
+    let profileMap = {};
+    if (rankedUids.length) {
+      const { data: profiles } = await db.from('profiles').select('id, display_name, avatar_emoji').in('id', rankedUids);
+      (profiles || []).forEach(p => { profileMap[p.id] = p; });
+    }
+
     const ranked = Object.entries(userMap)
-      .map(([uid, u]) => ({ uid, ...u, venues: u.venues.size }))
+      .map(([uid, u]) => ({ uid, count: u.count, venues: u.venues.size }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 20);
 
     const medals = ['🥇','🥈','🥉'];
     const monthName = today.toLocaleString('default', { month: 'long' });
 
-    document.getElementById('leaderboardContent').innerHTML = `
-      <div class="s-name" style="font-size:20px;margin-bottom:4px">🏆 Leaderboard</div>
-      <div style="color:var(--muted);font-size:13px;margin-bottom:20px">${monthName} · Most check-ins in ${state.city?.name || 'your city'}</div>
-      ${!ranked.length ? '<div class="pub-empty">No check-ins yet this month — be first! 🚀</div>' :
-      ranked.map((u, i) => `
-        <div class="leaderboard-row" onclick="${u.uid !== currentUser?.id ? `closeOverlay('leaderboardOverlay');openPublicProfile('${u.uid}')` : ''}" style="${u.uid !== currentUser?.id ? 'cursor:pointer' : ''}">
-          <div class="lb-rank">${medals[i] || `#${i+1}`}</div>
-          <div class="lb-avatar">${u.profile?.avatar_emoji || '🍺'}</div>
-          <div class="lb-info">
-            <div class="lb-name">${u.uid === currentUser?.id ? 'You' : esc(u.profile?.display_name || 'Spotd User')}</div>
-            <div class="lb-meta">${u.venues} venue${u.venues !== 1 ? 's' : ''}</div>
-          </div>
-          <div class="lb-count">${u.count} <span style="font-size:11px;font-weight:500;opacity:.6">check-ins</span></div>
-        </div>`
-      ).join('')}`;
+    document.getElementById('leaderboardContent').innerHTML =
+      '<div class="s-name" style="font-size:20px;margin-bottom:4px">🏆 Leaderboard</div>'
+      + '<div style="color:var(--muted);font-size:13px;margin-bottom:20px">' + monthName + ' · Most check-ins in ' + (state.city?.name || 'your city') + '</div>'
+      + (!ranked.length ? '<div class="pub-empty">No check-ins yet this month — be first! 🚀</div>'
+      : ranked.map((u, i) => {
+          const p = profileMap[u.uid] || {};
+          const isMe = u.uid === currentUser?.id;
+          const lbClick = !isMe ? ' onclick="closeOverlay(\'leaderboardOverlay\');openPublicProfile(\''+u.uid+'\')" style="cursor:pointer"' : '';
+          return '<div class="leaderboard-row"' + lbClick + '>'
+            + '<div class="lb-rank">' + (medals[i] || '#' + (i+1)) + '</div>'
+            + '<div class="lb-avatar">' + (p.avatar_emoji || '🍺') + '</div>'
+            + '<div class="lb-info"><div class="lb-name">' + (isMe ? 'You' : esc(p.display_name || 'Spotd User')) + '</div>'
+            + '<div class="lb-meta">' + u.venues + ' venue' + (u.venues !== 1 ? 's' : '') + '</div></div>'
+            + '<div class="lb-count">' + u.count + ' <span style="font-size:11px;font-weight:500;opacity:.6">check-ins</span></div>'
+            + '</div>';
+        }).join(''));
   } catch(e) {
     document.getElementById('leaderboardContent').innerHTML = `<div class="pub-empty">Could not load leaderboard</div>`;
   }
