@@ -1272,11 +1272,76 @@ function openOverlay(id)  {
   el.classList.add('open');
   const profileOpen = document.getElementById('profilePage')?.classList.contains('profile-page--open');
   if (!profileOpen) document.body.style.overflow = 'hidden';
+  // Attach swipe-down-to-dismiss to the sheet inside this overlay
+  const sheet = el.querySelector('.sheet');
+  if (sheet) attachSwipeDismiss(sheet, id);
 }
 function closeOverlay(id) {
   const el = document.getElementById(id); if (!el) return;
   el.classList.remove('open');
   if (!document.querySelector('.overlay.open')) document.body.style.overflow = '';
+}
+
+function attachSwipeDismiss(sheet, overlayId) {
+  // Remove any previous listeners to avoid stacking
+  if (sheet._swipeHandler) {
+    sheet.removeEventListener('touchstart', sheet._swipeHandler, { passive: true });
+    sheet.removeEventListener('touchmove',  sheet._swipeMoveHandler);
+    sheet.removeEventListener('touchend',   sheet._swipeEndHandler);
+  }
+
+  let startY = 0, currentY = 0, dragging = false;
+  const DISMISS_THRESHOLD = 80; // px needed to dismiss
+
+  sheet._swipeHandler = (e) => {
+    // Only start drag if at the very top of the sheet scroll
+    if (sheet.scrollTop > 4) return;
+    startY = e.touches[0].clientY;
+    currentY = startY;
+    dragging = true;
+    sheet.style.transition = 'none';
+  };
+
+  sheet._swipeMoveHandler = (e) => {
+    if (!dragging) return;
+    currentY = e.touches[0].clientY;
+    const dy = currentY - startY;
+    if (dy < 0) { sheet.style.transform = ''; return; } // no upward drag
+    // Resist a little — rubber band feel
+    const resistance = dy / (1 + dy * 0.003);
+    sheet.style.transform = `translateY(${resistance}px)`;
+    // Fade the overlay backdrop as you drag
+    const overlay = document.getElementById(overlayId);
+    if (overlay) overlay.style.background = `rgba(26,18,8,${Math.max(0, 0.75 - (dy / 300))})`;
+    e.preventDefault();
+  };
+
+  sheet._swipeEndHandler = () => {
+    if (!dragging) return;
+    dragging = false;
+    const dy = currentY - startY;
+    sheet.style.transition = '';
+
+    if (dy > DISMISS_THRESHOLD) {
+      // Animate out then close
+      sheet.style.transform = `translateY(100%)`;
+      sheet.style.opacity = '0';
+      setTimeout(() => {
+        sheet.style.transform = '';
+        sheet.style.opacity  = '';
+        closeOverlay(overlayId);
+      }, 260);
+    } else {
+      // Snap back
+      sheet.style.transform = '';
+      const overlay = document.getElementById(overlayId);
+      if (overlay) overlay.style.background = '';
+    }
+  };
+
+  sheet.addEventListener('touchstart', sheet._swipeHandler,     { passive: true });
+  sheet.addEventListener('touchmove',  sheet._swipeMoveHandler, { passive: false });
+  sheet.addEventListener('touchend',   sheet._swipeEndHandler,  { passive: true });
 }
 
 // ── UTILS ──────────────────────────────────────────────
