@@ -318,7 +318,6 @@ function venueCardHTML(v) {
       }).join('')}</div>`
     : '';
   return `<div class="card" data-id="${v.id}" onclick="openModal('${v.id}','venue')" role="button" tabindex="0">
-    ${v.photo_url ? `<div class="card-photo"><img src="${v.photo_url}" alt="${esc(v.name)}" loading="lazy" onerror="this.parentElement.remove()"></div>` : ''}
     <div class="card-top">
       <div class="card-name">${esc(v.name)}</div>
       <div class="card-right">
@@ -437,7 +436,7 @@ function renderModal(v, type, reviews) {
   const faved   = isFavorite(v.id);
   const isVenue = type === 'venue';
   document.getElementById('modalContent').innerHTML = `
-    ${v.photo_url ? `<div class="s-photo"><img src="${v.photo_url}" alt="${esc(v.name)}" loading="lazy" onerror="this.parentElement.remove()"></div>` : ''}
+    ${v.photo_url ? `<div class="s-photo-thumb" onclick="openPhotoLightbox('${v.photo_url}','${esc(v.name)}')" title="Tap to enlarge"><img src="${v.photo_url}" alt="${esc(v.name)}" loading="lazy" onerror="this.parentElement.remove()"><div class="s-photo-hint">📷 Tap to expand</div></div>` : ''}
     <div class="s-tag ${isVenue ? 'hh' : 'ev'}">${isVenue ? 'Happy Hour' : esc(v.event_type || 'Event')}</div>
     <div style="display:flex;align-items:flex-start;gap:10px;padding-right:38px">
       <div style="flex:1">
@@ -773,6 +772,17 @@ function avgFromList(r)    { return r.length ? r.reduce((s,x) => s+x.rating, 0)/
 function starHTML(rating, max=5, size=13) { return Array.from({length:max},(_,i)=>`<span style="font-size:${size}px;color:${i<Math.round(rating)?'#E8943A':'rgba(42,31,20,0.15)'}">★</span>`).join(''); }
 function fmtDate(iso)      { return new Date(iso).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }
 function showToast(msg)    { document.querySelectorAll('.toast').forEach(t=>t.remove()); const t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),2600); }
+function openPhotoLightbox(url, name) {
+  const lb = document.createElement('div');
+  lb.id = 'photo-lightbox';
+  lb.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;cursor:zoom-out;padding:20px;';
+  lb.innerHTML = `
+    <button onclick="this.parentElement.remove()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:22px;width:40px;height:40px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
+    <img src="${url}" alt="${name}" style="max-width:100%;max-height:90vh;object-fit:contain;border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,0.5);">
+  `;
+  lb.addEventListener('click', e => { if (e.target === lb) lb.remove(); });
+  document.body.appendChild(lb);
+}
 function esc(s)            { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
 // ── GOING TONIGHT ──────────────────────────────────────
