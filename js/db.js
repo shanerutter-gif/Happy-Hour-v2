@@ -222,56 +222,13 @@ async function getFavoriteItems(userId) {
   const { data } = await db.from('favorites').select('item_id, item_type').eq('user_id', userId);
   return data || [];
 }
-// ─────────────────────────────────────────────────────────────
-// GOING TONIGHT — add these functions to the bottom of db.js
-// ─────────────────────────────────────────────────────────────
+// ── CHECK-INS (legacy aliases kept for any remaining references) ──
+// Main implementations are in the CHECK-INS block below
+async function fetchGoingCounts(citySlug, date) { return fetchCheckInCounts(citySlug, date); }
+async function fetchMyGoingTonight(userId, date) { return fetchMyCheckIns(userId, date); }
+async function addGoingTonight(args) { return addCheckIn(args); }
+async function removeGoingTonight(userId, venueId, date) { return removeCheckIn(userId, venueId, date); }
 
-async function fetchGoingCounts(citySlug, date) {
-  try {
-    const { data, error } = await db
-      .from('going_tonight')
-      .select('venue_id, count:id.count()')
-      .eq('city_slug', citySlug)
-      .eq('date', date);
-    if (error) throw error;
-    return data || [];
-  } catch(e) { console.warn('fetchGoingCounts error', e); return []; }
-}
-
-async function fetchMyGoingTonight(userId, date) {
-  try {
-    const { data, error } = await db
-      .from('going_tonight')
-      .select('venue_id')
-      .eq('user_id', userId)
-      .eq('date', date);
-    if (error) throw error;
-    return data || [];
-  } catch(e) { console.warn('fetchMyGoingTonight error', e); return []; }
-}
-
-async function addGoingTonight({ userId, venueId, citySlug, date }) {
-  try {
-    const { error } = await db
-      .from('going_tonight')
-      .insert({ user_id: userId, venue_id: venueId, city_slug: citySlug, date });
-    if (error) throw error;
-    return true;
-  } catch(e) { console.warn('addGoingTonight error', e); return false; }
-}
-
-async function removeGoingTonight(userId, venueId, date) {
-  try {
-    const { error } = await db
-      .from('going_tonight')
-      .delete()
-      .eq('user_id', userId)
-      .eq('venue_id', venueId)
-      .eq('date', date);
-    if (error) throw error;
-    return true;
-  } catch(e) { console.warn('removeGoingTonight error', e); return false; }
-}
 
 // ── VENUE REQUESTS ─────────────────────────────────────
 async function submitVenueRequestToDB(payload) {
