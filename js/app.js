@@ -1562,9 +1562,9 @@ async function loadFeedTab(tab) {
     const avatar = p.avatar_emoji || '🍺';
     const venue = a.venue_id ? allItems.find(x => String(x.id) === String(a.venue_id)) : null;
     const clickable = !!venue;
-    const venueClick = clickable ? ' onclick="closeSubPage('feedPage');openModal(\''+a.venue_id+'\',\'venue\')"' : '';
-    const avatarClick = !isMe ? ' onclick="event.stopPropagation();closeSubPage('feedPage');openPublicProfile(\''+a.user_id+'\')"' : '';
-    const nameClick   = !isMe ? ' onclick="event.stopPropagation();closeSubPage('feedPage');openPublicProfile(\''+a.user_id+'\')"' : '';
+    const venueClick = clickable ? ' onclick="closeSubPage(\'feedPage\');openModal(\''+a.venue_id+'\',\'venue\')"' : '';
+    const avatarClick = !isMe ? ' onclick="event.stopPropagation();closeSubPage(\'feedPage\');openPublicProfile(\''+a.user_id+'\')"' : '';
+    const nameClick   = !isMe ? ' onclick="event.stopPropagation();closeSubPage(\'feedPage\');openPublicProfile(\''+a.user_id+'\')"' : '';
     return '<div class="feed-row' + (clickable ? ' feed-row--link' : '') + '"' + venueClick + '>'
       + '<div class="feed-avatar' + (!isMe ? ' feed-avatar--link' : '') + '"' + avatarClick + '>' + avatar + '</div>'
       + '<div class="feed-body">'
@@ -1622,7 +1622,7 @@ async function openLeaderboard() {
       : ranked.map((u, i) => {
           const p = profileMap[u.uid] || {};
           const isMe = u.uid === currentUser?.id;
-          const lbClick = !isMe ? ' onclick="closeSubPage('leaderboardPage');openPublicProfile(\''+u.uid+'\')" style="cursor:pointer"' : '';
+          const lbClick = !isMe ? ' onclick="closeSubPage(\'leaderboardPage\');openPublicProfile(\''+u.uid+'\')" style="cursor:pointer"' : '';
           return '<div class="leaderboard-row"' + lbClick + '>'
             + '<div class="lb-rank">' + (medals[i] || '#' + (i+1)) + '</div>'
             + '<div class="lb-avatar">' + (p.avatar_emoji || '🍺') + '</div>'
