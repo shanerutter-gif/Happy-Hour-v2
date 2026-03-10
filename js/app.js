@@ -6,13 +6,21 @@
 const DAYS    = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const TODAY   = DAYS[new Date().getDay()];
 const EVENT_TYPES = ['Trivia','Live Music','Karaoke','Bingo','Game Night','Comedy'];
-const HH_TYPES    = ['Bar','Brewery','Seafood','Mexican','Italian','Asian','BBQ','Wine Bar','Steakhouse','Beach Bar','Sports TV'];
+const HH_TYPES    = ['Bar','Brewery','Seafood','Mexican','Italian','Asian','BBQ','Wine Bar','Steakhouse','Beach Bar'];
+const AMENITIES   = [
+  { key: 'has_happy_hour',  label: 'Happy Hour', emoji: '🍺' },
+  { key: 'has_sports_tv',   label: 'Sports TV',  emoji: '📺' },
+  { key: 'is_dog_friendly', label: 'Dog Friendly',emoji: '🐶' },
+  { key: 'has_live_music',  label: 'Live Music',  emoji: '🎵' },
+  { key: 'has_karaoke',     label: 'Karaoke',     emoji: '🎤' },
+  { key: 'has_trivia',      label: 'Trivia',      emoji: '🧠' },
+];
 
 const state = {
   view: 'list',
   showFilter: 'all', // 'all' | 'happyhour' | 'events'
   filtersOpen: false, favFilterOn: false,
-  filters: { day: null, area: null, type: null, search: '' },
+  filters: { day: null, area: null, type: null, amenity: null, search: '' },
   city: null,
   venues: [], events: [], filtered: [],
   activeItemId: null, activeItemType: 'venue',
@@ -94,6 +102,7 @@ async function enterCity(slug, name, stateCode) {
 
   // Reset
   state.showFilter = 'all';
+  state.filters.amenity = null;
   state.filters = { day: null, area: null, type: null, search: '' };
   state.favFilterOn = false;
   state.filtered = [];
@@ -161,6 +170,17 @@ function buildTypeFilters() {
       ? HH_TYPES
       : [...HH_TYPES, ...EVENT_TYPES]; // all
   types.forEach(t => { const b = mkPill(t, () => setFilter('type', t, b)); tf.appendChild(b); });
+
+  // Amenity pills (always shown)
+  const af = document.getElementById('amenityFilters');
+  if (af) {
+    af.innerHTML = '';
+    AMENITIES.forEach(a => {
+      const b = mkPill(`${a.emoji} ${a.label}`, () => setFilter('amenity', a.key, b));
+      if (state.filters.amenity === a.key) b.classList.add('active');
+      af.appendChild(b);
+    });
+  }
 }
 
 function mkPill(label, onclick) {
@@ -178,6 +198,10 @@ function updateChips() {
   if (area)   addChip(row, `Area: ${area}`,  () => clearFilter('area'));
   if (type)   addChip(row, `Type: ${type}`,  () => clearFilter('type'));
   if (search) addChip(row, `"${search}"`,    () => { state.filters.search = ''; document.getElementById('searchBox').value = ''; applyFilters(); updateChips(); updateDot(); });
+  if (state.filters.amenity) {
+    const a = AMENITIES.find(x => x.key === state.filters.amenity);
+    if (a) addChip(row, `${a.emoji} ${a.label}`, () => { state.filters.amenity = null; document.querySelectorAll('#amenityFilters .pill.active').forEach(b=>b.classList.remove('active')); applyFilters(); updateChips(); updateDot(); });
+  }
   if (state.favFilterOn) addChip(row, '★ Saved', () => { state.favFilterOn = false; document.getElementById('favFilterBtn').classList.remove('active'); applyFilters(); updateChips(); });
 }
 function addChip(row, label, fn) {
@@ -215,19 +239,18 @@ function applyFilters() {
   }
 
   state.filtered = pool.filter(v => {
-    const { day, area, type } = state.filters;
+    const { day, area, type, amenity } = state.filters;
     const isEvent = !!v.event_type;
 
     if (day && !(v.days || []).includes(day)) return false;
     if (area && v.neighborhood !== area) return false;
     if (type) {
-      if (type === 'Sports TV') {
-        if (!v.has_sports_tv) return false;
-      } else {
-        const t = type.toLowerCase();
-        const haystack = [v.name, v.neighborhood, v.cuisine, v.event_type, ...(v.deals || [])].join(' ').toLowerCase();
-        if (!haystack.includes(t)) return false;
-      }
+      const t = type.toLowerCase();
+      const haystack = [v.name, v.neighborhood, v.cuisine, v.event_type, ...(v.deals || [])].join(' ').toLowerCase();
+      if (!haystack.includes(t)) return false;
+    }
+    if (amenity && !isEvent) {
+      if (!v[amenity]) return false;
     }
     if (search) {
       const h = [v.name, v.neighborhood, v.cuisine, v.address, v.event_type, ...(v.deals || [])].join(' ').toLowerCase();
@@ -236,6 +259,9 @@ function applyFilters() {
     if (state.favFilterOn && !isFavorite(v.id)) return false;
     return true;
   });
+
+  // Featured venues float to the top
+  state.filtered.sort((a, b) => (b.featured ? 1 : 0) - (a.featured ? 1 : 0));
 
   renderCards();
   if (state.view === 'map') updateMapMarkers();
@@ -293,7 +319,11 @@ function venueCardHTML(v) {
       ${v.neighborhood ? '<span class="card-sep">·</span>' : ''}
       <span class="card-when">${esc(v.hours || '')}</span>
     </div>
-    ${v.has_sports_tv ? `<span class="sports-badge">📺 Sports TV</span>` : ''}
+    ${v.featured ? '<div class="featured-crown">⭐ Featured</div>' : ''}
+    ${(() => {
+      const tags = AMENITIES.filter(a => v[a.key]).map(a => `<span class="amenity-tag amenity-tag--${a.key}">${a.emoji} ${a.label}</span>`).join('');
+      return tags ? `<div class="amenity-tags">${tags}</div>` : '';
+    })()}
     <ul class="deals">${(v.deals || []).slice(0, 3).map(d => `<li>${esc(d)}</li>`).join('')}${(v.deals || []).length > 3 ? `<li class="deals-more">+${v.deals.length - 3} more</li>` : ''}</ul>
     ${eventPillsHTML}
     ${goingFireBadge(v.id)}
@@ -401,7 +431,10 @@ function renderModal(v, type, reviews) {
         <div class="s-name">${esc(v.name)}</div>
         <div class="s-hood">${esc(v.neighborhood || '')}</div>
         <div class="s-addr">📍 ${esc(v.address || '')}</div>
-      ${isVenue && v.has_sports_tv ? `<span class="sports-badge sports-badge--modal">📺 Sports TV</span>` : ''}
+      ${isVenue ? (() => {
+        const tags = AMENITIES.filter(a => v[a.key]).map(a => `<span class="amenity-tag amenity-tag--${a.key}">${a.emoji} ${a.label}</span>`).join('');
+        return tags ? `<div class="amenity-tags amenity-tags--modal">${tags}</div>` : '';
+      })() : ''}
       </div>
       <button class="heart-btn heart-btn--lg${faved ? ' faved' : ''}" onclick="doFavorite('${v.id}','${type}',this)" style="margin-top:4px">${faved ? '★' : '☆'}</button>
     </div>
