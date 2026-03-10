@@ -81,14 +81,56 @@ function onAuthChange(user) {
 function renderNav(user) {
   const r = document.getElementById('navRight');
   const onHome = !state.city;
-  const bizLink = onHome ? `<a class="nav-btn nav-business" href="business-landing.html">For Business</a>` : '';
-  r.innerHTML = user
-    ? `${bizLink}
-       <button class="nav-btn" onclick="openFavView()">★ Saved</button>
-       <button class="nav-btn nav-profile" onclick="openProfile()">${(user.user_metadata?.full_name || user.email).split(' ')[0]} ↗</button>
-       <button class="nav-btn nav-signout" onclick="doSignOut()">Sign out</button>`
-    : `${bizLink}
-       <button class="nav-btn nav-login" onclick="openAuth('signin')">Sign In / Join</button>`;
+  // Top nav: only show on home page
+  const topNav = document.getElementById('topNav');
+  if (topNav) topNav.style.display = onHome ? '' : 'none';
+  if (r) {
+    r.innerHTML = onHome
+      ? `<a class="nav-btn nav-business" href="business-landing.html">For Business</a>
+         ${user ? `<button class="nav-btn nav-profile" onclick="openProfile()">${(user.user_metadata?.full_name || user.email).split(' ')[0]}</button>`
+                : `<button class="nav-btn nav-login" onclick="openAuth('signin')">Sign In</button>`}`
+      : '';
+  }
+  renderBottomNav(user);
+}
+
+function renderBottomNav(user) {
+  let bar = document.getElementById('bottomNav');
+  if (!state.city) {
+    // On home page: hide bottom nav
+    if (bar) bar.style.display = 'none';
+    return;
+  }
+  if (!bar) {
+    bar = document.createElement('nav');
+    bar.id = 'bottomNav';
+    bar.className = 'bottom-nav';
+    document.body.appendChild(bar);
+  }
+  bar.style.display = 'flex';
+  bar.innerHTML = `
+    <button class="bottom-nav-btn active" id="bnFeed" onclick="bottomNavFeed(this)">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      <span>Feed</span>
+    </button>
+    <button class="bottom-nav-btn" id="bnProfile" onclick="bottomNavProfile(this)">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+      <span>${user ? (user.user_metadata?.full_name || 'Profile').split(' ')[0] : 'Sign In'}</span>
+    </button>`;
+}
+
+function bottomNavFeed(btn) {
+  document.querySelectorAll('.bottom-nav-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  // Close any open profile/auth overlays and return to feed
+  closeOverlay('profileOverlay'); closeOverlay('authOverlay');
+}
+
+function bottomNavProfile(btn) {
+  document.querySelectorAll('.bottom-nav-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if (currentUser) openProfile();
+  else openAuth('signin');
 }
 async function doSignOut() { await authSignOut(); showToast('Signed out'); }
 
@@ -177,9 +219,8 @@ async function enterCity(slug, name, stateCode) {
   // Load checked in tonight counts
   loadGoingTonight(slug);
 
-  // Build filter pills + neighborhood follow bar
+  // Build filter pills
   buildFilterPills();
-  renderHoodFollowBar();
   applyFilters();
   initMap();
 }
@@ -423,17 +464,6 @@ function venueCardHTML(v) {
   const cached  = state.reviewCache[v.id] || [];
   const avg     = avgFromList(cached);
   const faved   = isFavorite(v.id);
-  // Find attached events for this venue — matched by venue_name since schema has no venue_id
-  const attachedEvents = state.events.filter(e =>
-    e.venue_name && v.name &&
-    e.venue_name.trim().toLowerCase() === v.name.trim().toLowerCase()
-  );
-  const eventPillsHTML = attachedEvents.length
-    ? `<div class="card-event-pills">${attachedEvents.slice(0,3).map(e => {
-        const evToday = (e.days||[]).includes(TODAY);
-        return `<span class="card-event-pill${evToday ? ' card-event-pill--today' : ''}">🎉 ${esc(e.event_type||'Event')} · ${(e.days||[]).slice(0,2).join('/')}${evToday ? ' · Tonight' : ''}</span>`;
-      }).join('')}</div>`
-    : '';
   const hasPhoto = !!(v.photo_url || (v.photo_urls && v.photo_urls.length));
   const photoUrl = v.photo_url || (v.photo_urls && v.photo_urls[0]) || '';
   const distBadge = state.sort === 'distance' && state.userLat !== null
@@ -445,17 +475,13 @@ function venueCardHTML(v) {
       <div class="card-photo-name-over">${esc(v.name)}</div>
       ${distBadge ? `<div class="card-photo-dist-badge">${distBadge}</div>` : ''}
       <button class="card-photo-heart${faved ? ' faved' : ''}" onclick="event.stopPropagation();doFavorite('${v.id}','venue',this);this.classList.toggle('faved');this.textContent=this.classList.contains('faved')?'★':'☆'">${faved ? '★' : '☆'}</button>
-      <div class="card-photo-badge ${isToday ? 'today' : 'dim'}">${isToday ? 'Today' : 'Open'}</div>
     </div>` : '';
   return `<div class="card${hasPhoto ? '' : ' card-no-photo'}" data-id="${v.id}" onclick="openModal('${v.id}','venue')" role="button" tabindex="0">
     ${photoBlock}
     <div class="card-body">
     ${hasPhoto ? '' : `<div class="card-top">
       <div class="card-name">${esc(v.name)}${v.owner_verified ? ' <span class="verified-badge verified-badge--card">✓</span>' : ''}</div>
-      <div class="card-right">
-        <button class="heart-btn${faved ? ' faved' : ''}" onclick="event.stopPropagation();doFavorite('${v.id}','venue',this)">${faved ? '★' : '☆'}</button>
-        <div class="card-badge ${isToday ? 'today' : 'dim'}">${isToday ? 'Today' : 'Open'}</div>
-      </div>
+      <button class="heart-btn${faved ? ' faved' : ''}" onclick="event.stopPropagation();doFavorite('${v.id}','venue',this)">${faved ? '★' : '☆'}</button>
     </div>`}
     <div class="card-meta">
       <span>${esc(v.neighborhood || '')}</span>
@@ -469,7 +495,6 @@ function venueCardHTML(v) {
       return tags ? `<div class="amenity-tags">${tags}</div>` : '';
     })()}
     <ul class="deals">${(v.deals || []).slice(0, 3).map(d => `<li>${esc(d)}</li>`).join('')}${(v.deals || []).length > 3 ? `<li class="deals-more">+${v.deals.length - 3} more</li>` : ''}</ul>
-    ${eventPillsHTML}
     ${goingFireBadge(v.id)}
     </div>
     <div class="card-foot">
@@ -477,7 +502,6 @@ function venueCardHTML(v) {
       <div class="card-stars">${starHTML(avg, 5, 11)}<span class="card-rcount">${cached.length ? `(${cached.length})` : '—'}</span></div>
     </div>
     <div class="card-going">
-      ${currentUser && !hasPhoto ? `<div class="checkin-counter"><span style="font-size:11px;color:var(--muted)">Today: ${state.todayCheckInCount}/${CHECK_IN_DAILY_LIMIT}</span><div class="checkin-counter-dots">${[0,1,2,3,4].map(i=>`<div class="checkin-dot${i < state.todayCheckInCount ? ' used' : ''}"></div>`).join('')}</div></div>` : ''}
       <button class="going-btn${state.goingByMe.has(v.id) ? ' going-active' : ''}" onclick="event.stopPropagation();doGoingTonight('${v.id}',this)">${checkInBtnLabel(state.goingCounts[v.id]||0, state.goingByMe.has(v.id))}</button>
     </div>
     ${!v.owner_verified ? `<div class="card-claim"><a href="business-portal.html" onclick="event.stopPropagation()" class="claim-link">Own this spot? Claim it →</a></div>` : ''}
@@ -485,26 +509,20 @@ function venueCardHTML(v) {
 }
 
 function eventCardHTML(v) {
-  const isToday = (v.days || []).includes(TODAY);
-  const faved   = isFavorite(v.id);
+  const faved = isFavorite(v.id);
   return `<div class="card" onclick="openModal('${v.id}','event')" role="button" tabindex="0">
     <div class="card-top">
       <div class="card-name">${esc(v.name)}</div>
-      <div class="card-right">
-        <button class="heart-btn${faved ? ' faved' : ''}" onclick="event.stopPropagation();doFavorite('${v.id}','event',this)">${faved ? '★' : '☆'}</button>
-        <div class="card-badge event-badge event-badge--${(v.event_type||'event').toLowerCase().replace(/\s+/g,'-')}">${EVENT_TYPE_AMENITY[v.event_type]?.emoji || '🎉'} ${esc(v.event_type || 'Event')}</div>
-      </div>
+      <button class="heart-btn${faved ? ' faved' : ''}" onclick="event.stopPropagation();doFavorite('${v.id}','event',this)">${faved ? '★' : '☆'}</button>
     </div>
     <div class="card-meta">
       <span>${esc(v.neighborhood || '')}</span>
       ${v.neighborhood ? '<span class="card-sep">·</span>' : ''}
       <span class="card-when">${esc(v.hours || '')}</span>
-      ${isToday ? '<span class="card-sep">·</span><span style="color:var(--teal);font-size:11px">Tonight</span>' : ''}
     </div>
     ${v.description ? `<ul class="deals"><li>${esc(v.description)}</li></ul>` : ''}
     <div class="card-foot">
       <span class="card-cuisine">${esc(v.venue_name || '')}</span>
-
     </div>
   </div>`;
 }
@@ -860,7 +878,13 @@ const BADGE_DEFS = {
 };
 
 async function openProfile() { if (!currentUser) { openAuth('signin'); return; } await renderProfile(currentUser); openOverlay('profileOverlay'); }
-function closeProfile(e) { if (e && e.target !== document.getElementById('profileOverlay')) return; closeOverlay('profileOverlay'); }
+function closeProfile(e) {
+  if (e && e.target !== document.getElementById('profileOverlay')) return;
+  closeOverlay('profileOverlay');
+  // Reset bottom nav active to Feed
+  document.getElementById('bnFeed')?.classList.add('active');
+  document.getElementById('bnProfile')?.classList.remove('active');
+}
 
 async function renderProfile(user) {
   const areas = [...new Set([...state.venues, ...state.events].map(v => v.neighborhood).filter(Boolean))].sort();
@@ -1301,14 +1325,6 @@ function checkInBtnLabel(count, isIn) {
 }
 
 function refreshCheckInCounters() {
-  // Update all check-in counter dots on visible cards
-  document.querySelectorAll('.checkin-counter').forEach(el => {
-    const n = state.todayCheckInCount;
-    el.querySelectorAll('.checkin-dot').forEach((dot, i) => {
-      dot.classList.toggle('used', i < n);
-    });
-  });
-  // Update all going buttons labels
   document.querySelectorAll('.going-btn').forEach(btn => {
     const card = btn.closest('[data-id]');
     const vid = card?.dataset.id || btn.dataset.vid;
