@@ -433,3 +433,72 @@ footer{text-align:center;padding:20px;font-family:'DM Mono',monospace;font-size:
 .fp-close{background:none;border:1.5px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s}
 .fp-close:hover{border-color:var(--text);color:var(--text)}
 .card-dist{color:var(--teal);font-weight:600;font-size:12px}
+
+/* ══════════════════════════════════════════════
+   WAVE 2: Streaks · Deal Alerts · Tag a Friend
+   ══════════════════════════════════════════════ */
+
+/* ── STREAK STAT ── */
+.streak-stat span { color: var(--teal); }
+.streak-banner {
+  position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+  background: var(--text); color: #fff;
+  border-radius: 40px; padding: 12px 22px;
+  font-size: 14px; font-weight: 700; font-family: "DM Sans", sans-serif;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+  z-index: 8000; white-space: nowrap;
+  animation: streakPop .4s cubic-bezier(.32,1.3,.6,1);
+  pointer-events: none;
+}
+@keyframes streakPop {
+  from { opacity:0; transform:translateX(-50%) scale(.7); }
+  to   { opacity:1; transform:translateX(-50%) scale(1); }
+}
+
+/* ── VENUE FOLLOW (deal alert) BUTTON ── */
+.venue-follow-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: transparent; border: 1.5px solid var(--border2);
+  color: var(--muted); border-radius: 8px;
+  padding: 8px 14px; font-size: 13px; font-weight: 600;
+  font-family: "DM Sans", sans-serif; cursor: pointer;
+  transition: all .18s; white-space: nowrap;
+}
+.venue-follow-btn.following {
+  background: rgba(255,107,74,0.08);
+  border-color: rgba(255,107,74,0.35);
+  color: var(--teal);
+}
+.venue-follow-btn:active { transform: scale(.96); }
+
+/* ── TAG FRIENDS SHEET ── */
+.tag-prompt-title {
+  font-family: "Fraunces", serif; font-size: 19px; font-weight: 700;
+  color: var(--white); margin-bottom: 4px;
+}
+.tag-prompt-sub {
+  font-size: 13px; color: var(--muted); margin-bottom: 20px; line-height: 1.5;
+}
+.tag-friends-grid {
+  display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;
+}
+.tag-friend-chip {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  background: var(--card2); border: 1.5px solid var(--border2);
+  border-radius: 12px; padding: 10px 14px;
+  cursor: pointer; transition: all .15s; min-width: 72px;
+  font-family: "DM Sans", sans-serif;
+}
+.tag-friend-chip:active { transform: scale(.94); }
+.tag-friend-chip.tagged {
+  background: rgba(255,107,74,0.1); border-color: rgba(255,107,74,0.35);
+}
+.tag-friend-chip-avatar { font-size: 22px; }
+.tag-friend-chip-name   { font-size: 11px; font-weight: 600; color: var(--text); text-align: center; max-width: 68px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tag-skip-btn {
+  display: block; width: 100%; text-align: center;
+  padding: 10px; font-size: 13px; color: var(--muted);
+  background: none; border: none; cursor: pointer;
+  font-family: "DM Sans", sans-serif;
+}
+.tag-skip-btn:hover { color: var(--text); }
