@@ -85,12 +85,15 @@ async function renderCityGrid() {
   ];
 
   const list = cities.length ? cities : fallback;
-  grid.innerHTML = list.map(c => `
-    <div class="city-card${c.active ? '' : ' coming'}" onclick="${c.active ? `enterCity('${c.slug}','${c.name}','${c.state_code}')` : ''}">
+  grid.innerHTML = list.map(c => {
+    const onclick = c.active ? `onclick="enterCity('${c.slug}','${c.name}','${c.state_code}')"` : '';
+    const countBadge = c.active && c.venue_count ? `<div class="city-card-count">${c.venue_count}+ spots</div>` : '';
+    return `<div class="city-card${c.active ? '' : ' coming'}" ${onclick}>
       <div class="city-card-name">${c.name}</div>
       <div class="city-card-state">${c.state_code}</div>
-      ${c.active && c.venue_count ? `<div class="city-card-count">${c.venue_count}+ spots</div>` : ''}
-    </div>`).join('');
+      ${countBadge}
+    </div>`;
+  }).join('');
 }
 
 function showHome() {
