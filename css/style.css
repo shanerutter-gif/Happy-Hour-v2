@@ -202,7 +202,7 @@ main{min-height:60vh}
 .map-card-when{font-size:11px;color:var(--muted);margin-top:4px}
 
 /* SHEET */
-.overlay{position:fixed;inset:0;background:rgba(10,6,2,0.82);z-index:1000;display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.overlay{position:fixed;inset:0;background:rgba(10,6,2,0.82);z-index:550;display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 .overlay.open{display:flex}
 .sheet{background:var(--card);border:1px solid var(--border2);border-radius:20px 20px 0 0;width:100%;max-width:640px;max-height:92vh;overflow-y:auto;overflow-x:hidden;padding:16px 20px 52px;position:relative;animation:sheetUp .28s cubic-bezier(.32,1.1,.6,1);-webkit-overflow-scrolling:touch;box-shadow:0 -8px 40px rgba(0,0,0,0.35),0 -2px 12px rgba(0,0,0,0.2)}
 .sheet--wide{max-width:740px}
@@ -605,7 +605,7 @@ footer{text-align:center;padding:20px;font-family:'DM Mono',monospace;font-size:
   border-top: 1px solid var(--border2);
   backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
   display: flex; align-items: stretch;
-  z-index: 400;
+  z-index: 600;
   padding-bottom: env(safe-area-inset-bottom);
 }
 .bottom-nav-btn {
@@ -790,13 +790,13 @@ footer{text-align:center;padding:20px;font-family:'DM Mono',monospace;font-size:
 .profile-page {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
-  z-index: 500;                        /* above feed, below other modals */
+  z-index: 500;
   background: var(--bg);
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   padding: env(safe-area-inset-top, 0px) 20px 80px;
-  /* slide-in from right — start state */
   transform: translateX(100%);
   transition: transform .22s cubic-bezier(.4,0,.2,1);
   will-change: transform;
