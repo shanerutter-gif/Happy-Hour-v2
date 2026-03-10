@@ -127,13 +127,25 @@ function renderBottomNav(user) {
 function bottomNavFeed(btn) {
   document.querySelectorAll('.bottom-nav-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  // Close any open profile/auth overlays and return to feed
-  closeProfile(); closeOverlay('authOverlay');
+  // Close every layer — sub-pages, profile, modals
+  closeSubPage('findPeoplePage');
+  closeSubPage('feedPage');
+  closeSubPage('leaderboardPage');
+  closeProfile();
+  closeOverlay('modalOverlay');
+  closeOverlay('authOverlay');
+  closeOverlay('pubProfileOverlay');
 }
 
 function bottomNavProfile(btn) {
   document.querySelectorAll('.bottom-nav-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
+  // Close any open modals/sub-pages first, then go to profile
+  closeSubPage('findPeoplePage');
+  closeSubPage('feedPage');
+  closeSubPage('leaderboardPage');
+  closeOverlay('modalOverlay');
+  closeOverlay('pubProfileOverlay');
   if (currentUser) openProfile();
   else openAuth('signin');
 }
@@ -892,21 +904,22 @@ async function openProfile() {
   document.getElementById('bnFeed')?.classList.remove('active');
   await renderProfile(currentUser);
 }
-function closeProfile(e) {
+function closeProfile() {
   const page = document.getElementById('profilePage');
+  if (!page) return;
   page.classList.remove('profile-page--open');
   setTimeout(() => { page.style.display = 'none'; }, 220);
-  document.getElementById('bnFeed')?.classList.add('active');
-  document.getElementById('bnProfile')?.classList.remove('active');
 }
 
 function openSubPage(id) {
   const page = document.getElementById(id);
+  if (!page) return;
   page.style.display = 'block';
   requestAnimationFrame(() => requestAnimationFrame(() => page.classList.add('sub-page--open')));
 }
 function closeSubPage(id) {
   const page = document.getElementById(id);
+  if (!page) return;
   page.classList.remove('sub-page--open');
   setTimeout(() => { page.style.display = 'none'; }, 230);
 }
@@ -1261,13 +1274,14 @@ function buildMapSidebar() {
 
 // ── OVERLAY HELPERS ────────────────────────────────────
 function openOverlay(id)  {
-  document.getElementById(id).classList.add('open');
-  // Don't lock body scroll if the profile page is handling its own scroll
+  const el = document.getElementById(id); if (!el) return;
+  el.classList.add('open');
   const profileOpen = document.getElementById('profilePage')?.classList.contains('profile-page--open');
   if (!profileOpen) document.body.style.overflow = 'hidden';
 }
 function closeOverlay(id) {
-  document.getElementById(id).classList.remove('open');
+  const el = document.getElementById(id); if (!el) return;
+  el.classList.remove('open');
   if (!document.querySelector('.overlay.open')) document.body.style.overflow = '';
 }
 
