@@ -288,6 +288,17 @@
       transition: background 0.15s;
     }
     .btn-remove:hover { background: rgba(255,92,92,0.2); }
+    .amenity-row { display:flex; align-items:center; justify-content:space-between; background:var(--card); border:1px solid var(--border); border-radius:10px; padding:14px 16px; }
+    .amenity-row-left { display:flex; align-items:center; gap:12px; }
+    .amenity-row-icon { font-size:20px; line-height:1; }
+    .amenity-row-label { font-size:14px; font-weight:600; color:var(--white); }
+    .amenity-row-desc { font-size:12px; color:var(--muted); margin-top:1px; }
+    .amenity-switch { position:relative; width:44px; height:24px; flex-shrink:0; }
+    .amenity-switch input { opacity:0; width:0; height:0; position:absolute; }
+    .amenity-switch-track { position:absolute; inset:0; background:var(--border-solid, rgba(42,31,20,0.15)); border-radius:50px; cursor:pointer; transition:background .2s; }
+    .amenity-switch input:checked + .amenity-switch-track { background:var(--teal); }
+    .amenity-switch-track::after { content:''; position:absolute; width:18px; height:18px; background:#fff; border-radius:50%; top:3px; left:3px; transition:transform .2s; box-shadow:0 1px 3px rgba(0,0,0,0.2); }
+    .amenity-switch input:checked + .amenity-switch-track::after { transform:translateX(20px); }
     .btn-add-deal {
       background: transparent; border: 1px dashed rgba(255,107,74,0.3);
       color: var(--teal); border-radius: 8px; padding: 10px;
@@ -723,6 +734,20 @@
               </div>
             </div>
 
+            <!-- Amenities -->
+            <div class="edit-section" id="section-amenities">
+              <div class="edit-section-header" onclick="toggleSection('amenities')">
+                <h3><span>✨</span> Amenities & Vibes</h3>
+                <span class="toggle">▾</span>
+              </div>
+              <div class="edit-section-body">
+                <p style="color:var(--muted); font-size:13px; margin-bottom:20px;">Let guests know what makes your spot special. These appear as tags on your listing.</p>
+                <div id="amenity-toggles" style="display:flex; flex-direction:column; gap:12px;"></div>
+                <br />
+                <button class="btn btn-sm" style="width:auto;" onclick="saveAmenities()">Save amenities</button>
+              </div>
+            </div>
+
           </div><!-- /edit-form -->
         </div><!-- /page-edit -->
 
@@ -968,6 +993,9 @@
     // Populate info
     document.getElementById('edit-description').value = venue.description || '';
     document.getElementById('edit-photo').value = venue.photo_url || '';
+
+    // Populate amenities
+    renderAmenityToggles(venue);
     updateDescCount();
 
     // Load events
@@ -1139,6 +1167,49 @@
   function updateDescCount() {
     const v = document.getElementById('edit-description').value.length;
     document.getElementById('desc-count').textContent = `${v} / 300`;
+  }
+
+  // ─────────────────────────────────────────────
+  // AMENITIES
+  // ─────────────────────────────────────────────
+  const AMENITY_DEFS = [
+    { key: 'has_happy_hour',  label: 'Happy Hour',   emoji: '🍺', desc: 'You offer a regular happy hour with deals' },
+    { key: 'has_sports_tv',   label: 'Sports TV',    emoji: '📺', desc: 'You have TVs showing live sports' },
+    { key: 'is_dog_friendly', label: 'Dog Friendly', emoji: '🐶', desc: 'Dogs are welcome (patio, etc.)' },
+    { key: 'has_live_music',  label: 'Live Music',   emoji: '🎵', desc: 'You regularly host live music' },
+    { key: 'has_karaoke',     label: 'Karaoke',      emoji: '🎤', desc: 'You host karaoke nights' },
+    { key: 'has_trivia',      label: 'Trivia',       emoji: '🧠', desc: 'You host trivia nights' },
+    { key: 'has_bingo',       label: 'Bingo',        emoji: '🎯', desc: 'You host bingo nights' },
+    { key: 'has_comedy',      label: 'Comedy',       emoji: '🎭', desc: 'You host comedy shows or open mics' },
+  ];
+
+  function renderAmenityToggles(venue) {
+    const el = document.getElementById('amenity-toggles');
+    if (!el) return;
+    el.innerHTML = AMENITY_DEFS.map(a => `
+      <div class="amenity-row">
+        <div class="amenity-row-left">
+          <span class="amenity-row-icon">${a.emoji}</span>
+          <div>
+            <div class="amenity-row-label">${a.label}</div>
+            <div class="amenity-row-desc">${a.desc}</div>
+          </div>
+        </div>
+        <label class="amenity-switch">
+          <input type="checkbox" id="amenity-${a.key}" ${venue[a.key] ? 'checked' : ''}>
+          <span class="amenity-switch-track"></span>
+        </label>
+      </div>
+    `).join('');
+  }
+
+  async function saveAmenities() {
+    const fields = {};
+    AMENITY_DEFS.forEach(a => {
+      fields[a.key] = document.getElementById('amenity-' + a.key)?.checked ?? false;
+    });
+    await updateVenueField(fields);
+    showSaveToast('Amenities saved!');
   }
 
   async function saveInfo() {
