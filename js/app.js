@@ -43,6 +43,24 @@ document.addEventListener('DOMContentLoaded', () => {
   renderNav(currentUser);
   const ffg = document.getElementById('favFilterGroup');
   if (ffg) ffg.style.display = currentUser ? '' : 'none';
+
+  // Detect password reset redirect from Supabase email link
+  // Supabase appends #access_token=...&type=recovery to the URL
+  const hash = window.location.hash;
+  if (hash && hash.includes('type=recovery')) {
+    // Parse tokens from hash and sign the user in so updateUser() works
+    const params = new URLSearchParams(hash.replace('#', ''));
+    const accessToken = params.get('access_token');
+    const refreshToken = params.get('refresh_token');
+    if (accessToken) {
+      db.auth.setSession({ access_token: accessToken, refresh_token: refreshToken || '' })
+        .then(() => {
+          window.history.replaceState({}, document.title, window.location.pathname);
+          openResetPassword();
+        })
+        .catch(() => openResetPassword()); // show form anyway, updateUser will validate
+    }
+  }
 });
 
 function onAuthChange(user) {
@@ -651,9 +669,55 @@ async function doAuth(mode) {
 async function doForgot() {
   const email = (document.getElementById('aEmail')?.value || '').trim();
   if (!email) { showToast('Enter your email first'); return; }
-  const { error } = await db.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
-  if (error) { showToast('❌ ' + error.message); return; }
-  showToast('Reset link sent!'); closeOverlay('authOverlay');
+  // Show loading state
+  const btn = document.querySelector('.auth-forgot');
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
+  const { error } = await db.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin + '/?reset=1'
+  });
+  if (error) {
+    showToast('❌ ' + error.message);
+    if (btn) { btn.disabled = false; btn.textContent = 'Forgot password?'; }
+    return;
+  }
+  closeOverlay('authOverlay');
+  showToast('📧 Check your email for a reset link!');
+}
+
+function openResetPassword() {
+  document.getElementById('authContent').innerHTML = `
+    <div class="auth-title">Set new password</div>
+    <p class="auth-sub">Choose a strong password for your account</p>
+    <div class="field-group">
+      <div class="field-label">New Password</div>
+      <input class="field" id="rPass1" type="password" placeholder="Min 8 characters" autocomplete="new-password">
+    </div>
+    <div class="field-group">
+      <div class="field-label">Confirm Password</div>
+      <input class="field" id="rPass2" type="password" placeholder="Repeat password" autocomplete="new-password">
+    </div>
+    <button class="btn-submit" id="resetBtn" onclick="doResetPassword()" style="width:100%;margin-top:4px">Update Password</button>`;
+  openOverlay('authOverlay');
+  setTimeout(() => document.getElementById('rPass1')?.focus(), 100);
+}
+
+async function doResetPassword() {
+  const p1 = document.getElementById('rPass1')?.value || '';
+  const p2 = document.getElementById('rPass2')?.value || '';
+  if (!p1 || p1.length < 8) { showToast('Password must be at least 8 characters'); return; }
+  if (p1 !== p2) { showToast("Passwords don't match"); return; }
+  const btn = document.getElementById('resetBtn');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  const { error } = await db.auth.updateUser({ password: p1 });
+  if (error) {
+    showToast('❌ ' + error.message);
+    btn.disabled = false; btn.textContent = 'Update Password';
+    return;
+  }
+  closeOverlay('authOverlay');
+  // Clean URL
+  window.history.replaceState({}, document.title, window.location.pathname);
+  showToast("✅ Password updated! You're signed in.");
 }
 
 // ── PROFILE ────────────────────────────────────────────
