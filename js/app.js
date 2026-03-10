@@ -674,10 +674,10 @@ function closeProfile(e) { if (e && e.target !== document.getElementById('profil
 
 async function renderProfile(user) {
   const areas = [...new Set([...state.venues, ...state.events].map(v => v.neighborhood).filter(Boolean))].sort();
-  const [profile, myReviews, favItems, followed, checkIns, badges, following] = await Promise.all([
+  const [profile, myReviews, favItems, followed, checkIns, badges, following, followers] = await Promise.all([
     getProfile(user.id), fetchMyReviews(user.id), getFavoriteItems(user.id),
     getFollowedNeighborhoods(user.id), fetchAllCheckIns(user.id),
-    getUserBadges(user.id), getFollowing(user.id),
+    getUserBadges(user.id), getFollowing(user.id), getFollowers(user.id),
   ]);
   const allItems = [...state.venues, ...state.events];
   const favIds   = new Set(favItems.map(f => String(f.item_id)));
