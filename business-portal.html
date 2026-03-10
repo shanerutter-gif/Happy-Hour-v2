@@ -288,17 +288,42 @@
       transition: background 0.15s;
     }
     .btn-remove:hover { background: rgba(255,92,92,0.2); }
-    .photo-upload-area {
-      border: 2px dashed var(--border); border-radius: 12px;
-      height: 180px; cursor: pointer; overflow: hidden;
-      display: flex; align-items: center; justify-content: center;
-      background: var(--card2); transition: border-color .2s, background .2s;
-      position: relative;
+    .photos-strip {
+      display: flex; gap: 10px; overflow-x: auto;
+      padding: 4px 2px 10px; scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
     }
-    .photo-upload-area:hover { border-color: var(--teal); background: rgba(255,107,74,0.03); }
-    .photo-upload-area.has-photo { border-style: solid; border-color: var(--border); }
-    #photo-upload-placeholder { text-align: center; pointer-events: none; }
-    #photo-preview-wrap { position: absolute; inset: 0; }
+    .photos-strip::-webkit-scrollbar { height: 4px; }
+    .photos-strip::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    .photo-thumb {
+      flex-shrink: 0; width: 120px; height: 120px;
+      border-radius: 10px; overflow: hidden; position: relative;
+      scroll-snap-align: start; border: 1px solid var(--border);
+    }
+    .photo-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .photo-thumb-del {
+      position: absolute; top: 4px; right: 4px;
+      background: rgba(0,0,0,0.55); border: none; color: #fff;
+      width: 22px; height: 22px; border-radius: 50%; cursor: pointer;
+      font-size: 12px; display: flex; align-items: center; justify-content: center;
+      line-height: 1;
+    }
+    .photo-thumb-del:hover { background: rgba(192,57,43,0.85); }
+    .photo-thumb-uploading::after {
+      content: ''; position: absolute; inset: 0;
+      background: rgba(245,239,230,0.6);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .photo-add-btn {
+      flex-shrink: 0; width: 120px; height: 120px;
+      border-radius: 10px; border: 2px dashed var(--border);
+      background: var(--card2); display: flex; flex-direction: column;
+      align-items: center; justify-content: center; cursor: pointer;
+      color: var(--muted); transition: border-color .2s, background .2s;
+      scroll-snap-align: start;
+    }
+    .photo-add-btn:hover { border-color: var(--teal); background: rgba(255,107,74,0.03); color: var(--white); }
+    .photo-add-btn.hidden { display: none; }
     .amenity-row { display:flex; align-items:center; justify-content:space-between; background:var(--card); border:1px solid var(--border); border-radius:10px; padding:14px 16px; }
     .amenity-row-left { display:flex; align-items:center; gap:12px; }
     .amenity-row-icon { font-size:20px; line-height:1; }
@@ -762,15 +787,12 @@
                   <div style="text-align:right; font-size:12px; color:var(--muted); margin-top:4px;" id="desc-count">0 / 300</div>
                 </div>
                 <div class="form-group">
-                  <label>Venue Photo</label>
-                  <div class="photo-upload-area" id="photo-upload-area" onclick="document.getElementById('photo-file-input').click()">
-                    <div id="photo-preview-wrap" style="display:none">
-                      <img id="photo-preview-img" src="" alt="Preview" style="width:100%;height:100%;object-fit:cover;border-radius:10px;display:block;">
-                    </div>
-                    <div id="photo-upload-placeholder">
-                      <div style="font-size:32px;margin-bottom:8px">📸</div>
-                      <div style="font-weight:600;font-size:14px;color:var(--white)">Click to upload a photo</div>
-                      <div style="font-size:12px;color:var(--muted);margin-top:4px">JPG or PNG · Max 5MB</div>
+                  <label>Photos <span style="color:var(--muted);font-weight:400;">Up to 5 · JPG or PNG · Max 5MB each</span></label>
+                  <div class="photos-strip" id="photos-strip">
+                    <!-- Thumbnails injected here by JS -->
+                    <div class="photo-add-btn" id="photo-add-btn" onclick="document.getElementById('photo-file-input').click()">
+                      <div style="font-size:26px">📸</div>
+                      <div style="font-size:12px;font-weight:600;margin-top:4px">Add photo</div>
                     </div>
                     <input type="file" id="photo-file-input" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="handlePhotoSelected(this)">
                   </div>
@@ -1118,7 +1140,7 @@
 
     // Populate info
     document.getElementById('edit-description').value = venue.description || '';
-    initPhotoPreview(venue.photo_url || null);
+    initPhotoPreview(venue.photo_urls || venue.photo_url || null);
 
     // Populate amenities
     renderAmenityToggles(venue);
@@ -1342,16 +1364,59 @@
   }
 
   // ── PHOTO UPLOAD ──────────────────────────────────────
-  let _pendingPhotoFile = null;
-  let _currentPhotoUrl  = null;
+  // ── MULTI-PHOTO UPLOAD ──────────────────────────────────────
+  const MAX_PHOTOS = 5;
+  let _photos = [];         // { url: string, file: File|null, status: 'saved'|'pending'|'deleting' }
 
-  // Resize image to max 1200px wide, output as JPEG blob
+  function setPhotoStatus(msg, type) {
+    const el = document.getElementById('photo-upload-status');
+    if (!el) return;
+    el.textContent = msg;
+    el.style.color = type === 'error' ? 'var(--error)' : type === 'success' ? 'var(--success)' : 'var(--muted)';
+  }
+
+  function renderPhotoStrip() {
+    const strip = document.getElementById('photos-strip');
+    const addBtn = document.getElementById('photo-add-btn');
+    // Remove existing thumbs
+    strip.querySelectorAll('.photo-thumb').forEach(el => el.remove());
+    // Insert thumbs before the add button
+    _photos.forEach((p, i) => {
+      const div = document.createElement('div');
+      div.className = 'photo-thumb' + (p.status === 'pending' ? ' photo-thumb-uploading' : '');
+      div.innerHTML = `
+        <img src="${p.url}" loading="lazy">
+        <button class="photo-thumb-del" onclick="removePhoto(${i})" title="Remove">✕</button>
+      `;
+      strip.insertBefore(div, addBtn);
+    });
+    // Show/hide add button
+    addBtn.classList.toggle('hidden', _photos.length >= MAX_PHOTOS);
+  }
+
+  function initPhotoPreview(photoUrls) {
+    // Accept single url string (legacy) or array
+    const urls = Array.isArray(photoUrls)
+      ? photoUrls
+      : (photoUrls ? [photoUrls] : []);
+    _photos = urls.filter(Boolean).map(url => ({ url, file: null, status: 'saved' }));
+    renderPhotoStrip();
+    setPhotoStatus('', '');
+  }
+
+  function removePhoto(index) {
+    _photos.splice(index, 1);
+    renderPhotoStrip();
+    setPhotoStatus(_photos.length === 0 ? '' : `${_photos.length} photo${_photos.length > 1 ? 's' : ''}`, 'info');
+  }
+
+  // Resize image to max 1200px, output as JPEG blob
   function resizeImage(file, maxW = 1200, maxH = 900, quality = 0.82) {
     return new Promise((resolve, reject) => {
       const img = new Image();
-      const url = URL.createObjectURL(file);
+      const blobUrl = URL.createObjectURL(file);
       img.onload = () => {
-        URL.revokeObjectURL(url);
+        URL.revokeObjectURL(blobUrl);
         let { width: w, height: h } = img;
         if (w > maxW || h > maxH) {
           const ratio = Math.min(maxW / w, maxH / h);
@@ -1367,118 +1432,77 @@
         }, 'image/jpeg', quality);
       };
       img.onerror = () => reject(new Error('Could not load image'));
-      img.src = url;
+      img.src = blobUrl;
     });
   }
 
   function handlePhotoSelected(input) {
     const file = input.files[0];
+    input.value = ''; // allow re-selecting same file
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      setPhotoStatus('❌ File too large — max 5MB', 'error');
-      return;
-    }
+    if (_photos.length >= MAX_PHOTOS) return setPhotoStatus(`Max ${MAX_PHOTOS} photos reached`, 'error');
+    if (file.size > 5 * 1024 * 1024) return setPhotoStatus('❌ File too large — max 5MB', 'error');
     setPhotoStatus('Processing…', 'info');
     resizeImage(file).then(resized => {
-      _pendingPhotoFile = resized;
-      // Show preview from resized blob
-      const reader = new FileReader();
-      reader.onload = e => {
-        document.getElementById('photo-preview-img').src = e.target.result;
-        document.getElementById('photo-preview-wrap').style.display = 'block';
-        document.getElementById('photo-upload-placeholder').style.display = 'none';
-        document.getElementById('photo-upload-area').classList.add('has-photo');
-      };
-      reader.readAsDataURL(resized);
+      const localUrl = URL.createObjectURL(resized);
+      _photos.push({ url: localUrl, file: resized, status: 'pending' });
+      renderPhotoStrip();
       const kb = Math.round(resized.size / 1024);
-      setPhotoStatus(`Photo ready (${kb}kb) — click "Save info" to upload`, 'info');
-    }).catch(err => {
-      setPhotoStatus('❌ ' + err.message, 'error');
+      setPhotoStatus(`${_photos.length} photo${_photos.length > 1 ? 's' : ''} ready — click "Save info" to upload`, 'info');
+    }).catch(err => setPhotoStatus('❌ ' + err.message, 'error'));
+  }
+
+  async function uploadVenuePhoto(venueId, file, index) {
+    const path = `${venueId}/photo_${index}.jpg`;
+    const res = await fetch(`${SUPABASE_URL}/storage/v1/object/venue-photos/${path}`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${getToken()}`, 'Content-Type': 'image/jpeg', 'x-upsert': 'true' },
+      body: file
     });
-  }
-
-  function setPhotoStatus(msg, type) {
-    const el = document.getElementById('photo-upload-status');
-    if (!el) return;
-    el.textContent = msg;
-    el.style.color = type === 'error' ? 'var(--error)' : type === 'success' ? 'var(--success)' : 'var(--muted)';
-  }
-
-  function initPhotoPreview(url) {
-    _currentPhotoUrl = url || null;
-    _pendingPhotoFile = null;
-    const area = document.getElementById('photo-upload-area');
-    const preview = document.getElementById('photo-preview-wrap');
-    const placeholder = document.getElementById('photo-upload-placeholder');
-    if (url) {
-      document.getElementById('photo-preview-img').src = url;
-      preview.style.display = 'block';
-      placeholder.style.display = 'none';
-      area.classList.add('has-photo');
-      setPhotoStatus('Current photo loaded — click to replace', 'info');
-    } else {
-      preview.style.display = 'none';
-      placeholder.style.display = 'block';
-      area.classList.remove('has-photo');
-      setPhotoStatus('', '');
-    }
-  }
-
-  async function uploadVenuePhoto(venueId, file) {
-    const path = `${venueId}/cover.jpg`;
-    const res  = await fetch(
-      `${SUPABASE_URL}/storage/v1/object/venue-photos/${path}`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${getToken()}`,
-          'Content-Type': file.type,
-          'x-upsert': 'true',   // overwrite if exists
-        },
-        body: file
-      }
-    );
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.message || `Upload failed (${res.status})`);
     }
-    // Return the public URL
     return `${SUPABASE_URL}/storage/v1/object/public/venue-photos/${path}`;
   }
 
   async function saveInfo() {
     const description = document.getElementById('edit-description').value.trim();
-    setPhotoStatus('Saving…', 'info');
+    const pendingCount = _photos.filter(p => p.status === 'pending').length;
 
-    let photo_url = _currentPhotoUrl;
+    if (pendingCount > 0) setPhotoStatus(`Uploading ${pendingCount} photo${pendingCount > 1 ? 's' : ''}…`, 'info');
 
-    if (_pendingPhotoFile) {
+    // Upload any pending photos
+    for (let i = 0; i < _photos.length; i++) {
+      const p = _photos[i];
+      if (p.status !== 'pending' || !p.file) continue;
       try {
-        setPhotoStatus('Uploading photo…', 'info');
-        photo_url = await uploadVenuePhoto(window._editingVenueId, _pendingPhotoFile);
-        _pendingPhotoFile = null;
-        _currentPhotoUrl  = photo_url;
-        setPhotoStatus('✓ Photo uploaded — saving…', 'success');
+        // Use slot index based on total saved position
+        const savedUrls = _photos.filter((x, xi) => xi < i && x.status === 'saved').length;
+        const url = await uploadVenuePhoto(window._editingVenueId, p.file, savedUrls + i);
+        URL.revokeObjectURL(p.url); // free blob memory
+        _photos[i] = { url, file: null, status: 'saved' };
+        renderPhotoStrip();
       } catch(err) {
         setPhotoStatus('❌ Upload failed: ' + err.message, 'error');
         return;
       }
-    } else {
-      setPhotoStatus('', '');
     }
 
+    const photo_urls = _photos.map(p => p.url).filter(Boolean);
+    // Keep legacy photo_url as first photo for backwards compat
+    const photo_url = photo_urls[0] || null;
+
     const table = await sb.from('venues');
-    const res = await table.eq('id', window._editingVenueId).update({ description, photo_url });
-    console.log('saveInfo patch response:', JSON.stringify(res));
+    const res = await table.eq('id', window._editingVenueId).update({ description, photo_url, photo_urls });
 
     if (res && res.code) {
-      // Supabase returned an error object
       setPhotoStatus('❌ Save failed: ' + (res.message || res.code), 'error');
       return;
     }
 
-    // Also log edit history
-    await updateVenueField({ description, photo_url });
+    setPhotoStatus(photo_urls.length ? `✓ ${photo_urls.length} photo${photo_urls.length > 1 ? 's' : ''} saved` : '', 'success');
+    await updateVenueField({ description, photo_url, photo_urls });
     showSaveToast('Info saved!');
   }
 
