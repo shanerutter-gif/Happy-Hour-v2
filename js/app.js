@@ -353,7 +353,7 @@ function venueCardHTML(v) {
       <div class="card-stars">${starHTML(avg, 5, 11)}<span class="card-rcount">${cached.length ? `(${cached.length})` : '—'}</span></div>
     </div>
     <div class="card-going">
-      <button class="going-btn${state.goingByMe.has(v.id) ? ' going-active' : ''}" onclick="event.stopPropagation();doGoingTonight('${v.id}',this)">${goingBtnLabel(state.goingCounts[v.id]||0, state.goingByMe.has(v.id))}</button>
+      <button class="going-btn${state.goingByMe.has(v.id) ? ' going-active' : ''}" onclick="event.stopPropagation();doGoingTonight('${v.id}',this)">${checkInBtnLabel(state.goingCounts[v.id]||0, state.goingByMe.has(v.id))}</button>
     </div>
     ${!v.owner_verified ? `<div class="card-claim"><a href="business-portal.html" onclick="event.stopPropagation()" class="claim-link">Own this spot? Claim it →</a></div>` : ''}
   </div>`;
@@ -514,7 +514,7 @@ function renderModal(v, type, reviews) {
     </div>
     ${isVenue ? `
     <div class="s-going-wrap">
-      <button class="going-btn going-btn--lg${state.goingByMe.has(v.id) ? ' going-active' : ''}" id="modal-going-btn" onclick="doGoingTonight('${v.id}', this)">${goingBtnLabel(state.goingCounts[v.id]||0, state.goingByMe.has(v.id))}</button>
+      <button class="going-btn going-btn--lg${state.goingByMe.has(v.id) ? ' going-active' : ''}" id="modal-going-btn" onclick="doGoingTonight('${v.id}', this)">${checkInBtnLabel(state.goingCounts[v.id]||0, state.goingByMe.has(v.id))}</button>
       ${(state.goingCounts[v.id]||0) >= 2 ? `<div class="s-going-count">🔥 ${state.goingCounts[v.id]} people are checked in tonight</div>` : ''}
     </div>` : ''}
     <div class="s-div"></div>
