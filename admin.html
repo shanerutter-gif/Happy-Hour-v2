@@ -820,52 +820,60 @@
 
   async function saveVenueEdit() {
     const btn = document.getElementById('edit-save-btn');
+    const resetBtn = () => { btn.disabled = false; btn.textContent = 'Save Changes →'; };
     btn.disabled = true; btn.textContent = 'Saving…';
 
-    const name    = document.getElementById('ev-name')?.value.trim();
-    const city    = document.getElementById('ev-city')?.value.trim();
-    if (!name || !city) { showToast('Name and city are required'); btn.disabled=false; btn.textContent='Save Changes →'; return; }
+    try {
+      const name = document.getElementById('ev-name')?.value.trim();
+      const city = document.getElementById('ev-city')?.value.trim();
+      if (!name || !city) { showToast('Name and city are required'); resetBtn(); return; }
 
-    const days = [...document.querySelectorAll('#ev-days .day-btn.sel')].map(b => b.dataset.day);
-    const deals = editDeals.map(d => d.trim()).filter(Boolean);
+      const days  = [...document.querySelectorAll('#ev-days .day-btn.sel')].map(b => b.dataset.day);
+      const deals = editDeals.map(d => d.trim()).filter(Boolean);
 
-    const payload = {
-      name,
-      city_slug:      city,
-      neighborhood:   document.getElementById('ev-hood')?.value.trim()    || null,
-      address:        document.getElementById('ev-addr')?.value.trim()    || null,
-      lat:            parseFloat(document.getElementById('ev-lat')?.value) || null,
-      lng:            parseFloat(document.getElementById('ev-lng')?.value) || null,
-      hours:          document.getElementById('ev-hours')?.value.trim()   || null,
-      days:           days.length ? days : [],
-      deals:          deals,
-      cuisine:        document.getElementById('ev-cuisine')?.value.trim() || null,
-      url:            document.getElementById('ev-url')?.value.trim()     || null,
-      description:    document.getElementById('ev-desc')?.value.trim()    || null,
-      photo_url:      document.getElementById('ev-photo')?.value.trim()   || null,
-      active:         document.getElementById('ev-active')?.checked       ?? false,
-      featured:       document.getElementById('ev-featured')?.checked     ?? false,
-      has_sports_tv:  document.getElementById('ev-sports')?.checked       ?? false,
-      owner_verified: document.getElementById('ev-verified')?.checked     ?? false,
-    };
+      const payload = {
+        name,
+        city_slug:      city,
+        neighborhood:   document.getElementById('ev-hood')?.value.trim()    || null,
+        address:        document.getElementById('ev-addr')?.value.trim()    || null,
+        lat:            parseFloat(document.getElementById('ev-lat')?.value) || null,
+        lng:            parseFloat(document.getElementById('ev-lng')?.value) || null,
+        hours:          document.getElementById('ev-hours')?.value.trim()   || null,
+        days:           days.length ? days : [],
+        deals,
+        cuisine:        document.getElementById('ev-cuisine')?.value.trim() || null,
+        url:            document.getElementById('ev-url')?.value.trim()     || null,
+        description:    document.getElementById('ev-desc')?.value.trim()    || null,
+        photo_url:      document.getElementById('ev-photo')?.value.trim()   || null,
+        active:         document.getElementById('ev-active')?.checked       ?? false,
+        featured:       document.getElementById('ev-featured')?.checked     ?? false,
+        has_sports_tv:  document.getElementById('ev-sports')?.checked       ?? false,
+        owner_verified: document.getElementById('ev-verified')?.checked     ?? false,
+      };
 
-    const result = await sb.patch('venues', editingVenue.id, payload);
-    console.log('PATCH result:', JSON.stringify(result));
+      const result = await sb.patch('venues', editingVenue.id, payload);
+      console.log('PATCH result:', JSON.stringify(result));
 
-    if (!Array.isArray(result) || !result[0]) {
-      const msg = result?.error || result?.message || result?.hint || JSON.stringify(result);
-      showToast('❌ ' + (msg || 'Save failed'));
-      console.error('Venue update failed:', result);
-      btn.disabled=false; btn.textContent='Save Changes →'; return;
+      if (!Array.isArray(result) || !result[0]) {
+        const msg = result?.error || result?.message || result?.hint || JSON.stringify(result);
+        showToast('❌ ' + (msg || 'Save failed'));
+        console.error('Venue update failed:', result);
+        resetBtn(); return;
+      }
+
+      // Update local cache
+      const idx = allVenues.findIndex(v => v.id === editingVenue.id);
+      if (idx !== -1) allVenues[idx] = { ...allVenues[idx], ...payload };
+
+      closeEditVenueModal();
+      renderVenueList();
+      showToast(`✓ "${name}" saved`);
+
+    } catch(err) {
+      console.error('saveVenueEdit exception:', err);
+      showToast('❌ Unexpected error — check console');
+      resetBtn();
     }
-
-    // Update local cache
-    const idx = allVenues.findIndex(v => v.id === editingVenue.id);
-    if (idx !== -1) allVenues[idx] = { ...allVenues[idx], ...payload };
-
-    closeEditVenueModal();
-    renderVenueList();
-    showToast(`✓ "${name}" saved`);
   }
 
   // Intercept showPage to lazy-load venues
