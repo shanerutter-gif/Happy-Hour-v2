@@ -151,10 +151,10 @@ function bottomNavProfile(btn) {
 async function doSignOut() { await authSignOut(); showToast('Signed out'); }
 
 // ── HOME ───────────────────────────────────────────────
-async function renderCityGrid() {
+function renderCityGrid() {
   const grid = document.getElementById('cityGrid');
 
-  const fallback = [
+  const cities = [
     { slug:'san-diego',    name:'San Diego',     state_code:'CA', venue_count:85, active:true  },
     { slug:'los-angeles',  name:'Los Angeles',   state_code:'CA', venue_count:0,  active:false },
     { slug:'new-york',     name:'New York',      state_code:'NY', venue_count:0,  active:false },
@@ -164,34 +164,15 @@ async function renderCityGrid() {
     { slug:'orange-county',name:'Orange County', state_code:'CA', venue_count:0,  active:false },
   ];
 
-  function buildGrid(list) {
-    return list.map(c => {
-      const onclick = c.active ? `onclick="enterCity('${c.slug}','${c.name}','${c.state_code}')"` : '';
-      const countBadge = c.active && c.venue_count ? `<div class="city-card-count">${c.venue_count}+ spots</div>` : '';
-      return `<div class="city-card${c.active ? '' : ' coming'}" ${onclick}>
-        <div class="city-card-name">${c.name}</div>
-        <div class="city-card-state">${c.state_code}</div>
-        ${countBadge}
-      </div>`;
-    }).join('');
-  }
-
-  // Render fallback immediately — never show a blank grid
-  grid.innerHTML = buildGrid(fallback);
-
-  // Then try to load live data and swap in if successful
-  // Always force non-San Diego cities to coming soon
-  try {
-    const cities = await fetchCities();
-    if (cities.length) {
-      const enforced = cities.map(c => ({
-        ...c,
-        active: c.slug === 'san-diego' ? true : false,
-        venue_count: c.slug === 'san-diego' ? (c.venue_count || 85) : 0
-      }));
-      grid.innerHTML = buildGrid(enforced);
-    }
-  } catch(e) { /* fallback already showing */ }
+  grid.innerHTML = cities.map(c => {
+    const onclick = c.active ? `onclick="enterCity('${c.slug}','${c.name}','${c.state_code}')"` : '';
+    const countBadge = c.active && c.venue_count ? `<div class="city-card-count">${c.venue_count}+ spots</div>` : '';
+    return `<div class="city-card${c.active ? '' : ' coming'}" ${onclick}>
+      <div class="city-card-name">${c.name}</div>
+      <div class="city-card-state">${c.state_code}</div>
+      ${countBadge}
+    </div>`;
+  }).join('');
 }
 
 function showHome() {
