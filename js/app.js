@@ -90,11 +90,7 @@ async function doSignOut() { await authSignOut(); showToast(‘Signed out’); }
 // ── HOME ───────────────────────────────────────────────
 async function renderCityGrid() {
 const grid = document.getElementById(‘cityGrid’);
-grid.innerHTML = `<div class="loading-state"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div>`;
 
-const cities = await fetchCities();
-
-// Fallback city list if DB is empty
 const fallback = [
 { slug:‘san-diego’,    name:‘San Diego’,     state_code:‘CA’, venue_count:85, active:true  },
 { slug:‘los-angeles’,  name:‘Los Angeles’,   state_code:‘CA’, venue_count:0,  active:false },
@@ -105,12 +101,22 @@ const fallback = [
 { slug:‘orange-county’,name:‘Orange County’, state_code:‘CA’, venue_count:0,  active:false },
 ];
 
-const list = cities.length ? cities : fallback;
-grid.innerHTML = list.map(c => {
+function buildGrid(list) {
+return list.map(c => {
 const onclick = c.active ? `onclick="enterCity('${c.slug}','${c.name}','${c.state_code}')"` : ‘’;
 const countBadge = c.active && c.venue_count ? `<div class="city-card-count">${c.venue_count}+ spots</div>` : ‘’;
 return `<div class="city-card${c.active ? '' : ' coming'}" ${onclick}> <div class="city-card-name">${c.name}</div> <div class="city-card-state">${c.state_code}</div> ${countBadge} </div>`;
 }).join(’’);
+}
+
+// Render fallback immediately — never show a blank grid
+grid.innerHTML = buildGrid(fallback);
+
+// Then try to load live data and swap in if successful
+try {
+const cities = await fetchCities();
+if (cities.length) grid.innerHTML = buildGrid(cities);
+} catch(e) { /* fallback already showing */ }
 }
 
 function showHome() {
