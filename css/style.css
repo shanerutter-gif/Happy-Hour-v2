@@ -48,7 +48,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
 .home-coming{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:rgba(42,31,20,0.18);text-align:center}
 
 /* CITY BAR */
-.city-bar{display:flex;align-items:center;gap:8px;padding:10px 20px;background:var(--card2);border-bottom:1px solid var(--border2);flex-wrap:wrap}
+.city-bar{display:flex;align-items:center;gap:8px;padding:10px 20px;background:rgba(245,239,230,0.97);border-bottom:1px solid var(--border2);flex-wrap:wrap;position:sticky;top:0;z-index:250;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
 .city-back{background:none;border:1px solid var(--border2);border-radius:6px;color:var(--muted);background:transparent;font-size:12px;padding:6px 12px;cursor:pointer;font-family:'DM Sans',sans-serif;min-height:34px;transition:all .15s;white-space:nowrap}
 .city-back:hover{border-color:var(--teal);color:var(--teal)}
 .city-bar-name{font-family:'Cabinet Grotesk',sans-serif;font-weight:700;font-size:16px;color:var(--white);flex:1;white-space:nowrap}
@@ -58,7 +58,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
 .type-tab:not(.active):hover{border-color:var(--teal);color:var(--teal)}
 
 /* CONTROLS */
-.controls{position:sticky;top:52px;z-index:200;background:rgba(245,239,230,0.97);border-bottom:1px solid var(--border2);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+.controls{position:sticky;top:44px;z-index:200;background:rgba(245,239,230,0.97);border-bottom:1px solid var(--border2);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
 .controls-top{display:flex;align-items:center;gap:8px;padding:10px 20px}
 .search-box{flex:1;background:var(--card2);border:1px solid var(--border2);border-radius:var(--r);padding:10px 14px;font-family:'DM Sans',sans-serif;font-size:16px;color:var(--text);outline:none;min-height:var(--tap);transition:border-color .2s}
 .search-box::placeholder{color:rgba(42,31,20,0.28)}
@@ -601,4 +601,80 @@ footer{text-align:center;padding:20px;font-family:'DM Mono',monospace;font-size:
   padding: 10px; font-size: 13px; color: var(--muted);
   background: none; border: none; cursor: pointer;
   font-family: 'DM Sans', sans-serif; margin-top: 4px;
+}
+
+/* ══════════════════════════════════════════════
+   BOTTOM NAV + LAYOUT ADJUSTMENTS
+   ══════════════════════════════════════════════ */
+
+/* Bottom nav bar */
+.bottom-nav {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  height: 64px;
+  background: rgba(255,255,255,0.97);
+  border-top: 1px solid var(--border2);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  display: flex; align-items: stretch;
+  z-index: 400;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.bottom-nav-btn {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 3px;
+  background: none; border: none; cursor: pointer;
+  color: var(--muted); font-family: 'DM Sans', sans-serif;
+  font-size: 10px; font-weight: 600; letter-spacing: .2px;
+  transition: color .15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.bottom-nav-btn svg { transition: stroke .15s; }
+.bottom-nav-btn.active { color: var(--teal); }
+.bottom-nav-btn.active svg { stroke: var(--teal); }
+.bottom-nav-btn:active { opacity: .7; }
+
+/* Push content above bottom nav when in city view */
+.app-page { padding-bottom: 72px; }
+
+/* Hide top nav controls row when in city view (controls moves sticky to top) */
+.app-page .top-nav { display: none; }
+
+/* City bar also from top:0 */
+.city-bar { position: sticky; top: 0; z-index: 250; }
+
+/* ── CLEAN UP CARD CARD-TOP — remove card-right wrapper ── */
+.card-top {
+  display: flex; align-items: flex-start;
+  justify-content: space-between; gap: 8px;
+}
+
+/* ── GOING BUTTON — rounder, cleaner ── */
+.going-btn {
+  background: rgba(255,107,74,0.07);
+  border: 1.5px solid rgba(255,107,74,0.2);
+  color: var(--teal);
+  font-size: 13px; font-weight: 700;
+  padding: 10px 16px; border-radius: 50px;
+  cursor: pointer; font-family: 'DM Sans', sans-serif;
+  transition: background .15s, border-color .15s, transform .1s;
+  width: 100%; letter-spacing: .1px;
+}
+.going-btn:active { transform: scale(.98); }
+.going-btn.going-active {
+  background: rgba(255,140,0,0.1);
+  border-color: rgba(255,140,0,0.3);
+  color: #E07800;
+}
+
+/* ── MODAL ACTION BUTTONS — rounded pill row ── */
+.s-actions {
+  display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 4px;
+}
+.s-actions a.btn-primary,
+.s-actions .btn-sec,
+.s-actions .venue-follow-btn {
+  flex: 1; min-width: 0;
+  padding: 11px 12px; border-radius: 50px;
+  font-size: 13px; font-weight: 700; text-align: center;
+  font-family: 'DM Sans', sans-serif;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
