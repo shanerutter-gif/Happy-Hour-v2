@@ -1342,9 +1342,6 @@ async function doGoingTonight(venueId, btn) {
     state.goingCounts[venueId] = (state.goingCounts[venueId] || 0) + 1;
     showToast('📍 Checked in!');
     if (typeof haptic === 'function') haptic('medium');
-    if (currentUser && typeof promptPushIfAppropriate === 'function') {
-      setTimeout(promptPushIfAppropriate, 1500);
-    }
     setTimeout(() => checkStreakAfterCheckIn(), 2200);
     setTimeout(() => maybeOpenPhotoCheckin(venueId), 3200);
   }
