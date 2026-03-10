@@ -4,7 +4,7 @@
    ═══════════════════════════════════════════════════════ */
 
 const SUPABASE_URL      = 'https://opcskuzbdfrlnyhraysk.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_M97B-GmwsRF6xPVahp_ytw_49nI9igs';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9wY3NrdXpiZGZybG55aHJheXNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3NDQ3MTcsImV4cCI6MjA4ODMyMDcxN30.9LXr-oFTLmYEZrlVt1zOvRFvJ8998YkTmrHJ7yNv81E';
 
 // Storage key — derived from your project ref
 const _projectRef  = SUPABASE_URL.match(/\/\/([^.]+)\./)?.[1] || 'project';
