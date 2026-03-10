@@ -318,6 +318,7 @@ function venueCardHTML(v) {
       }).join('')}</div>`
     : '';
   return `<div class="card" data-id="${v.id}" onclick="openModal('${v.id}','venue')" role="button" tabindex="0">
+    ${v.photo_url ? `<div class="card-photo"><img src="${v.photo_url}" alt="${esc(v.name)}" loading="lazy" onerror="this.parentElement.remove()"></div>` : ''}
     <div class="card-top">
       <div class="card-name">${esc(v.name)}</div>
       <div class="card-right">
@@ -436,6 +437,7 @@ function renderModal(v, type, reviews) {
   const faved   = isFavorite(v.id);
   const isVenue = type === 'venue';
   document.getElementById('modalContent').innerHTML = `
+    ${v.photo_url ? `<div class="s-photo"><img src="${v.photo_url}" alt="${esc(v.name)}" loading="lazy" onerror="this.parentElement.remove()"></div>` : ''}
     <div class="s-tag ${isVenue ? 'hh' : 'ev'}">${isVenue ? 'Happy Hour' : esc(v.event_type || 'Event')}</div>
     <div style="display:flex;align-items:flex-start;gap:10px;padding-right:38px">
       <div style="flex:1">
