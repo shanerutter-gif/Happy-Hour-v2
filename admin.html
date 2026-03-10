@@ -305,7 +305,14 @@
         headers: { ...sb.headers(), 'Prefer': 'return=representation' },
         body: JSON.stringify(data)
       });
-      return r.json();
+      const text = await r.text();
+      try {
+        const json = JSON.parse(text);
+        if (!r.ok) return { error: json.message || json.error || `HTTP ${r.status}` };
+        return json;
+      } catch(e) {
+        return r.ok ? [{ id }] : { error: text };
+      }
     },
     async insert(table, data) {
       const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
@@ -762,13 +769,14 @@
       featured:       document.getElementById('ev-featured')?.checked     ?? false,
       has_sports_tv:  document.getElementById('ev-sports')?.checked       ?? false,
       owner_verified: document.getElementById('ev-verified')?.checked     ?? false,
-      updated_at:     new Date().toISOString(),
     };
 
     const result = await sb.patch('venues', editingVenue.id, payload);
 
     if (!Array.isArray(result) || !result[0]) {
-      showToast('❌ Save failed — check console'); console.error(result);
+      const msg = result?.message || result?.error || JSON.stringify(result);
+      showToast('❌ ' + (msg || 'Save failed'));
+      console.error('Venue update failed:', result);
       btn.disabled=false; btn.textContent='Save Changes →'; return;
     }
 
