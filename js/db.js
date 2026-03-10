@@ -4,7 +4,7 @@
    ═══════════════════════════════════════════════════════ */
 
 const SUPABASE_URL      = 'https://opcskuzbdfrlnyhraysk.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9wY3NrdXpiZGZybG55aHJheXNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3NDQ3MTcsImV4cCI6MjA4ODMyMDcxN30.9LXr-oFTLmYEZrlVt1zOvRFvJ8998YkTmrHJ7yNv81E';
+const SUPABASE_ANON_KEY = 'sb_publishable_M97B-GmwsRF6xPVahp_ytw_49nI9igs';
 
 // Storage key — derived from your project ref
 const _projectRef  = SUPABASE_URL.match(/\/\/([^.]+)\./)?.[1] || 'project';
@@ -354,16 +354,6 @@ async function searchProfiles(query) {
 }
 
 // ── BADGES ─────────────────────────────────────────────
-const BADGE_DEFS = {
-  first_checkin:  { emoji: '📍', label: 'First Check-in',    desc: 'Checked in for the first time' },
-  regular:        { emoji: '🏅', label: 'Regular',           desc: 'Checked into the same spot 3+ times' },
-  explorer:       { emoji: '🧭', label: 'Neighborhood Explorer', desc: 'Checked into 5+ different neighborhoods' },
-  critic:         { emoji: '⭐', label: 'Critic',            desc: 'Left 10+ reviews' },
-  social:         { emoji: '🤝', label: 'Social Butterfly',  desc: 'Following 5+ people' },
-  streak_4:       { emoji: '🔥', label: '4-Week Streak',     desc: 'Checked in 4 weeks in a row' },
-  streak_8:       { emoji: '🔥🔥','label': '8-Week Streak',  desc: 'Checked in 8 weeks in a row' },
-  top_reviewer:   { emoji: '✍️', label: 'Top Reviewer',     desc: 'Left 25+ reviews' },
-};
 async function getUserBadges(userId) {
   try {
     const { data } = await db.from('user_badges').select('badge_key, earned_at').eq('user_id', userId);
