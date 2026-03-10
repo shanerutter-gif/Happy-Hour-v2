@@ -7,7 +7,7 @@
 <title>Spotd — Happy Hours & Events Near You</title>
 
 <!-- PWA -->
-<link rel="manifest" href="/manifest.json">
+
 <meta name="theme-color" content="#FF6B4A">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -49,8 +49,10 @@
 <!-- NAV -->
 <nav class="top-nav" id="topNav">
   <span class="nav-brand" onclick="goHome()">
-  <img src="/spotd_logo_v5.png" alt="Spotd" class="nav-logo-img">
-</span>
+    <img src="/spotd_logo_v5.png" alt="Spotd" class="nav-logo-img" height="28"
+      onerror="this.style.display='none';this.nextElementSibling.style.display='inline'">
+    <span style="display:none">Spotd</span>
+  </span>
   <div class="nav-right" id="navRight">
     <a class="nav-btn nav-business" href="business-landing.html">For Business</a>
     <button class="nav-btn nav-login" onclick="openAuth('signin')">Sign In</button>
@@ -340,6 +342,6 @@ function dismissA2HS() {
 
 <script src="js/db.js"></script>
 <script src="js/app.js"></script>
-<script src="js/push.js"></script>
+
 </body>
 </html>
