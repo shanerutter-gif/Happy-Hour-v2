@@ -910,16 +910,14 @@ async function renderProfile(user) {
           ${AVATARS.map(e => `<button class="avatar-opt" onclick="pickAvatar('${e}',this)">${e}</button>`).join('')}
         </div>
       </div>
-      <div class="my-profile-info">
-        <div class="my-name">${esc(displayName)}</div>
-        <div class="profile-email">${esc(user.email)}</div>
-        <div class="my-stats" id="myStatBar">
-          <div class="my-stat" onclick="openActivityFeed()" style="cursor:pointer"><span>${checkIns.length}</span>Check-ins</div>
-          <div class="my-stat"><span>${myReviews.length}</span>Reviews</div>
-          ${currentStreak >= 2 ? `<div class="my-stat streak-stat" title="${currentStreak}-week check-in streak"><span>${currentStreak}🔥</span>Streak</div>` : ''}
-          <div class="my-stat" onclick="openFindPeople()" style="cursor:pointer"><span id="stat-following">${following.length}</span>Following</div>
-          <div class="my-stat" style="cursor:pointer"><span id="stat-followers">${followers.length}</span>Followers</div>
-        </div>
+      <div class="my-name">${esc(displayName)}</div>
+      <div class="profile-email">${esc(user.email)}</div>
+      <div class="my-stats" id="myStatBar">
+        <div class="my-stat" onclick="openActivityFeed()" style="cursor:pointer"><span>${checkIns.length}</span>Check-ins</div>
+        <div class="my-stat"><span>${myReviews.length}</span>Reviews</div>
+        ${currentStreak >= 2 ? `<div class="my-stat streak-stat"><span>${currentStreak}🔥</span>Streak</div>` : ''}
+        <div class="my-stat" onclick="openFindPeople()" style="cursor:pointer"><span id="stat-following">${following.length}</span>Following</div>
+        <div class="my-stat" style="cursor:pointer"><span id="stat-followers">${followers.length}</span>Followers</div>
       </div>
     </div>
     ${badges.length ? `<div class="pub-badges">${badges.map(b => {
