@@ -51,6 +51,10 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
 .city-bar{display:flex;align-items:center;gap:8px;padding:10px 20px;background:rgba(245,239,230,0.97);border-bottom:1px solid var(--border2);flex-wrap:wrap;position:sticky;top:0;z-index:250;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
 .city-back{background:none;border:1px solid var(--border2);border-radius:6px;color:var(--muted);background:transparent;font-size:12px;padding:6px 12px;cursor:pointer;font-family:'DM Sans',sans-serif;min-height:34px;transition:all .15s;white-space:nowrap}
 .city-back:hover{border-color:var(--teal);color:var(--teal)}
+.city-back-logo{background:none;border:none;padding:0;cursor:pointer;display:flex;align-items:center;opacity:.9;transition:opacity .15s}
+.city-back-logo:hover{opacity:1}
+.city-back-logo-img{height:28px;width:auto;display:block;object-fit:contain}
+.city-back-logo-fallback{font-family:'Cabinet Grotesk',sans-serif;font-weight:900;font-size:22px;color:var(--teal);letter-spacing:-1px}
 .city-bar-name{font-family:'Cabinet Grotesk',sans-serif;font-weight:700;font-size:16px;color:var(--ink);flex:1;white-space:nowrap}
 .city-bar-right{display:flex;gap:4px;flex-shrink:0}
 .type-tab{background:none;border:1px solid var(--border2);border-radius:6px;color:var(--muted);background:transparent;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;padding:7px 14px;cursor:pointer;min-height:34px;transition:all .15s;white-space:nowrap}
