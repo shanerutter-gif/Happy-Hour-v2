@@ -165,11 +165,10 @@ function renderBottomNav(user) {
 }
 
 function _navHideAll() {
-  // Instantly hide all peer-level pages before fading a new one in
   const pp = document.getElementById('profilePage');
-  if (pp) { pp.classList.remove('profile-page--open'); pp.style.display = 'none'; }
+  if (pp) pp.classList.remove('profile-page--open');
   const dp = document.getElementById('dmPage');
-  if (dp) { dp.classList.remove('sub-page--open'); dp.style.display = 'none'; }
+  if (dp) dp.classList.remove('sub-page--open');
   if (dmState.subscription) { dmState.subscription.unsubscribe(); dmState.subscription = null; }
   closeSubPage('findPeoplePage');
   closeSubPage('feedPage');
@@ -1050,8 +1049,8 @@ const BADGE_DEFS = {
 async function openProfile() {
   if (!currentUser) { openAuth('signin'); return; }
   const page = document.getElementById('profilePage');
-  page.style.display = 'block';
-  requestAnimationFrame(() => requestAnimationFrame(() => page.classList.add('profile-page--open')));
+  // Use rAF so visibility:visible triggers before opacity transition
+  requestAnimationFrame(() => page.classList.add('profile-page--open'));
   document.getElementById('bnProfile')?.classList.add('active');
   document.getElementById('bnFeed')?.classList.remove('active');
   await renderProfile(currentUser);
@@ -1060,20 +1059,18 @@ function closeProfile() {
   const page = document.getElementById('profilePage');
   if (!page) return;
   page.classList.remove('profile-page--open');
-  setTimeout(() => { page.style.display = 'none'; }, 200);
+  // visibility:hidden fires after transition via CSS delay — no JS timeout needed
 }
 
 function openSubPage(id) {
   const page = document.getElementById(id);
   if (!page) return;
-  page.style.display = 'block';
-  requestAnimationFrame(() => requestAnimationFrame(() => page.classList.add('sub-page--open')));
+  requestAnimationFrame(() => page.classList.add('sub-page--open'));
 }
 function closeSubPage(id) {
   const page = document.getElementById(id);
   if (!page) return;
   page.classList.remove('sub-page--open');
-  setTimeout(() => { page.style.display = 'none'; }, 230);
 }
 
 async function renderProfile(user) {
