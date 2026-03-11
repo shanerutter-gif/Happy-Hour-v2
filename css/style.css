@@ -78,6 +78,20 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
 .fp-inner{padding:4px 20px 16px;display:flex;flex-direction:column;gap:12px}
 .filter-group{display:flex;flex-direction:column;gap:6px}
 .fg-label{font-family:'DM Sans',sans-serif;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:rgba(42,31,20,0.4)}
+.filter-select {
+  width: 100%; padding: 9px 32px 9px 12px;
+  border-radius: 8px;
+  border: 1.5px solid var(--border2);
+  background: var(--card) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") no-repeat right 10px center;
+  appearance: none; -webkit-appearance: none;
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500;
+  cursor: pointer;
+  transition: border-color .15s;
+}
+.filter-select:focus { outline: none; border-color: var(--teal); }
+.filter-select option { background: #fff; color: #222; }
+
 .filter-scroll{display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:2px}
 .filter-scroll::-webkit-scrollbar{display:none}
 .pill{background:var(--card);border:1px solid var(--border2);color:var(--muted);border-radius:50px;padding:7px 16px;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;white-space:nowrap;flex-shrink:0;min-height:36px;display:flex;align-items:center;transition:all .15s}
@@ -420,6 +434,14 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 /* ── FILTER PANEL CLOSE + SORT ───────────────────────── */
 .fp-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border)}
 .fp-title{font-size:15px;font-weight:700;color:var(--text)}
+.fp-clear-all {
+  background: none; border: 1.5px solid var(--border);
+  border-radius: 20px; padding: 5px 12px;
+  font-size: 12px; font-weight: 600; color: var(--teal);
+  cursor: pointer; font-family: 'DM Sans', sans-serif;
+  transition: all .15s;
+}
+.fp-clear-all:hover { background: rgba(0,194,168,.08); border-color: var(--teal); }
 .fp-close{background:none;border:1.5px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s}
 .fp-close:hover{border-color:var(--text);color:var(--text)}
 .card-dist{color:var(--teal);font-weight:600;font-size:12px}
@@ -729,30 +751,6 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 .going-btn.going-active {
   background: rgba(255,140,0,0.1); border-color: rgba(255,140,0,0.3); color: #C87000;
 }
-
-/* ── Venue social links row ── */
-.s-social-row {
-  display: flex; gap: 8px; margin: 4px 0 12px; flex-wrap: wrap;
-}
-.s-social-btn {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 8px 14px; border-radius: 50px;
-  border: 1.5px solid var(--border2);
-  font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600;
-  text-decoration: none; cursor: pointer;
-  transition: border-color .15s, background .15s, color .15s;
-  white-space: nowrap;
-}
-.s-social-ig { color: #C13584; border-color: rgba(193,53,132,.25); background: rgba(193,53,132,.05); }
-.s-social-ig:hover { background: rgba(193,53,132,.12); border-color: #C13584; }
-.s-social-tt { color: #000; border-color: rgba(0,0,0,.15); background: rgba(0,0,0,.04); }
-.s-social-tt:hover { background: rgba(0,0,0,.1); border-color: #000; }
-.s-social-fb { color: #1877F2; border-color: rgba(24,119,242,.25); background: rgba(24,119,242,.05); }
-.s-social-fb:hover { background: rgba(24,119,242,.12); border-color: #1877F2; }
-.s-social-tw { color: #000; border-color: rgba(0,0,0,.15); background: rgba(0,0,0,.04); }
-.s-social-tw:hover { background: rgba(0,0,0,.1); border-color: #000; }
-.s-social-ph { color: var(--teal); border-color: rgba(0,194,168,.25); background: rgba(0,194,168,.05); }
-.s-social-ph:hover { background: rgba(0,194,168,.12); border-color: var(--teal); }
 
 /* Follow button active state */
 .s-act-btn.following {
