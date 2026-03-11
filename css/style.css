@@ -764,10 +764,11 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
    ══════════════════════════════════════════════ */
 /* ── Profile Banner Header (Option B) ── */
 .my-profile-banner {
-  height: 90px;
+  height: calc(90px + env(safe-area-inset-top, 0px));
+  padding-top: env(safe-area-inset-top, 0px);
   background: linear-gradient(135deg, #FF6B4A 0%, #ff8c6e 55%, #ffb347 100%);
   position: relative;
-  margin: -20px -20px 0; /* bleed to edges */
+  margin: -20px -20px 0;
 }
 .banner-avatar-wrap {
   position: absolute !important;
@@ -980,7 +981,9 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 
 /* ── Profile settings gear button ── */
 .profile-settings-btn {
-  position: absolute; top: 14px; right: 16px;
+  position: absolute;
+  top: max(14px, calc(env(safe-area-inset-top, 0px) + 14px));
+  right: 16px;
   background: rgba(255,255,255,0.25);
   border: none; border-radius: 50%;
   width: 36px; height: 36px;
