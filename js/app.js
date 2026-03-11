@@ -2546,12 +2546,10 @@ async function dmLoadInbox() {
   const list = document.getElementById('dmThreadList');
   list.innerHTML = '<div class="dm-loading">Loading…</div>';
   try {
-    // Step 1: get my conversation IDs
     const { data: myParts, error: e1 } = await db
       .from('conversation_participants')
       .select('conversation_id, last_read_at')
       .eq('user_id', currentUser.id);
-    console.log('dmLoadInbox step1:', { myParts, e1 });
     if (e1) throw e1;
     if (!myParts?.length) {
       list.innerHTML = '<div class="dm-empty">No messages yet.<br>Tap + to start a conversation.</div>';
@@ -2562,87 +2560,68 @@ async function dmLoadInbox() {
     const myReadMap = {};
     myParts.forEach(r => { myReadMap[r.conversation_id] = r.last_read_at; });
 
-    // Step 2: get conversations
-    const { data: convos, error: e2 } = await db
-      .from('conversations')
-      .select('id, is_group, name, updated_at')
-      .in('id', convoIds)
-      .order('updated_at', { ascending: false });
-    console.log('dmLoadInbox step2:', { convos, e2 });
-    if (e2) throw e2;
+    // Run all queries in parallel — tolerate individual failures
+    const [r2, r3, r4] = await Promise.allSettled([
+      db.from('conversations').select('id, is_group, name, updated_at').in('id', convoIds).order('updated_at', { ascending: false }),
+      db.rpc('get_conversation_participants', { convo_ids: convoIds }),
+      db.from('messages').select('conversation_id, sender_id, body, msg_type, created_at').in('conversation_id', convoIds).order('created_at', { ascending: false })
+    ]);
 
-    // Step 3: get all participants via security definer function
-    const { data: allParts, error: e3 } = await db
-      .rpc('get_conversation_participants', { convo_ids: convoIds });
-    console.log('dmLoadInbox step3:', { allParts, e3 });
-    if (e3) throw e3;
+    const convos   = r2.status === 'fulfilled' ? (r2.value.data || []) : [];
+    const allParts = r3.status === 'fulfilled' ? (r3.value.data || []) : [];
+    const lastMsgs = r4.status === 'fulfilled' ? (r4.value.data || []) : [];
 
-    // Step 4: get last message per convo
-    const { data: lastMsgs, error: e4 } = await db
-      .from('messages')
-      .select('conversation_id, sender_id, body, msg_type, created_at')
-      .in('conversation_id', convoIds)
-      .order('created_at', { ascending: false });
-    console.log('dmLoadInbox step4:', { lastMsgs, e4 });
-    if (e4) throw e4;
+    // Fall back to synthetic list if conversations query failed/empty
+    const convoList = convos.length ? convos : convoIds.map(id => ({ id, is_group: false, name: null, updated_at: null }));
 
-    // Group last messages by convo
     const lastMsgMap = {};
-    (lastMsgs || []).forEach(m => {
-      if (!lastMsgMap[m.conversation_id]) lastMsgMap[m.conversation_id] = m;
-    });
+    lastMsgs.forEach(m => { if (!lastMsgMap[m.conversation_id]) lastMsgMap[m.conversation_id] = m; });
 
-    // Unread counts
     const unreadMap = {};
-    (lastMsgs || []).forEach(m => {
+    lastMsgs.forEach(m => {
       if (m.sender_id === currentUser.id) return;
       const myRead = myReadMap[m.conversation_id];
-      if (!myRead || new Date(m.created_at) > new Date(myRead)) {
+      if (!myRead || new Date(m.created_at) > new Date(myRead))
         unreadMap[m.conversation_id] = (unreadMap[m.conversation_id] || 0) + 1;
-      }
     });
 
-    // Step 5: fetch profiles for other participants
-    const otherIds = [...new Set(
-      (allParts || []).map(p => p.user_id).filter(id => id !== currentUser.id)
-    )];
+    const convoPartsMap = {};
+    allParts.forEach(p => {
+      if (!convoPartsMap[p.conversation_id]) convoPartsMap[p.conversation_id] = [];
+      convoPartsMap[p.conversation_id].push(p.user_id);
+    });
+
+    const otherIds = [...new Set(allParts.map(p => p.user_id).filter(id => id !== currentUser.id))];
     const { data: profiles } = otherIds.length
       ? await db.from('profiles').select('id, display_name, avatar_emoji').in('id', otherIds)
       : { data: [] };
     const pMap = {};
     (profiles || []).forEach(p => { pMap[p.id] = p; });
 
-    // Build participant map per convo
-    const convoPartsMap = {};
-    (allParts || []).forEach(p => {
-      if (!convoPartsMap[p.conversation_id]) convoPartsMap[p.conversation_id] = [];
-      convoPartsMap[p.conversation_id].push(p.user_id);
-    });
-
     let totalUnread = 0;
-    list.innerHTML = (convos || []).map(c => {
+    list.innerHTML = convoList.map(c => {
       const others = (convoPartsMap[c.id] || []).filter(id => id !== currentUser.id);
-      const last = lastMsgMap[c.id];
+      const last   = lastMsgMap[c.id];
       const unread = unreadMap[c.id] || 0;
       totalUnread += unread;
 
       let name, avatar;
       if (c.is_group) {
-        name = c.name || others.map(id => (pMap[id]?.display_name || 'User').split(' ')[0]).join(', ');
-        avatar = '👥';
+        name   = c.name || others.map(id => (pMap[id]?.display_name || 'User').split(' ')[0]).join(', ');
+        avatar = '\u{1F465}';
       } else {
         const p = pMap[others[0]] || {};
-        name = p.display_name || 'Spotd User';
-        avatar = p.avatar_emoji || '🍺';
+        name   = p.display_name || 'Spotd User';
+        avatar = p.avatar_emoji || '\u{1F37A}';
       }
 
       const preview = last
-        ? (last.msg_type === 'venue_share' ? '📍 Shared a venue' : (last.body || '').slice(0, 45))
-        : 'No messages yet';
+        ? (last.msg_type === 'venue_share' ? '\u{1F4CD} Shared a venue' : (last.body || '').slice(0, 45))
+        : 'Say hello!';
       const time = last ? fmtDate(last.created_at) : '';
 
       return `<div class="dm-thread-row" id="dmrow-${c.id}">
-        <div class="dm-thread-main" onclick="dmOpenConvo('${c.id}','${esc(name)}',${c.is_group})">
+        <div class="dm-thread-main" onclick="dmOpenConvo('${c.id}','${esc(name)}',${!!c.is_group})">
           <div class="dm-thread-avatar">${avatar}</div>
           <div class="dm-thread-info">
             <div class="dm-thread-name">${esc(name)}${unread ? `<span class="dm-unread-dot">${unread}</span>` : ''}</div>
@@ -2650,7 +2629,7 @@ async function dmLoadInbox() {
           </div>
           <div class="dm-thread-time">${time}</div>
         </div>
-        <button class="dm-thread-delete" onclick="dmDeleteConvo('${c.id}')" title="Delete">🗑</button>
+        <button class="dm-thread-delete" onclick="dmDeleteConvo('${c.id}')" title="Delete">\u{1F5D1}</button>
       </div>`;
     }).join('') || '<div class="dm-empty">No messages yet.<br>Tap + to start a conversation.</div>';
 
@@ -2660,6 +2639,7 @@ async function dmLoadInbox() {
     list.innerHTML = '<div class="dm-empty">Failed to load messages.</div>';
   }
 }
+
 
 async function dmOpenConvo(convoId, name, isGroup) {
   if (!currentUser) { openAuth('signin'); return; }
