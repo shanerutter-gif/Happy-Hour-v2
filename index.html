@@ -84,7 +84,10 @@
       <div class="fp-inner">
         <div class="fp-header">
           <div class="fp-title">Filters &amp; Sort</div>
-          <button class="fp-close" onclick="toggleFilters()">✕ Close</button>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="fp-clear-all" onclick="clearAllFilters()">Clear all</button>
+            <button class="fp-close" onclick="toggleFilters()">✕ Close</button>
+          </div>
         </div>
         <div class="filter-group">
           <div class="fg-label">Sort by</div>
@@ -96,19 +99,27 @@
         </div>
         <div class="filter-group" id="fgDay">
           <div class="fg-label">Day</div>
-          <div class="filter-scroll" id="dayFilters"></div>
+          <select class="filter-select" id="dayFilters" onchange="setFilterFromSelect('day', this)">
+            <option value="">All days</option>
+          </select>
         </div>
         <div class="filter-group">
           <div class="fg-label">Neighborhood</div>
-          <div class="filter-scroll" id="areaFilters"></div>
+          <select class="filter-select" id="areaFilters" onchange="setFilterFromSelect('area', this)">
+            <option value="">All neighborhoods</option>
+          </select>
         </div>
         <div class="filter-group" id="fgType">
           <div class="fg-label">Type</div>
-          <div class="filter-scroll" id="typeFilters"></div>
+          <select class="filter-select" id="typeFilters" onchange="setFilterFromSelect('type', this)">
+            <option value="">All types</option>
+          </select>
         </div>
         <div class="filter-group">
           <div class="fg-label">Amenities</div>
-          <div class="filter-scroll" id="amenityFilters"></div>
+          <select class="filter-select" id="amenityFilters" onchange="setFilterFromSelect('amenity', this)">
+            <option value="">All amenities</option>
+          </select>
         </div>
         <div class="filter-group" id="favFilterGroup" style="display:none">
           <div class="fg-label">My List</div>
