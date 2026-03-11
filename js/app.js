@@ -1331,9 +1331,12 @@ async function showFollowersList() {
     </div>`;
   document.body.appendChild(overlay);
 
-  const followerIds = await getFollowers(currentUser.id);
+  const followerRows = await getFollowers(currentUser.id);
   const list = document.getElementById('followers-list');
-  if (!followerIds?.length) {
+  // getFollowers returns [{follower_id: '...'}]
+  const followerIds = (followerRows || []).map(r => r.follower_id || r).filter(Boolean);
+
+  if (!followerIds.length) {
     list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);">No followers yet</div>';
     return;
   }
