@@ -1120,25 +1120,23 @@
     tbody.innerHTML = '<tr><td colspan="7" class="table-empty">Loading…</td></tr>';
 
     try {
-      // Fetch profiles (includes phone, sms_consent, display_name, avatar_emoji)
-      const profiles = await supabase.get('profiles', 'select=id,display_name,avatar_emoji,phone,sms_consent,created_at,bio&limit=1000');
+      // Parallel fetches
+      const [profiles, bizReqs, checkins, reviews] = await Promise.all([
+        sb.get('profiles', 'select=id,display_name,avatar_emoji,phone,sms_consent,created_at&limit=2000'),
+        sb.get('venue_requests', 'select=user_id&limit=2000'),
+        sb.get('check_ins', 'select=user_id&limit=10000'),
+        sb.get('reviews', 'select=user_id&limit=10000'),
+      ]);
 
-      // Fetch business requests to identify business users
-      const bizReqs = await supabase.get('venue_requests', 'select=user_id,status&limit=1000');
-      const bizUserIds = new Set((bizReqs || []).map(r => r.user_id).filter(Boolean));
+      const bizUserIds = new Set((Array.isArray(bizReqs) ? bizReqs : []).map(r => r.user_id).filter(Boolean));
 
-      // Fetch check-in counts
-      const checkins = await supabase.get('checkins', 'select=user_id&limit=5000');
       const checkinMap = {};
-      (checkins || []).forEach(c => { checkinMap[c.user_id] = (checkinMap[c.user_id] || 0) + 1; });
+      (Array.isArray(checkins) ? checkins : []).forEach(c => { checkinMap[c.user_id] = (checkinMap[c.user_id] || 0) + 1; });
 
-      // Fetch review counts
-      const reviews = await supabase.get('reviews', 'select=user_id&limit=5000');
       const reviewMap = {};
-      (reviews || []).forEach(r => { reviewMap[r.user_id] = (reviewMap[r.user_id] || 0) + 1; });
+      (Array.isArray(reviews) ? reviews : []).forEach(r => { reviewMap[r.user_id] = (reviewMap[r.user_id] || 0) + 1; });
 
-      // Merge
-      _allUsers = (profiles || []).map(p => ({
+      _allUsers = (Array.isArray(profiles) ? profiles : []).map(p => ({
         ...p,
         isBusiness: bizUserIds.has(p.id),
         checkins: checkinMap[p.id] || 0,
@@ -1146,10 +1144,9 @@
       }));
 
       // KPIs
-      const now = new Date();
-      const weekAgo = new Date(now - 7 * 864e5);
+      const weekAgo = new Date(Date.now() - 7 * 864e5);
       document.getElementById('kpi-total').textContent     = _allUsers.length;
-      document.getElementById('kpi-total-sub').textContent = `across all cities`;
+      document.getElementById('kpi-total-sub').textContent = 'across all cities';
       document.getElementById('kpi-consumers').textContent = _allUsers.filter(u => !u.isBusiness).length;
       document.getElementById('kpi-business').textContent  = _allUsers.filter(u => u.isBusiness).length;
       document.getElementById('kpi-sms').textContent       = _allUsers.filter(u => u.sms_consent).length;
