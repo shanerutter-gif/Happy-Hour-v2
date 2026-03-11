@@ -926,14 +926,32 @@ function renderAuth(mode) {
     ${!si ? `<div class="field-group"><div class="field-label">Name</div><input class="field" id="aName" type="text" placeholder="Your name" autocomplete="name"></div>` : ''}
     <div class="field-group"><div class="field-label">Email</div><input class="field" id="aEmail" type="email" placeholder="you@example.com" autocomplete="email"></div>
     <div class="field-group"><div class="field-label">Password</div><input class="field" id="aPass" type="password" placeholder="${si ? 'Your password' : 'Min 8 characters'}" autocomplete="${si ? 'current-password' : 'new-password'}"></div>
+    ${!si ? `
+    <div class="field-group">
+      <div class="field-label">Phone <span style="font-weight:400;color:var(--muted)">(optional)</span></div>
+      <input class="field" id="aPhone" type="tel" placeholder="+1 (555) 000-0000" autocomplete="tel">
+    </div>
+    <label class="consent-row" id="smsConsentRow" style="display:none">
+      <input type="checkbox" id="aSmsConsent">
+      <span class="consent-text">I agree to receive promotional texts from Spotd. Message & data rates may apply. Reply STOP to unsubscribe.</span>
+    </label>
+    ` : ''}
     ${si ? `<button class="auth-forgot" onclick="doForgot()">Forgot password?</button>` : ''}
     <button class="btn-submit" id="authBtn" onclick="doAuth('${mode}')" style="width:100%;margin-top:4px">${si ? 'Sign In' : 'Create Account'}</button>
     <p class="auth-switch">${si ? "No account?" : 'Have an account?'} <button class="auth-switch-btn" onclick="renderAuth('${si ? 'signup' : 'signin'}')">${si ? 'Sign up free' : 'Sign in'}</button></p>`;
   setTimeout(() => {
-    ['aEmail','aPass','aName'].forEach(id => {
+    ['aEmail','aPass','aName','aPhone'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.addEventListener('keydown', e => { if (e.key === 'Enter') doAuth(mode); });
     });
+    // Show SMS consent checkbox only when a phone number is entered
+    const phoneEl = document.getElementById('aPhone');
+    const consentRow = document.getElementById('smsConsentRow');
+    if (phoneEl && consentRow) {
+      phoneEl.addEventListener('input', () => {
+        consentRow.style.display = phoneEl.value.trim().length > 3 ? 'flex' : 'none';
+      });
+    }
   }, 50);
 }
 async function doAuth(mode) {
@@ -947,6 +965,18 @@ async function doAuth(mode) {
       ? await authSignUp(email, password, (document.getElementById('aName')?.value || '').trim())
       : await authSignIn(email, password);
     if (result.error) throw result.error;
+    // Save phone + consent after signup
+    if (mode === 'signup' && currentUser) {
+      const phone = (document.getElementById('aPhone')?.value || '').trim();
+      const smsConsent = document.getElementById('aSmsConsent')?.checked || false;
+      if (phone || smsConsent) {
+        await updateProfile(currentUser.id, {
+          phone: phone || null,
+          sms_consent: smsConsent,
+          sms_consent_at: smsConsent ? new Date().toISOString() : null,
+        });
+      }
+    }
     closeOverlay('authOverlay');
     showToast(mode === 'signup' ? 'Account created!' : 'Welcome back!');
   } catch(err) {
