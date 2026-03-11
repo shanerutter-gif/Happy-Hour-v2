@@ -164,47 +164,39 @@ function renderBottomNav(user) {
   bar.style.display = 'flex';
 }
 
-function bottomNavFeed(btn) {
-  document.querySelectorAll('.bottom-nav-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
+function _navHideAll() {
+  // Instantly hide all peer-level pages before fading a new one in
+  const pp = document.getElementById('profilePage');
+  if (pp) { pp.classList.remove('profile-page--open'); pp.style.display = 'none'; }
+  const dp = document.getElementById('dmPage');
+  if (dp) { dp.classList.remove('sub-page--open'); dp.style.display = 'none'; }
+  if (dmState.subscription) { dmState.subscription.unsubscribe(); dmState.subscription = null; }
   closeSubPage('findPeoplePage');
   closeSubPage('feedPage');
   closeSubPage('leaderboardPage');
-  closeProfile();
   closeOverlay('modalOverlay');
   closeOverlay('authOverlay');
   closeOverlay('pubProfileOverlay');
-  closeSubPage('dmPage');
-  if (dmState.subscription) { dmState.subscription.unsubscribe(); dmState.subscription = null; }
+}
+
+function bottomNavFeed(btn) {
+  document.querySelectorAll('.bottom-nav-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  _navHideAll();
   if (!state.city) showHome();
 }
 
 function bottomNavMessages(btn) {
   document.querySelectorAll('.bottom-nav-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  closeSubPage('findPeoplePage');
-  closeSubPage('feedPage');
-  closeSubPage('leaderboardPage');
-  closeOverlay('modalOverlay');
-  closeOverlay('pubProfileOverlay');
-  // Close profile instantly (no slide) so it doesn't clash with dmPage sliding in
-  const pp = document.getElementById('profilePage');
-  if (pp) { pp.classList.remove('profile-page--open'); pp.style.display = 'none'; }
+  _navHideAll();
   openDmInbox();
 }
 
 function bottomNavProfile(btn) {
   document.querySelectorAll('.bottom-nav-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  closeSubPage('findPeoplePage');
-  closeSubPage('feedPage');
-  closeSubPage('leaderboardPage');
-  closeOverlay('modalOverlay');
-  closeOverlay('pubProfileOverlay');
-  // Close dmPage instantly so it doesn't clash with profile sliding in
-  const dp = document.getElementById('dmPage');
-  if (dp) { dp.classList.remove('sub-page--open'); dp.style.display = 'none'; }
-  if (dmState.subscription) { dmState.subscription.unsubscribe(); dmState.subscription = null; }
+  _navHideAll();
   if (currentUser) openProfile();
   else openAuth('signin');
 }
@@ -1059,7 +1051,6 @@ async function openProfile() {
   if (!currentUser) { openAuth('signin'); return; }
   const page = document.getElementById('profilePage');
   page.style.display = 'block';
-  // Double rAF: first frame registers display:block, second triggers transition
   requestAnimationFrame(() => requestAnimationFrame(() => page.classList.add('profile-page--open')));
   document.getElementById('bnProfile')?.classList.add('active');
   document.getElementById('bnFeed')?.classList.remove('active');
@@ -1069,7 +1060,7 @@ function closeProfile() {
   const page = document.getElementById('profilePage');
   if (!page) return;
   page.classList.remove('profile-page--open');
-  setTimeout(() => { page.style.display = 'none'; }, 220);
+  setTimeout(() => { page.style.display = 'none'; }, 200);
 }
 
 function openSubPage(id) {
