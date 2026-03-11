@@ -164,9 +164,13 @@ function renderBottomNav(user) {
   bar.style.display = 'flex';
 }
 
-function _navHideAll() {
-  closeDmPage();
-  if (dmState.subscription) { dmState.subscription.unsubscribe(); dmState.subscription = null; }
+function _navHideAll(keep) {
+  if (keep !== 'dm') closeDmPage();
+  if (keep !== 'profile') {
+    const pp = document.getElementById('profilePage');
+    if (pp) pp.classList.remove('profile-page--open');
+  }
+  if (dmState.subscription && keep !== 'dm') { dmState.subscription.unsubscribe(); dmState.subscription = null; }
   closeSubPage('findPeoplePage');
   closeSubPage('feedPage');
   closeSubPage('leaderboardPage');
@@ -178,8 +182,6 @@ function _navHideAll() {
 function bottomNavFeed(btn) {
   document.querySelectorAll('.bottom-nav-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  const pp = document.getElementById('profilePage');
-  if (pp) pp.classList.remove('profile-page--open');
   _navHideAll();
   if (!state.city) showHome();
 }
@@ -187,16 +189,14 @@ function bottomNavFeed(btn) {
 function bottomNavMessages(btn) {
   document.querySelectorAll('.bottom-nav-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  const pp = document.getElementById('profilePage');
-  if (pp) pp.classList.remove('profile-page--open');
-  _navHideAll();
+  _navHideAll('dm');
   openDmInbox();
 }
 
 function bottomNavProfile(btn) {
   document.querySelectorAll('.bottom-nav-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  _navHideAll();
+  _navHideAll('profile');
   if (currentUser) openProfile();
   else openAuth('signin');
 }
