@@ -1064,8 +1064,15 @@ async function renderProfile(user) {
   const currentStreak = computeCurrentStreak(checkIns);
   const AVATARS = ['🍺','🍹','🍷','🥂','🍸','🎉','🌮','🔥','🎸','🏄','🌊','🎭'];
 
+  const bannerColor = profile?.banner_color || '#FF6B4A';
+
   document.getElementById('profileContent').innerHTML = `
-    <div class="my-profile-banner">
+    <div class="my-profile-banner" id="myBanner" style="background: linear-gradient(135deg, ${bannerColor} 0%, ${bannerColor}cc 55%, ${bannerColor}88 100%);">
+      <button class="profile-settings-btn" onclick="openProfileSettings()" title="Settings">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </button>
       <div class="my-avatar-wrap banner-avatar-wrap">
         <div class="my-avatar" id="myAvatar" onclick="toggleAvatarPicker()" title="Change avatar">${avatar}</div>
         <div class="avatar-picker" id="avatarPicker" style="display:none">
@@ -1088,15 +1095,21 @@ async function renderProfile(user) {
         <div class="my-stat" onclick="showFollowersList()" style="cursor:pointer"><span id="stat-followers">${followers.length}</span>Followers</div>
       </div>
     </div>
-    <div class="pub-tabs">
-      <button class="pub-tab active" onclick="switchMyTab('checkins',this)">📍 Check-ins</button>
-      <button class="pub-tab" onclick="switchMyTab('reviews',this)">⭐ Reviews</button>
-      <button class="pub-tab" onclick="switchMyTab('saved',this)">🔖 Saved</button>
-      <button class="pub-tab" onclick="switchMyTab('hoods',this)">🏘️ Areas</button>
-      <button class="pub-tab" onclick="openFindPeople()">👥 People</button>
-      <button class="pub-tab" onclick="openActivityFeed()">📊 Activity</button>
-      <button class="pub-tab" onclick="openLeaderboard()">🏆 Ranks</button>
-      <button class="pub-tab" onclick="switchMyTab('settings',this)">⚙️ Settings</button>
+
+    <div class="profile-section-picker">
+      <button class="profile-section-btn" onclick="toggleProfileDropdown(this)" id="profileSectionBtn">
+        <span id="profileSectionLabel">📍 Check-ins</span>
+        <svg class="profile-dropdown-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <div class="profile-section-menu" id="profileSectionMenu" style="display:none">
+        <button onclick="selectProfileSection('checkins','📍 Check-ins',this)">📍 Check-ins</button>
+        <button onclick="selectProfileSection('reviews','⭐ Reviews',this)">⭐ Reviews</button>
+        <button onclick="selectProfileSection('saved','🔖 Saved',this)">🔖 Saved</button>
+        <button onclick="selectProfileSection('hoods','🏘️ Areas',this)">🏘️ Areas</button>
+        <button onclick="openFindPeople()">👥 People</button>
+        <button onclick="openActivityFeed()">📊 Activity</button>
+        <button onclick="openLeaderboard()">🏆 Ranks</button>
+      </div>
     </div>
 
     <div id="my-tab-checkins" class="pub-tab-content active">
@@ -1149,40 +1162,6 @@ async function renderProfile(user) {
       ${areas.length ? `<div class="hood-grid">${areas.map(a =>
         `<button class="hood-pill${followed.includes(a) ? ' on' : ''}" onclick="toggleHood('${a.replace(/'/g,"\\'")}',this)">${a}</button>`
       ).join('')}</div>` : '<div class="pub-empty">No neighborhoods found for this city yet.</div>'}
-    </div>
-
-    <div id="my-tab-settings" class="pub-tab-content" style="display:none">
-      <div class="p-section">
-        <div class="p-section-title">Display Name</div>
-        <div style="display:flex;gap:8px">
-          <input class="field" id="pName" type="text" value="${esc(profile?.display_name || user.user_metadata?.full_name || '')}" placeholder="Your name" style="flex:1">
-          <button class="btn-save-sm" onclick="saveName()">Save</button>
-        </div>
-      </div>
-      <div class="p-section">
-        <div class="p-section-title">Bio <span style="font-weight:400;color:var(--muted)">Visible on your public profile</span></div>
-        <div style="display:flex;gap:8px;align-items:flex-start">
-          <textarea class="field" id="pBio" placeholder="What's your vibe? Best dive bar hunter in SD..." style="flex:1;min-height:70px;resize:none">${esc(profile?.bio||'')}</textarea>
-          <button class="btn-save-sm" onclick="saveBio()">Save</button>
-        </div>
-      </div>
-      <div class="p-section">
-        <div class="p-section-title">Weekly Digest Email</div>
-        <label class="toggle-row">
-          <input type="checkbox" id="digestCb" ${profile?.digest_enabled ? 'checked' : ''} onchange="saveDigest(this.checked)">
-          <span class="t-track"><span class="t-thumb"></span></span>
-          <span class="t-text">Email me new happy hours & events weekly</span>
-        </label>
-      </div>
-      <div class="p-section">
-        <div class="p-section-title">Privacy</div>
-        <label class="toggle-row">
-          <input type="checkbox" id="publicCb" ${profile?.is_public !== false ? 'checked' : ''} onchange="savePrivacy(this.checked)">
-          <span class="t-track"><span class="t-thumb"></span></span>
-          <span class="t-text">Public profile — others can view your check-ins & reviews</span>
-        </label>
-      </div>
-      ${areas.length ? '' /* Neighborhoods now in dedicated tab */ : ''}
     </div>`;
 }
 
@@ -1191,6 +1170,133 @@ function switchMyTab(tab, btn) {
   document.querySelectorAll('.pub-tab').forEach(b => b.classList.remove('active'));
   document.getElementById('my-tab-' + tab).style.display = 'block';
   if (btn) btn.classList.add('active');
+}
+
+function toggleProfileDropdown(btn) {
+  const menu = document.getElementById('profileSectionMenu');
+  const arrow = btn.querySelector('.profile-dropdown-arrow');
+  const open = menu.style.display === 'none';
+  menu.style.display = open ? 'block' : 'none';
+  arrow.style.transform = open ? 'rotate(180deg)' : '';
+}
+
+function selectProfileSection(tab, label, menuBtn) {
+  // Update label
+  document.getElementById('profileSectionLabel').textContent = label;
+  // Close menu
+  document.getElementById('profileSectionMenu').style.display = 'none';
+  document.querySelector('.profile-dropdown-arrow').style.transform = '';
+  // Show tab
+  document.querySelectorAll('.pub-tab-content').forEach(el => el.style.display = 'none');
+  document.getElementById('my-tab-' + tab).style.display = 'block';
+}
+
+function openProfileSettings() {
+  const BANNER_COLORS = [
+    { color: '#FF6B4A', label: 'Coral' },
+    { color: '#E53935', label: 'Red' },
+    { color: '#8E24AA', label: 'Purple' },
+    { color: '#1E88E5', label: 'Blue' },
+    { color: '#00897B', label: 'Teal' },
+    { color: '#43A047', label: 'Green' },
+    { color: '#FB8C00', label: 'Orange' },
+    { color: '#6D4C41', label: 'Brown' },
+    { color: '#546E7A', label: 'Slate' },
+    { color: '#1A1A2E', label: 'Midnight' },
+  ];
+
+  const overlay = document.createElement('div');
+  overlay.className = 'overlay open';
+  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+
+  const currentColor = document.getElementById('myBanner')?.style.getPropertyValue('--banner-color') || '#FF6B4A';
+
+  overlay.innerHTML = `
+    <div class="sheet">
+      <button class="sheet-close" onclick="this.closest('.overlay').remove()">✕</button>
+      <div style="font-weight:800;font-size:17px;margin-bottom:20px;">Settings</div>
+
+      <div class="p-section">
+        <div class="p-section-title">Display Name</div>
+        <div style="display:flex;gap:8px">
+          <input class="field" id="pName" type="text" value="${esc(document.querySelector('.my-name')?.textContent || '')}" placeholder="Your name" style="flex:1">
+          <button class="btn-save-sm" onclick="saveName()">Save</button>
+        </div>
+      </div>
+
+      <div class="p-section">
+        <div class="p-section-title">Bio <span style="font-weight:400;color:var(--muted)">Visible on your public profile</span></div>
+        <div style="display:flex;gap:8px;align-items:flex-start">
+          <textarea class="field" id="pBio" placeholder="What's your vibe?" style="flex:1;min-height:70px;resize:none"></textarea>
+          <button class="btn-save-sm" onclick="saveBio()">Save</button>
+        </div>
+      </div>
+
+      <div class="p-section">
+        <div class="p-section-title">Banner Color</div>
+        <div class="banner-color-grid" id="bannerColorGrid">
+          ${BANNER_COLORS.map(c => `
+            <button class="banner-color-swatch" style="background:${c.color}" title="${c.label}"
+              onclick="pickBannerColor('${c.color}',this)">
+              ${c.label === 'Coral' ? '✓' : ''}
+            </button>`).join('')}
+        </div>
+      </div>
+
+      <div class="p-section">
+        <div class="p-section-title">Weekly Digest Email</div>
+        <label class="toggle-row">
+          <input type="checkbox" id="digestCb" onchange="saveDigest(this.checked)">
+          <span class="t-track"><span class="t-thumb"></span></span>
+          <span class="t-text">Email me new happy hours & events weekly</span>
+        </label>
+      </div>
+
+      <div class="p-section">
+        <div class="p-section-title">Privacy</div>
+        <label class="toggle-row">
+          <input type="checkbox" id="publicCb" checked onchange="savePrivacy(this.checked)">
+          <span class="t-track"><span class="t-thumb"></span></span>
+          <span class="t-text">Public profile — others can view your activity</span>
+        </label>
+      </div>
+
+      <button onclick="authSignOut().then(()=>{this.closest('.overlay').remove();closeProfile();})"
+        style="width:100%;margin-top:8px;padding:13px;border-radius:12px;border:1.5px solid #e53935;background:none;color:#e53935;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;cursor:pointer;">
+        Sign Out
+      </button>
+    </div>`;
+
+  // Pre-fill bio and toggles
+  document.body.appendChild(overlay);
+  // Load current profile values
+  if (currentUser) {
+    fetchProfile(currentUser.id).then(p => {
+      const bioEl = overlay.querySelector('#pBio');
+      const digestEl = overlay.querySelector('#digestCb');
+      const publicEl = overlay.querySelector('#publicCb');
+      if (bioEl && p?.bio) bioEl.value = p.bio;
+      if (digestEl) digestEl.checked = p?.digest_enabled || false;
+      if (publicEl) publicEl.checked = p?.is_public !== false;
+      // Mark current banner color
+      const currentBanner = p?.banner_color || '#FF6B4A';
+      overlay.querySelectorAll('.banner-color-swatch').forEach(sw => {
+        sw.textContent = sw.style.background === currentBanner || sw.title === BANNER_COLORS.find(c=>c.color===currentBanner)?.label ? '✓' : '';
+      });
+    });
+  }
+}
+
+async function pickBannerColor(color, btn) {
+  // Update banner immediately
+  const banner = document.getElementById('myBanner');
+  if (banner) banner.style.background = `linear-gradient(135deg, ${color} 0%, ${color}cc 55%, ${color}88 100%)`;
+  // Update checkmarks
+  btn.closest('.banner-color-grid').querySelectorAll('.banner-color-swatch').forEach(s => s.textContent = '');
+  btn.textContent = '✓';
+  // Save to profile
+  await updateProfile(currentUser.id, { banner_color: color });
+  showToast('Banner updated!');
 }
 
 function showBadgeInfo(badgeKey) {
