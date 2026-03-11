@@ -2429,3 +2429,21 @@ async function dmPollUnread() {
     .is('read_at', null);
   dmUpdateBadge(count || 0);
 }
+
+// ── DM KEYBOARD HANDLING ───────────────────────────────
+function dmScrollToBottom() {
+  const el = document.getElementById('dmMessages');
+  if (el) setTimeout(() => { el.scrollTop = el.scrollHeight; }, 100);
+}
+
+// iOS Visual Viewport API — keep compose bar above keyboard
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', () => {
+    const page = document.getElementById('dmPage');
+    if (!page || !page.classList.contains('sub-page--open')) return;
+    const bar = document.getElementById('dmComposeBar');
+    if (!bar) return;
+    const offsetFromBottom = window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop;
+    bar.style.paddingBottom = Math.max(12, offsetFromBottom) + 'px';
+  });
+}
