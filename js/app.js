@@ -187,7 +187,9 @@ function bottomNavMessages(btn) {
   closeSubPage('leaderboardPage');
   closeOverlay('modalOverlay');
   closeOverlay('pubProfileOverlay');
-  closeProfile();
+  // Close profile instantly (no slide) so it doesn't clash with dmPage sliding in
+  const pp = document.getElementById('profilePage');
+  if (pp) { pp.classList.remove('profile-page--open'); pp.style.display = 'none'; }
   openDmInbox();
 }
 
@@ -199,7 +201,9 @@ function bottomNavProfile(btn) {
   closeSubPage('leaderboardPage');
   closeOverlay('modalOverlay');
   closeOverlay('pubProfileOverlay');
-  closeSubPage('dmPage');
+  // Close dmPage instantly so it doesn't clash with profile sliding in
+  const dp = document.getElementById('dmPage');
+  if (dp) { dp.classList.remove('sub-page--open'); dp.style.display = 'none'; }
   if (dmState.subscription) { dmState.subscription.unsubscribe(); dmState.subscription = null; }
   if (currentUser) openProfile();
   else openAuth('signin');
@@ -1300,6 +1304,23 @@ function openProfileSettings() {
         </label>
       </div>
 
+      <div class="p-section">
+        <div class="p-section-title">Feedback & Data Issues</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <select class="field" id="pFeedbackType" style="font-size:14px">
+            <option value="">Select a reason…</option>
+            <option value="wrong_data">Restaurant/venue data is wrong</option>
+            <option value="missing_venue">Missing a venue</option>
+            <option value="hours_wrong">Happy hour hours are incorrect</option>
+            <option value="bug">App bug or issue</option>
+            <option value="suggestion">Feature suggestion</option>
+            <option value="other">Other</option>
+          </select>
+          <textarea class="field" id="pFeedbackText" placeholder="Tell us what's wrong or what you'd like to see…" style="min-height:80px;resize:none;font-size:14px"></textarea>
+          <button class="btn-save-sm" style="width:100%;padding:12px" onclick="submitFeedback()">Send Feedback</button>
+        </div>
+      </div>
+
       <button onclick="authSignOut().then(()=>{this.closest('.overlay').remove();closeProfile();})"
         style="width:100%;margin-top:8px;padding:13px;border-radius:12px;border:1.5px solid #e53935;background:none;color:#e53935;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;cursor:pointer;">
         Sign Out
@@ -1324,6 +1345,31 @@ function openProfileSettings() {
       });
     });
   }
+}
+
+async function submitFeedback() {
+  const type = document.getElementById('pFeedbackType')?.value;
+  const text = (document.getElementById('pFeedbackText')?.value || '').trim();
+  if (!type) { showToast('Please select a feedback type'); return; }
+  if (!text) { showToast('Please describe the issue'); return; }
+  const btn = document.querySelector('#pFeedbackText + button') ||
+              document.querySelector('[onclick="submitFeedback()"]');
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
+  try {
+    await db.from('feedback').insert({
+      user_id: currentUser?.id || null,
+      type,
+      text,
+      url: window.location.href,
+      created_at: new Date().toISOString(),
+    });
+    document.getElementById('pFeedbackType').value = '';
+    document.getElementById('pFeedbackText').value = '';
+    showToast('✓ Feedback sent — thank you!');
+  } catch(e) {
+    showToast('❌ Could not send feedback');
+  }
+  if (btn) { btn.disabled = false; btn.textContent = 'Send Feedback'; }
 }
 
 async function pickBannerColor(color, btn) {
