@@ -485,32 +485,32 @@
 
 <!-- HERO -->
 <div class="hero">
-  <div class="hero-eyebrow">🍻 For Bar & Restaurant Owners</div>
-  <h1>Get found by locals<br>looking to go out <span>tonight</span></h1>
-  <p class="hero-sub">Spotd puts your happy hour in front of thousands of people actively searching for somewhere to go right now. Free to list. Takes 5 minutes.</p>
+  <div class="hero-eyebrow" id="copy-biz-eyebrow">🍻 For Bar & Restaurant Owners</div>
+  <h1 id="copy-biz-title">Get found by locals<br>looking to go out <span>tonight</span></h1>
+  <p class="hero-sub" id="copy-biz-sub">Spotd puts your happy hour in front of thousands of people actively searching for somewhere to go right now. Free to list. Takes 5 minutes.</p>
   <div class="hero-actions">
-    <a href="/business.html" class="btn-hero">List my venue free →</a>
+    <a href="/business.html" class="btn-hero" id="copy-biz-cta">List my venue free →</a>
     <a href="#how-it-works" class="hero-link">See how it works ↓</a>
   </div>
   <div class="hero-stats">
     <div class="stat">
-      <div class="stat-num">85<span>+</span></div>
-      <div class="stat-label">San Diego venues</div>
+      <div class="stat-num" id="copy-biz-stat1num">85<span>+</span></div>
+      <div class="stat-label" id="copy-biz-stat1label">San Diego venues</div>
     </div>
     <div class="stat-sep"></div>
     <div class="stat">
-      <div class="stat-num">6</div>
-      <div class="stat-label">Cities &amp; growing</div>
+      <div class="stat-num" id="copy-biz-stat2num">6</div>
+      <div class="stat-label" id="copy-biz-stat2label">Cities &amp; growing</div>
     </div>
     <div class="stat-sep"></div>
     <div class="stat">
-      <div class="stat-num">5<span>min</span></div>
-      <div class="stat-label">To get listed</div>
+      <div class="stat-num" id="copy-biz-stat3num">5<span>min</span></div>
+      <div class="stat-label" id="copy-biz-stat3label">To get listed</div>
     </div>
     <div class="stat-sep"></div>
     <div class="stat">
-      <div class="stat-num">$<span>0</span></div>
-      <div class="stat-label">To get started</div>
+      <div class="stat-num" id="copy-biz-stat4num">$<span>0</span></div>
+      <div class="stat-label" id="copy-biz-stat4label">To get started</div>
     </div>
   </div>
 </div>
@@ -755,5 +755,33 @@
   }
 </script>
 
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+(async function() {
+  try {
+    const _sb = supabase.createClient(
+      'https://opcskuzbdfrlnyhraysk.supabase.co',
+      'sb_publishable_M97B-GmwsRF6xPVahp_ytw_49nI9igs'
+    );
+    const { data } = await _sb.from('site_copy').select('key,value').eq('page','business');
+    if (!data?.length) return;
+    const map = Object.fromEntries(data.map(r => [r.key, r.value]));
+    const set = (id, val) => { const el = document.getElementById(id); if (el && val) el.innerHTML = val; };
+    set('copy-biz-eyebrow',    map.hero_eyebrow);
+    set('copy-biz-title',      map.hero_title);
+    set('copy-biz-sub',        map.hero_sub);
+    set('copy-biz-cta',        map.cta_btn);
+    set('copy-biz-stat1num',   map.stat1_num);
+    set('copy-biz-stat1label', map.stat1_label);
+    set('copy-biz-stat2num',   map.stat2_num);
+    set('copy-biz-stat2label', map.stat2_label);
+    set('copy-biz-stat3num',   map.stat3_num);
+    set('copy-biz-stat3label', map.stat3_label);
+    set('copy-biz-stat4num',   map.stat4_num);
+    set('copy-biz-stat4label', map.stat4_label);
+  } catch(e) {}
+})();
+</script>
 </body>
 </html>
