@@ -2568,11 +2568,13 @@ async function dmLoadInbox() {
       .select('id, is_group, name, updated_at')
       .in('id', convoIds)
       .order('updated_at', { ascending: false });
+    console.log('dmLoadInbox step2:', { convos, e2 });
     if (e2) throw e2;
 
     // Step 3: get all participants via security definer function
     const { data: allParts, error: e3 } = await db
       .rpc('get_conversation_participants', { convo_ids: convoIds });
+    console.log('dmLoadInbox step3:', { allParts, e3 });
     if (e3) throw e3;
 
     // Step 4: get last message per convo
@@ -2581,6 +2583,7 @@ async function dmLoadInbox() {
       .select('conversation_id, sender_id, body, msg_type, created_at')
       .in('conversation_id', convoIds)
       .order('created_at', { ascending: false });
+    console.log('dmLoadInbox step4:', { lastMsgs, e4 });
     if (e4) throw e4;
 
     // Group last messages by convo
