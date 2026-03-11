@@ -1097,11 +1097,6 @@ async function renderProfile(user) {
 
   document.getElementById('profileContent').innerHTML = `
     <div class="my-profile-banner" id="myBanner" style="background: linear-gradient(135deg, ${bannerColor} 0%, ${bannerColor}cc 55%, ${bannerColor}88 100%);">
-      <button class="profile-settings-btn" onclick="openProfileSettings()" title="Settings">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-        </svg>
-      </button>
       <div class="my-avatar-wrap banner-avatar-wrap">
         <div class="my-avatar" id="myAvatar" onclick="toggleAvatarPicker()" title="Change avatar">${avatar}</div>
         <div class="avatar-picker" id="avatarPicker" style="display:none">
@@ -1110,8 +1105,20 @@ async function renderProfile(user) {
       </div>
     </div>
     <div class="my-profile-body">
-      <div class="my-name">${esc(displayName)}</div>
-      <div class="profile-email">${esc(user.email)}</div>
+      <div class="my-profile-name-row">
+        <div>
+          <div class="my-name">${esc(displayName)}</div>
+          <div class="profile-email">${esc(user.email)}</div>
+        </div>
+        <div class="my-profile-btns">
+          <button class="profile-icon-btn" onclick="shareSpotd()" title="Share">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+          </button>
+          <button class="profile-icon-btn" onclick="openProfileSettings()" title="Settings">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          </button>
+        </div>
+      </div>
       ${badges.length ? `<div class="pub-badges">${badges.map(b => {
         const def = BADGE_DEFS[b.badge_key] || {};
         return '<span class="badge-chip" onclick="showBadgeInfo(\'' + b.badge_key + '\')">' + (def.emoji||'🏅') + ' ' + (def.label||b.badge_key) + '</span>';
@@ -1123,14 +1130,6 @@ async function renderProfile(user) {
         <div class="my-stat" onclick="openFindPeople()" style="cursor:pointer"><span id="stat-following">${following.length}</span>Following</div>
         <div class="my-stat" onclick="showFollowersList()" style="cursor:pointer"><span id="stat-followers">${followers.length}</span>Followers</div>
       </div>
-    </div>
-
-    <div class="profile-invite-banner" onclick="shareSpotd()" style="background:#FF6B4A;border-radius:14px;padding:14px 16px;margin:16px 0 8px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;">
-      <div class="profile-invite-text" style="display:flex;flex-direction:column;gap:2px;">
-        <span class="profile-invite-title" style="font-size:14px;font-weight:800;color:#fff;">Invite friends to Spotd</span>
-        <span class="profile-invite-sub" style="font-size:12px;color:rgba(255,255,255,0.85);">Share your favorite spots</span>
-      </div>
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
     </div>
 
     <div class="profile-section-picker">
