@@ -2059,7 +2059,7 @@
     });
 
     try {
-      const r = await fetch(`${SUPABASE_URL}/rest/v1/site_copy`, {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/site_copy?on_conflict=page,key`, {
         method: 'POST',
         headers: { ...svcHeaders(), 'Prefer': 'resolution=merge-duplicates,return=minimal' },
         body: JSON.stringify(rows)
