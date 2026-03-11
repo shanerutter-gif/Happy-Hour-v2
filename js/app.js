@@ -3160,10 +3160,15 @@ function dmScrollToBottom() {
 if (window.visualViewport) {
   window.visualViewport.addEventListener('resize', () => {
     const page = document.getElementById('dmPage');
-    if (!page?.classList.contains('sub-page--open')) return;
+    if (!page?.classList.contains('dm-page--open')) return;
     const bar = document.getElementById('dmComposeBar');
     if (!bar) return;
-    const offset = window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop;
-    bar.style.paddingBottom = Math.max(12, offset) + 'px';
+    // Pin compose bar above keyboard
+    const keyboardHeight = window.innerHeight - window.visualViewport.height;
+    bar.style.transform = keyboardHeight > 50
+      ? `translateY(-${keyboardHeight}px)`
+      : '';
+    bar.style.paddingBottom = keyboardHeight > 50 ? '12px' : '';
+    dmScrollToBottom();
   });
 }
