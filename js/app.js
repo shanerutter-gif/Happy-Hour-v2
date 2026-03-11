@@ -1128,7 +1128,7 @@ async function renderProfile(user) {
     <div class="profile-invite-banner" onclick="shareSpotd()">
       <div class="profile-invite-text">
         <span class="profile-invite-title">Invite friends to Spotd</span>
-        <span class="profile-invite-sub">Share your favorite happy hours</span>
+        <span class="profile-invite-sub">Share your favorite spots</span>
       </div>
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
     </div>
@@ -1721,7 +1721,7 @@ function starHTML(rating, max=5, size=13) { return Array.from({length:max},(_,i)
 function fmtDate(iso)      { return new Date(iso).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }
 function showToast(msg)    { document.querySelectorAll('.toast').forEach(t=>t.remove()); const t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),2600); }
 function shareSpotd() {
-  const text = 'Find the best happy hours near you 🍺';
+  const text = 'Discover the best spots near you 🍺';
   const url  = 'https://spotd.biz';
   if (navigator.share) {
     navigator.share({ title: 'Spotd', text, url }).catch(() => {});
@@ -2568,7 +2568,7 @@ async function dmLoadInbox() {
       .eq('user_id', currentUser.id);
     if (e1) throw e1;
     if (!myParts?.length) {
-      list.innerHTML = '<div class="dm-empty-state"><div class="dm-empty-icon">💬</div><div class="dm-empty-title">No messages yet</div><div class="dm-empty-sub">Chat with fellow Spotd users<br>about your favorite happy hours</div><button class="dm-invite-btn" onclick="shareSpotd()"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"18\" cy=\"5\" r=\"3\"/><circle cx=\"6\" cy=\"12\" r=\"3\"/><circle cx=\"18\" cy=\"19\" r=\"3\"/><line x1=\"8.59\" y1=\"13.51\" x2=\"15.42\" y2=\"17.49\"/><line x1=\"15.41\" y1=\"6.51\" x2=\"8.59\" y2=\"10.49\"/></svg> Invite a Friend to Spotd</button></div>';
+      list.innerHTML = '<div class="dm-empty-state"><div class="dm-empty-icon">💬</div><div class="dm-empty-title">No messages yet</div><div class="dm-empty-sub">Chat with fellow Spotd users<br>about your favorite spots</div><button class="dm-invite-btn" onclick="shareSpotd()"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"18\" cy=\"5\" r=\"3\"/><circle cx=\"6\" cy=\"12\" r=\"3\"/><circle cx=\"18\" cy=\"19\" r=\"3\"/><line x1=\"8.59\" y1=\"13.51\" x2=\"15.42\" y2=\"17.49\"/><line x1=\"15.41\" y1=\"6.51\" x2=\"8.59\" y2=\"10.49\"/></svg> Invite a Friend to Spotd</button></div>';
       dmUpdateBadge(0); return;
     }
 
@@ -2669,7 +2669,7 @@ async function dmLoadInbox() {
       }
     });
 
-    list.innerHTML = rows.join('') || '<div class="dm-empty-state"><div class="dm-empty-icon">💬</div><div class="dm-empty-title">No messages yet</div><div class="dm-empty-sub">Chat with fellow Spotd users<br>about your favorite happy hours</div><button class="dm-invite-btn" onclick="shareSpotd()"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"18\" cy=\"5\" r=\"3\"/><circle cx=\"6\" cy=\"12\" r=\"3\"/><circle cx=\"18\" cy=\"19\" r=\"3\"/><line x1=\"8.59\" y1=\"13.51\" x2=\"15.42\" y2=\"17.49\"/><line x1=\"15.41\" y1=\"6.51\" x2=\"8.59\" y2=\"10.49\"/></svg> Invite a Friend to Spotd</button></div>';
+    list.innerHTML = rows.join('') || '<div class="dm-empty-state"><div class="dm-empty-icon">💬</div><div class="dm-empty-title">No messages yet</div><div class="dm-empty-sub">Chat with fellow Spotd users<br>about your favorite spots</div><button class="dm-invite-btn" onclick="shareSpotd()"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"18\" cy=\"5\" r=\"3\"/><circle cx=\"6\" cy=\"12\" r=\"3\"/><circle cx=\"18\" cy=\"19\" r=\"3\"/><line x1=\"8.59\" y1=\"13.51\" x2=\"15.42\" y2=\"17.49\"/><line x1=\"15.41\" y1=\"6.51\" x2=\"8.59\" y2=\"10.49\"/></svg> Invite a Friend to Spotd</button></div>';
     dmUpdateBadge(totalUnread);
     console.log('dmLoadInbox done, rows:', rows.length);
   } catch(e) {
@@ -3062,7 +3062,7 @@ async function dmDeleteConvo(convoId) {
   document.getElementById(`dmrow-${convoId}`)?.remove();
   const list = document.getElementById('dmThreadList');
   if (!list?.children.length) {
-    list.innerHTML = '<div class="dm-empty-state"><div class="dm-empty-icon">💬</div><div class="dm-empty-title">No messages yet</div><div class="dm-empty-sub">Chat with fellow Spotd users<br>about your favorite happy hours</div><button class="dm-invite-btn" onclick="shareSpotd()"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"18\" cy=\"5\" r=\"3\"/><circle cx=\"6\" cy=\"12\" r=\"3\"/><circle cx=\"18\" cy=\"19\" r=\"3\"/><line x1=\"8.59\" y1=\"13.51\" x2=\"15.42\" y2=\"17.49\"/><line x1=\"15.41\" y1=\"6.51\" x2=\"8.59\" y2=\"10.49\"/></svg> Invite a Friend to Spotd</button></div>';
+    list.innerHTML = '<div class="dm-empty-state"><div class="dm-empty-icon">💬</div><div class="dm-empty-title">No messages yet</div><div class="dm-empty-sub">Chat with fellow Spotd users<br>about your favorite spots</div><button class="dm-invite-btn" onclick="shareSpotd()"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"18\" cy=\"5\" r=\"3\"/><circle cx=\"6\" cy=\"12\" r=\"3\"/><circle cx=\"18\" cy=\"19\" r=\"3\"/><line x1=\"8.59\" y1=\"13.51\" x2=\"15.42\" y2=\"17.49\"/><line x1=\"15.41\" y1=\"6.51\" x2=\"8.59\" y2=\"10.49\"/></svg> Invite a Friend to Spotd</button></div>';
   }
   showToast('Conversation removed');
 }
