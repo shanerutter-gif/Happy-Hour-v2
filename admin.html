@@ -200,6 +200,39 @@
       .deal-row input { font-size:16px; }
       .toast { bottom:80px; }
     }
+
+    /* ── KPI Grid ── */
+    .kpi-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:14px; margin-top:8px; }
+    .kpi-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:20px 18px; }
+    .kpi-label { font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); font-weight:600; margin-bottom:8px; }
+    .kpi-value { font-family:'Cabinet Grotesk',sans-serif; font-size:32px; font-weight:900; color:var(--coral); line-height:1; margin-bottom:4px; }
+    .kpi-sub { font-size:11px; color:var(--muted); }
+
+    /* ── Section header ── */
+    .section-header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:16px; }
+    .section-title { font-family:'Cabinet Grotesk',sans-serif; font-size:18px; font-weight:800; }
+
+    /* ── Users Table ── */
+    .users-table-wrap { overflow-x:auto; border:1px solid var(--border); border-radius:14px; background:var(--card); }
+    .users-table { width:100%; border-collapse:collapse; font-size:13px; }
+    .users-table thead { background:var(--bg2); }
+    .users-table th { padding:11px 14px; text-align:left; font-size:10px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); font-weight:700; white-space:nowrap; border-bottom:1px solid var(--border); }
+    .users-table td { padding:12px 14px; border-bottom:1px solid var(--border); vertical-align:middle; }
+    .users-table tbody tr:last-child td { border-bottom:none; }
+    .users-table tbody tr:hover { background:var(--bg2); }
+    .user-cell { display:flex; align-items:center; gap:10px; }
+    .user-avatar { width:32px; height:32px; border-radius:50%; background:rgba(255,107,74,0.1); display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; }
+    .user-name { font-weight:600; font-size:13px; line-height:1.2; }
+    .user-email { font-size:11px; color:var(--muted); }
+    .badge-type { display:inline-block; padding:3px 9px; border-radius:100px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; }
+    .badge-consumer { background:rgba(255,107,74,0.1); color:var(--coral); }
+    .badge-business { background:rgba(42,122,90,0.1); color:var(--success); }
+    .badge-sms-on  { background:rgba(42,122,90,0.1); color:var(--success); font-size:11px; }
+    .badge-sms-off { color:var(--muted); font-size:16px; }
+    .table-empty { text-align:center; padding:32px; color:var(--muted); font-size:14px; }
+    .page-btn { padding:6px 12px; border:1px solid var(--border); border-radius:7px; background:var(--card); font-size:12px; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all .15s; }
+    .page-btn:hover { border-color:var(--coral); color:var(--coral); }
+    .page-btn.active { background:var(--coral); color:#fff; border-color:var(--coral); }
   </style>
 </head>
 <body>
@@ -251,6 +284,10 @@
       <span class="nav-icon">📍</span>
       Venues
     </button>
+    <button class="mobile-nav-item" id="mob-nav-users" onclick="showPage('users')">
+      <span class="nav-icon">👥</span>
+      Users
+    </button>
     <button class="mobile-nav-item" id="mob-nav-demo" onclick="showPage('demo')">
       <span class="nav-icon">🎭</span>
       Demo
@@ -273,6 +310,10 @@
       <div class="sidebar-label" style="margin-top:20px;margin-bottom:8px">Listings</div>
       <div class="sidebar-item" onclick="showPage('venues')" id="nav-venues">
         All Venues
+      </div>
+      <div class="sidebar-label" style="margin-top:20px;margin-bottom:8px">Users</div>
+      <div class="sidebar-item" onclick="showPage('users')" id="nav-users">
+        User Analytics
       </div>
       <div class="sidebar-label" style="margin-top:20px;margin-bottom:8px">Tools</div>
       <div class="sidebar-item" onclick="showPage('demo')" id="nav-demo">
@@ -321,6 +362,84 @@
         </div>
         <div id="venues-list-count" style="font-family:'DM Sans',sans-serif;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:14px"></div>
         <div id="venues-list"></div>
+      </div>
+
+      <!-- USERS PAGE -->
+      <div class="page" id="page-users">
+        <div class="page-title">User Analytics</div>
+        <div class="page-sub">Overview of your user base, growth, and engagement.</div>
+
+        <!-- KPI cards -->
+        <div class="kpi-grid" id="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-label">Total Users</div>
+            <div class="kpi-value" id="kpi-total">—</div>
+            <div class="kpi-sub" id="kpi-total-sub"></div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Consumer Users</div>
+            <div class="kpi-value" id="kpi-consumers">—</div>
+            <div class="kpi-sub">Signed up via app</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Business Users</div>
+            <div class="kpi-value" id="kpi-business">—</div>
+            <div class="kpi-sub">Venue claim requests</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">SMS Opted In</div>
+            <div class="kpi-value" id="kpi-sms">—</div>
+            <div class="kpi-sub">Marketing consent given</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">New This Week</div>
+            <div class="kpi-value" id="kpi-week">—</div>
+            <div class="kpi-sub">Last 7 days</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">With Phone #</div>
+            <div class="kpi-value" id="kpi-phones">—</div>
+            <div class="kpi-sub">Contactable users</div>
+          </div>
+        </div>
+
+        <!-- Breakdown table -->
+        <div class="section-header" style="margin-top:32px">
+          <div class="section-title">User Breakdown</div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <input class="venue-search-input" id="user-search" type="text" placeholder="Search name or email…" oninput="filterUserTable()" style="max-width:220px">
+            <select class="venue-search-input" id="user-type-filter" onchange="filterUserTable()" style="max-width:160px">
+              <option value="">All types</option>
+              <option value="consumer">Consumer</option>
+              <option value="business">Business</option>
+            </select>
+            <select class="venue-search-input" id="user-sms-filter" onchange="filterUserTable()" style="max-width:160px">
+              <option value="">All users</option>
+              <option value="sms">SMS opted-in</option>
+              <option value="phone">Has phone #</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="users-table-wrap">
+          <table class="users-table" id="users-table">
+            <thead>
+              <tr>
+                <th>User</th>
+                <th>Type</th>
+                <th>Phone</th>
+                <th>SMS</th>
+                <th>Check-ins</th>
+                <th>Reviews</th>
+                <th>Joined</th>
+              </tr>
+            </thead>
+            <tbody id="users-tbody">
+              <tr><td colspan="7" class="table-empty">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div id="users-pagination" style="display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:14px;font-size:13px;color:var(--muted)"></div>
       </div>
 
       <!-- DEMO DATA PAGE -->
@@ -988,7 +1107,133 @@
     document.getElementById('nav-'+page)?.classList.add('active');
     document.getElementById('mob-nav-'+page)?.classList.add('active');
     if (page === 'venues') loadVenues();
+    if (page === 'users')  loadUsers();
   }
+
+  // ── USERS PAGE ────────────────────────────────────────
+  let _allUsers = [];
+  let _userPage = 1;
+  const USER_PAGE_SIZE = 25;
+
+  async function loadUsers() {
+    const tbody = document.getElementById('users-tbody');
+    tbody.innerHTML = '<tr><td colspan="7" class="table-empty">Loading…</td></tr>';
+
+    try {
+      // Fetch profiles (includes phone, sms_consent, display_name, avatar_emoji)
+      const profiles = await supabase.get('profiles', 'select=id,display_name,avatar_emoji,phone,sms_consent,created_at,bio&limit=1000');
+
+      // Fetch business requests to identify business users
+      const bizReqs = await supabase.get('venue_requests', 'select=user_id,status&limit=1000');
+      const bizUserIds = new Set((bizReqs || []).map(r => r.user_id).filter(Boolean));
+
+      // Fetch check-in counts
+      const checkins = await supabase.get('checkins', 'select=user_id&limit=5000');
+      const checkinMap = {};
+      (checkins || []).forEach(c => { checkinMap[c.user_id] = (checkinMap[c.user_id] || 0) + 1; });
+
+      // Fetch review counts
+      const reviews = await supabase.get('reviews', 'select=user_id&limit=5000');
+      const reviewMap = {};
+      (reviews || []).forEach(r => { reviewMap[r.user_id] = (reviewMap[r.user_id] || 0) + 1; });
+
+      // Merge
+      _allUsers = (profiles || []).map(p => ({
+        ...p,
+        isBusiness: bizUserIds.has(p.id),
+        checkins: checkinMap[p.id] || 0,
+        reviews: reviewMap[p.id] || 0,
+      }));
+
+      // KPIs
+      const now = new Date();
+      const weekAgo = new Date(now - 7 * 864e5);
+      document.getElementById('kpi-total').textContent     = _allUsers.length;
+      document.getElementById('kpi-total-sub').textContent = `across all cities`;
+      document.getElementById('kpi-consumers').textContent = _allUsers.filter(u => !u.isBusiness).length;
+      document.getElementById('kpi-business').textContent  = _allUsers.filter(u => u.isBusiness).length;
+      document.getElementById('kpi-sms').textContent       = _allUsers.filter(u => u.sms_consent).length;
+      document.getElementById('kpi-week').textContent      = _allUsers.filter(u => new Date(u.created_at) >= weekAgo).length;
+      document.getElementById('kpi-phones').textContent    = _allUsers.filter(u => u.phone).length;
+
+      _userPage = 1;
+      renderUserTable();
+    } catch(e) {
+      tbody.innerHTML = `<tr><td colspan="7" class="table-empty">Error loading users: ${e.message}</td></tr>`;
+    }
+  }
+
+  function getFilteredUsers() {
+    const search  = (document.getElementById('user-search')?.value || '').toLowerCase();
+    const type    = document.getElementById('user-type-filter')?.value || '';
+    const smsF    = document.getElementById('user-sms-filter')?.value || '';
+    return _allUsers.filter(u => {
+      if (search && !((u.display_name||'').toLowerCase().includes(search))) return false;
+      if (type === 'business' && !u.isBusiness) return false;
+      if (type === 'consumer' && u.isBusiness)  return false;
+      if (smsF === 'sms'   && !u.sms_consent)  return false;
+      if (smsF === 'phone' && !u.phone)         return false;
+      return true;
+    });
+  }
+
+  function filterUserTable() { _userPage = 1; renderUserTable(); }
+
+  function renderUserTable() {
+    const filtered = getFilteredUsers();
+    const total = filtered.length;
+    const pages = Math.max(1, Math.ceil(total / USER_PAGE_SIZE));
+    _userPage = Math.min(_userPage, pages);
+    const slice = filtered.slice((_userPage-1)*USER_PAGE_SIZE, _userPage*USER_PAGE_SIZE);
+
+    const tbody = document.getElementById('users-tbody');
+    if (!slice.length) {
+      tbody.innerHTML = '<tr><td colspan="7" class="table-empty">No users match your filters</td></tr>';
+    } else {
+      tbody.innerHTML = slice.map(u => {
+        const joined = u.created_at ? new Date(u.created_at).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }) : '—';
+        const typeBadge = u.isBusiness
+          ? '<span class="badge-type badge-business">Business</span>'
+          : '<span class="badge-type badge-consumer">Consumer</span>';
+        const smsBadge = u.sms_consent
+          ? '<span class="badge-sms-on">✓ Yes</span>'
+          : '<span class="badge-sms-off">—</span>';
+        return `<tr>
+          <td><div class="user-cell">
+            <div class="user-avatar">${u.avatar_emoji || '🍺'}</div>
+            <div>
+              <div class="user-name">${escHtml(u.display_name || 'Unnamed')}</div>
+            </div>
+          </div></td>
+          <td>${typeBadge}</td>
+          <td style="font-family:'DM Mono',monospace;font-size:12px">${u.phone ? escHtml(u.phone) : '<span style="color:var(--muted)">—</span>'}</td>
+          <td>${smsBadge}</td>
+          <td style="font-weight:600">${u.checkins}</td>
+          <td style="font-weight:600">${u.reviews}</td>
+          <td style="color:var(--muted);font-size:12px">${joined}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    // Pagination
+    const pag = document.getElementById('users-pagination');
+    if (pages <= 1) { pag.innerHTML = `<span>${total} user${total!==1?'s':''}</span>`; return; }
+    let html = `<span style="margin-right:8px">${total} users</span>`;
+    html += `<button class="page-btn" onclick="goUserPage(${_userPage-1})" ${_userPage<=1?'disabled':''}>‹</button>`;
+    for (let i = 1; i <= pages; i++) {
+      if (i===1 || i===pages || Math.abs(i-_userPage)<=1)
+        html += `<button class="page-btn${i===_userPage?' active':''}" onclick="goUserPage(${i})">${i}</button>`;
+      else if (Math.abs(i-_userPage)===2)
+        html += `<span style="padding:0 4px">…</span>`;
+    }
+    html += `<button class="page-btn" onclick="goUserPage(${_userPage+1})" ${_userPage>=pages?'disabled':''}>›</button>`;
+    pag.innerHTML = html;
+  }
+
+  function goUserPage(p) { _userPage = p; renderUserTable(); document.getElementById('page-users').scrollTop = 0; }
+
+  function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
 
   function handleLogout() {
     localStorage.removeItem(LS_KEY);
