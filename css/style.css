@@ -913,8 +913,11 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 .dm-back-btn { background:none; border:none; color:var(--teal); font-size:14px; font-weight:700; cursor:pointer; padding:4px 8px; }
 .dm-pane { display:flex; flex-direction:column; flex:1; min-height:0; overflow:hidden; }
 .dm-thread-list { flex:1; overflow-y:auto; padding:8px 0; }
-.dm-thread-row { display:flex; align-items:center; gap:12px; padding:12px 16px; cursor:pointer; transition:background .15s; }
+.dm-thread-row { display:flex; align-items:center; padding:0 16px; transition:background .15s; }
 .dm-thread-row:hover { background:var(--bg2); }
+.dm-thread-main { display:flex; align-items:center; gap:12px; flex:1; padding:12px 0; cursor:pointer; min-width:0; }
+.dm-thread-delete { background:none; border:none; font-size:18px; padding:12px 0 12px 8px; cursor:pointer; opacity:0; transition:opacity .2s; flex-shrink:0; }
+.dm-thread-row:hover .dm-thread-delete { opacity:1; }
 .dm-thread-avatar { font-size:28px; flex-shrink:0; width:44px; height:44px; display:flex; align-items:center; justify-content:center; background:var(--bg2); border-radius:50%; }
 .dm-thread-info { flex:1; min-width:0; }
 .dm-thread-name { font-weight:700; font-size:14px; display:flex; align-items:center; gap:6px; }
@@ -936,7 +939,8 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 .dm-send-btn:active { opacity:.85; }
 .dm-empty { text-align:center; color:var(--muted); font-size:14px; padding:40px 20px; line-height:1.6; }
 .dm-loading { text-align:center; color:var(--muted); font-size:14px; padding:30px; }
-.bn-badge { display:inline-flex; align-items:center; justify-content:center; background:var(--coral); color:#fff; font-size:9px; font-weight:800; min-width:16px; height:16px; border-radius:10px; padding:0 4px; margin-left:3px; vertical-align:middle; }
+.bn-badge { display:inline-flex; align-items:center; justify-content:center; background:#e53935; color:#fff; font-size:9px; font-weight:800; min-width:16px; height:16px; border-radius:10px; padding:0 4px; margin-left:3px; vertical-align:middle; animation: badge-pop .3s ease; }
+@keyframes badge-pop { 0%{transform:scale(0)} 70%{transform:scale(1.3)} 100%{transform:scale(1)} }
 .pub-action-row { display:flex; gap:10px; margin:12px 0; }
 .pub-action-row .pub-follow-btn { flex:1; margin:0; }
 .pub-dm-btn { flex:1; padding:11px; background:transparent; border:1.5px solid var(--teal); border-radius:10px; font-weight:700; font-size:14px; cursor:pointer; color:var(--teal); font-family:'DM Sans',sans-serif; transition:all .15s; text-align:center; }
