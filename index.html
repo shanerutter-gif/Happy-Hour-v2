@@ -69,7 +69,11 @@
 <div id="appPage" class="app-page" style="display:none">
 
   <div class="city-bar" id="cityBar">
-    <button class="city-back" onclick="showHome()">← All Cities</button>
+    <button class="city-back-logo" onclick="showHome()" title="Back to home">
+      <img src="/spotd_logo_v5.png" alt="Spotd" class="city-back-logo-img"
+        onerror="this.style.display='none';this.nextElementSibling.style.display='inline'">
+      <span class="city-back-logo-fallback" style="display:none">Spotd</span>
+    </button>
     <div class="city-bar-name" id="cityBarName"></div>
   </div>
 
