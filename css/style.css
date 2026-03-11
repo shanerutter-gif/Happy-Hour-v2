@@ -4,6 +4,9 @@
    Font: Cabinet Grotesk (display) · DM Sans (body)
    ═══════════════════════════════════════════════════════ */
 
+/* Prevent iOS auto-zoom on input focus (requires font-size >= 16px) */
+input, textarea, select { font-size: 16px; }
+
 :root {
   --bg:#F5EFE6; --bg2:#EDE5D8; --card:#FFFFFF; --card2:#FAF5EE;
   --teal:#FF6B4A; --teal-dk:#E5543A; --teal-lt:#FF8566;
@@ -927,7 +930,7 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 .dm-msg--theirs .dm-bubble { background:var(--bg2); color:var(--text); border-bottom-left-radius:4px; }
 .dm-msg-time { font-size:10px; color:var(--muted); margin-top:3px; }
 .dm-compose { display:flex; gap:8px; padding:10px 12px; padding-bottom:calc(10px + env(safe-area-inset-bottom, 0px)); border-top:1px solid var(--border); flex-shrink:0; background:var(--card); }
-.dm-input { flex:1; background:var(--bg2); border:1.5px solid var(--border2); border-radius:22px; padding:10px 16px; font-size:14px; color:var(--text); font-family:'Cabinet Grotesk',sans-serif; outline:none; min-width:0; }
+.dm-input { flex:1; background:var(--bg2); border:1.5px solid var(--border2); border-radius:22px; padding:10px 16px; font-size:16px; color:var(--text); font-family:'Cabinet Grotesk',sans-serif; outline:none; min-width:0; }
 .dm-input:focus { border-color:var(--teal); }
 .dm-send-btn { background:var(--teal); color:#fff; border:none; border-radius:22px; padding:10px 18px; font-weight:800; font-size:14px; cursor:pointer; font-family:'Cabinet Grotesk',sans-serif; white-space:nowrap; flex-shrink:0; }
 .dm-send-btn:active { opacity:.85; }
