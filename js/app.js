@@ -1065,27 +1065,29 @@ async function renderProfile(user) {
   const AVATARS = ['🍺','🍹','🍷','🥂','🍸','🎉','🌮','🔥','🎸','🏄','🌊','🎭'];
 
   document.getElementById('profileContent').innerHTML = `
-    <div class="my-profile-header">
-      <div class="my-avatar-wrap">
+    <div class="my-profile-banner">
+      <div class="my-avatar-wrap banner-avatar-wrap">
         <div class="my-avatar" id="myAvatar" onclick="toggleAvatarPicker()" title="Change avatar">${avatar}</div>
         <div class="avatar-picker" id="avatarPicker" style="display:none">
           ${AVATARS.map(e => `<button class="avatar-opt" onclick="pickAvatar('${e}',this)">${e}</button>`).join('')}
         </div>
       </div>
+    </div>
+    <div class="my-profile-body">
       <div class="my-name">${esc(displayName)}</div>
       <div class="profile-email">${esc(user.email)}</div>
+      ${badges.length ? `<div class="pub-badges">${badges.map(b => {
+        const def = BADGE_DEFS[b.badge_key] || {};
+        return '<span class="badge-chip" onclick="showBadgeInfo(\'' + b.badge_key + '\')">' + (def.emoji||'🏅') + ' ' + (def.label||b.badge_key) + '</span>';
+      }).join('')}</div>` : ''}
       <div class="my-stats" id="myStatBar">
         <div class="my-stat" onclick="openActivityFeed()" style="cursor:pointer"><span>${checkIns.length}</span>Check-ins</div>
         <div class="my-stat"><span>${myReviews.length}</span>Reviews</div>
-        ${currentStreak >= 2 ? `<div class="my-stat streak-stat"><span>${currentStreak}🔥</span>Streak</div>` : ''}
+        ${currentStreak >= 2 ? `<div class="my-stat"><span>${currentStreak}</span>Streak</div>` : ''}
         <div class="my-stat" onclick="openFindPeople()" style="cursor:pointer"><span id="stat-following">${following.length}</span>Following</div>
-        <div class="my-stat" style="cursor:pointer"><span id="stat-followers">${followers.length}</span>Followers</div>
+        <div class="my-stat" onclick="showFollowersList()" style="cursor:pointer"><span id="stat-followers">${followers.length}</span>Followers</div>
       </div>
     </div>
-    ${badges.length ? `<div class="pub-badges">${badges.map(b => {
-      const def = BADGE_DEFS[b.badge_key] || {};
-      return '<span class="badge-chip" title="' + (def.desc||b.badge_key) + '">' + (def.emoji||'🏅') + ' ' + (def.label||b.badge_key) + '</span>';
-    }).join('')}</div>` : ''}
     <div class="pub-tabs">
       <button class="pub-tab active" onclick="switchMyTab('checkins',this)">📍 Check-ins</button>
       <button class="pub-tab" onclick="switchMyTab('reviews',this)">⭐ Reviews</button>
@@ -1189,6 +1191,59 @@ function switchMyTab(tab, btn) {
   document.querySelectorAll('.pub-tab').forEach(b => b.classList.remove('active'));
   document.getElementById('my-tab-' + tab).style.display = 'block';
   if (btn) btn.classList.add('active');
+}
+
+function showBadgeInfo(badgeKey) {
+  const def = BADGE_DEFS[badgeKey] || {};
+  const overlay = document.createElement('div');
+  overlay.className = 'overlay open';
+  overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;';
+  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+  overlay.innerHTML = `
+    <div style="background:var(--card);border-radius:20px;padding:28px 24px;max-width:300px;width:90%;text-align:center;position:relative;">
+      <button onclick="this.closest('.overlay').remove()" style="position:absolute;top:12px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);">✕</button>
+      <div style="font-size:48px;margin-bottom:12px;">${def.emoji || '🏅'}</div>
+      <div style="font-size:18px;font-weight:800;margin-bottom:8px;">${def.label || badgeKey}</div>
+      <div style="font-size:14px;color:var(--muted);line-height:1.5;">${def.desc || 'Badge earned on Spotd'}</div>
+      <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);font-size:12px;color:var(--muted);">🏆 You've earned this badge!</div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+async function showFollowersList() {
+  if (!currentUser) return;
+  const overlay = document.createElement('div');
+  overlay.className = 'overlay open';
+  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+  overlay.innerHTML = `
+    <div class="sheet" style="max-height:70vh;display:flex;flex-direction:column;">
+      <div style="font-weight:800;font-size:17px;margin-bottom:16px;">Followers</div>
+      <button class="sheet-close" onclick="this.closest('.overlay').remove()">✕</button>
+      <div id="followers-list" style="overflow-y:auto;flex:1;">
+        <div style="text-align:center;padding:20px;color:var(--muted);">Loading…</div>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  const followerIds = await getFollowers(currentUser.id);
+  const list = document.getElementById('followers-list');
+  if (!followerIds?.length) {
+    list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);">No followers yet</div>';
+    return;
+  }
+  const { data: profiles } = await db.from('profiles')
+    .select('id, display_name, avatar_emoji, username')
+    .in('id', followerIds);
+  list.innerHTML = (profiles || []).map(p => `
+    <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);cursor:pointer;"
+      onclick="this.closest('.overlay').remove();openPublicProfile('${p.id}')">
+      <div style="width:42px;height:42px;border-radius:50%;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">${p.avatar_emoji || '🍺'}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:700;font-size:14px;">${esc(p.display_name || 'Spotd User')}</div>
+        ${p.username ? `<div style="font-size:12px;color:var(--muted);">@${esc(p.username)}</div>` : ''}
+      </div>
+      <div style="color:var(--muted);font-size:18px;">›</div>
+    </div>`).join('') || '<div style="text-align:center;padding:20px;color:var(--muted);">No followers yet</div>';
 }
 function toggleAvatarPicker() {
   const p = document.getElementById('avatarPicker');
