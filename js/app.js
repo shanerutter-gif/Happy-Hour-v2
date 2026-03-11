@@ -165,15 +165,9 @@ function renderBottomNav(user) {
 }
 
 function _navHideAll(keep) {
-  if (keep !== 'dm') {
-    const dp = document.getElementById('dmPage');
-    if (dp) { dp.style.transition = 'none'; dp.classList.remove('dm-page--open'); }
-    if (dmState.subscription) { dmState.subscription.unsubscribe(); dmState.subscription = null; }
-  }
-  if (keep !== 'profile') {
-    const pp = document.getElementById('profilePage');
-    if (pp) { pp.style.transition = 'none'; pp.classList.remove('profile-page--open'); }
-  }
+  // Just remove --open; pages stay in DOM at z-index 498 (behind the incoming page at 499)
+  if (keep !== 'dm') closeDmPage();
+  if (keep !== 'profile') closeProfile();
   closeSubPage('findPeoplePage');
   closeSubPage('feedPage');
   closeSubPage('leaderboardPage');
@@ -1053,8 +1047,7 @@ const BADGE_DEFS = {
 async function openProfile() {
   if (!currentUser) { openAuth('signin'); return; }
   const page = document.getElementById('profilePage');
-  page.style.transition = '';
-  requestAnimationFrame(() => page.classList.add('profile-page--open'));
+  page.classList.add('profile-page--open');
   document.getElementById('bnProfile')?.classList.add('active');
   document.getElementById('bnFeed')?.classList.remove('active');
   await renderProfile(currentUser);
@@ -1063,7 +1056,6 @@ function closeProfile() {
   const page = document.getElementById('profilePage');
   if (!page) return;
   page.classList.remove('profile-page--open');
-  // visibility:hidden fires after transition via CSS delay — no JS timeout needed
 }
 
 function openSubPage(id) {
@@ -2521,8 +2513,7 @@ let dmState = {
 function openDmPage() {
   const page = document.getElementById('dmPage');
   if (!page) return;
-  page.style.transition = '';
-  requestAnimationFrame(() => page.classList.add('dm-page--open'));
+  page.classList.add('dm-page--open');
 }
 function closeDmPage() {
   const page = document.getElementById('dmPage');
