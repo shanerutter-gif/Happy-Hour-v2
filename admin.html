@@ -353,12 +353,7 @@
           <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px">
             <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:14px">What to Generate</div>
             <div style="display:flex;flex-direction:column;gap:8px">
-              <label style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--bg2);border-radius:8px;cursor:pointer">
-                <div>
-                  <div style="font-size:13px;font-weight:600">👤 Fake Profiles</div>
-                  <div style="font-size:11px;color:var(--muted);margin-top:1px">Names, bios, emoji avatars</div>
-                </div>
-                <input type="checkbox" id="demo-do-profiles" checked style="width:16px;height:16px;accent-color:var(--coral);cursor:pointer">
+              <label style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--bg2);border-radius:8px;cursor:pointer;display:none">
               </label>
               <label style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--bg2);border-radius:8px;cursor:pointer">
                 <div>
@@ -1067,49 +1062,25 @@
       if (!venues || !venues.length) throw new Error(`No venues found for "${citySlug}" — have you run the SQL chunks yet?`);
       const venueIds = venues.map(v => v.id);
 
-      // Build profiles
-      const profiles = [];
+      // Build fake names — no auth users needed, reviews use guest name field
+      const names = [];
       for (let i = 0; i < userCount; i++) {
         const fn = FIRST_NAMES[Math.floor(Math.random() * FIRST_NAMES.length)];
         const ln = LAST_NAMES[Math.floor(Math.random() * LAST_NAMES.length)];
-        profiles.push({
-          id: crypto.randomUUID(),
-          display_name: fn + ' ' + ln,
-          username: (fn + ln).toLowerCase().replace(/\s/g,'') + '_' + Date.now() + '_' + i,
-          avatar_emoji: EMOJIS[Math.floor(Math.random() * EMOJIS.length)],
-          bio: 'San Diego local · ' + DEMO_TAG,
-          is_public: true,
-          digest_enabled: false,
-        });
-      }
-
-      if (doProfiles) {
-        const BATCH = 100;
-        for (let i = 0; i < profiles.length; i += BATCH) {
-          demoSetProgress(10 + (i / profiles.length) * 25, `Inserting profiles ${i + 1}–${Math.min(i + BATCH, profiles.length)} of ${profiles.length}…`);
-          const r = await fetch(`${SUPABASE_URL}/rest/v1/profiles`, {
-            method: 'POST',
-            headers: { ...svcHeaders(), 'Prefer': 'return=minimal,resolution=merge-duplicates' },
-            body: JSON.stringify(profiles.slice(i, i + BATCH)),
-          });
-          if (!r.ok) {
-            const errText = await r.text();
-            console.warn('Profile batch warning:', r.status, errText);
-          }
-        }
+        names.push(fn + ' ' + ln);
       }
 
       if (doReviews) {
-        demoSetProgress(38, 'Building reviews…');
+        demoSetProgress(20, 'Building reviews…');
         const reviews = [];
-        for (const p of profiles) {
+        for (const name of names) {
           const n = Math.ceil(Math.random() * reviewsPerUser);
           const picked = [...venueIds].sort(() => Math.random() - .5).slice(0, n);
           for (const vid of picked) {
             reviews.push({
               venue_id: vid,
-              user_id: p.id,
-              name: p.display_name,
+              user_id: null,
+              name: name,
               rating: Math.floor(Math.random() * 3) + 3,
               text: Math.random() > 0.25 ? REVIEW_TEXTS[Math.floor(Math.random() * REVIEW_TEXTS.length)] : null,
             });
@@ -1117,42 +1088,42 @@
         }
         const RBATCH = 200;
         for (let i = 0; i < reviews.length; i += RBATCH) {
-          demoSetProgress(38 + (i / reviews.length) * 35, `Inserting reviews ${i + 1}–${Math.min(i + RBATCH, reviews.length)} of ${reviews.length}…`);
-          await fetch(`${SUPABASE_URL}/rest/v1/reviews`, {
+          demoSetProgress(20 + (i / reviews.length) * 60, `Inserting reviews ${i + 1}–${Math.min(i + RBATCH, reviews.length)} of ${reviews.length}…`);
+          const r = await fetch(`${SUPABASE_URL}/rest/v1/reviews`, {
             method: 'POST',
-            headers: { ...svcHeaders(), 'Prefer': 'return=minimal,resolution=merge-duplicates' },
+            headers: { ...svcHeaders(), 'Prefer': 'return=minimal' },
             body: JSON.stringify(reviews.slice(i, i + RBATCH)),
           });
+          if (!r.ok) { const e = await r.text(); console.warn('Review batch:', r.status, e); }
         }
       }
 
       if (doCheckins) {
-        demoSetProgress(75, 'Building check-ins…');
+        demoSetProgress(82, 'Building check-ins…');
         const today = new Date().toISOString().split('T')[0];
         const checkins = [];
-        const checkinUsers = profiles.filter(() => Math.random() < 0.3);
-        for (const p of checkinUsers) {
-          const n = Math.ceil(Math.random() * 2);
-          const picked = [...venueIds].sort(() => Math.random() - .5).slice(0, n);
-          for (const vid of picked) {
-            checkins.push({ user_id: p.id, venue_id: vid, city_slug: citySlug, date: today });
+        for (const vid of venueIds) {
+          const count = Math.floor(Math.random() * 8);
+          for (let j = 0; j < count; j++) {
+            checkins.push({ venue_id: vid, city_slug: citySlug, date: today });
           }
         }
         const CBATCH = 200;
         for (let i = 0; i < checkins.length; i += CBATCH) {
-          demoSetProgress(75 + (i / checkins.length) * 20, `Inserting check-ins ${i + 1}–${Math.min(i + CBATCH, checkins.length)}…`);
-          await fetch(`${SUPABASE_URL}/rest/v1/check_ins`, {
+          demoSetProgress(82 + (i / Math.max(checkins.length,1)) * 15, `Inserting check-ins…`);
+          const r = await fetch(`${SUPABASE_URL}/rest/v1/check_ins`, {
             method: 'POST',
-            headers: { ...svcHeaders(), 'Prefer': 'return=minimal,resolution=merge-duplicates' },
+            headers: { ...svcHeaders(), 'Prefer': 'return=minimal' },
             body: JSON.stringify(checkins.slice(i, i + CBATCH)),
           });
+          if (!r.ok) { const e = await r.text(); console.warn('Check-in batch:', r.status, e); }
         }
       }
 
       demoSetProgress(100, 'Done!');
-      const reviewCount = doReviews ? `~${userCount * reviewsPerUser} reviews` : '';
+      const reviewNote = doReviews ? `~${userCount * reviewsPerUser} reviews` : '';
       const checkinNote = doCheckins ? 'tonight check-ins' : '';
-      demoSetStatus(`✅ Generated ${userCount} profiles${reviewCount ? ', ' + reviewCount : ''}${checkinNote ? ', ' + checkinNote : ''} successfully`, 'success');
+      demoSetStatus(`✅ Generated ${[reviewNote, checkinNote].filter(Boolean).join(', ')} successfully`, 'success');
 
     } catch(err) {
       demoSetStatus('❌ ' + err.message, 'error');
@@ -1163,24 +1134,16 @@
   }
 
   async function clearDemoData() {
-    if (!confirm('Delete all demo profiles and their reviews/check-ins? This cannot be undone.')) return;
-    demoSetStatus('🗑 Finding demo profiles…', 'info');
+    if (!confirm('Delete all demo reviews and check-ins? This cannot be undone.')) return;
+    demoSetStatus('🗑 Clearing demo data…', 'info');
     document.getElementById('demo-progress-wrap').style.display = 'none';
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?bio=like.*${DEMO_TAG}*&select=id`, { headers: svcHeaders() });
-      const profiles = await res.json();
-      if (!profiles || !profiles.length) { demoSetStatus('Nothing to clear — no demo data found.', 'info'); return; }
-      const ids = profiles.map(p => p.id);
-      demoSetStatus(`Removing ${ids.length} demo profiles and all their data…`, 'info');
-      const BATCH = 100;
-      for (let i = 0; i < ids.length; i += BATCH) {
-        const batch = ids.slice(i, i + BATCH);
-        const idList = batch.map(id => `"${id}"`).join(',');
-        await fetch(`${SUPABASE_URL}/rest/v1/reviews?user_id=in.(${idList})`, { method: 'DELETE', headers: svcHeaders() });
-        await fetch(`${SUPABASE_URL}/rest/v1/check_ins?user_id=in.(${idList})`, { method: 'DELETE', headers: svcHeaders() });
-        await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=in.(${idList})`, { method: 'DELETE', headers: svcHeaders() });
-      }
-      demoSetStatus(`✅ Cleared ${ids.length} demo profiles and all associated data.`, 'success');
+      // Delete all reviews with null user_id (these are all demo/guest reviews)
+      const r1 = await fetch(`${SUPABASE_URL}/rest/v1/reviews?user_id=is.null`, { method: 'DELETE', headers: svcHeaders() });
+      // Delete all check_ins with null user_id
+      const r2 = await fetch(`${SUPABASE_URL}/rest/v1/check_ins?user_id=is.null`, { method: 'DELETE', headers: svcHeaders() });
+      if (!r1.ok || !r2.ok) throw new Error('Delete failed — check console');
+      demoSetStatus('✅ Cleared all demo reviews and check-ins.', 'success');
     } catch(err) {
       demoSetStatus('❌ ' + err.message, 'error');
     }
