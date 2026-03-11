@@ -263,6 +263,9 @@ async function enterCity(slug, name, stateCode) {
   // Load checked in tonight counts
   loadGoingTonight(slug);
 
+  // Bulk-load review averages so cards show ratings immediately
+  loadReviewAverages(slug);
+
   // Build filter pills
   buildFilterPills();
 
@@ -1469,6 +1472,42 @@ function openPhotoLightbox(url, name) {
 function esc(s)            { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
 // ── CHECK-INS ──────────────────────────────────────────
+async function loadReviewAverages(citySlug) {
+  try {
+    // Fetch all venue reviews in one query — just id + rating, no text needed
+    const venueIds = state.venues.map(v => v.id);
+    if (!venueIds.length) return;
+
+    // Fetch in one shot — select only what we need
+    const { data } = await db
+      .from('reviews')
+      .select('venue_id, rating')
+      .in('venue_id', venueIds);
+
+    if (!data || !data.length) return;
+
+    // Group by venue_id and build synthetic cache entries
+    const grouped = {};
+    data.forEach(r => {
+      if (!grouped[r.venue_id]) grouped[r.venue_id] = [];
+      grouped[r.venue_id].push(r);
+    });
+
+    const now = Date.now();
+    Object.entries(grouped).forEach(([vid, reviews]) => {
+      const key = `venue-${vid}`;
+      // Only populate if not already cached from a modal open
+      if (!state.reviewCache[key]) {
+        state.reviewCache[key] = reviews;
+        state.reviewCacheTime[key] = now;
+      }
+    });
+
+    // Re-render cards so stars show up
+    renderCards();
+  } catch(e) { console.warn('loadReviewAverages failed', e); }
+}
+
 async function loadGoingTonight(citySlug) {
   try {
     const today = new Date().toISOString().slice(0, 10);
