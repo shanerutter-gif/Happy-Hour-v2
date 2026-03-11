@@ -109,6 +109,8 @@ function onAuthChange(user) {
   if (ffg) ffg.style.display = user ? '' : 'none';
   if (!user && state.favFilterOn) { state.favFilterOn = false; applyFilters(); }
   if (state.city) renderCards();
+  // Refresh unread badge whenever auth state changes
+  if (user) dmRefreshBadge();
 }
 
 // ── NAV ────────────────────────────────────────────────
@@ -2318,11 +2320,9 @@ async function dmLoadInbox() {
       .order('updated_at', { ascending: false });
     if (e2) throw e2;
 
-    // Step 3: get all participants
+    // Step 3: get all participants via security definer function
     const { data: allParts, error: e3 } = await db
-      .from('conversation_participants')
-      .select('conversation_id, user_id')
-      .in('conversation_id', convoIds);
+      .rpc('get_conversation_participants', { convo_ids: convoIds });
     if (e3) throw e3;
 
     // Step 4: get last message per convo
@@ -2388,13 +2388,16 @@ async function dmLoadInbox() {
         : 'No messages yet';
       const time = last ? fmtDate(last.created_at) : '';
 
-      return `<div class="dm-thread-row" onclick="dmOpenConvo('${c.id}','${esc(name)}',${c.is_group})">
-        <div class="dm-thread-avatar">${avatar}</div>
-        <div class="dm-thread-info">
-          <div class="dm-thread-name">${esc(name)}${unread ? `<span class="dm-unread-dot">${unread}</span>` : ''}</div>
-          <div class="dm-thread-preview">${esc(preview)}</div>
+      return `<div class="dm-thread-row" id="dmrow-${c.id}">
+        <div class="dm-thread-main" onclick="dmOpenConvo('${c.id}','${esc(name)}',${c.is_group})">
+          <div class="dm-thread-avatar">${avatar}</div>
+          <div class="dm-thread-info">
+            <div class="dm-thread-name">${esc(name)}${unread ? `<span class="dm-unread-dot">${unread}</span>` : ''}</div>
+            <div class="dm-thread-preview">${esc(preview)}</div>
+          </div>
+          <div class="dm-thread-time">${time}</div>
         </div>
-        <div class="dm-thread-time">${time}</div>
+        <button class="dm-thread-delete" onclick="dmDeleteConvo('${c.id}')" title="Delete">🗑</button>
       </div>`;
     }).join('') || '<div class="dm-empty">No messages yet.<br>Tap + to start a conversation.</div>';
 
@@ -2699,7 +2702,8 @@ async function dmOpenVenueSharePicker(venueId) {
 
   const convoIds = myParts.map(r => r.conversation_id);
   const { data: convos } = await db.from('conversations').select('id, is_group, name').in('id', convoIds).order('updated_at', { ascending: false });
-  const { data: allParts } = await db.from('conversation_participants').select('conversation_id, user_id').in('conversation_id', convoIds);
+  const { data: allParts } = await db
+    .rpc('get_conversation_participants', { convo_ids: convoIds });
 
   const otherIds = [...new Set((allParts||[]).map(p=>p.user_id).filter(id=>id!==currentUser.id))];
   const { data: profiles } = otherIds.length ? await db.from('profiles').select('id, display_name, avatar_emoji').in('id', otherIds) : { data: [] };
@@ -2742,7 +2746,26 @@ function dmShowInbox() {
   dmLoadInbox();
 }
 
-// ── Realtime ───────────────────────────────────────────
+// ── Delete conversation ────────────────────────────────
+async function dmDeleteConvo(convoId) {
+  if (!confirm('Delete this conversation?')) return;
+  // Remove self from participants (soft delete — others keep the convo)
+  const { error } = await db
+    .from('conversation_participants')
+    .delete()
+    .eq('conversation_id', convoId)
+    .eq('user_id', currentUser.id);
+  if (error) { showToast('Failed to delete'); return; }
+  // Remove from UI immediately
+  document.getElementById(`dmrow-${convoId}`)?.remove();
+  const list = document.getElementById('dmThreadList');
+  if (!list?.children.length) {
+    list.innerHTML = '<div class="dm-empty">No messages yet.<br>Tap + to start a conversation.</div>';
+  }
+  showToast('Conversation removed');
+}
+
+
 function dmSubscribe() {
   if (dmState.subscription) dmState.subscription.unsubscribe();
   dmState.subscription = db.channel('dm-' + dmState.activeConvoId)
@@ -2750,6 +2773,38 @@ function dmSubscribe() {
       filter: `conversation_id=eq.${dmState.activeConvoId}` }, () => dmLoadConvo())
     .subscribe();
 }
+
+// ── Badge refresh (silent, background) ────────────────
+async function dmRefreshBadge() {
+  if (!currentUser) return;
+  try {
+    const { data: myParts } = await db
+      .from('conversation_participants')
+      .select('conversation_id, last_read_at')
+      .eq('user_id', currentUser.id);
+    if (!myParts?.length) { dmUpdateBadge(0); return; }
+
+    const convoIds = myParts.map(r => r.conversation_id);
+    const myReadMap = {};
+    myParts.forEach(r => { myReadMap[r.conversation_id] = r.last_read_at; });
+
+    const { data: msgs } = await db
+      .from('messages')
+      .select('conversation_id, sender_id, created_at')
+      .in('conversation_id', convoIds)
+      .neq('sender_id', currentUser.id);
+
+    let unread = 0;
+    (msgs || []).forEach(m => {
+      const myRead = myReadMap[m.conversation_id];
+      if (!myRead || new Date(m.created_at) > new Date(myRead)) unread++;
+    });
+    dmUpdateBadge(unread);
+  } catch(e) {}
+}
+
+// Poll for new messages every 60s
+setInterval(() => { if (currentUser) dmRefreshBadge(); }, 60000);
 
 function dmUpdateBadge(count) {
   const badge = document.getElementById('bnMsgBadge');
