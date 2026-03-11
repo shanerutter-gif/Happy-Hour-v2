@@ -941,3 +941,26 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 .pub-action-row .pub-follow-btn { flex:1; margin:0; }
 .pub-dm-btn { flex:1; padding:11px; background:transparent; border:1.5px solid var(--teal); border-radius:10px; font-weight:700; font-size:14px; cursor:pointer; color:var(--teal); font-family:'DM Sans',sans-serif; transition:all .15s; text-align:center; }
 .pub-dm-btn:hover { opacity:.88; }
+
+/* ── DM PICKER ─────────────────────────────────────── */
+.dm-picker { display:flex; flex-direction:column; height:100%; }
+.dm-picker-search-wrap { padding:10px 16px 6px; flex-shrink:0; }
+.dm-picker-search { width:100%; background:var(--bg2); border:1.5px solid var(--border2); border-radius:22px; padding:10px 16px; font-size:16px; color:var(--text); font-family:'Cabinet Grotesk',sans-serif; outline:none; box-sizing:border-box; }
+.dm-picker-search:focus { border-color:var(--teal); }
+.dm-picker-toggle { text-align:center; color:var(--teal); font-size:13px; font-weight:700; padding:8px; cursor:pointer; }
+.dm-group-name-wrap { padding:4px 16px 8px; }
+.dm-picker-list { flex:1; overflow-y:auto; }
+.dm-picker-row { display:flex; align-items:center; gap:12px; padding:12px 16px; cursor:pointer; transition:background .15s; }
+.dm-picker-row:hover { background:var(--bg2); }
+.dm-picker-row--selected { background:rgba(255,107,74,0.08); }
+.dm-pick-check { font-size:18px; color:var(--teal); flex-shrink:0; }
+.dm-sender-name { font-size:11px; color:var(--muted); margin-bottom:2px; }
+
+/* ── DM VENUE CARD ─────────────────────────────────── */
+.dm-venue-card { display:flex; align-items:center; gap:10px; background:var(--bg2); border:1.5px solid var(--border2); border-radius:12px; padding:10px 12px; cursor:pointer; transition:all .15s; max-width:260px; }
+.dm-venue-card:active { opacity:.85; }
+.dm-venue-icon { font-size:20px; flex-shrink:0; }
+.dm-venue-info { flex:1; min-width:0; }
+.dm-venue-name { font-weight:700; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.dm-venue-meta { font-size:12px; color:var(--muted); margin-top:2px; }
+.dm-venue-arrow { font-size:18px; color:var(--muted); flex-shrink:0; }
