@@ -730,6 +730,30 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   background: rgba(255,140,0,0.1); border-color: rgba(255,140,0,0.3); color: #C87000;
 }
 
+/* ── Venue social links row ── */
+.s-social-row {
+  display: flex; gap: 8px; margin: 4px 0 12px; flex-wrap: wrap;
+}
+.s-social-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 14px; border-radius: 50px;
+  border: 1.5px solid var(--border2);
+  font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600;
+  text-decoration: none; cursor: pointer;
+  transition: border-color .15s, background .15s, color .15s;
+  white-space: nowrap;
+}
+.s-social-ig { color: #C13584; border-color: rgba(193,53,132,.25); background: rgba(193,53,132,.05); }
+.s-social-ig:hover { background: rgba(193,53,132,.12); border-color: #C13584; }
+.s-social-tt { color: #000; border-color: rgba(0,0,0,.15); background: rgba(0,0,0,.04); }
+.s-social-tt:hover { background: rgba(0,0,0,.1); border-color: #000; }
+.s-social-fb { color: #1877F2; border-color: rgba(24,119,242,.25); background: rgba(24,119,242,.05); }
+.s-social-fb:hover { background: rgba(24,119,242,.12); border-color: #1877F2; }
+.s-social-tw { color: #000; border-color: rgba(0,0,0,.15); background: rgba(0,0,0,.04); }
+.s-social-tw:hover { background: rgba(0,0,0,.1); border-color: #000; }
+.s-social-ph { color: var(--teal); border-color: rgba(0,194,168,.25); background: rgba(0,194,168,.05); }
+.s-social-ph:hover { background: rgba(0,194,168,.12); border-color: var(--teal); }
+
 /* Follow button active state */
 .s-act-btn.following {
   background: rgba(0,194,168,0.08);
