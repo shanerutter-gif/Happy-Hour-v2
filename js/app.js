@@ -700,9 +700,7 @@ async function openModal(id, type = 'venue') {
       const fb = document.getElementById(`venue-follow-btn-${id}`);
       if (fb) {
         fb.classList.toggle('following', following);
-        fb.innerHTML = following
-          ? '<span class="s-btn-icon">🔔</span>Following'
-          : '<span class="s-btn-icon">🔔</span>Follow';
+        fb.innerHTML = '<span class="s-btn-icon">🔔</span>';
       }
     });
   }
@@ -809,11 +807,11 @@ function renderModal(v, type, reviews) {
       ${(state.goingCounts[v.id]||0) >= 2 ? `<div class="s-going-count">🔥 ${state.goingCounts[v.id]} people are here tonight</div>` : ''}
     </div>` : ''}
     <div class="s-secondary-actions">
-      ${v.url ? `<a class="s-act-btn s-act-primary" href="${v.url}" target="_blank" rel="noopener" onclick="event.stopPropagation()"><span class="s-btn-icon">🌐</span>Website</a>` : `<a class="s-act-btn s-act-primary" href="https://www.google.com/search?q=${encodeURIComponent(v.name + ' ' + (state.city?.name || 'San Diego'))}" target="_blank" rel="noopener" onclick="event.stopPropagation()"><span class="s-btn-icon">🔍</span>Google</a>`}
-      <button class="s-act-btn" onclick="goToMap('${v.id}')"><span class="s-btn-icon">🗺️</span>Map</button>
-      <button class="s-act-btn" onclick="shareItem('${v.id}','${type}')"><span class="s-btn-icon">↗️</span>Share</button>
-      ${currentUser ? `<button class="s-act-btn" onclick="dmOpenVenueSharePicker('${v.id}')"><span class="s-btn-icon">💬</span>Send</button>` : ''}
-      ${isVenue ? `<button class="s-act-btn" id="venue-follow-btn-${v.id}" onclick="toggleVenueFollow('${v.id}','${esc(v.name)}',this)"><span class="s-btn-icon">🔔</span>Follow</button>` : ''}
+      ${v.url ? `<a class="s-act-btn s-act-primary" href="${v.url}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Website"><span class="s-btn-icon">🌐</span></a>` : `<a class="s-act-btn s-act-primary" href="https://www.google.com/search?q=${encodeURIComponent(v.name + ' ' + (state.city?.name || 'San Diego'))}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Search"><span class="s-btn-icon">🔍</span></a>`}
+      <button class="s-act-btn" onclick="goToMap('${v.id}')" title="Map"><span class="s-btn-icon">🗺️</span></button>
+      <button class="s-act-btn" onclick="shareItem('${v.id}','${type}')" title="Share"><span class="s-btn-icon">↗️</span></button>
+      ${currentUser ? `<button class="s-act-btn" onclick="dmOpenVenueSharePicker('${v.id}')" title="Send"><span class="s-btn-icon">💬</span></button>` : ''}
+      ${isVenue ? `<button class="s-act-btn" id="venue-follow-btn-${v.id}" onclick="toggleVenueFollow('${v.id}','${esc(v.name)}',this)" title="Follow"><span class="s-btn-icon">🔔</span></button>` : ''}
     </div>
     ${isVenue ? `<div id="ugc-photos-${v.id}"></div>` : ''}
     <div class="s-div"></div>
@@ -2038,12 +2036,12 @@ async function toggleVenueFollow(venueId, venueName, btn) {
   if (currently) {
     await unfollowVenue(currentUser.id, venueId);
     btn.classList.remove('following');
-    btn.innerHTML = '<span class="s-btn-icon">🔔</span>Follow';
+    btn.innerHTML = '<span class="s-btn-icon">🔔</span>';
     showToast(`Unfollowed ${venueName}`);
   } else {
     await followVenue(currentUser.id, venueId);
     btn.classList.add('following');
-    btn.innerHTML = '<span class="s-btn-icon">🔔</span>Following';
+    btn.innerHTML = '<span class="s-btn-icon">🔔</span>';
     showToast(`🔔 Following ${venueName} — you'll be notified of new deals`);
   }
   btn.disabled = false;
