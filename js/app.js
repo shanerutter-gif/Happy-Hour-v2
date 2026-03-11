@@ -2700,10 +2700,10 @@ async function dmOpenVenueSharePicker(venueId) {
   const { data: myParts } = await db.from('conversation_participants').select('conversation_id').eq('user_id', currentUser.id);
   if (!myParts?.length) { showToast('No conversations yet — start one first'); return; }
 
-  const convoIds = myParts.map(r => r.conversation_id);
-  const { data: convos } = await db.from('conversations').select('id, is_group, name').in('id', convoIds).order('updated_at', { ascending: false });
-  const { data: allParts } = await db
-    .rpc('get_conversation_participants', { convo_ids: convoIds });
+  // Deduplicate conversation IDs
+  const convoIds = [...new Set(myParts.map(r => r.conversation_id))];
+  const { data: convos } = await db.from('conversations').select('id, is_group, name, updated_at').in('id', convoIds).order('updated_at', { ascending: false });
+  const { data: allParts } = await db.rpc('get_conversation_participants', { convo_ids: convoIds });
 
   const otherIds = [...new Set((allParts||[]).map(p=>p.user_id).filter(id=>id!==currentUser.id))];
   const { data: profiles } = otherIds.length ? await db.from('profiles').select('id, display_name, avatar_emoji').in('id', otherIds) : { data: [] };
@@ -2716,6 +2716,13 @@ async function dmOpenVenueSharePicker(venueId) {
     if (p.user_id !== currentUser.id) convoPartsMap[p.conversation_id].push(p.user_id);
   });
 
+  // Deduplicate convos by id just in case
+  const seenConvos = new Set();
+  const uniqueConvos = (convos||[]).filter(c => {
+    if (seenConvos.has(c.id)) return false;
+    seenConvos.add(c.id); return true;
+  });
+
   document.getElementById('dmSharePickerOverlay')?.remove();
   const overlay = document.createElement('div');
   overlay.id = 'dmSharePickerOverlay';
@@ -2724,14 +2731,16 @@ async function dmOpenVenueSharePicker(venueId) {
   overlay.innerHTML = `<div class="sheet" style="max-height:60vh;overflow-y:auto;">
     <div style="font-weight:800;font-size:17px;margin-bottom:16px;padding-right:32px;">Send to…</div>
     <button class="sheet-close" onclick="document.getElementById('dmSharePickerOverlay').remove()">✕</button>
-    ${(convos||[]).map(c => {
+    ${uniqueConvos.map(c => {
       const others = convoPartsMap[c.id] || [];
       const name = c.is_group ? (c.name || others.map(id=>(pMap[id]?.display_name||'User').split(' ')[0]).join(', ')) : (pMap[others[0]]?.display_name || 'Spotd User');
       const avatar = c.is_group ? '👥' : (pMap[others[0]]?.avatar_emoji || '🍺');
-      return `<div class="dm-thread-row" style="margin:0 -20px;padding:12px 20px;" onclick="dmSendVenue('${venueId}','${c.id}');document.getElementById('dmSharePickerOverlay').remove()">
-        <div class="dm-thread-avatar">${avatar}</div>
-        <div class="dm-thread-info"><div class="dm-thread-name">${esc(name)}</div></div>
-        <div style="color:var(--teal);font-weight:700;font-size:13px;">Send</div>
+      return `<div class="dm-thread-row" style="border-bottom:1px solid var(--bg2);" onclick="dmSendVenue('${venueId}','${c.id}');document.getElementById('dmSharePickerOverlay').remove()">
+        <div class="dm-thread-main">
+          <div class="dm-thread-avatar">${avatar}</div>
+          <div class="dm-thread-info"><div class="dm-thread-name">${esc(name)}</div></div>
+        </div>
+        <div style="color:var(--coral);font-weight:700;font-size:13px;flex-shrink:0;">Send</div>
       </div>`;
     }).join('')}
   </div>`;
