@@ -2499,14 +2499,27 @@ async function dmSend() {
   const body = input.value.trim();
   if (!body || !dmState.activeConvoId) return;
   input.value = '';
+
+  // Optimistic append
+  const el = document.getElementById('dmMessages');
+  const tempDiv = document.createElement('div');
+  tempDiv.className = 'dm-msg dm-msg--mine';
+  tempDiv.innerHTML = `<div class="dm-bubble">${esc(body)}</div>
+    <div class="dm-msg-time">${new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</div>`;
+  el?.appendChild(tempDiv);
+  el.scrollTop = el.scrollHeight;
+
   const { error } = await db.from('messages').insert({
     conversation_id: dmState.activeConvoId,
     sender_id: currentUser.id,
     body,
     msg_type: 'text',
   });
-  if (error) { showToast('Failed to send'); input.value = body; return; }
-  await dmLoadConvo();
+  if (error) {
+    showToast('Failed to send');
+    tempDiv.remove();
+    input.value = body;
+  }
 }
 
 async function dmSendVenue(venueId, convoId) {
@@ -2779,8 +2792,61 @@ function dmSubscribe() {
   if (dmState.subscription) dmState.subscription.unsubscribe();
   dmState.subscription = db.channel('dm-' + dmState.activeConvoId)
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages',
-      filter: `conversation_id=eq.${dmState.activeConvoId}` }, () => dmLoadConvo())
+      filter: `conversation_id=eq.${dmState.activeConvoId}` }, payload => {
+        const m = payload.new;
+        // Don't re-render if it's our own message (already shown optimistically or via dmSend)
+        if (m.sender_id === currentUser.id) return;
+        dmAppendMessage(m);
+      })
     .subscribe();
+}
+
+async function dmAppendMessage(m) {
+  const el = document.getElementById('dmMessages');
+  if (!el) return;
+
+  // Fetch venue if needed
+  let venue = null;
+  if (m.venue_id) {
+    const { data } = await db.from('venues').select('id, name, neighborhood, google_rating').eq('id', m.venue_id).single();
+    venue = data;
+  }
+
+  // Fetch sender name for groups
+  let senderName = 'User';
+  if (dmState.isGroup) {
+    const { data } = await db.from('profiles').select('display_name').eq('id', m.sender_id).single();
+    senderName = data?.display_name || 'User';
+  }
+
+  const div = document.createElement('div');
+  div.className = 'dm-msg dm-msg--theirs';
+  if (m.msg_type === 'venue_share') {
+    div.innerHTML = `
+      ${dmState.isGroup ? `<div class="dm-sender-name">${esc(senderName)}</div>` : ''}
+      <div class="dm-venue-card" onclick="openModal('${m.venue_id}','venue')">
+        <div class="dm-venue-icon">📍</div>
+        <div class="dm-venue-info">
+          <div class="dm-venue-name">${esc(venue?.name || 'Venue')}</div>
+          <div class="dm-venue-meta">${esc(venue?.neighborhood || '')}${venue?.google_rating ? ` · ⭐ ${venue.google_rating}` : ''}</div>
+        </div>
+        <div class="dm-venue-arrow">›</div>
+      </div>
+      <div class="dm-msg-time">${new Date(m.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</div>`;
+  } else {
+    div.innerHTML = `
+      ${dmState.isGroup ? `<div class="dm-sender-name">${esc(senderName)}</div>` : ''}
+      <div class="dm-bubble">${esc(m.body || '')}</div>
+      <div class="dm-msg-time">${new Date(m.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</div>`;
+  }
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
+
+  // Mark read
+  await db.from('conversation_participants')
+    .update({ last_read_at: new Date().toISOString() })
+    .eq('conversation_id', dmState.activeConvoId)
+    .eq('user_id', currentUser.id);
 }
 
 // ── Badge refresh (silent, background) ────────────────
