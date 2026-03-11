@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
 <meta name="description" content="Spotd — Find today's best happy hours and events near you. Covering San Diego, LA, NYC, Chicago, Austin, Miami and more.">
 <title>Spotd — Happy Hours & Events Near You</title>
 
@@ -349,23 +349,24 @@ function dismissA2HS() {
 </script>
 
   <!-- ── DM PAGE ─────────────────────────────────── -->
-  <div id="dmPage" class="sub-page" style="overflow:hidden;display:flex;flex-direction:column;">
-    <div class="sub-page-header">
+  <div id="dmPage" class="sub-page" style="overflow:hidden;display:flex;flex-direction:column;height:100%;height:100dvh;">
+    <div class="sub-page-header" style="flex-shrink:0;">
       <button class="sub-page-back" id="dmBackBtn" onclick="dmShowInbox()" style="visibility:hidden;">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
       </button>
       <span class="sub-page-title" id="dmTitle">Messages</span>
     </div>
     <!-- Inbox pane -->
-    <div id="dmInboxPane" style="flex:1;overflow-y:auto;">
+    <div id="dmInboxPane" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;">
       <div id="dmThreadList" class="dm-thread-list"><div class="dm-empty">No messages yet</div></div>
     </div>
     <!-- Convo pane -->
     <div id="dmConvoPane" style="display:none;flex-direction:column;flex:1;min-height:0;">
-      <div id="dmMessages" style="flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:8px;"></div>
-      <div style="display:flex;gap:8px;padding:10px 12px;padding-bottom:max(12px,env(safe-area-inset-bottom));border-top:1px solid var(--border);background:var(--card);flex-shrink:0;">
+      <div id="dmMessages" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 16px;display:flex;flex-direction:column;gap:8px;"></div>
+      <div id="dmComposeBar" style="display:flex;gap:8px;padding:10px 12px;padding-bottom:max(12px,env(safe-area-inset-bottom));border-top:1px solid var(--border);background:var(--card);flex-shrink:0;">
         <input id="dmInput" class="dm-input" placeholder="Message…" maxlength="500"
-          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();dmSend()}">
+          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();dmSend()}"
+          onfocus="dmScrollToBottom()" >
         <button class="dm-send-btn" onclick="dmSend()">Send</button>
       </div>
     </div>
