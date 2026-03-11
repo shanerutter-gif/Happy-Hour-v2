@@ -2333,6 +2333,7 @@ async function dmLoadInbox() {
 
 async function dmOpenConvo(userId, displayName) {
   if (!currentUser) { openAuth('signin'); return; }
+  closeOverlay('pubProfileOverlay');
   dmState.convoUserId = userId;
   dmState.convoName = displayName;
 
