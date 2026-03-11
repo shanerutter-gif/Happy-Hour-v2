@@ -270,6 +270,10 @@
       <div class="sidebar-item" onclick="showPage('venues')" id="nav-venues">
         All Venues
       </div>
+      <div class="sidebar-label" style="margin-top:20px;margin-bottom:8px">Tools</div>
+      <div class="sidebar-item" onclick="showPage('demo')" id="nav-demo">
+        🎭 Demo Data
+      </div>
     </div>
 
     <!-- MAIN -->
@@ -313,6 +317,84 @@
         </div>
         <div id="venues-list-count" style="font-family:'DM Sans',sans-serif;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:14px"></div>
         <div id="venues-list"></div>
+      </div>
+
+      <!-- DEMO DATA PAGE -->
+      <div class="page" id="page-demo">
+        <div class="page-title">🎭 Demo Data Generator</div>
+        <div class="page-sub">Seed fake users, reviews, and check-ins for demos. All generated data is tagged and can be fully removed.</div>
+
+        <div id="demo-status" style="display:none;padding:12px 16px;border-radius:10px;font-size:13px;font-weight:500;margin-bottom:20px"></div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:24px">
+
+          <!-- Config card -->
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px">
+            <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:14px">Configuration</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+              <div>
+                <label style="font-family:'DM Sans',sans-serif;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:6px">Fake Users</label>
+                <input id="demo-user-count" type="number" value="500" min="10" max="1000" style="width:100%;padding:9px 12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:14px;color:var(--text);outline:none;font-family:'DM Sans',sans-serif">
+              </div>
+              <div>
+                <label style="font-family:'DM Sans',sans-serif;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:6px">Reviews / User</label>
+                <input id="demo-reviews-per" type="number" value="2" min="1" max="8" style="width:100%;padding:9px 12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:14px;color:var(--text);outline:none;font-family:'DM Sans',sans-serif">
+              </div>
+            </div>
+            <div>
+              <label style="font-family:'DM Sans',sans-serif;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:6px">City</label>
+              <select id="demo-city" style="width:100%;padding:9px 12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:14px;color:var(--text);outline:none;font-family:'DM Sans',sans-serif">
+                <option value="san-diego">San Diego</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Toggles card -->
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px">
+            <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:14px">What to Generate</div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <label style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--bg2);border-radius:8px;cursor:pointer">
+                <div>
+                  <div style="font-size:13px;font-weight:600">👤 Fake Profiles</div>
+                  <div style="font-size:11px;color:var(--muted);margin-top:1px">Names, bios, emoji avatars</div>
+                </div>
+                <input type="checkbox" id="demo-do-profiles" checked style="width:16px;height:16px;accent-color:var(--coral);cursor:pointer">
+              </label>
+              <label style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--bg2);border-radius:8px;cursor:pointer">
+                <div>
+                  <div style="font-size:13px;font-weight:600">⭐ Reviews</div>
+                  <div style="font-size:11px;color:var(--muted);margin-top:1px">Star ratings + written text</div>
+                </div>
+                <input type="checkbox" id="demo-do-reviews" checked style="width:16px;height:16px;accent-color:var(--coral);cursor:pointer">
+              </label>
+              <label style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--bg2);border-radius:8px;cursor:pointer">
+                <div>
+                  <div style="font-size:13px;font-weight:600">📍 Tonight's Check-ins</div>
+                  <div style="font-size:11px;color:var(--muted);margin-top:1px">Going counts for today</div>
+                </div>
+                <input type="checkbox" id="demo-do-checkins" checked style="width:16px;height:16px;accent-color:var(--coral);cursor:pointer">
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Progress -->
+        <div id="demo-progress-wrap" style="display:none;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:20px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <div style="font-size:13px;font-weight:600" id="demo-progress-label">Working…</div>
+            <div style="font-family:'DM Mono',monospace;font-size:12px;color:var(--muted)" id="demo-progress-pct">0%</div>
+          </div>
+          <div style="height:6px;background:var(--bg2);border-radius:3px;overflow:hidden">
+            <div id="demo-progress-bar" style="height:100%;background:var(--coral);border-radius:3px;transition:width .25s;width:0%"></div>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button id="demo-run-btn" onclick="runDemoSeed()" style="padding:12px 24px;background:var(--coral);color:white;border:none;border-radius:10px;font-family:'Cabinet Grotesk',sans-serif;font-size:15px;font-weight:700;cursor:pointer;transition:background .15s">🚀 Generate Demo Data</button>
+          <button onclick="clearDemoData()" style="padding:12px 24px;background:var(--bg2);color:var(--text);border:1px solid var(--border);border-radius:10px;font-family:'Cabinet Grotesk',sans-serif;font-size:15px;font-weight:700;cursor:pointer;transition:background .15s">🗑 Clear All Demo Data</button>
+        </div>
+        <div style="margin-top:12px;font-size:12px;color:var(--muted)">All demo profiles are tagged internally — Clear removes only generated data, never real users or reviews.</div>
       </div>
 
     </div>
@@ -927,6 +1009,171 @@
   document.getElementById('approveModal').addEventListener('click', e => {
     if (e.target === document.getElementById('approveModal')) closeApproveModal();
   });
+
+  // ── DEMO DATA ─────────────────────────────────────────
+  const DEMO_TAG = 'DEMO_GENERATED';
+  const FIRST_NAMES = ['Alex','Jordan','Taylor','Morgan','Casey','Riley','Jamie','Avery','Quinn','Blake','Drew','Skyler','Peyton','Reese','Logan','Parker','Cameron','Hayden','Finley','Rowan','Sage','River','Charlie','Dakota','Harley','Emery','Kendall','Remy','Shea','Nico','Zara','Miles','Sloane','Cole','Piper','Dani','Hunter','Lane','Marlowe','Cruz','Bex'];
+  const LAST_NAMES  = ['Smith','Johnson','Williams','Brown','Jones','Garcia','Martinez','Davis','Wilson','Taylor','Anderson','Thomas','Jackson','White','Harris','Martin','Thompson','Young','Allen','King','Wright','Scott','Torres','Nguyen','Hill','Flores','Green','Adams','Nelson','Baker','Hall','Rivera','Campbell','Mitchell','Carter','Roberts','Murphy','Cook','Rogers','Morgan'];
+  const EMOJIS = ['🍺','🍹','🎉','🌮','🎸','🏄','🌊','🦋','🌺','⭐','🦊','🐬','🌙','🔥','🎨','🏋️','🧗','🚴','🍕','🎯','🦅','🌴','🎲','🏖️','🍸'];
+  const REVIEW_TEXTS = [
+    'Great vibe, definitely coming back!','Amazing happy hour deals, loved it','Super chill spot, staff was friendly','Best drinks in the neighborhood','Loved the atmosphere and the deals',
+    'Hidden gem! Will be back for sure','Perfect spot for after-work drinks','Great music and even better prices','Solid happy hour, good beer selection','Love this place, always a good time',
+    'The bartenders are super attentive','Really solid spot, no complaints','Good food and great drink specials','Came for happy hour, stayed for the night','Underrated gem in this area',
+    'Great for groups, lots of seating','Love the outdoor patio especially','Drinks are strong and prices are fair','Always packed for a reason','My new go-to happy hour spot',
+    'Friendly staff and great atmosphere','The deals here are unbeatable','Love discovering spots like this','One of my favorite places in the city','Always a great time here',
+  ];
+
+  function demoSetStatus(msg, type) {
+    const el = document.getElementById('demo-status');
+    el.style.display = 'block';
+    el.textContent = msg;
+    el.style.background = type === 'error' ? 'rgba(192,57,43,0.08)' : type === 'success' ? 'rgba(42,122,90,0.08)' : 'rgba(42,31,20,0.05)';
+    el.style.color = type === 'error' ? 'var(--error)' : type === 'success' ? 'var(--success)' : 'var(--muted)';
+    el.style.border = '1px solid ' + (type === 'error' ? 'rgba(192,57,43,0.2)' : type === 'success' ? 'rgba(42,122,90,0.2)' : 'var(--border)');
+  }
+
+  function demoSetProgress(pct, label) {
+    document.getElementById('demo-progress-wrap').style.display = 'block';
+    document.getElementById('demo-progress-bar').style.width = pct + '%';
+    document.getElementById('demo-progress-pct').textContent = Math.round(pct) + '%';
+    document.getElementById('demo-progress-label').textContent = label;
+  }
+
+  async function runDemoSeed() {
+    const btn = document.getElementById('demo-run-btn');
+    btn.disabled = true; btn.textContent = '⏳ Generating…';
+    document.getElementById('demo-status').style.display = 'none';
+    document.getElementById('demo-progress-wrap').style.display = 'none';
+
+    const userCount      = Math.min(1000, Math.max(10, parseInt(document.getElementById('demo-user-count').value) || 500));
+    const reviewsPerUser = Math.min(8, Math.max(1, parseInt(document.getElementById('demo-reviews-per').value) || 2));
+    const citySlug       = document.getElementById('demo-city').value;
+    const doProfiles     = document.getElementById('demo-do-profiles').checked;
+    const doReviews      = document.getElementById('demo-do-reviews').checked;
+    const doCheckins     = document.getElementById('demo-do-checkins').checked;
+
+    try {
+      // Fetch venue IDs
+      demoSetProgress(5, 'Fetching venues…');
+      const venueRes = await fetch(`${SUPABASE_URL}/rest/v1/venues?select=id&city_slug=eq.${citySlug}&active=eq.true`, { headers: sb.headers() });
+      const venues = await venueRes.json();
+      if (!venues || !venues.length) throw new Error('No active venues found for ' + citySlug);
+      const venueIds = venues.map(v => v.id);
+
+      // Build profiles
+      const profiles = [];
+      for (let i = 0; i < userCount; i++) {
+        const fn = FIRST_NAMES[Math.floor(Math.random() * FIRST_NAMES.length)];
+        const ln = LAST_NAMES[Math.floor(Math.random() * LAST_NAMES.length)];
+        profiles.push({
+          id: crypto.randomUUID(),
+          display_name: fn + ' ' + ln,
+          username: (fn + ln + Math.floor(Math.random() * 9999)).toLowerCase().replace(/\s/g,''),
+          avatar_emoji: EMOJIS[Math.floor(Math.random() * EMOJIS.length)],
+          bio: 'San Diego local · ' + DEMO_TAG,
+          is_public: true,
+          digest_enabled: false,
+        });
+      }
+
+      if (doProfiles) {
+        const BATCH = 100;
+        for (let i = 0; i < profiles.length; i += BATCH) {
+          demoSetProgress(10 + (i / profiles.length) * 25, `Inserting profiles ${i + 1}–${Math.min(i + BATCH, profiles.length)} of ${profiles.length}…`);
+          await fetch(`${SUPABASE_URL}/rest/v1/profiles`, {
+            method: 'POST',
+            headers: { ...sb.headers(), 'Prefer': 'resolution=ignore-duplicates' },
+            body: JSON.stringify(profiles.slice(i, i + BATCH)),
+          });
+        }
+      }
+
+      if (doReviews) {
+        demoSetProgress(38, 'Building reviews…');
+        const reviews = [];
+        for (const p of profiles) {
+          const n = Math.ceil(Math.random() * reviewsPerUser);
+          const picked = [...venueIds].sort(() => Math.random() - .5).slice(0, n);
+          for (const vid of picked) {
+            reviews.push({
+              venue_id: vid,
+              user_id: p.id,
+              name: p.display_name,
+              rating: Math.floor(Math.random() * 3) + 3,
+              text: Math.random() > 0.25 ? REVIEW_TEXTS[Math.floor(Math.random() * REVIEW_TEXTS.length)] : null,
+            });
+          }
+        }
+        const RBATCH = 200;
+        for (let i = 0; i < reviews.length; i += RBATCH) {
+          demoSetProgress(38 + (i / reviews.length) * 35, `Inserting reviews ${i + 1}–${Math.min(i + RBATCH, reviews.length)} of ${reviews.length}…`);
+          await fetch(`${SUPABASE_URL}/rest/v1/reviews`, {
+            method: 'POST',
+            headers: { ...sb.headers(), 'Prefer': 'resolution=ignore-duplicates' },
+            body: JSON.stringify(reviews.slice(i, i + RBATCH)),
+          });
+        }
+      }
+
+      if (doCheckins) {
+        demoSetProgress(75, 'Building check-ins…');
+        const today = new Date().toISOString().split('T')[0];
+        const checkins = [];
+        const checkinUsers = profiles.filter(() => Math.random() < 0.3);
+        for (const p of checkinUsers) {
+          const n = Math.ceil(Math.random() * 2);
+          const picked = [...venueIds].sort(() => Math.random() - .5).slice(0, n);
+          for (const vid of picked) {
+            checkins.push({ user_id: p.id, venue_id: vid, city_slug: citySlug, date: today });
+          }
+        }
+        const CBATCH = 200;
+        for (let i = 0; i < checkins.length; i += CBATCH) {
+          demoSetProgress(75 + (i / checkins.length) * 20, `Inserting check-ins ${i + 1}–${Math.min(i + CBATCH, checkins.length)}…`);
+          await fetch(`${SUPABASE_URL}/rest/v1/check_ins`, {
+            method: 'POST',
+            headers: { ...sb.headers(), 'Prefer': 'resolution=ignore-duplicates' },
+            body: JSON.stringify(checkins.slice(i, i + CBATCH)),
+          });
+        }
+      }
+
+      demoSetProgress(100, 'Done!');
+      const reviewCount = doReviews ? `~${userCount * reviewsPerUser} reviews` : '';
+      const checkinNote = doCheckins ? 'tonight check-ins' : '';
+      demoSetStatus(`✅ Generated ${userCount} profiles${reviewCount ? ', ' + reviewCount : ''}${checkinNote ? ', ' + checkinNote : ''} successfully`, 'success');
+
+    } catch(err) {
+      demoSetStatus('❌ ' + err.message, 'error');
+      console.error('Demo seed error:', err);
+    }
+
+    btn.disabled = false; btn.textContent = '🚀 Generate Demo Data';
+  }
+
+  async function clearDemoData() {
+    if (!confirm('Delete all demo profiles and their reviews/check-ins? This cannot be undone.')) return;
+    demoSetStatus('🗑 Finding demo profiles…', 'info');
+    document.getElementById('demo-progress-wrap').style.display = 'none';
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?bio=like.*${DEMO_TAG}*&select=id`, { headers: sb.headers() });
+      const profiles = await res.json();
+      if (!profiles || !profiles.length) { demoSetStatus('Nothing to clear — no demo data found.', 'info'); return; }
+      const ids = profiles.map(p => p.id);
+      demoSetStatus(`Removing ${ids.length} demo profiles and all their data…`, 'info');
+      const BATCH = 100;
+      for (let i = 0; i < ids.length; i += BATCH) {
+        const batch = ids.slice(i, i + BATCH);
+        const idList = batch.map(id => `"${id}"`).join(',');
+        await fetch(`${SUPABASE_URL}/rest/v1/reviews?user_id=in.(${idList})`, { method: 'DELETE', headers: sb.headers() });
+        await fetch(`${SUPABASE_URL}/rest/v1/check_ins?user_id=in.(${idList})`, { method: 'DELETE', headers: sb.headers() });
+        await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=in.(${idList})`, { method: 'DELETE', headers: sb.headers() });
+      }
+      demoSetStatus(`✅ Cleared ${ids.length} demo profiles and all associated data.`, 'success');
+    } catch(err) {
+      demoSetStatus('❌ ' + err.message, 'error');
+    }
+  }
 
   // ── INIT ─────────────────────────────────────────────
   window.addEventListener('DOMContentLoaded', () => {
