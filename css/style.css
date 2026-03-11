@@ -229,7 +229,7 @@ main{min-height:60vh}
 .sheet--wide{max-width:740px}
 @keyframes sheetUp{from{transform:translateY(60px);opacity:0}to{transform:none;opacity:1}}
 .sheet-handle{width:40px;height:4px;background:rgba(42,31,20,0.18);border-radius:2px;margin:0 auto 16px;cursor:grab}
-.sheet-close{position:absolute;top:14px;right:16px;background:var(--bg2);border:1px solid var(--border2);color:var(--muted);width:32px;height:32px;border-radius:6px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center}
+.sheet-close{position:sticky;top:0;float:right;margin:0 0 -32px;z-index:20;background:var(--bg2);border:1px solid var(--border2);color:var(--muted);width:32px;height:32px;border-radius:6px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center}
 .sheet-close:active{background:var(--card2)}
 .s-tag{display:inline-block;font-family:'DM Sans',sans-serif;font-size:9px;text-transform:uppercase;letter-spacing:1px;padding:3px 9px;border-radius:4px;margin-bottom:8px}
 .s-tag.hh{background:rgba(0,194,168,.12);border:1px solid rgba(0,194,168,.3);color:var(--teal)}
@@ -707,7 +707,7 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 .s-act-btn .s-btn-icon { font-size: 20px; line-height: 1; }
 .s-act-btn:active { background: rgba(42,31,20,.06); border-color: var(--coral); transform: scale(0.93); }
 .s-act-primary {
-  background: var(--coral); color: #fff; border-color: var(--coral);
+  background: var(--coral); color: #fff; border: 1.5px solid var(--coral);
   font-size: 20px;
 }
 .s-act-primary:hover, .s-act-primary:active { opacity: .88; background: var(--coral); }
@@ -803,23 +803,22 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 .my-stats {
   display: flex; gap: 0;
   width: 100%; justify-content: space-around;
-  padding: 14px 0 0; flex-wrap: nowrap;
+  padding: 14px 8px; flex-wrap: nowrap;
   background: var(--bg2); border-radius: 14px;
   margin-top: 12px;
 }
 .my-stat {
   display: flex; flex-direction: column;
   align-items: center; flex: 1;
-  font-size: 10px; color: var(--muted); font-weight: 600;
-  text-transform: uppercase; letter-spacing: 0.3px;
-  padding-bottom: 12px;
+  font-size: 9px; color: var(--muted); font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.5px;
+  padding-bottom: 2px; gap: 4px;
 }
 .my-stat span {
   display: block;
   font-family: 'Cabinet Grotesk', sans-serif;
-  font-weight: 800; font-size: 20px;
-  color: var(--coral); line-height: 1.1;
-  margin-bottom: 2px;
+  font-weight: 800; font-size: 22px;
+  color: var(--coral); line-height: 1;
 }
 
 /* ══════════════════════════════════════════════
