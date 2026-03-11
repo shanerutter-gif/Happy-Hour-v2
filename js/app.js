@@ -165,8 +165,6 @@ function renderBottomNav(user) {
 }
 
 function _navHideAll() {
-  const pp = document.getElementById('profilePage');
-  if (pp) pp.classList.remove('profile-page--open');
   const dp = document.getElementById('dmPage');
   if (dp) dp.classList.remove('sub-page--open');
   if (dmState.subscription) { dmState.subscription.unsubscribe(); dmState.subscription = null; }
@@ -181,6 +179,8 @@ function _navHideAll() {
 function bottomNavFeed(btn) {
   document.querySelectorAll('.bottom-nav-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
+  const pp = document.getElementById('profilePage');
+  if (pp) pp.classList.remove('profile-page--open');
   _navHideAll();
   if (!state.city) showHome();
 }
@@ -188,6 +188,8 @@ function bottomNavFeed(btn) {
 function bottomNavMessages(btn) {
   document.querySelectorAll('.bottom-nav-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
+  const pp = document.getElementById('profilePage');
+  if (pp) pp.classList.remove('profile-page--open');
   _navHideAll();
   openDmInbox();
 }
@@ -1049,7 +1051,7 @@ const BADGE_DEFS = {
 async function openProfile() {
   if (!currentUser) { openAuth('signin'); return; }
   const page = document.getElementById('profilePage');
-  // Use rAF so visibility:visible triggers before opacity transition
+  // rAF ensures any pending class removal is committed before we add --open
   requestAnimationFrame(() => page.classList.add('profile-page--open'));
   document.getElementById('bnProfile')?.classList.add('active');
   document.getElementById('bnFeed')?.classList.remove('active');
