@@ -647,9 +647,9 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   transition: color .15s;
   -webkit-tap-highlight-color: transparent;
 }
-.bottom-nav-btn svg { transition: stroke .15s; }
-.bottom-nav-btn.active { color: var(--teal); }
-.bottom-nav-btn.active svg { stroke: var(--teal); }
+.bottom-nav-btn svg { transition: stroke .15s, transform .2s cubic-bezier(.34,1.56,.64,1); }
+.bottom-nav-btn.active { color: var(--coral); }
+.bottom-nav-btn.active svg { stroke: var(--coral); transform: translateY(-2px) scale(1.12); }
 .bottom-nav-btn:active { opacity: .7; }
 
 /* Push content above bottom nav when in city view */
@@ -824,6 +824,9 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 /* ══════════════════════════════════════════════
    PROFILE PAGE — full-screen native push panel
    ══════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════
+   PROFILE PAGE — fade+lift in (tab-style, not slide)
+   ══════════════════════════════════════════════ */
 .profile-page {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
@@ -834,17 +837,20 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
   padding: env(safe-area-inset-top, 0px) 20px 80px;
-  transform: translateX(100%);
-  transition: transform .22s cubic-bezier(.4,0,.2,1);
-  will-change: transform;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity .18s ease, transform .18s ease;
+  will-change: opacity, transform;
+  pointer-events: none;
 }
 .profile-page--open {
-  transform: translateX(0);
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
 }
 
 /* ══════════════════════════════════════════════
-   SUB-PAGE PANELS — Find People / Activity / Leaderboard
-   Same slide mechanic as profile-page, one layer deeper
+   SUB-PAGE PANELS — still slide right (drill-down feel)
    ══════════════════════════════════════════════ */
 .sub-page {
   position: fixed;
@@ -857,11 +863,24 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   overscroll-behavior: contain;
   padding: 0 0 80px;
   transform: translateX(100%);
-  transition: transform .22s cubic-bezier(.4,0,.2,1);
+  transition: transform .24s cubic-bezier(.32,1,.6,1);
   will-change: transform;
 }
 .sub-page--open {
   transform: translateX(0);
+}
+
+/* dmPage is a peer tab — fade+lift like profile, not slide */
+#dmPage {
+  transform: translateY(10px) !important;
+  transition: opacity .18s ease, transform .18s ease !important;
+  opacity: 0;
+  pointer-events: none;
+}
+#dmPage.sub-page--open {
+  transform: translateY(0) !important;
+  opacity: 1;
+  pointer-events: auto;
 }
 
 /* Sub-page sticky header with back button */
