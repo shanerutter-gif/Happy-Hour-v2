@@ -165,12 +165,15 @@ function renderBottomNav(user) {
 }
 
 function _navHideAll(keep) {
-  if (keep !== 'dm') closeDmPage();
+  if (keep !== 'dm') {
+    const dp = document.getElementById('dmPage');
+    if (dp) { dp.style.transition = 'none'; dp.classList.remove('dm-page--open'); }
+    if (dmState.subscription) { dmState.subscription.unsubscribe(); dmState.subscription = null; }
+  }
   if (keep !== 'profile') {
     const pp = document.getElementById('profilePage');
-    if (pp) pp.classList.remove('profile-page--open');
+    if (pp) { pp.style.transition = 'none'; pp.classList.remove('profile-page--open'); }
   }
-  if (dmState.subscription && keep !== 'dm') { dmState.subscription.unsubscribe(); dmState.subscription = null; }
   closeSubPage('findPeoplePage');
   closeSubPage('feedPage');
   closeSubPage('leaderboardPage');
@@ -1050,7 +1053,7 @@ const BADGE_DEFS = {
 async function openProfile() {
   if (!currentUser) { openAuth('signin'); return; }
   const page = document.getElementById('profilePage');
-  // rAF ensures any pending class removal is committed before we add --open
+  page.style.transition = '';
   requestAnimationFrame(() => page.classList.add('profile-page--open'));
   document.getElementById('bnProfile')?.classList.add('active');
   document.getElementById('bnFeed')?.classList.remove('active');
@@ -2518,12 +2521,15 @@ let dmState = {
 function openDmPage() {
   const page = document.getElementById('dmPage');
   if (!page) return;
+  page.style.transition = '';
   requestAnimationFrame(() => page.classList.add('dm-page--open'));
 }
 function closeDmPage() {
   const page = document.getElementById('dmPage');
   if (!page) return;
   page.classList.remove('dm-page--open');
+  page.style.height = '';
+  page.style.top = '';
   if (dmState.subscription) { dmState.subscription.unsubscribe(); dmState.subscription = null; }
 }
 
@@ -3155,20 +3161,21 @@ function dmUpdateBadge(count) {
 // ── iOS keyboard handling ──────────────────────────────
 function dmScrollToBottom() {
   const el = document.getElementById('dmMessages');
-  if (el) setTimeout(() => { el.scrollTop = el.scrollHeight; }, 100);
+  if (el) setTimeout(() => { el.scrollTop = el.scrollHeight; }, 50);
 }
 if (window.visualViewport) {
   window.visualViewport.addEventListener('resize', () => {
     const page = document.getElementById('dmPage');
     if (!page?.classList.contains('dm-page--open')) return;
-    const bar = document.getElementById('dmComposeBar');
-    if (!bar) return;
-    // Pin compose bar above keyboard
-    const keyboardHeight = window.innerHeight - window.visualViewport.height;
-    bar.style.transform = keyboardHeight > 50
-      ? `translateY(-${keyboardHeight}px)`
-      : '';
-    bar.style.paddingBottom = keyboardHeight > 50 ? '12px' : '';
+    // Shrink dm-page to the visual viewport so it sits above the keyboard
+    const vv = window.visualViewport;
+    page.style.height = vv.height + 'px';
+    page.style.top = vv.offsetTop + 'px';
     dmScrollToBottom();
+  });
+  window.visualViewport.addEventListener('scroll', () => {
+    const page = document.getElementById('dmPage');
+    if (!page?.classList.contains('dm-page--open')) return;
+    page.style.top = window.visualViewport.offsetTop + 'px';
   });
 }
