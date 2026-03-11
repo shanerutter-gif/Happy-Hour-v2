@@ -646,11 +646,28 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   font-size: 10px; font-weight: 600; letter-spacing: .2px;
   transition: color .15s;
   -webkit-tap-highlight-color: transparent;
+  position: relative;
 }
-.bottom-nav-btn svg { transition: stroke .15s, transform .2s cubic-bezier(.34,1.56,.64,1); }
+.bottom-nav-btn svg { stroke: currentColor; transition: stroke .15s; }
 .bottom-nav-btn.active { color: var(--coral); }
-.bottom-nav-btn.active svg { stroke: var(--coral); transform: translateY(-2px) scale(1.12); }
+.bottom-nav-btn.active svg { stroke: currentColor; }
 .bottom-nav-btn:active { opacity: .7; }
+/* Active indicator dot under icon */
+.bottom-nav-btn::after {
+  content: '';
+  position: absolute;
+  bottom: 6px;
+  width: 4px; height: 4px;
+  border-radius: 50%;
+  background: var(--coral);
+  opacity: 0;
+  transform: scale(0);
+  transition: opacity .15s, transform .2s cubic-bezier(.34,1.56,.64,1);
+}
+.bottom-nav-btn.active::after {
+  opacity: 1;
+  transform: scale(1);
+}
 
 /* Push content above bottom nav when in city view */
 .app-page { padding-bottom: 72px; }
@@ -839,14 +856,17 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   padding: env(safe-area-inset-top, 0px) 20px 80px;
   opacity: 0;
   transform: translateY(10px);
-  transition: opacity .18s ease, transform .18s ease;
+  visibility: hidden;
+  transition: opacity .2s ease, transform .2s ease, visibility 0s linear .2s;
   will-change: opacity, transform;
   pointer-events: none;
 }
 .profile-page--open {
   opacity: 1;
   transform: translateY(0);
+  visibility: visible;
   pointer-events: auto;
+  transition: opacity .2s ease, transform .2s ease, visibility 0s linear 0s;
 }
 
 /* ══════════════════════════════════════════════
@@ -872,15 +892,18 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 
 /* dmPage is a peer tab — fade+lift like profile, not slide */
 #dmPage {
-  transform: translateY(10px) !important;
-  transition: opacity .18s ease, transform .18s ease !important;
   opacity: 0;
+  transform: translateY(10px);
+  visibility: hidden;
   pointer-events: none;
+  transition: opacity .2s ease, transform .2s ease, visibility 0s linear .2s;
 }
 #dmPage.sub-page--open {
-  transform: translateY(0) !important;
   opacity: 1;
+  transform: translateY(0);
+  visibility: visible;
   pointer-events: auto;
+  transition: opacity .2s ease, transform .2s ease, visibility 0s linear 0s;
 }
 
 /* Sub-page sticky header with back button */
