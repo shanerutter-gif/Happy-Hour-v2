@@ -855,18 +855,16 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   overscroll-behavior: contain;
   padding: env(safe-area-inset-top, 0px) 20px 80px;
   opacity: 0;
-  transform: translateY(10px);
   visibility: hidden;
-  transition: opacity .2s ease, transform .2s ease, visibility 0s linear .2s;
-  will-change: opacity, transform;
+  transition: opacity .18s ease, visibility 0s linear .18s;
+  will-change: opacity;
   pointer-events: none;
 }
 .profile-page--open {
   opacity: 1;
-  transform: translateY(0);
   visibility: visible;
   pointer-events: auto;
-  transition: opacity .2s ease, transform .2s ease, visibility 0s linear 0s;
+  transition: opacity .18s ease, visibility 0s linear 0s;
 }
 
 /* ══════════════════════════════════════════════
@@ -952,18 +950,16 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   flex-direction: column;
   overflow: hidden;
   opacity: 0;
-  transform: translateY(10px);
   visibility: hidden;
-  transition: opacity .2s ease, transform .2s ease, visibility 0s linear .2s;
-  will-change: opacity, transform;
+  transition: opacity .18s ease, visibility 0s linear .18s;
+  will-change: opacity;
   pointer-events: none;
 }
 .dm-page--open {
   opacity: 1;
-  transform: translateY(0);
   visibility: visible;
   pointer-events: auto;
-  transition: opacity .2s ease, transform .2s ease, visibility 0s linear 0s;
+  transition: opacity .18s ease, visibility 0s linear 0s;
 }
 .dm-header { display:flex; align-items:center; gap:8px; padding:14px 16px; padding-top:calc(14px + env(safe-area-inset-top, 0px)); border-bottom:1px solid var(--border); flex-shrink:0; background:var(--bg); }
 .dm-title { flex:1; font-weight:800; font-size:17px; text-align:center; }
@@ -991,7 +987,7 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 .dm-msg--mine .dm-bubble { background:var(--teal); color:#fff; border-bottom-right-radius:4px; }
 .dm-msg--theirs .dm-bubble { background:var(--bg2); color:var(--text); border-bottom-left-radius:4px; }
 .dm-msg-time { font-size:10px; color:var(--muted); margin-top:3px; }
-.dm-compose { display:flex; gap:8px; padding:10px 12px; padding-bottom:calc(72px + env(safe-area-inset-bottom, 0px)); border-top:1px solid var(--border); flex-shrink:0; background:var(--card); }
+.dm-compose { display:flex; gap:8px; padding:10px 12px; padding-bottom:calc(10px + env(safe-area-inset-bottom, 0px)); border-top:1px solid var(--border); flex-shrink:0; background:var(--card); transition: transform .15s ease, padding-bottom .15s ease; }
 .dm-input { flex:1; background:var(--bg2); border:1.5px solid var(--border2); border-radius:22px; padding:10px 16px; font-size:16px; color:var(--text); font-family:'Cabinet Grotesk',sans-serif; outline:none; min-width:0; }
 .dm-input:focus { border-color:var(--teal); }
 .dm-send-btn { background:var(--teal); color:#fff; border:none; border-radius:22px; padding:10px 18px; font-weight:800; font-size:14px; cursor:pointer; font-family:'Cabinet Grotesk',sans-serif; white-space:nowrap; flex-shrink:0; }
