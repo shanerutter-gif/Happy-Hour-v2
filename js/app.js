@@ -111,6 +111,12 @@ function onAuthChange(user) {
   if (state.city) renderCards();
   // Refresh unread badge whenever auth state changes
   if (user) dmRefreshBadge();
+  // If user just signed in and had a pending city, enter it now
+  if (user && window._pendingCity) {
+    const { slug, name, stateCode } = window._pendingCity;
+    window._pendingCity = null;
+    enterCity(slug, name, stateCode);
+  }
 }
 
 // ── NAV ────────────────────────────────────────────────
@@ -119,11 +125,7 @@ function renderNav(user) {
   const cta = document.getElementById('homeCta');
   if (cta) {
     if (!state.city) {
-      cta.innerHTML = user
-        ? `<button class="home-cta-btn home-cta-primary" onclick="openProfile()">👤 ${(user.user_metadata?.full_name || user.email).split(' ')[0]}'s Profile</button>
-           <a class="home-cta-btn home-cta-sec" href="business-landing.html">For Business</a>`
-        : `<button class="home-cta-btn home-cta-primary" onclick="openAuth('signin')">Sign In / Sign Up</button>
-           <a class="home-cta-btn home-cta-sec" href="business-landing.html">For Business</a>`;
+      cta.innerHTML = `<a class="home-cta-btn home-cta-sec" href="business-landing.html">For Business</a>`;
     }
   }
   renderBottomNav(user);
@@ -243,6 +245,13 @@ function showHome() {
 }
 
 async function enterCity(slug, name, stateCode) {
+  // Gate: require sign-in before entering a city
+  if (!currentUser) {
+    openAuth('signin');
+    // After sign-in completes, re-enter the city
+    window._pendingCity = { slug, name, stateCode };
+    return;
+  }
   state.city = { slug, name, stateCode };
   document.getElementById('homePage').style.display = 'none';
   document.getElementById('appPage').style.display  = 'block';
