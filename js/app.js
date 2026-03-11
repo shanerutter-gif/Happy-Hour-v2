@@ -144,6 +144,10 @@ function renderBottomNav(user) {
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
         <span>Feed</span>
       </button>
+      <button class="bottom-nav-btn" id="bnMessages" onclick="bottomNavMessages(this)">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <span>Messages<span class="bn-badge" id="bnMsgBadge" style="display:none"></span></span>
+      </button>
       <button class="bottom-nav-btn" id="bnProfile" onclick="bottomNavProfile(this)">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
         <span id="bnProfileLabel">${(user.user_metadata?.full_name || 'Profile').split(' ')[0]}</span>
@@ -168,6 +172,18 @@ function bottomNavFeed(btn) {
   closeOverlay('pubProfileOverlay');
   // If no city selected, Feed just means "go home"
   if (!state.city) showHome();
+}
+
+function bottomNavMessages(btn) {
+  document.querySelectorAll('.bottom-nav-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  closeSubPage('findPeoplePage');
+  closeSubPage('feedPage');
+  closeSubPage('leaderboardPage');
+  closeOverlay('modalOverlay');
+  closeOverlay('pubProfileOverlay');
+  closeProfile();
+  openDmInbox();
 }
 
 function bottomNavProfile(btn) {
@@ -1635,10 +1651,15 @@ async function renderPublicProfile(userId) {
       return `<span class="badge-chip" title="${def.desc || b.badge_key}">${def.emoji || '🏅'} ${def.label || b.badge_key}</span>`;
     }).join('')}</div>` : ''}
     ${currentUser && currentUser.id !== userId ? `
-    <button class="pub-follow-btn ${amIFollowing ? 'following' : ''}" id="pub-follow-btn"
-      onclick="toggleFollowUser('${userId}', this)">
-      ${amIFollowing ? '✓ Following' : '+ Follow'}
-    </button>` : ''}
+    <div class="pub-action-row">
+      <button class="pub-follow-btn ${amIFollowing ? 'following' : ''}" id="pub-follow-btn"
+        onclick="toggleFollowUser('${userId}', this)">
+        ${amIFollowing ? '✓ Following' : '+ Follow'}
+      </button>
+      <button class="pub-dm-btn" onclick="dmOpenConvo('${userId}', '${esc(displayName)}')">
+        💬 Message
+      </button>
+    </div>` : ''}
     <div class="pub-tabs">
       <button class="pub-tab active" onclick="switchPubTab('checkins', this)">📍 Check-ins</button>
       <button class="pub-tab" onclick="switchPubTab('reviews', this)">⭐ Reviews</button>
@@ -2239,4 +2260,169 @@ async function doDeleteCheckinPhoto(photoId, storagePath, venueId, btn) {
 function skipToTagFriends(venueId) {
   closeOverlay('photoCheckinOverlay');
   setTimeout(() => maybeOpenTagFriends(venueId), 300);
+}
+
+// ── DIRECT MESSAGES ────────────────────────────────────
+let dmState = { convoUserId: null, convoName: null, subscription: null };
+
+async function openDmInbox() {
+  if (!currentUser) { openAuth('signin'); return; }
+  openOverlay('dmOverlay');
+  document.getElementById('dmInboxPane').style.display = '';
+  document.getElementById('dmConvoPane').style.display = 'none';
+  document.getElementById('dmBackBtn').style.display = 'none';
+  document.getElementById('dmTitle').textContent = 'Messages';
+  await dmLoadInbox();
+}
+
+async function dmLoadInbox() {
+  const list = document.getElementById('dmThreadList');
+  list.innerHTML = '<div class="dm-loading">Loading…</div>';
+  try {
+    // Get all messages involving current user
+    const { data, error } = await db.from('messages')
+      .select('id, sender_id, recipient_id, body, read_at, created_at')
+      .or(`sender_id.eq.${currentUser.id},recipient_id.eq.${currentUser.id}`)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+
+    // Group into threads by other user
+    const threads = {};
+    for (const m of (data || [])) {
+      const otherId = m.sender_id === currentUser.id ? m.recipient_id : m.sender_id;
+      if (!threads[otherId]) threads[otherId] = { otherId, messages: [] };
+      threads[otherId].messages.push(m);
+    }
+
+    const threadArr = Object.values(threads);
+    if (!threadArr.length) { list.innerHTML = '<div class="dm-empty">No messages yet.<br>Find someone and tap 💬 Message.</div>'; return; }
+
+    // Fetch profiles for all other users
+    const otherIds = threadArr.map(t => t.otherId);
+    const { data: profiles } = await db.from('profiles').select('id, display_name, avatar_emoji').in('id', otherIds);
+    const pMap = {};
+    (profiles || []).forEach(p => { pMap[p.id] = p; });
+
+    list.innerHTML = threadArr.map(t => {
+      const p = pMap[t.otherId] || {};
+      const name = p.display_name || 'Spotd User';
+      const avatar = p.avatar_emoji || '🍺';
+      const latest = t.messages[0];
+      const unread = t.messages.filter(m => m.recipient_id === currentUser.id && !m.read_at).length;
+      const preview = latest.body.length > 45 ? latest.body.slice(0, 45) + '…' : latest.body;
+      const time = fmtDate(latest.created_at);
+      return `<div class="dm-thread-row" onclick="dmOpenConvo('${t.otherId}','${esc(name)}')">
+        <div class="dm-thread-avatar">${avatar}</div>
+        <div class="dm-thread-info">
+          <div class="dm-thread-name">${esc(name)}${unread ? `<span class="dm-unread-dot">${unread}</span>` : ''}</div>
+          <div class="dm-thread-preview">${esc(preview)}</div>
+        </div>
+        <div class="dm-thread-time">${time}</div>
+      </div>`;
+    }).join('');
+
+    // Update badge
+    const totalUnread = (data || []).filter(m => m.recipient_id === currentUser.id && !m.read_at).length;
+    dmUpdateBadge(totalUnread);
+  } catch(e) {
+    list.innerHTML = '<div class="dm-empty">Failed to load messages.</div>';
+  }
+}
+
+async function dmOpenConvo(userId, displayName) {
+  if (!currentUser) { openAuth('signin'); return; }
+  dmState.convoUserId = userId;
+  dmState.convoName = displayName;
+
+  // Switch to convo pane
+  openOverlay('dmOverlay');
+  document.getElementById('dmInboxPane').style.display = 'none';
+  document.getElementById('dmConvoPane').style.display = 'flex';
+  document.getElementById('dmBackBtn').style.display = '';
+  document.getElementById('dmTitle').textContent = displayName;
+  document.getElementById('dmMessages').innerHTML = '<div class="dm-loading">Loading…</div>';
+
+  await dmLoadConvo();
+  dmSubscribe();
+}
+
+async function dmLoadConvo() {
+  const { data, error } = await db.from('messages')
+    .select('id, sender_id, body, read_at, created_at')
+    .or(`and(sender_id.eq.${currentUser.id},recipient_id.eq.${dmState.convoUserId}),and(sender_id.eq.${dmState.convoUserId},recipient_id.eq.${currentUser.id})`)
+    .order('created_at', { ascending: true });
+
+  if (error) { document.getElementById('dmMessages').innerHTML = '<div class="dm-empty">Failed to load.</div>'; return; }
+
+  dmRenderMessages(data || []);
+
+  // Mark unread messages as read
+  const unreadIds = (data || []).filter(m => m.sender_id === dmState.convoUserId && !m.read_at).map(m => m.id);
+  if (unreadIds.length) {
+    await db.from('messages').update({ read_at: new Date().toISOString() }).in('id', unreadIds);
+    dmUpdateBadge(0);
+  }
+}
+
+function dmRenderMessages(messages) {
+  const el = document.getElementById('dmMessages');
+  if (!messages.length) { el.innerHTML = '<div class="dm-empty">Say hi! 👋</div>'; return; }
+  el.innerHTML = messages.map(m => {
+    const isMine = m.sender_id === currentUser.id;
+    return `<div class="dm-msg ${isMine ? 'dm-msg--mine' : 'dm-msg--theirs'}">
+      <div class="dm-bubble">${esc(m.body)}</div>
+      <div class="dm-msg-time">${new Date(m.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</div>
+    </div>`;
+  }).join('');
+  el.scrollTop = el.scrollHeight;
+}
+
+async function dmSend() {
+  const input = document.getElementById('dmInput');
+  const body = input.value.trim();
+  if (!body || !dmState.convoUserId) return;
+  input.value = '';
+  const { error } = await db.from('messages').insert({
+    sender_id: currentUser.id,
+    recipient_id: dmState.convoUserId,
+    body,
+  });
+  if (error) { showToast('Failed to send'); input.value = body; return; }
+  await dmLoadConvo();
+}
+
+function dmSubscribe() {
+  if (dmState.subscription) dmState.subscription.unsubscribe();
+  dmState.subscription = db.channel('dm-' + dmState.convoUserId)
+    .on('postgres_changes', {
+      event: 'INSERT', schema: 'public', table: 'messages',
+      filter: `recipient_id=eq.${currentUser.id}`,
+    }, () => { dmLoadConvo(); dmPollUnread(); })
+    .subscribe();
+}
+
+function dmShowInbox() {
+  if (dmState.subscription) { dmState.subscription.unsubscribe(); dmState.subscription = null; }
+  dmState.convoUserId = null;
+  document.getElementById('dmInboxPane').style.display = '';
+  document.getElementById('dmConvoPane').style.display = 'none';
+  document.getElementById('dmBackBtn').style.display = 'none';
+  document.getElementById('dmTitle').textContent = 'Messages';
+  dmLoadInbox();
+}
+
+function dmUpdateBadge(count) {
+  const badge = document.getElementById('bnMsgBadge');
+  if (!badge) return;
+  if (count > 0) { badge.textContent = count > 9 ? '9+' : count; badge.style.display = ''; }
+  else badge.style.display = 'none';
+}
+
+async function dmPollUnread() {
+  if (!currentUser) return;
+  const { count } = await db.from('messages')
+    .select('id', { count: 'exact', head: true })
+    .eq('recipient_id', currentUser.id)
+    .is('read_at', null);
+  dmUpdateBadge(count || 0);
 }
