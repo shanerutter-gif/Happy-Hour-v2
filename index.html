@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="Spotd — Find today's best happy hours and events near you. Covering San Diego, LA, NYC, Chicago, Austin, Miami and more.">
 <title>Spotd — Happy Hours & Events Near You</title>
 
@@ -178,7 +178,7 @@
 </div>
 
 <!-- PROFILE PAGE (slide-in panel) -->
-<div id="profilePage" class="profile-page" style="display:none">
+<div id="profilePage" class="profile-page">
   <div id="profileContent"></div>
 </div>
 
@@ -348,36 +348,30 @@ function dismissA2HS() {
 }
 </script>
 
-  <!-- ── DM PAGE ─────────────────────────────────── -->
-  <!-- ── DM PAGE ─────────────────────────────────── -->
-  <div id="dmPage" class="sub-page" style="overflow:hidden;display:flex;flex-direction:column;height:100%;height:100dvh;">
-    <div class="sub-page-header" style="flex-shrink:0;">
-      <button class="sub-page-back" id="dmBackBtn" onclick="dmShowInbox()" style="visibility:hidden;">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
-      </button>
-      <span class="sub-page-title" id="dmTitle">Messages</span>
-      <button class="sub-page-back" id="dmNewBtn" onclick="dmStartNewConvo()" title="New message" style="margin-left:auto;">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-      </button>
-    </div>
-    <!-- Inbox pane -->
-    <div id="dmInboxPane" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;">
-      <div id="dmThreadList" class="dm-thread-list"><div class="dm-empty">No messages yet</div></div>
-    </div>
-    <!-- Convo pane -->
-    <div id="dmConvoPane" style="display:none;flex-direction:column;flex:1;min-height:0;">
-      <div id="dmMessages" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 16px;display:flex;flex-direction:column;gap:8px;"></div>
-      <div id="dmComposeBar" style="display:flex;gap:8px;padding:10px 12px;padding-bottom:max(12px,env(safe-area-inset-bottom));border-top:1px solid var(--border);background:var(--card);flex-shrink:0;">
-        <input id="dmInput" class="dm-input" placeholder="Message…" maxlength="500"
-          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();dmSend()}"
-          onfocus="dmScrollToBottom()">
-        <button class="dm-send-btn" onclick="dmSend()">Send</button>
+<script src="js/db.js"></script>
+<script src="js/app.js"></script>
+
+  <!-- ── DM INBOX OVERLAY ─────────────────────────── -->
+  <div class="overlay" id="dmOverlay" onclick="if(event.target===this)closeOverlay('dmOverlay')">
+    <div class="sheet dm-sheet">
+      <div class="dm-header">
+        <button class="dm-back-btn" id="dmBackBtn" onclick="dmShowInbox()" style="display:none">← Back</button>
+        <div class="dm-title" id="dmTitle">Messages</div>
+        <button class="sheet-close" onclick="closeOverlay('dmOverlay')">✕</button>
+      </div>
+      <div id="dmInboxPane" class="dm-pane">
+        <div id="dmThreadList" class="dm-thread-list"><div class="dm-empty">No messages yet</div></div>
+      </div>
+      <div id="dmConvoPane" class="dm-pane" style="display:none">
+        <div id="dmMessages" class="dm-messages"></div>
+        <div class="dm-compose">
+          <input id="dmInput" class="dm-input" placeholder="Message…" maxlength="500"
+            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();dmSend()}">
+          <button class="dm-send-btn" onclick="dmSend()">Send</button>
+        </div>
       </div>
     </div>
   </div>
-
-<script src="js/db.js"></script>
-<script src="js/app.js"></script>
 
   <script defer src="/_vercel/insights/script.js"></script>
 </body>
