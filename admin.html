@@ -233,6 +233,49 @@
     .page-btn { padding:6px 12px; border:1px solid var(--border); border-radius:7px; background:var(--card); font-size:12px; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all .15s; }
     .page-btn:hover { border-color:var(--coral); color:var(--coral); }
     .page-btn.active { background:var(--coral); color:#fff; border-color:var(--coral); }
+
+    /* ── Cities grid ── */
+    .cities-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; }
+    .city-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:20px 18px; }
+    .city-card-name { font-family:'Cabinet Grotesk',sans-serif; font-size:17px; font-weight:800; margin-bottom:12px; }
+    .city-stat-row { display:flex; justify-content:space-between; font-size:12px; margin-bottom:6px; }
+    .city-stat-label { color:var(--muted); }
+    .city-stat-val { font-weight:700; }
+
+    /* ── Pipeline ── */
+    .pipeline-stages { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:0; }
+    .pipeline-stage { background:var(--card); border:1px solid var(--border); padding:24px 20px; position:relative; }
+    .pipeline-stage:first-child { border-radius:14px 0 0 14px; }
+    .pipeline-stage:last-child  { border-radius:0 14px 14px 0; }
+    .pipeline-stage + .pipeline-stage { border-left:none; }
+    .pipeline-arrow { position:absolute; right:-12px; top:50%; transform:translateY(-50%); font-size:18px; color:var(--muted); z-index:1; }
+    .pipeline-label { font-size:10px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); font-weight:700; margin-bottom:10px; }
+    .pipeline-count { font-family:'Cabinet Grotesk',sans-serif; font-size:40px; font-weight:900; line-height:1; margin-bottom:4px; }
+    .pipeline-sub { font-size:12px; color:var(--muted); }
+    .pipeline-pending  { color:var(--warn); }
+    .pipeline-approved { color:var(--coral); }
+    .pipeline-claimed  { color:var(--success); }
+    .pipeline-rejected { color:var(--error); }
+
+    /* ── Top venues ── */
+    .top-venue-row { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px 20px; margin-bottom:8px; display:flex; align-items:center; gap:16px; }
+    .top-venue-rank { font-family:'Cabinet Grotesk',sans-serif; font-size:22px; font-weight:900; color:var(--border); width:32px; flex-shrink:0; text-align:center; }
+    .top-venue-rank.gold   { color:#F4B942; }
+    .top-venue-rank.silver { color:#A8A9AD; }
+    .top-venue-rank.bronze { color:#CD7F32; }
+    .top-venue-info { flex:1; min-width:0; }
+    .top-venue-name { font-family:'Cabinet Grotesk',sans-serif; font-weight:700; font-size:16px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .top-venue-meta { font-size:12px; color:var(--muted); margin-top:2px; }
+    .top-venue-stat { font-family:'Cabinet Grotesk',sans-serif; font-size:24px; font-weight:900; color:var(--coral); flex-shrink:0; text-align:right; }
+    .top-venue-stat-label { font-size:10px; color:var(--muted); text-align:right; text-transform:uppercase; letter-spacing:.5px; }
+
+    @media(max-width:680px) {
+      .pipeline-stages { grid-template-columns:1fr 1fr; }
+      .pipeline-stage:nth-child(2) { border-radius:0 14px 0 0; border-left:1px solid var(--border); }
+      .pipeline-stage:nth-child(3) { border-radius:0 0 0 14px; border-top:none; }
+      .pipeline-stage:nth-child(4) { border-radius:0 0 14px 0; border-left:none; border-top:none; }
+      .pipeline-arrow { display:none; }
+    }
   </style>
 </head>
 <body>
@@ -288,6 +331,18 @@
       <span class="nav-icon">👥</span>
       Users
     </button>
+    <button class="mobile-nav-item" id="mob-nav-venues-top" onclick="showPage('venues-top')">
+      <span class="nav-icon">🏆</span>
+      Top Venues
+    </button>
+    <button class="mobile-nav-item" id="mob-nav-cities" onclick="showPage('cities')">
+      <span class="nav-icon">🗺️</span>
+      Cities
+    </button>
+    <button class="mobile-nav-item" id="mob-nav-pipeline" onclick="showPage('pipeline')">
+      <span class="nav-icon">💰</span>
+      Pipeline
+    </button>
     <button class="mobile-nav-item" id="mob-nav-demo" onclick="showPage('demo')">
       <span class="nav-icon">🎭</span>
       Demo
@@ -314,6 +369,19 @@
       <div class="sidebar-label" style="margin-top:20px;margin-bottom:8px">Users</div>
       <div class="sidebar-item" onclick="showPage('users')" id="nav-users">
         User Analytics
+      </div>
+      <div class="sidebar-item" onclick="showPage('churn')" id="nav-churn">
+        Churned Users
+      </div>
+      <div class="sidebar-label" style="margin-top:20px;margin-bottom:8px">Insights</div>
+      <div class="sidebar-item" onclick="showPage('venues-top')" id="nav-venues-top">
+        Top Venues
+      </div>
+      <div class="sidebar-item" onclick="showPage('cities')" id="nav-cities">
+        City Breakdown
+      </div>
+      <div class="sidebar-item" onclick="showPage('pipeline')" id="nav-pipeline">
+        Revenue Pipeline
       </div>
       <div class="sidebar-label" style="margin-top:20px;margin-bottom:8px">Tools</div>
       <div class="sidebar-item" onclick="showPage('demo')" id="nav-demo">
@@ -440,6 +508,108 @@
           </table>
         </div>
         <div id="users-pagination" style="display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:14px;font-size:13px;color:var(--muted)"></div>
+      </div>
+
+      <!-- TOP VENUES PAGE -->
+      <div class="page" id="page-venues-top">
+        <div class="page-title">Top Venues</div>
+        <div class="page-sub">Ranked by check-ins, rating, and saves across the platform.</div>
+        <div class="status-tabs" style="max-width:460px">
+          <button class="status-tab active" onclick="switchTopVenueTab('checkins',this)">📍 Check-ins</button>
+          <button class="status-tab" onclick="switchTopVenueTab('rating',this)">⭐ Highest Rated</button>
+          <button class="status-tab" onclick="switchTopVenueTab('saves',this)">🔖 Most Saved</button>
+        </div>
+        <div id="top-venues-list"><div class="empty-state"><div class="empty-icon">⏳</div><h3>Loading…</h3></div></div>
+      </div>
+
+      <!-- CITY BREAKDOWN PAGE -->
+      <div class="page" id="page-cities">
+        <div class="page-title">City Breakdown</div>
+        <div class="page-sub">Users, venues, and activity by city.</div>
+        <div class="cities-grid" id="cities-grid">
+          <div class="empty-state"><div class="empty-icon">⏳</div><h3>Loading…</h3></div>
+        </div>
+        <div style="margin-top:32px">
+          <div class="section-title" style="margin-bottom:16px">Activity by City</div>
+          <div class="users-table-wrap">
+            <table class="users-table">
+              <thead><tr>
+                <th>City</th><th>Venues</th><th>Check-ins</th><th>Reviews</th><th>Avg Rating</th><th>Active Users</th>
+              </tr></thead>
+              <tbody id="cities-tbody"><tr><td colspan="6" class="table-empty">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- CHURNED USERS PAGE -->
+      <div class="page" id="page-churn">
+        <div class="page-title">Churned Users</div>
+        <div class="page-sub">Signed up but never checked in — potential re-engagement targets.</div>
+        <div class="kpi-grid" style="margin-bottom:28px">
+          <div class="kpi-card">
+            <div class="kpi-label">Never Checked In</div>
+            <div class="kpi-value" id="churn-never">—</div>
+            <div class="kpi-sub">of all signups</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Churn Rate</div>
+            <div class="kpi-value" id="churn-rate">—</div>
+            <div class="kpi-sub">% with 0 check-ins</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">SMS Reachable</div>
+            <div class="kpi-value" id="churn-sms">—</div>
+            <div class="kpi-sub">Churned + SMS consent</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Joined > 7 Days Ago</div>
+            <div class="kpi-value" id="churn-old">—</div>
+            <div class="kpi-sub">Long enough to act</div>
+          </div>
+        </div>
+        <div class="section-header">
+          <div class="section-title">Churned User List</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <input class="venue-search-input" id="churn-search" type="text" placeholder="Search name…" oninput="filterChurnTable()" style="max-width:200px">
+            <select class="venue-search-input" id="churn-filter" onchange="filterChurnTable()" style="max-width:180px">
+              <option value="">All churned</option>
+              <option value="sms">SMS reachable only</option>
+              <option value="recent">Joined last 30 days</option>
+              <option value="old">Joined 30+ days ago</option>
+            </select>
+            <button onclick="exportChurnCSV()" style="padding:9px 16px;background:var(--bg2);border:1px solid var(--border);border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap">⬇ Export CSV</button>
+          </div>
+        </div>
+        <div class="users-table-wrap">
+          <table class="users-table">
+            <thead><tr>
+              <th>User</th><th>Phone</th><th>SMS</th><th>Joined</th><th>Days Since Signup</th>
+            </tr></thead>
+            <tbody id="churn-tbody"><tr><td colspan="5" class="table-empty">Loading…</td></tr></tbody>
+          </table>
+        </div>
+        <div id="churn-pagination" style="display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:14px;font-size:13px;color:var(--muted)"></div>
+      </div>
+
+      <!-- REVENUE PIPELINE PAGE -->
+      <div class="page" id="page-pipeline">
+        <div class="page-title">Revenue Pipeline</div>
+        <div class="page-sub">Business venue requests moving from submission to claimed listing.</div>
+        <div class="pipeline-stages" id="pipeline-stages">
+          <div class="empty-state"><div class="empty-icon">⏳</div><h3>Loading…</h3></div>
+        </div>
+        <div style="margin-top:32px">
+          <div class="section-title" style="margin-bottom:16px">All Business Requests</div>
+          <div class="users-table-wrap">
+            <table class="users-table">
+              <thead><tr>
+                <th>Venue</th><th>Submitted By</th><th>City</th><th>Status</th><th>Submitted</th><th>Days in Stage</th>
+              </tr></thead>
+              <tbody id="pipeline-tbody"><tr><td colspan="6" class="table-empty">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       <!-- DEMO DATA PAGE -->
@@ -1106,8 +1276,12 @@
     document.getElementById('page-'+page)?.classList.add('active');
     document.getElementById('nav-'+page)?.classList.add('active');
     document.getElementById('mob-nav-'+page)?.classList.add('active');
-    if (page === 'venues') loadVenues();
-    if (page === 'users')  loadUsers();
+    if (page === 'venues')     loadVenues();
+    if (page === 'users')      loadUsers();
+    if (page === 'venues-top') loadTopVenues();
+    if (page === 'cities')     loadCities();
+    if (page === 'churn')      loadChurn();
+    if (page === 'pipeline')   loadPipeline();
   }
 
   // ── USERS PAGE ────────────────────────────────────────
@@ -1231,6 +1405,278 @@
 
   function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
+  // ── TOP VENUES ────────────────────────────────────────
+  let _topVenueData = null;
+  let _topVenueTab  = 'checkins';
+
+  async function loadTopVenues() {
+    if (_topVenueData) { renderTopVenues(); return; }
+    document.getElementById('top-venues-list').innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><h3>Loading…</h3></div>';
+    const [venues, checkins, reviews, saves] = await Promise.all([
+      sb.get('venues', 'select=id,name,city_slug,neighborhood,active&limit=1000'),
+      sb.get('check_ins', 'select=venue_id&limit=20000'),
+      sb.get('reviews', 'select=venue_id,rating&limit=20000'),
+      sb.get('user_favorites', 'select=venue_id&limit=20000'),
+    ]);
+    const checkinMap = {}, reviewMap = {}, ratingSum = {}, saveMap = {};
+    (Array.isArray(checkins)?checkins:[]).forEach(c => { checkinMap[c.venue_id] = (checkinMap[c.venue_id]||0)+1; });
+    (Array.isArray(reviews)?reviews:[]).forEach(r => {
+      reviewMap[r.venue_id] = (reviewMap[r.venue_id]||0)+1;
+      ratingSum[r.venue_id] = (ratingSum[r.venue_id]||0)+r.rating;
+    });
+    (Array.isArray(saves)?saves:[]).forEach(s => { saveMap[s.venue_id] = (saveMap[s.venue_id]||0)+1; });
+    _topVenueData = (Array.isArray(venues)?venues:[]).map(v => ({
+      ...v,
+      checkins: checkinMap[v.id]||0,
+      reviews:  reviewMap[v.id]||0,
+      rating:   reviewMap[v.id] ? Math.round((ratingSum[v.id]/reviewMap[v.id])*10)/10 : 0,
+      saves:    saveMap[v.id]||0,
+    }));
+    renderTopVenues();
+  }
+
+  function switchTopVenueTab(tab, btn) {
+    _topVenueTab = tab;
+    document.querySelectorAll('#page-venues-top .status-tab').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    renderTopVenues();
+  }
+
+  function renderTopVenues() {
+    const sorted = [..._topVenueData].sort((a,b) => b[_topVenueTab] - a[_topVenueTab]).slice(0,25);
+    const statLabel = { checkins:'check-ins', rating:'avg rating', saves:'saves' };
+    const el = document.getElementById('top-venues-list');
+    if (!sorted.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">🏜️</div><h3>No data yet</h3></div>'; return; }
+    el.innerHTML = sorted.map((v,i) => {
+      const rankClass = i===0?'gold':i===1?'silver':i===2?'bronze':'';
+      const val = _topVenueTab === 'rating' ? (v.rating ? `${v.rating}★` : '—') : v[_topVenueTab];
+      return `<div class="top-venue-row">
+        <div class="top-venue-rank ${rankClass}">${i+1}</div>
+        <div class="top-venue-info">
+          <div class="top-venue-name">${escHtml(v.name)}</div>
+          <div class="top-venue-meta">${[v.city_slug, v.neighborhood].filter(Boolean).join(' · ')} · ${v.active?'<span style="color:var(--success)">Active</span>':'<span style="color:var(--muted)">Inactive</span>'}</div>
+        </div>
+        <div>
+          <div class="top-venue-stat">${val}</div>
+          <div class="top-venue-stat-label">${statLabel[_topVenueTab]}</div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // ── CITY BREAKDOWN ────────────────────────────────────
+  async function loadCities() {
+    document.getElementById('cities-tbody').innerHTML = '<tr><td colspan="6" class="table-empty">Loading…</td></tr>';
+    const [venues, checkins, reviews, profiles] = await Promise.all([
+      sb.get('venues', 'select=id,city_slug,active&limit=2000'),
+      sb.get('check_ins', 'select=city_slug&limit=20000'),
+      sb.get('reviews', 'select=venue_id,rating&limit=20000'),
+      sb.get('profiles', 'select=id,created_at&limit=2000'),
+    ]);
+    const venuesByCityMap = {}, activeByCity = {};
+    (Array.isArray(venues)?venues:[]).forEach(v => {
+      venuesByCityMap[v.city_slug] = (venuesByCityMap[v.city_slug]||0)+1;
+      if (v.active) activeByCity[v.city_slug] = (activeByCity[v.city_slug]||0)+1;
+    });
+    const checkinsByCity = {};
+    (Array.isArray(checkins)?checkins:[]).forEach(c => { if(c.city_slug) checkinsByCity[c.city_slug] = (checkinsByCity[c.city_slug]||0)+1; });
+
+    // Build venue id→city map for reviews
+    const venueCity = {};
+    (Array.isArray(venues)?venues:[]).forEach(v => { venueCity[v.id] = v.city_slug; });
+    const reviewsByCity = {}, ratingByCity = {}, ratingCnt = {};
+    (Array.isArray(reviews)?reviews:[]).forEach(r => {
+      const city = venueCity[r.venue_id];
+      if (!city) return;
+      reviewsByCity[city] = (reviewsByCity[city]||0)+1;
+      ratingByCity[city]  = (ratingByCity[city]||0)+r.rating;
+      ratingCnt[city]     = (ratingCnt[city]||0)+1;
+    });
+
+    const cities = [...new Set([
+      ...Object.keys(venuesByCityMap),
+      ...Object.keys(checkinsByCity),
+    ])].sort();
+
+    // Cards
+    const grid = document.getElementById('cities-grid');
+    grid.innerHTML = cities.map(city => {
+      const venues_n  = venuesByCityMap[city]||0;
+      const active_n  = activeByCity[city]||0;
+      const checkin_n = checkinsByCity[city]||0;
+      const review_n  = reviewsByCity[city]||0;
+      const avg = ratingCnt[city] ? (ratingByCity[city]/ratingCnt[city]).toFixed(1) : '—';
+      return `<div class="city-card">
+        <div class="city-card-name">${escHtml(city.replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase()))}</div>
+        <div class="city-stat-row"><span class="city-stat-label">Active Venues</span><span class="city-stat-val">${active_n} / ${venues_n}</span></div>
+        <div class="city-stat-row"><span class="city-stat-label">Check-ins</span><span class="city-stat-val" style="color:var(--coral)">${checkin_n.toLocaleString()}</span></div>
+        <div class="city-stat-row"><span class="city-stat-label">Reviews</span><span class="city-stat-val">${review_n.toLocaleString()}</span></div>
+        <div class="city-stat-row"><span class="city-stat-label">Avg Rating</span><span class="city-stat-val">${avg}${avg!=='—'?'★':''}</span></div>
+      </div>`;
+    }).join('') || '<div class="empty-state"><div class="empty-icon">🏙️</div><h3>No city data yet</h3></div>';
+
+    // Table
+    const rows = cities.map(city => {
+      const avg = ratingCnt[city] ? (ratingByCity[city]/ratingCnt[city]).toFixed(1)+'★' : '—';
+      return `<tr>
+        <td style="font-weight:700">${escHtml(city.replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase()))}</td>
+        <td>${venuesByCityMap[city]||0}</td>
+        <td style="color:var(--coral);font-weight:700">${(checkinsByCity[city]||0).toLocaleString()}</td>
+        <td>${(reviewsByCity[city]||0).toLocaleString()}</td>
+        <td>${avg}</td>
+        <td>—</td>
+      </tr>`;
+    }).join('');
+    document.getElementById('cities-tbody').innerHTML = rows || '<tr><td colspan="6" class="table-empty">No data</td></tr>';
+  }
+
+  // ── CHURNED USERS ─────────────────────────────────────
+  let _churnUsers = [], _churnPage = 1;
+  const CHURN_PAGE = 25;
+
+  async function loadChurn() {
+    document.getElementById('churn-tbody').innerHTML = '<tr><td colspan="5" class="table-empty">Loading…</td></tr>';
+    if (!_allUsers.length) await loadUsers();
+    const checkins = await sb.get('check_ins', 'select=user_id&limit=20000');
+    const activeIds = new Set((Array.isArray(checkins)?checkins:[]).map(c=>c.user_id).filter(Boolean));
+    const weekAgo = new Date(Date.now()-7*864e5), monthAgo = new Date(Date.now()-30*864e5);
+    _churnUsers = _allUsers.filter(u => !activeIds.has(u.id));
+
+    document.getElementById('churn-never').textContent = _churnUsers.length;
+    document.getElementById('churn-rate').textContent  = _allUsers.length ? Math.round(_churnUsers.length/_allUsers.length*100)+'%' : '—';
+    document.getElementById('churn-sms').textContent   = _churnUsers.filter(u=>u.sms_consent).length;
+    document.getElementById('churn-old').textContent   = _churnUsers.filter(u=>new Date(u.created_at)<weekAgo).length;
+
+    _churnPage = 1;
+    renderChurnTable();
+  }
+
+  function filterChurnTable() { _churnPage = 1; renderChurnTable(); }
+
+  function getFilteredChurn() {
+    const q = (document.getElementById('churn-search')?.value||'').toLowerCase();
+    const f = document.getElementById('churn-filter')?.value||'';
+    const now = new Date(), monthAgo = new Date(Date.now()-30*864e5);
+    return _churnUsers.filter(u => {
+      if (q && !(u.display_name||'').toLowerCase().includes(q)) return false;
+      if (f==='sms' && !u.sms_consent) return false;
+      if (f==='recent' && new Date(u.created_at)<monthAgo) return false;
+      if (f==='old' && new Date(u.created_at)>=monthAgo) return false;
+      return true;
+    });
+  }
+
+  function renderChurnTable() {
+    const filtered = getFilteredChurn();
+    const total = filtered.length;
+    const pages = Math.max(1,Math.ceil(total/CHURN_PAGE));
+    _churnPage  = Math.min(_churnPage, pages);
+    const slice = filtered.slice((_churnPage-1)*CHURN_PAGE, _churnPage*CHURN_PAGE);
+    const now = Date.now();
+
+    document.getElementById('churn-tbody').innerHTML = slice.length ? slice.map(u => {
+      const days = u.created_at ? Math.floor((now-new Date(u.created_at))/864e5) : '?';
+      const joined = u.created_at ? new Date(u.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—';
+      return `<tr>
+        <td><div class="user-cell">
+          <div class="user-avatar">${u.avatar_emoji||'🍺'}</div>
+          <div class="user-name">${escHtml(u.display_name||'Unnamed')}</div>
+        </div></td>
+        <td style="font-family:'DM Mono',monospace;font-size:12px">${u.phone?escHtml(u.phone):'<span style="color:var(--muted)">—</span>'}</td>
+        <td>${u.sms_consent?'<span class="badge-sms-on">✓ Yes</span>':'<span class="badge-sms-off">—</span>'}</td>
+        <td style="color:var(--muted);font-size:12px">${joined}</td>
+        <td><span style="font-weight:700;color:${days>30?'var(--error)':days>7?'var(--warn)':'var(--muted)'}">${days}d</span></td>
+      </tr>`;
+    }).join('') : '<tr><td colspan="5" class="table-empty">No churned users match filters</td></tr>';
+
+    // Pagination
+    const pag = document.getElementById('churn-pagination');
+    if (pages<=1) { pag.innerHTML=`<span>${total} user${total!==1?'s':''}</span>`; return; }
+    let html = `<span style="margin-right:8px">${total} users</span>`;
+    html += `<button class="page-btn" onclick="goChurnPage(${_churnPage-1})" ${_churnPage<=1?'disabled':''}>‹</button>`;
+    for(let i=1;i<=pages;i++){
+      if(i===1||i===pages||Math.abs(i-_churnPage)<=1) html+=`<button class="page-btn${i===_churnPage?' active':''}" onclick="goChurnPage(${i})">${i}</button>`;
+      else if(Math.abs(i-_churnPage)===2) html+=`<span style="padding:0 4px">…</span>`;
+    }
+    html += `<button class="page-btn" onclick="goChurnPage(${_churnPage+1})" ${_churnPage>=pages?'disabled':''}>›</button>`;
+    pag.innerHTML = html;
+  }
+
+  function goChurnPage(p) { _churnPage=p; renderChurnTable(); }
+
+  function exportChurnCSV() {
+    const filtered = getFilteredChurn();
+    const rows = [['Name','Phone','SMS Consent','Joined','Days Since Signup']];
+    const now = Date.now();
+    filtered.forEach(u => {
+      const days = u.created_at ? Math.floor((now-new Date(u.created_at))/864e5) : '';
+      const joined = u.created_at ? new Date(u.created_at).toLocaleDateString() : '';
+      rows.push([u.display_name||'', u.phone||'', u.sms_consent?'Yes':'No', joined, days]);
+    });
+    const csv = rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const a = document.createElement('a');
+    a.href = 'data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+    a.download = 'spotd-churned-users.csv';
+    a.click();
+  }
+
+  // ── REVENUE PIPELINE ──────────────────────────────────
+  async function loadPipeline() {
+    document.getElementById('pipeline-tbody').innerHTML = '<tr><td colspan="6" class="table-empty">Loading…</td></tr>';
+    const reqs = await sb.get('venue_requests', 'select=*&limit=1000');
+    const list = Array.isArray(reqs) ? reqs : [];
+
+    const counts = { pending:0, approved:0, claimed:0, rejected:0 };
+    list.forEach(r => { if(counts[r.status]!==undefined) counts[r.status]++; });
+    // 'claimed' = approved + has venue_id (venue exists and is active)
+    // approximate: approved requests where venue is active
+    const claimedCount = list.filter(r=>r.status==='approved'&&r.venue_id).length;
+
+    document.getElementById('pipeline-stages').innerHTML = `
+      <div class="pipeline-stage">
+        <div class="pipeline-label">Submitted</div>
+        <div class="pipeline-count">${list.length}</div>
+        <div class="pipeline-sub">Total requests ever</div>
+        <div class="pipeline-arrow">›</div>
+      </div>
+      <div class="pipeline-stage">
+        <div class="pipeline-label">Pending Review</div>
+        <div class="pipeline-count pipeline-pending">${counts.pending}</div>
+        <div class="pipeline-sub">Awaiting your action</div>
+        <div class="pipeline-arrow">›</div>
+      </div>
+      <div class="pipeline-stage">
+        <div class="pipeline-label">Approved</div>
+        <div class="pipeline-count pipeline-approved">${counts.approved}</div>
+        <div class="pipeline-sub">Venue created</div>
+        <div class="pipeline-arrow">›</div>
+      </div>
+      <div class="pipeline-stage">
+        <div class="pipeline-label">Claimed</div>
+        <div class="pipeline-count pipeline-claimed">${claimedCount}</div>
+        <div class="pipeline-sub">Venue live + linked</div>
+      </div>
+      <div class="pipeline-stage" style="border-left:2px dashed rgba(192,57,43,0.2)">
+        <div class="pipeline-label">Rejected</div>
+        <div class="pipeline-count pipeline-rejected">${counts.rejected}</div>
+        <div class="pipeline-sub">Dismissed</div>
+      </div>`;
+
+    const now = Date.now();
+    document.getElementById('pipeline-tbody').innerHTML = list.length ? list.map(r => {
+      const submitted = r.created_at ? new Date(r.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—';
+      const days = r.created_at ? Math.floor((now-new Date(r.created_at))/864e5) : '?';
+      const statusColors = { pending:'var(--warn)', approved:'var(--coral)', claimed:'var(--success)', rejected:'var(--error)' };
+      return `<tr>
+        <td style="font-weight:700">${escHtml(r.venue_name||'—')}</td>
+        <td style="font-size:12px;color:var(--muted)">${escHtml(r.user_email||'—')}</td>
+        <td style="font-size:12px">${escHtml(r.city_slug||'—')}</td>
+        <td><span class="req-status ${r.status}">${r.status}</span></td>
+        <td style="font-size:12px;color:var(--muted)">${submitted}</td>
+        <td style="font-weight:700;color:${days>14?'var(--error)':days>7?'var(--warn)':'var(--muted)'}">${days}d</td>
+      </tr>`;
+    }).join('') : '<tr><td colspan="6" class="table-empty">No requests yet</td></tr>';
+  }
 
   function handleLogout() {
     localStorage.removeItem(LS_KEY);
