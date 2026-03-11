@@ -847,7 +847,7 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 .profile-page {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
-  z-index: 499;
+  z-index: 498;
   background: var(--bg);
   overflow-y: auto;
   overflow-x: hidden;
@@ -855,16 +855,13 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   overscroll-behavior: contain;
   padding: env(safe-area-inset-top, 0px) 20px 80px;
   opacity: 0;
-  visibility: hidden;
-  transition: opacity .18s ease, visibility 0s linear .18s;
-  will-change: opacity;
   pointer-events: none;
+  transition: opacity .22s ease;
 }
 .profile-page--open {
   opacity: 1;
-  visibility: visible;
   pointer-events: auto;
-  transition: opacity .18s ease, visibility 0s linear 0s;
+  z-index: 499;
 }
 
 /* ══════════════════════════════════════════════
@@ -944,22 +941,19 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 .dm-page {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
-  z-index: 499;
+  z-index: 498;
   background: var(--bg);
   display: flex;
   flex-direction: column;
   overflow: hidden;
   opacity: 0;
-  visibility: hidden;
-  transition: opacity .18s ease, visibility 0s linear .18s;
-  will-change: opacity;
   pointer-events: none;
+  transition: opacity .22s ease;
 }
 .dm-page--open {
   opacity: 1;
-  visibility: visible;
   pointer-events: auto;
-  transition: opacity .18s ease, visibility 0s linear 0s;
+  z-index: 499;
 }
 .dm-header { display:flex; align-items:center; gap:8px; padding:14px 16px; padding-top:calc(14px + env(safe-area-inset-top, 0px)); border-bottom:1px solid var(--border); flex-shrink:0; background:var(--bg); }
 .dm-title { flex:1; font-weight:800; font-size:17px; text-align:center; }
