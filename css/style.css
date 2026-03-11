@@ -847,7 +847,7 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 .profile-page {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
-  z-index: 601;
+  z-index: 499;
   background: var(--bg);
   overflow-y: auto;
   overflow-x: hidden;
@@ -944,7 +944,7 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 .dm-page {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
-  z-index: 601;
+  z-index: 499;
   background: var(--bg);
   display: flex;
   flex-direction: column;
