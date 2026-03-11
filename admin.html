@@ -276,6 +276,18 @@
       .pipeline-stage:nth-child(4) { border-radius:0 0 14px 0; border-left:none; border-top:none; }
       .pipeline-arrow { display:none; }
     }
+
+    /* CMS */
+    .cms-tab { background:none;border:1px solid #e8e0d8;border-radius:8px;padding:7px 14px;cursor:pointer;font-size:13px;font-weight:600;color:#888;transition:all .15s; }
+    .cms-tab-active { background:#FF6B4A;color:#fff;border-color:#FF6B4A; }
+    .cms-field-group { display:flex;flex-direction:column;gap:6px; }
+    .cms-label { font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#999; }
+    .cms-input { width:100%;padding:9px 12px;border:1.5px solid #e8e0d8;border-radius:8px;font-size:14px;font-family:inherit;color:#3a2d20;background:#fafafa;box-sizing:border-box;transition:border .15s; }
+    .cms-input:focus { outline:none;border-color:#FF6B4A;background:#fff; }
+    .cms-textarea { resize:vertical;min-height:72px; }
+    .cms-section-title { font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#FF6B4A;padding-bottom:4px;border-bottom:1px solid #f0e8e0;margin-top:4px; }
+    .cms-saved-toast { position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#2a1f14;color:#fff;padding:10px 20px;border-radius:24px;font-size:13px;font-weight:600;z-index:9999;pointer-events:none;opacity:0;transition:opacity .2s; }
+    .cms-saved-toast.show { opacity:1; }
   </style>
 </head>
 <body>
@@ -384,6 +396,9 @@
         Revenue Pipeline
       </div>
       <div class="sidebar-label" style="margin-top:20px;margin-bottom:8px">Tools</div>
+      <div class="sidebar-item" onclick="showPage('cms')" id="nav-cms">
+        ✏️ Site Copy
+      </div>
       <div class="sidebar-item" onclick="showPage('demo')" id="nav-demo">
         🎭 Demo Data
       </div>
@@ -613,6 +628,41 @@
       </div>
 
       <!-- DEMO DATA PAGE -->
+      <!-- CMS PAGE -->
+      <div class="page" id="page-cms">
+        <div class="page-header">
+          <div class="page-title">✏️ Site Copy</div>
+          <div class="page-subtitle">Edit live copy on spotd.biz and business.spotd.biz</div>
+        </div>
+
+        <div id="cms-container" style="display:flex;gap:0;height:calc(100vh - 160px);min-height:500px;border:1px solid #e8e0d8;border-radius:12px;overflow:hidden;">
+
+          <!-- LEFT: Edit Panel -->
+          <div id="cms-panel" style="width:340px;flex-shrink:0;background:#fff;border-right:1px solid #e8e0d8;display:flex;flex-direction:column;overflow:hidden;">
+            <div style="padding:16px;border-bottom:1px solid #e8e0d8;display:flex;gap:8px;">
+              <button onclick="cmsSwitchPage('home')" id="cms-tab-home" class="cms-tab cms-tab-active">🏠 Homepage</button>
+              <button onclick="cmsSwitchPage('business')" id="cms-tab-business" class="cms-tab">💼 Business</button>
+            </div>
+            <div id="cms-fields" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:16px;">
+              <div style="color:#999;font-size:13px;text-align:center;padding:40px 0;">Loading copy…</div>
+            </div>
+            <div style="padding:12px 16px;border-top:1px solid #e8e0d8;display:flex;gap:8px;">
+              <button onclick="cmsSave()" class="btn btn-primary" style="flex:1;justify-content:center;" id="cms-save-btn">💾 Save &amp; Publish</button>
+              <button onclick="cmsReset()" class="btn" style="padding:10px 14px;" title="Reset to defaults">↺</button>
+            </div>
+          </div>
+
+          <!-- RIGHT: Preview iframe -->
+          <div style="flex:1;display:flex;flex-direction:column;background:#f5efe6;">
+            <div style="padding:10px 16px;background:#fff;border-bottom:1px solid #e8e0d8;display:flex;align-items:center;gap:10px;">
+              <div id="cms-preview-url" style="font-size:12px;color:#999;font-family:monospace;">https://spotd.biz</div>
+              <button onclick="cmsRefreshPreview()" style="margin-left:auto;background:none;border:1px solid #e8e0d8;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;">⟳ Refresh</button>
+            </div>
+            <iframe id="cms-preview" src="https://spotd.biz" style="flex:1;border:none;width:100%;"></iframe>
+          </div>
+        </div>
+      </div>
+
       <div class="page" id="page-demo">
         <div class="page-title">🎭 Demo Data Generator</div>
         <div class="page-sub">Seed fake users, reviews, and check-ins for demos. All generated data is tagged and can be fully removed.</div>
@@ -1849,6 +1899,155 @@
       }
     } catch(e) {}
   });
+
+  // ── CMS ─────────────────────────────────────────────────────
+  const CMS_DEFAULTS = {
+    home: {
+      hero_title:    "Find today's best spots",
+      hero_subtitle: "Happy hours, trivia nights, live music, karaoke and more — curated for every major city",
+      meta_desc:     "Spotd — Find today's best happy hours and events near you. Covering San Diego, LA, NYC, Chicago, Austin, Miami and more.",
+    },
+    business: {
+      hero_eyebrow:  "🍻 For Bar & Restaurant Owners",
+      hero_title:    "Get found by locals looking to go out tonight",
+      hero_sub:      "Spotd puts your happy hour in front of thousands of people actively searching for somewhere to go right now. Free to list. Takes 5 minutes.",
+      cta_btn:       "List my venue free →",
+      stat1_num:     "85+",
+      stat1_label:   "San Diego venues",
+      stat2_num:     "6",
+      stat2_label:   "Cities & growing",
+      stat3_num:     "5min",
+      stat3_label:   "To get listed",
+      stat4_num:     "$0",
+      stat4_label:   "To get started",
+    }
+  };
+
+  const CMS_FIELDS = {
+    home: [
+      { key:'hero_title',    label:'Hero Title',    type:'input' },
+      { key:'hero_subtitle', label:'Hero Subtitle', type:'textarea' },
+      { key:'meta_desc',     label:'Meta Description', type:'textarea' },
+    ],
+    business: [
+      { section:'Hero' },
+      { key:'hero_eyebrow', label:'Eyebrow Text',  type:'input' },
+      { key:'hero_title',   label:'Hero Title',    type:'textarea' },
+      { key:'hero_sub',     label:'Hero Subtitle', type:'textarea' },
+      { key:'cta_btn',      label:'CTA Button',    type:'input' },
+      { section:'Stats' },
+      { key:'stat1_num',    label:'Stat 1 Number', type:'input' },
+      { key:'stat1_label',  label:'Stat 1 Label',  type:'input' },
+      { key:'stat2_num',    label:'Stat 2 Number', type:'input' },
+      { key:'stat2_label',  label:'Stat 2 Label',  type:'input' },
+      { key:'stat3_num',    label:'Stat 3 Number', type:'input' },
+      { key:'stat3_label',  label:'Stat 3 Label',  type:'input' },
+      { key:'stat4_num',    label:'Stat 4 Number', type:'input' },
+      { key:'stat4_label',  label:'Stat 4 Label',  type:'input' },
+    ]
+  };
+
+  let cmsCurrentPage = 'home';
+  let cmsData = { home: {}, business: {} };
+
+  async function loadCms() {
+    const { data, error } = await sb.from('site_copy').select('page, key, value');
+    if (!error && data) {
+      data.forEach(row => {
+        if (!cmsData[row.page]) cmsData[row.page] = {};
+        cmsData[row.page][row.key] = row.value;
+      });
+    }
+    cmsSwitchPage('home');
+  }
+
+  function cmsSwitchPage(page) {
+    cmsCurrentPage = page;
+    document.querySelectorAll('.cms-tab').forEach(t => t.classList.remove('cms-tab-active'));
+    document.getElementById('cms-tab-' + page)?.classList.add('cms-tab-active');
+    const previewUrl = page === 'home' ? 'https://spotd.biz' : 'https://spotd.biz/business-landing.html';
+    document.getElementById('cms-preview-url').textContent = previewUrl;
+    document.getElementById('cms-preview').src = previewUrl;
+    renderCmsFields(page);
+  }
+
+  function renderCmsFields(page) {
+    const fields = CMS_FIELDS[page] || [];
+    const defaults = CMS_DEFAULTS[page] || {};
+    const saved = cmsData[page] || {};
+    const container = document.getElementById('cms-fields');
+
+    container.innerHTML = fields.map(f => {
+      if (f.section) return `<div class="cms-section-title">${f.section}</div>`;
+      const val = saved[f.key] !== undefined ? saved[f.key] : defaults[f.key] || '';
+      const el = f.type === 'textarea'
+        ? `<textarea class="cms-input cms-textarea" id="cms-field-${f.key}" rows="3">${val}</textarea>`
+        : `<input class="cms-input" id="cms-field-${f.key}" type="text" value="${val.replace(/"/g,'&quot;')}">`;
+      return `<div class="cms-field-group"><div class="cms-label">${f.label}</div>${el}</div>`;
+    }).join('');
+  }
+
+  async function cmsSave() {
+    const btn = document.getElementById('cms-save-btn');
+    btn.textContent = 'Saving…';
+    btn.disabled = true;
+
+    const page = cmsCurrentPage;
+    const fields = CMS_FIELDS[page].filter(f => f.key);
+    const rows = fields.map(f => {
+      const el = document.getElementById('cms-field-' + f.key);
+      return { page, key: f.key, value: el ? el.value : '' };
+    });
+
+    // Upsert all rows
+    const { error } = await sb.from('site_copy').upsert(rows, { onConflict: 'page,key' });
+
+    if (!error) {
+      // Update local cache
+      rows.forEach(r => {
+        if (!cmsData[r.page]) cmsData[r.page] = {};
+        cmsData[r.page][r.key] = r.value;
+      });
+      showCmsToast('✅ Published!');
+      setTimeout(() => cmsRefreshPreview(), 800);
+    } else {
+      showCmsToast('❌ Save failed: ' + error.message);
+    }
+
+    btn.textContent = '💾 Save & Publish';
+    btn.disabled = false;
+  }
+
+  function cmsReset() {
+    if (!confirm('Reset to defaults?')) return;
+    const page = cmsCurrentPage;
+    const defaults = CMS_DEFAULTS[page] || {};
+    CMS_FIELDS[page].filter(f => f.key).forEach(f => {
+      const el = document.getElementById('cms-field-' + f.key);
+      if (el) el.value = defaults[f.key] || '';
+    });
+  }
+
+  function cmsRefreshPreview() {
+    const iframe = document.getElementById('cms-preview');
+    iframe.src = iframe.src;
+  }
+
+  function showCmsToast(msg) {
+    let t = document.getElementById('cms-toast');
+    if (!t) { t = document.createElement('div'); t.id = 'cms-toast'; t.className = 'cms-saved-toast'; document.body.appendChild(t); }
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2500);
+  }
+
+  // Hook into showPage to load CMS when opened
+  const _origShowPage = showPage;
+  showPage = function(page) {
+    _origShowPage(page);
+    if (page === 'cms') loadCms();
+  };
+
 </script>
 </body>
 </html>
