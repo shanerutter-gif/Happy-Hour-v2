@@ -688,61 +688,52 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   color: #C87000;
 }
 
-/* Secondary action row — compact equal-width pill buttons */
+/* Secondary action row — icon+label pill buttons */
 .s-secondary-actions {
   display: flex; gap: 8px; margin: 12px 0 4px;
 }
 .s-act-btn {
-  flex: 1; padding: 10px 6px;
+  flex: 1; padding: 10px 4px;
   border-radius: 50px;
   background: var(--card); border: 1.5px solid var(--border2);
   color: var(--charcoal); font-family: 'DM Sans', sans-serif;
-  font-size: 13px; font-weight: 600;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.2px;
   cursor: pointer; text-align: center; text-decoration: none;
-  display: flex; align-items: center; justify-content: center;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
   transition: border-color .15s, background .15s;
-  white-space: nowrap;
+  white-space: nowrap; min-width: 0;
 }
-.s-act-btn:active { background: rgba(42,31,20,.07); }
+.s-act-btn .s-btn-icon { font-size: 18px; line-height: 1; }
+.s-act-btn:active { background: rgba(42,31,20,.06); border-color: var(--coral); }
 .s-act-primary {
-  background: var(--teal); color: #fff; border-color: var(--teal);
+  background: var(--coral); color: #fff; border-color: var(--coral);
+  font-size: 13px; font-weight: 700; flex-direction: row; gap: 6px;
+  padding: 12px 8px; letter-spacing: 0;
 }
-.s-act-primary:hover, .s-act-primary:active { opacity: .88; background: var(--teal); }
+.s-act-primary .s-btn-icon { font-size: 16px; }
+.s-act-primary:hover, .s-act-primary:active { opacity: .88; background: var(--coral); }
 
 /* ══════════════════════════════════════════════
    PROFILE — clean tab strip + social row
    ══════════════════════════════════════════════ */
 
-/* Tab strip: clean underline style, no emojis */
+/* Tab strip */
 .pub-tabs {
-  display: flex; overflow-x: auto; border-bottom: 1px solid var(--border2);
+  display: flex; overflow-x: auto; border-bottom: 1.5px solid var(--border2);
   margin: 16px 0 0; gap: 0;
-  scrollbar-width: none;
+  scrollbar-width: none; -webkit-overflow-scrolling: touch;
 }
 .pub-tabs::-webkit-scrollbar { display: none; }
 .pub-tab {
   background: transparent; border: none;
   padding: 10px 14px; font-size: 13px; font-weight: 600;
   color: var(--muted); cursor: pointer; white-space: nowrap;
-  border-bottom: 2px solid transparent; margin-bottom: -1px;
+  border-bottom: 2.5px solid transparent; margin-bottom: -1.5px;
   font-family: 'DM Sans', sans-serif; transition: color .15s;
   flex-shrink: 0;
 }
-.pub-tab.active { color: var(--teal); border-bottom-color: var(--teal); }
-
-/* Social row: 3 small ghost links below avatar */
-.profile-social-row {
-  display: flex; gap: 8px; margin: 12px 0 4px;
-}
-.profile-social-btn {
-  flex: 1; padding: 9px 8px; border-radius: 50px;
-  background: transparent;
-  border: 1.5px solid var(--border2);
-  color: rgba(42,31,20,.55); font-family: 'DM Sans', sans-serif;
-  font-size: 12px; font-weight: 600; cursor: pointer; text-align: center;
-  transition: border-color .15s, color .15s;
-}
-.profile-social-btn:active { border-color: var(--teal); color: var(--teal); }
+.pub-tab.active { color: var(--coral); border-bottom-color: var(--coral); }
+.pub-tab:active { color: var(--coral); }
 
 /* ══════════════════════════════════════════════
    CARD going-btn — pill, clean
@@ -765,6 +756,7 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   border-color: rgba(0,194,168,0.3);
   color: var(--teal);
 }
+.s-act-btn.following .s-btn-icon::after { content: ''; }
 
 /* sheet--full removed — profile uses .profile-page */
 
