@@ -1055,9 +1055,10 @@
     try {
       // Fetch venue IDs
       demoSetProgress(5, 'Fetching venues…');
-      const venueRes = await fetch(`${SUPABASE_URL}/rest/v1/venues?select=id&city_slug=eq.${citySlug}&active=eq.true`, { headers: sb.headers() });
+      const venueRes = await fetch(`${SUPABASE_URL}/rest/v1/venues?select=id&city_slug=eq.${citySlug}`, { headers: sb.headers() });
       const venues = await venueRes.json();
-      if (!venues || !venues.length) throw new Error('No active venues found for ' + citySlug);
+      if (!venueRes.ok) throw new Error('Supabase error: ' + (venues.message || venueRes.status));
+      if (!venues || !venues.length) throw new Error(`No venues found for "${citySlug}" — have you run the SQL chunks yet?`);
       const venueIds = venues.map(v => v.id);
 
       // Build profiles
