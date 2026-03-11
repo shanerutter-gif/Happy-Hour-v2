@@ -27,6 +27,11 @@ let _accessToken  = null;
       if (stored?.user && stored?.expires_at > Math.floor(Date.now() / 1000)) {
         currentUser  = stored.user;
         _accessToken = stored.access_token;
+        // Inject token into the db client so RLS works
+        await db.auth.setSession({
+          access_token:  stored.access_token,
+          refresh_token: stored.refresh_token || '',
+        });
         await loadFavorites();
         if (typeof onAuthChange === 'function') onAuthChange(currentUser);
       }
@@ -63,6 +68,11 @@ async function authSignIn(email, password) {
 
     currentUser  = data.user;
     _accessToken = data.access_token;
+    // Inject token into db client so RLS works
+    await db.auth.setSession({
+      access_token:  data.access_token,
+      refresh_token: data.refresh_token || '',
+    });
     await loadFavorites();
     if (typeof onAuthChange === 'function') onAuthChange(currentUser);
     return { data, error: null };
