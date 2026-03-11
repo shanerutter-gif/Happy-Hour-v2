@@ -351,6 +351,28 @@ function dismissA2HS() {
 <script src="js/db.js"></script>
 <script src="js/app.js"></script>
 
+  <!-- ── DM INBOX OVERLAY ─────────────────────────── -->
+  <div class="overlay" id="dmOverlay" onclick="if(event.target===this)closeOverlay('dmOverlay')">
+    <div class="sheet dm-sheet">
+      <div class="dm-header">
+        <button class="dm-back-btn" id="dmBackBtn" onclick="dmShowInbox()" style="display:none">← Back</button>
+        <div class="dm-title" id="dmTitle">Messages</div>
+        <button class="sheet-close" onclick="closeOverlay('dmOverlay')">✕</button>
+      </div>
+      <div id="dmInboxPane" class="dm-pane">
+        <div id="dmThreadList" class="dm-thread-list"><div class="dm-empty">No messages yet</div></div>
+      </div>
+      <div id="dmConvoPane" class="dm-pane" style="display:none">
+        <div id="dmMessages" class="dm-messages"></div>
+        <div class="dm-compose">
+          <input id="dmInput" class="dm-input" placeholder="Message…" maxlength="500"
+            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();dmSend()}">
+          <button class="dm-send-btn" onclick="dmSend()">Send</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script defer src="/_vercel/insights/script.js"></script>
 </body>
 </html>
