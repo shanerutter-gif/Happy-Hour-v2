@@ -1067,12 +1067,21 @@ function closeProfile() {
 function openSubPage(id) {
   const page = document.getElementById(id);
   if (!page) return;
-  requestAnimationFrame(() => page.classList.add('sub-page--open'));
+  if (id === 'dmPage') {
+    // dmPage uses visibility/opacity — no display toggle needed
+    requestAnimationFrame(() => page.classList.add('sub-page--open'));
+  } else {
+    page.style.display = 'block';
+    requestAnimationFrame(() => requestAnimationFrame(() => page.classList.add('sub-page--open')));
+  }
 }
 function closeSubPage(id) {
   const page = document.getElementById(id);
   if (!page) return;
   page.classList.remove('sub-page--open');
+  if (id !== 'dmPage') {
+    setTimeout(() => { page.style.display = 'none'; }, 250);
+  }
 }
 
 async function renderProfile(user) {
