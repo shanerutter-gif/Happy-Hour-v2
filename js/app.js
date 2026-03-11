@@ -75,7 +75,23 @@ const state = {
 
 const CACHE_MS = 60000;
 
+async function loadSiteCopy() {
+  try {
+    const { data } = await db.from('site_copy').select('key,value').eq('page','home');
+    if (!data?.length) return;
+    const map = Object.fromEntries(data.map(r => [r.key, r.value]));
+    if (map.hero_title)    document.getElementById('copy-home-title').innerHTML    = map.hero_title;
+    if (map.hero_subtitle) document.getElementById('copy-home-subtitle').textContent = map.hero_subtitle;
+    if (map.hero_eyebrow)  document.getElementById('copy-home-eyebrow').textContent = map.hero_eyebrow;
+    if (map.meta_desc) {
+      const m = document.querySelector('meta[name="description"]');
+      if (m) m.setAttribute('content', map.meta_desc);
+    }
+  } catch(e) {}
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+  loadSiteCopy();
   renderCityGrid();
   // Re-render nav in case auth session was restored before DOM was ready
   renderNav(currentUser);
