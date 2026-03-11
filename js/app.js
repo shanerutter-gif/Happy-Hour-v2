@@ -2266,16 +2266,15 @@ function skipToTagFriends(venueId) {
 }
 
 
+
 // ── MESSAGES V2 ────────────────────────────────────────
 let dmState = {
-  convos: [],
   activeConvoId: null,
   activeConvoName: null,
   isGroup: false,
   subscription: null,
 };
 
-// ── Open inbox ─────────────────────────────────────────
 async function openDmInbox() {
   if (!currentUser) { openAuth('signin'); return; }
   openSubPage('dmPage');
@@ -2287,77 +2286,100 @@ function dmShowInboxPane() {
   document.getElementById('dmInboxPane').style.display = '';
   document.getElementById('dmConvoPane').style.display = 'none';
   document.getElementById('dmBackBtn').style.visibility = 'hidden';
+  document.getElementById('dmNewBtn').style.display = '';
   document.getElementById('dmTitle').textContent = 'Messages';
 }
 
-// ── Load inbox ─────────────────────────────────────────
 async function dmLoadInbox() {
   const list = document.getElementById('dmThreadList');
   list.innerHTML = '<div class="dm-loading">Loading…</div>';
   try {
-    // Get conversations I'm part of
-    const { data: partRows, error: pErr } = await db
+    // Step 1: get my conversation IDs
+    const { data: myParts, error: e1 } = await db
       .from('conversation_participants')
-      .select('conversation_id')
+      .select('conversation_id, last_read_at')
       .eq('user_id', currentUser.id);
-    if (pErr) throw pErr;
-
-    if (!partRows?.length) {
-      list.innerHTML = '<div class="dm-empty">No messages yet.<br>Tap ✏️ to start a conversation.</div>';
-      dmUpdateBadge(0);
-      return;
+    if (e1) throw e1;
+    if (!myParts?.length) {
+      list.innerHTML = '<div class="dm-empty">No messages yet.<br>Tap + to start a conversation.</div>';
+      dmUpdateBadge(0); return;
     }
 
-    const convoIds = partRows.map(r => r.conversation_id);
+    const convoIds = myParts.map(r => r.conversation_id);
+    const myReadMap = {};
+    myParts.forEach(r => { myReadMap[r.conversation_id] = r.last_read_at; });
 
-    // Fetch conversations with last message
-    const { data: convos, error: cErr } = await db
+    // Step 2: get conversations
+    const { data: convos, error: e2 } = await db
       .from('conversations')
-      .select(`id, is_group, name, updated_at,
-        conversation_participants(user_id, last_read_at),
-        messages(id, sender_id, body, msg_type, venue_id, created_at)`)
+      .select('id, is_group, name, updated_at')
       .in('id', convoIds)
       .order('updated_at', { ascending: false });
-    if (cErr) throw cErr;
+    if (e2) throw e2;
 
-    // Get all participant user IDs to fetch profiles
-    const allUserIds = [...new Set(
-      (convos || []).flatMap(c => c.conversation_participants.map(p => p.user_id))
-        .filter(id => id !== currentUser.id)
+    // Step 3: get all participants
+    const { data: allParts, error: e3 } = await db
+      .from('conversation_participants')
+      .select('conversation_id, user_id')
+      .in('conversation_id', convoIds);
+    if (e3) throw e3;
+
+    // Step 4: get last message per convo
+    const { data: lastMsgs, error: e4 } = await db
+      .from('messages')
+      .select('conversation_id, sender_id, body, msg_type, created_at')
+      .in('conversation_id', convoIds)
+      .order('created_at', { ascending: false });
+    if (e4) throw e4;
+
+    // Group last messages by convo
+    const lastMsgMap = {};
+    (lastMsgs || []).forEach(m => {
+      if (!lastMsgMap[m.conversation_id]) lastMsgMap[m.conversation_id] = m;
+    });
+
+    // Unread counts
+    const unreadMap = {};
+    (lastMsgs || []).forEach(m => {
+      if (m.sender_id === currentUser.id) return;
+      const myRead = myReadMap[m.conversation_id];
+      if (!myRead || new Date(m.created_at) > new Date(myRead)) {
+        unreadMap[m.conversation_id] = (unreadMap[m.conversation_id] || 0) + 1;
+      }
+    });
+
+    // Step 5: fetch profiles for other participants
+    const otherIds = [...new Set(
+      (allParts || []).map(p => p.user_id).filter(id => id !== currentUser.id)
     )];
-
-    const { data: profiles } = allUserIds.length
-      ? await db.from('profiles').select('id, display_name, avatar_emoji').in('id', allUserIds)
+    const { data: profiles } = otherIds.length
+      ? await db.from('profiles').select('id, display_name, avatar_emoji').in('id', otherIds)
       : { data: [] };
     const pMap = {};
     (profiles || []).forEach(p => { pMap[p.id] = p; });
 
+    // Build participant map per convo
+    const convoPartsMap = {};
+    (allParts || []).forEach(p => {
+      if (!convoPartsMap[p.conversation_id]) convoPartsMap[p.conversation_id] = [];
+      convoPartsMap[p.conversation_id].push(p.user_id);
+    });
+
     let totalUnread = 0;
-
     list.innerHTML = (convos || []).map(c => {
-      const others = c.conversation_participants.filter(p => p.user_id !== currentUser.id);
-      const myPart = c.conversation_participants.find(p => p.user_id === currentUser.id);
-
-      // Last message
-      const msgs = [...(c.messages || [])].sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
-      const last = msgs[0];
-
-      // Unread count
-      const unread = msgs.filter(m =>
-        m.sender_id !== currentUser.id &&
-        (!myPart?.last_read_at || new Date(m.created_at) > new Date(myPart.last_read_at))
-      ).length;
+      const others = (convoPartsMap[c.id] || []).filter(id => id !== currentUser.id);
+      const last = lastMsgMap[c.id];
+      const unread = unreadMap[c.id] || 0;
       totalUnread += unread;
 
-      // Display name / avatar
       let name, avatar;
       if (c.is_group) {
-        name = c.name || others.map(o => (pMap[o.user_id]?.display_name || 'User').split(' ')[0]).join(', ');
+        name = c.name || others.map(id => (pMap[id]?.display_name || 'User').split(' ')[0]).join(', ');
         avatar = '👥';
       } else {
-        const other = pMap[others[0]?.user_id] || {};
-        name = other.display_name || 'Spotd User';
-        avatar = other.avatar_emoji || '🍺';
+        const p = pMap[others[0]] || {};
+        name = p.display_name || 'Spotd User';
+        avatar = p.avatar_emoji || '🍺';
       }
 
       const preview = last
@@ -2373,16 +2395,15 @@ async function dmLoadInbox() {
         </div>
         <div class="dm-thread-time">${time}</div>
       </div>`;
-    }).join('') || '<div class="dm-empty">No messages yet.<br>Tap ✏️ to start a conversation.</div>';
+    }).join('') || '<div class="dm-empty">No messages yet.<br>Tap + to start a conversation.</div>';
 
     dmUpdateBadge(totalUnread);
   } catch(e) {
-    console.error('dmLoadInbox error:', e);
+    console.error('dmLoadInbox:', e);
     list.innerHTML = '<div class="dm-empty">Failed to load messages.</div>';
   }
 }
 
-// ── Open conversation ───────────────────────────────────
 async function dmOpenConvo(convoId, name, isGroup) {
   if (!currentUser) { openAuth('signin'); return; }
   closeOverlay('pubProfileOverlay');
@@ -2394,14 +2415,15 @@ async function dmOpenConvo(convoId, name, isGroup) {
   document.getElementById('dmInboxPane').style.display = 'none';
   document.getElementById('dmConvoPane').style.display = 'flex';
   document.getElementById('dmBackBtn').style.visibility = 'visible';
+  document.getElementById('dmNewBtn').style.display = 'none';
   document.getElementById('dmTitle').textContent = name;
   document.getElementById('dmMessages').innerHTML = '<div class="dm-loading">Loading…</div>';
+  document.getElementById('dmComposeBar').style.display = '';
 
   await dmLoadConvo();
   dmSubscribe();
 }
 
-// ── Load messages ──────────────────────────────────────
 async function dmLoadConvo() {
   const { data, error } = await db
     .from('messages')
@@ -2411,42 +2433,30 @@ async function dmLoadConvo() {
 
   if (error) { document.getElementById('dmMessages').innerHTML = '<div class="dm-empty">Failed to load.</div>'; return; }
 
+  const msgs = data || [];
+
   // Fetch sender profiles
-  const senderIds = [...new Set((data || []).map(m => m.sender_id).filter(Boolean))];
+  const senderIds = [...new Set(msgs.map(m => m.sender_id).filter(Boolean))];
   const { data: profiles } = senderIds.length
     ? await db.from('profiles').select('id, display_name, avatar_emoji').in('id', senderIds)
     : { data: [] };
   const pMap = {};
   (profiles || []).forEach(p => { pMap[p.id] = p; });
 
-  // Fetch venue details for venue shares
-  const venueIds = [...new Set((data || []).filter(m => m.venue_id).map(m => m.venue_id))];
+  // Fetch venues for shares
+  const venueIds = [...new Set(msgs.filter(m => m.venue_id).map(m => m.venue_id))];
   const { data: venues } = venueIds.length
-    ? await db.from('venues').select('id, name, neighborhood, hours, google_rating').in('id', venueIds)
+    ? await db.from('venues').select('id, name, neighborhood, google_rating').in('id', venueIds)
     : { data: [] };
   const vMap = {};
   (venues || []).forEach(v => { vMap[v.id] = v; });
 
-  dmRenderMessages(data || [], pMap, vMap);
-
-  // Mark as read
-  await db.from('conversation_participants')
-    .update({ last_read_at: new Date().toISOString() })
-    .eq('conversation_id', dmState.activeConvoId)
-    .eq('user_id', currentUser.id);
-
-  dmUpdateBadge(0);
-}
-
-// ── Render messages ────────────────────────────────────
-function dmRenderMessages(messages, pMap, vMap) {
   const el = document.getElementById('dmMessages');
-  if (!messages.length) { el.innerHTML = '<div class="dm-empty">Say hi! 👋</div>'; return; }
+  if (!msgs.length) { el.innerHTML = '<div class="dm-empty">Say hi! 👋</div>'; return; }
 
-  el.innerHTML = messages.map(m => {
+  el.innerHTML = msgs.map(m => {
     const isMine = m.sender_id === currentUser.id;
-    const sender = pMap[m.sender_id];
-    const senderName = isMine ? 'You' : (sender?.display_name || 'User');
+    const senderName = isMine ? 'You' : (pMap[m.sender_id]?.display_name || 'User');
 
     if (m.msg_type === 'venue_share') {
       const v = vMap[m.venue_id] || {};
@@ -2472,9 +2482,14 @@ function dmRenderMessages(messages, pMap, vMap) {
   }).join('');
 
   el.scrollTop = el.scrollHeight;
+
+  // Mark read
+  await db.from('conversation_participants')
+    .update({ last_read_at: new Date().toISOString() })
+    .eq('conversation_id', dmState.activeConvoId)
+    .eq('user_id', currentUser.id);
 }
 
-// ── Send message ───────────────────────────────────────
 async function dmSend() {
   const input = document.getElementById('dmInput');
   const body = input.value.trim();
@@ -2490,7 +2505,6 @@ async function dmSend() {
   await dmLoadConvo();
 }
 
-// ── Send venue share ───────────────────────────────────
 async function dmSendVenue(venueId, convoId) {
   const { error } = await db.from('messages').insert({
     conversation_id: convoId,
@@ -2501,21 +2515,18 @@ async function dmSendVenue(venueId, convoId) {
   if (error) { showToast('Failed to share venue'); return; }
   showToast('Venue shared! 📍');
   closeOverlay('modalOverlay');
-  dmOpenConvo(convoId, dmState.convos?.find(c=>c.id===convoId)?.name || 'Chat', dmState.isGroup);
+  document.getElementById('dmSharePickerOverlay')?.remove();
 }
 
-// ── New conversation flow ──────────────────────────────
+// ── New conversation ───────────────────────────────────
 async function dmStartNewConvo() {
   if (!currentUser) { openAuth('signin'); return; }
-
-  // Get list of people the user follows or has messaged
   const { data: following } = await db
     .from('user_follows')
     .select('following_id')
     .eq('follower_id', currentUser.id);
 
   const followIds = (following || []).map(f => f.following_id);
-
   const { data: profiles } = followIds.length
     ? await db.from('profiles').select('id, display_name, avatar_emoji').in('id', followIds)
     : { data: [] };
@@ -2524,76 +2535,70 @@ async function dmStartNewConvo() {
 }
 
 function dmShowUserPicker(users, isGroup) {
-  const el = document.getElementById('dmMessages');
-  const convoPane = document.getElementById('dmConvoPane');
-
   document.getElementById('dmInboxPane').style.display = 'none';
-  convoPane.style.display = 'flex';
+  document.getElementById('dmConvoPane').style.display = 'flex';
   document.getElementById('dmBackBtn').style.visibility = 'visible';
+  document.getElementById('dmNewBtn').style.display = 'none';
   document.getElementById('dmTitle').textContent = isGroup ? 'New Group' : 'New Message';
   document.getElementById('dmComposeBar').style.display = 'none';
 
-  const selected = new Set();
+  window._dmPickerSelected = new Set();
+  window._dmPickerUsers = users;
+  window._dmPickerIsGroup = isGroup;
 
-  el.innerHTML = `
+  document.getElementById('dmMessages').innerHTML = `
     <div class="dm-picker">
       <div class="dm-picker-search-wrap">
-        <input class="dm-picker-search" placeholder="Search by name…" oninput="dmFilterPicker(this.value)" id="dmPickerSearch">
+        <input class="dm-picker-search" placeholder="Search by name…" oninput="dmFilterPicker(this.value)">
       </div>
-      ${!isGroup ? `<div class="dm-picker-toggle" onclick="dmShowUserPicker(${JSON.stringify(users).replace(/"/g,"'")}, true)">👥 Create Group Instead</div>` : `
-        <div class="dm-group-name-wrap">
-          <input class="dm-picker-search" id="dmGroupName" placeholder="Group name (optional)…">
-        </div>
-      `}
+      ${isGroup
+        ? `<div class="dm-group-name-wrap"><input class="dm-picker-search" id="dmGroupName" placeholder="Group name (optional)…"></div>`
+        : `<div class="dm-picker-toggle" onclick="dmShowUserPicker(window._dmPickerUsers, true)">👥 Create Group Instead</div>`
+      }
       <div id="dmPickerList" class="dm-picker-list">
-        ${users.length ? users.map(u => `
-          <div class="dm-picker-row" id="dpick-${u.id}" onclick="dmPickerToggle('${u.id}','${esc(u.display_name||'User')}')">
-            <div class="dm-thread-avatar" style="width:36px;height:36px;font-size:20px;">${u.avatar_emoji||'🍺'}</div>
-            <div style="flex:1">${esc(u.display_name||'User')}</div>
-            <div class="dm-pick-check" id="dcheck-${u.id}">○</div>
-          </div>`).join('') : '<div class="dm-empty" style="padding:20px">Follow people to message them</div>'}
+        ${users.length
+          ? users.map(u => `
+            <div class="dm-picker-row" id="dpick-${u.id}" onclick="dmPickerToggle('${u.id}',${isGroup})">
+              <div class="dm-thread-avatar" style="width:36px;height:36px;font-size:20px;">${u.avatar_emoji||'🍺'}</div>
+              <div style="flex:1">${esc(u.display_name||'User')}</div>
+              <div class="dm-pick-check" id="dcheck-${u.id}">○</div>
+            </div>`).join('')
+          : '<div class="dm-empty" style="padding:20px">Follow people to message them</div>'
+        }
       </div>
-      <button class="dm-send-btn" style="margin:12px 16px;width:calc(100% - 32px);padding:14px;" 
+      <button class="dm-send-btn" style="margin:12px 16px;width:calc(100% - 32px);padding:14px;border-radius:14px;"
         onclick="dmCreateConvo(${isGroup})">
         ${isGroup ? 'Create Group' : 'Start Chat'}
       </button>
     </div>`;
-
-  window._dmPickerSelected = selected;
-  window._dmPickerUsers = users;
-  window._dmPickerIsGroup = isGroup;
 }
 
 function dmFilterPicker(q) {
-  const rows = document.querySelectorAll('.dm-picker-row');
-  rows.forEach(row => {
+  document.querySelectorAll('.dm-picker-row').forEach(row => {
     row.style.display = row.textContent.toLowerCase().includes(q.toLowerCase()) ? '' : 'none';
   });
 }
 
-function dmPickerToggle(userId, name) {
+function dmPickerToggle(userId, isGroup) {
   const sel = window._dmPickerSelected;
-  const isGroup = window._dmPickerIsGroup;
   const check = document.getElementById(`dcheck-${userId}`);
   const row = document.getElementById(`dpick-${userId}`);
-
   if (sel.has(userId)) {
     sel.delete(userId);
     check.textContent = '○';
     row.classList.remove('dm-picker-row--selected');
   } else {
-    if (!isGroup) sel.clear(); // DMs only allow 1
+    if (!isGroup) {
+      // DM: clear others first
+      sel.forEach(id => {
+        document.getElementById(`dcheck-${id}`).textContent = '○';
+        document.getElementById(`dpick-${id}`).classList.remove('dm-picker-row--selected');
+      });
+      sel.clear();
+    }
     sel.add(userId);
     check.textContent = '●';
     row.classList.add('dm-picker-row--selected');
-    if (!isGroup) {
-      // Auto-highlight single select
-      document.querySelectorAll('.dm-picker-row').forEach(r => {
-        if (!r.id.endsWith(userId)) r.classList.remove('dm-picker-row--selected');
-        const c = r.querySelector('.dm-pick-check');
-        if (c && !r.id.endsWith(userId)) c.textContent = '○';
-      });
-    }
   }
 }
 
@@ -2601,94 +2606,75 @@ async function dmCreateConvo(isGroup) {
   const sel = window._dmPickerSelected;
   if (!sel?.size) { showToast('Select at least one person'); return; }
 
-  const participantIds = [currentUser.id, ...sel];
   const groupName = isGroup ? (document.getElementById('dmGroupName')?.value.trim() || null) : null;
 
-  // For DMs: check if conversation already exists
+  // For DMs check if conversation already exists
   if (!isGroup && sel.size === 1) {
     const otherId = [...sel][0];
-    const { data: existing } = await db
-      .from('conversation_participants')
-      .select('conversation_id')
-      .eq('user_id', currentUser.id);
-
-    if (existing?.length) {
-      const myConvoIds = existing.map(r => r.conversation_id);
-      const { data: shared } = await db
-        .from('conversation_participants')
-        .select('conversation_id, conversations(is_group)')
-        .eq('user_id', otherId)
-        .in('conversation_id', myConvoIds);
-
-      const existingDm = shared?.find(r => !r.conversations?.is_group);
-      if (existingDm) {
-        // Reuse existing DM
-        const profile = window._dmPickerUsers?.find(u => u.id === otherId);
-        document.getElementById('dmComposeBar').style.display = '';
-        await dmOpenConvo(existingDm.conversation_id, profile?.display_name || 'Chat', false);
-        return;
+    const { data: myParts } = await db.from('conversation_participants').select('conversation_id').eq('user_id', currentUser.id);
+    if (myParts?.length) {
+      const myIds = myParts.map(r => r.conversation_id);
+      const { data: otherParts } = await db.from('conversation_participants').select('conversation_id').eq('user_id', otherId).in('conversation_id', myIds);
+      if (otherParts?.length) {
+        const sharedId = otherParts[0].conversation_id;
+        const { data: convoCheck } = await db.from('conversations').select('is_group').eq('id', sharedId).single();
+        if (convoCheck && !convoCheck.is_group) {
+          const name = window._dmPickerUsers?.find(u => u.id === otherId)?.display_name || 'Chat';
+          document.getElementById('dmComposeBar').style.display = '';
+          await dmOpenConvo(sharedId, name, false);
+          return;
+        }
       }
     }
   }
 
-  // Create new conversation
+  // Create conversation
   const { data: convo, error: cErr } = await db
     .from('conversations')
     .insert({ is_group: isGroup, name: groupName, created_by: currentUser.id })
     .select()
     .single();
-  if (cErr) { showToast('Failed to create conversation'); return; }
+  if (cErr) { console.error('create convo:', cErr); showToast('Failed to create conversation'); return; }
 
   // Add participants
-  const { error: pErr } = await db
-    .from('conversation_participants')
+  const participantIds = [currentUser.id, ...[...sel]];
+  const { error: pErr } = await db.from('conversation_participants')
     .insert(participantIds.map(uid => ({ conversation_id: convo.id, user_id: uid })));
-  if (pErr) { showToast('Failed to add participants'); return; }
+  if (pErr) { console.error('add participants:', pErr); showToast('Failed to add participants'); return; }
 
-  // Get name for display
-  let displayName = groupName;
-  if (!displayName) {
-    const others = window._dmPickerUsers?.filter(u => sel.has(u.id)) || [];
-    displayName = isGroup
-      ? others.map(u => (u.display_name||'User').split(' ')[0]).join(', ')
-      : (others[0]?.display_name || 'Chat');
-  }
+  const others = window._dmPickerUsers?.filter(u => sel.has(u.id)) || [];
+  const displayName = groupName || (isGroup
+    ? others.map(u => (u.display_name||'User').split(' ')[0]).join(', ')
+    : (others[0]?.display_name || 'Chat'));
 
   document.getElementById('dmComposeBar').style.display = '';
   await dmOpenConvo(convo.id, displayName, isGroup);
 }
 
-// ── Start DM from public profile ──────────────────────
+// ── Open DM from public profile ────────────────────────
 async function dmOpenFromProfile(userId, displayName) {
   if (!currentUser) { openAuth('signin'); return; }
   closeOverlay('pubProfileOverlay');
 
-  // Check if DM already exists
-  const { data: myParts } = await db
-    .from('conversation_participants')
-    .select('conversation_id')
-    .eq('user_id', currentUser.id);
-
+  // Check for existing DM
+  const { data: myParts } = await db.from('conversation_participants').select('conversation_id').eq('user_id', currentUser.id);
   if (myParts?.length) {
     const myIds = myParts.map(r => r.conversation_id);
-    const { data: shared } = await db
-      .from('conversation_participants')
-      .select('conversation_id, conversations(is_group)')
-      .eq('user_id', userId)
-      .in('conversation_id', myIds);
-
-    const existing = shared?.find(r => !r.conversations?.is_group);
-    if (existing) {
-      openSubPage('dmPage');
-      document.getElementById('dmComposeBar').style.display = '';
-      await dmOpenConvo(existing.conversation_id, displayName, false);
-      return;
+    const { data: otherParts } = await db.from('conversation_participants').select('conversation_id').eq('user_id', userId).in('conversation_id', myIds);
+    if (otherParts?.length) {
+      for (const p of otherParts) {
+        const { data: c } = await db.from('conversations').select('is_group').eq('id', p.conversation_id).single();
+        if (c && !c.is_group) {
+          openSubPage('dmPage');
+          await dmOpenConvo(p.conversation_id, displayName, false);
+          return;
+        }
+      }
     }
   }
 
   // Create new DM
-  const { data: convo, error } = await db
-    .from('conversations')
+  const { data: convo, error } = await db.from('conversations')
     .insert({ is_group: false, created_by: currentUser.id })
     .select().single();
   if (error) { showToast('Failed to start conversation'); return; }
@@ -2699,95 +2685,70 @@ async function dmOpenFromProfile(userId, displayName) {
   ]);
 
   openSubPage('dmPage');
-  document.getElementById('dmComposeBar').style.display = '';
   await dmOpenConvo(convo.id, displayName, false);
 }
 
-// ── Share venue picker overlay ─────────────────────────
+// ── Venue share picker ─────────────────────────────────
 async function dmOpenVenueSharePicker(venueId) {
   if (!currentUser) { openAuth('signin'); return; }
 
-  const { data: partRows } = await db
-    .from('conversation_participants')
-    .select('conversation_id')
-    .eq('user_id', currentUser.id);
+  const { data: myParts } = await db.from('conversation_participants').select('conversation_id').eq('user_id', currentUser.id);
+  if (!myParts?.length) { showToast('No conversations yet — start one first'); return; }
 
-  if (!partRows?.length) {
-    showToast('No conversations yet — start one first');
-    return;
-  }
+  const convoIds = myParts.map(r => r.conversation_id);
+  const { data: convos } = await db.from('conversations').select('id, is_group, name').in('id', convoIds).order('updated_at', { ascending: false });
+  const { data: allParts } = await db.from('conversation_participants').select('conversation_id, user_id').in('conversation_id', convoIds);
 
-  const convoIds = partRows.map(r => r.conversation_id);
-  const { data: convos } = await db
-    .from('conversations')
-    .select(`id, is_group, name, conversation_participants(user_id)`)
-    .in('id', convoIds)
-    .order('updated_at', { ascending: false });
-
-  // Get profiles for other participants
-  const allOtherIds = [...new Set(
-    (convos || []).flatMap(c => c.conversation_participants.map(p => p.user_id))
-      .filter(id => id !== currentUser.id)
-  )];
-  const { data: profiles } = allOtherIds.length
-    ? await db.from('profiles').select('id, display_name, avatar_emoji').in('id', allOtherIds)
-    : { data: [] };
+  const otherIds = [...new Set((allParts||[]).map(p=>p.user_id).filter(id=>id!==currentUser.id))];
+  const { data: profiles } = otherIds.length ? await db.from('profiles').select('id, display_name, avatar_emoji').in('id', otherIds) : { data: [] };
   const pMap = {};
-  (profiles || []).forEach(p => { pMap[p.id] = p; });
+  (profiles||[]).forEach(p => { pMap[p.id] = p; });
 
-  // Build picker HTML
-  const items = (convos || []).map(c => {
-    const others = c.conversation_participants.filter(p => p.user_id !== currentUser.id);
-    const name = c.is_group
-      ? (c.name || others.map(o => (pMap[o.user_id]?.display_name||'User').split(' ')[0]).join(', '))
-      : (pMap[others[0]?.user_id]?.display_name || 'Spotd User');
-    const avatar = c.is_group ? '👥' : (pMap[others[0]?.user_id]?.avatar_emoji || '🍺');
-    return { id: c.id, name, avatar };
+  const convoPartsMap = {};
+  (allParts||[]).forEach(p => {
+    if (!convoPartsMap[p.conversation_id]) convoPartsMap[p.conversation_id] = [];
+    if (p.user_id !== currentUser.id) convoPartsMap[p.conversation_id].push(p.user_id);
   });
 
-  // Show as bottom sheet
-  const existing = document.getElementById('dmSharePickerOverlay');
-  if (existing) existing.remove();
-
+  document.getElementById('dmSharePickerOverlay')?.remove();
   const overlay = document.createElement('div');
   overlay.id = 'dmSharePickerOverlay';
   overlay.className = 'overlay open';
   overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
-  overlay.innerHTML = `
-    <div class="sheet" style="max-height:60vh;overflow-y:auto;">
-      <div style="font-weight:800;font-size:17px;margin-bottom:16px;padding-right:32px;">Send to…</div>
-      <button class="sheet-close" onclick="document.getElementById('dmSharePickerOverlay').remove()">✕</button>
-      ${items.map(c => `
-        <div class="dm-thread-row" style="margin:0 -20px;padding:12px 20px;" onclick="dmSendVenue('${venueId}','${c.id}');document.getElementById('dmSharePickerOverlay').remove()">
-          <div class="dm-thread-avatar">${c.avatar}</div>
-          <div class="dm-thread-info"><div class="dm-thread-name">${esc(c.name)}</div></div>
-          <div style="color:var(--teal);font-weight:700;font-size:13px;">Send</div>
-        </div>`).join('')}
-    </div>`;
+  overlay.innerHTML = `<div class="sheet" style="max-height:60vh;overflow-y:auto;">
+    <div style="font-weight:800;font-size:17px;margin-bottom:16px;padding-right:32px;">Send to…</div>
+    <button class="sheet-close" onclick="document.getElementById('dmSharePickerOverlay').remove()">✕</button>
+    ${(convos||[]).map(c => {
+      const others = convoPartsMap[c.id] || [];
+      const name = c.is_group ? (c.name || others.map(id=>(pMap[id]?.display_name||'User').split(' ')[0]).join(', ')) : (pMap[others[0]]?.display_name || 'Spotd User');
+      const avatar = c.is_group ? '👥' : (pMap[others[0]]?.avatar_emoji || '🍺');
+      return `<div class="dm-thread-row" style="margin:0 -20px;padding:12px 20px;" onclick="dmSendVenue('${venueId}','${c.id}');document.getElementById('dmSharePickerOverlay').remove()">
+        <div class="dm-thread-avatar">${avatar}</div>
+        <div class="dm-thread-info"><div class="dm-thread-name">${esc(name)}</div></div>
+        <div style="color:var(--teal);font-weight:700;font-size:13px;">Send</div>
+      </div>`;
+    }).join('')}
+  </div>`;
   document.body.appendChild(overlay);
 }
 
-// ── Show/back inbox ────────────────────────────────────
+// ── Back to inbox ──────────────────────────────────────
 function dmShowInbox() {
   if (dmState.subscription) { dmState.subscription.unsubscribe(); dmState.subscription = null; }
   dmState.activeConvoId = null;
-  document.getElementById('dmComposeBar').style.display = '';
   dmShowInboxPane();
   dmLoadInbox();
 }
 
-// ── Realtime subscription ──────────────────────────────
+// ── Realtime ───────────────────────────────────────────
 function dmSubscribe() {
   if (dmState.subscription) dmState.subscription.unsubscribe();
-  dmState.subscription = db.channel('dm-convo-' + dmState.activeConvoId)
-    .on('postgres_changes', {
-      event: 'INSERT', schema: 'public', table: 'messages',
-      filter: `conversation_id=eq.${dmState.activeConvoId}`,
-    }, () => dmLoadConvo())
+  dmState.subscription = db.channel('dm-' + dmState.activeConvoId)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages',
+      filter: `conversation_id=eq.${dmState.activeConvoId}` }, () => dmLoadConvo())
     .subscribe();
 }
 
-// ── Badge ──────────────────────────────────────────────
 function dmUpdateBadge(count) {
   const badge = document.getElementById('bnMsgBadge');
   if (!badge) return;
@@ -2795,32 +2756,18 @@ function dmUpdateBadge(count) {
   else badge.style.display = 'none';
 }
 
-async function dmPollUnread() {
-  if (!currentUser) return;
-  // Count convos with unread messages
-  const { data: parts } = await db
-    .from('conversation_participants')
-    .select('conversation_id, last_read_at')
-    .eq('user_id', currentUser.id);
-  if (!parts?.length) { dmUpdateBadge(0); return; }
-  // Simple heuristic — just reload inbox to get count
-  // (full unread count would require more complex query)
-  dmUpdateBadge(0);
-}
-
-// ── DM keyboard handling ───────────────────────────────
+// ── iOS keyboard handling ──────────────────────────────
 function dmScrollToBottom() {
   const el = document.getElementById('dmMessages');
   if (el) setTimeout(() => { el.scrollTop = el.scrollHeight; }, 100);
 }
-
 if (window.visualViewport) {
   window.visualViewport.addEventListener('resize', () => {
     const page = document.getElementById('dmPage');
-    if (!page || !page.classList.contains('sub-page--open')) return;
+    if (!page?.classList.contains('sub-page--open')) return;
     const bar = document.getElementById('dmComposeBar');
     if (!bar) return;
-    const offsetFromBottom = window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop;
-    bar.style.paddingBottom = Math.max(12, offsetFromBottom) + 'px';
+    const offset = window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop;
+    bar.style.paddingBottom = Math.max(12, offset) + 'px';
   });
 }
