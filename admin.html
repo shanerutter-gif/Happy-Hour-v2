@@ -454,13 +454,13 @@
       return r.json();
     },
     async get(table, filters = '') {
-      const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${filters}&order=created_at.desc`, { headers: sb.headers() });
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${filters}&order=created_at.desc`, { headers: svcHeaders() });
       return r.json();
     },
     async patch(table, id, data) {
       const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`, {
         method: 'PATCH',
-        headers: { ...sb.headers(), 'Prefer': 'return=representation' },
+        headers: { ...svcHeaders(), 'Prefer': 'return=representation' },
         body: JSON.stringify(data)
       });
       const text = await r.text();
@@ -475,7 +475,7 @@
     async insert(table, data) {
       const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
         method: 'POST',
-        headers: { ...sb.headers(), 'Prefer': 'return=representation' },
+        headers: { ...svcHeaders(), 'Prefer': 'return=representation' },
         body: JSON.stringify(data)
       });
       return r.json();
@@ -1012,6 +1012,12 @@
 
   // ── DEMO DATA ─────────────────────────────────────────
   const DEMO_TAG = 'DEMO_GENERATED';
+  const SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9wY3NrdXpiZGZybG55aHJheXNrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3Mjc0NDcxNywiZXhwIjoyMDg4MzIwNzE3fQ.r8QJQARvCOG16ayEYN7BDTGuFOTKLLPZ4gBgoNXBfX4';
+  const svcHeaders = () => ({
+    'Content-Type': 'application/json',
+    'apikey': SERVICE_ROLE_KEY,
+    'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
+  });
   const FIRST_NAMES = ['Alex','Jordan','Taylor','Morgan','Casey','Riley','Jamie','Avery','Quinn','Blake','Drew','Skyler','Peyton','Reese','Logan','Parker','Cameron','Hayden','Finley','Rowan','Sage','River','Charlie','Dakota','Harley','Emery','Kendall','Remy','Shea','Nico','Zara','Miles','Sloane','Cole','Piper','Dani','Hunter','Lane','Marlowe','Cruz','Bex'];
   const LAST_NAMES  = ['Smith','Johnson','Williams','Brown','Jones','Garcia','Martinez','Davis','Wilson','Taylor','Anderson','Thomas','Jackson','White','Harris','Martin','Thompson','Young','Allen','King','Wright','Scott','Torres','Nguyen','Hill','Flores','Green','Adams','Nelson','Baker','Hall','Rivera','Campbell','Mitchell','Carter','Roberts','Murphy','Cook','Rogers','Morgan'];
   const EMOJIS = ['🍺','🍹','🎉','🌮','🎸','🏄','🌊','🦋','🌺','⭐','🦊','🐬','🌙','🔥','🎨','🏋️','🧗','🚴','🍕','🎯','🦅','🌴','🎲','🏖️','🍸'];
@@ -1055,7 +1061,7 @@
     try {
       // Fetch venue IDs
       demoSetProgress(5, 'Fetching venues…');
-      const venueRes = await fetch(`${SUPABASE_URL}/rest/v1/venues?select=id&city_slug=eq.${citySlug}`, { headers: sb.headers() });
+      const venueRes = await fetch(`${SUPABASE_URL}/rest/v1/venues?select=id&city_slug=eq.${citySlug}`, { headers: svcHeaders() });
       const venues = await venueRes.json();
       if (!venueRes.ok) throw new Error('Supabase error: ' + (venues.message || venueRes.status));
       if (!venues || !venues.length) throw new Error(`No venues found for "${citySlug}" — have you run the SQL chunks yet?`);
@@ -1083,7 +1089,7 @@
           demoSetProgress(10 + (i / profiles.length) * 25, `Inserting profiles ${i + 1}–${Math.min(i + BATCH, profiles.length)} of ${profiles.length}…`);
           await fetch(`${SUPABASE_URL}/rest/v1/profiles`, {
             method: 'POST',
-            headers: { ...sb.headers(), 'Prefer': 'resolution=ignore-duplicates' },
+            headers: { ...svcHeaders(), 'Prefer': 'resolution=ignore-duplicates' },
             body: JSON.stringify(profiles.slice(i, i + BATCH)),
           });
         }
@@ -1110,7 +1116,7 @@
           demoSetProgress(38 + (i / reviews.length) * 35, `Inserting reviews ${i + 1}–${Math.min(i + RBATCH, reviews.length)} of ${reviews.length}…`);
           await fetch(`${SUPABASE_URL}/rest/v1/reviews`, {
             method: 'POST',
-            headers: { ...sb.headers(), 'Prefer': 'resolution=ignore-duplicates' },
+            headers: { ...svcHeaders(), 'Prefer': 'resolution=ignore-duplicates' },
             body: JSON.stringify(reviews.slice(i, i + RBATCH)),
           });
         }
@@ -1133,7 +1139,7 @@
           demoSetProgress(75 + (i / checkins.length) * 20, `Inserting check-ins ${i + 1}–${Math.min(i + CBATCH, checkins.length)}…`);
           await fetch(`${SUPABASE_URL}/rest/v1/check_ins`, {
             method: 'POST',
-            headers: { ...sb.headers(), 'Prefer': 'resolution=ignore-duplicates' },
+            headers: { ...svcHeaders(), 'Prefer': 'resolution=ignore-duplicates' },
             body: JSON.stringify(checkins.slice(i, i + CBATCH)),
           });
         }
@@ -1157,7 +1163,7 @@
     demoSetStatus('🗑 Finding demo profiles…', 'info');
     document.getElementById('demo-progress-wrap').style.display = 'none';
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?bio=like.*${DEMO_TAG}*&select=id`, { headers: sb.headers() });
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?bio=like.*${DEMO_TAG}*&select=id`, { headers: svcHeaders() });
       const profiles = await res.json();
       if (!profiles || !profiles.length) { demoSetStatus('Nothing to clear — no demo data found.', 'info'); return; }
       const ids = profiles.map(p => p.id);
@@ -1166,9 +1172,9 @@
       for (let i = 0; i < ids.length; i += BATCH) {
         const batch = ids.slice(i, i + BATCH);
         const idList = batch.map(id => `"${id}"`).join(',');
-        await fetch(`${SUPABASE_URL}/rest/v1/reviews?user_id=in.(${idList})`, { method: 'DELETE', headers: sb.headers() });
-        await fetch(`${SUPABASE_URL}/rest/v1/check_ins?user_id=in.(${idList})`, { method: 'DELETE', headers: sb.headers() });
-        await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=in.(${idList})`, { method: 'DELETE', headers: sb.headers() });
+        await fetch(`${SUPABASE_URL}/rest/v1/reviews?user_id=in.(${idList})`, { method: 'DELETE', headers: svcHeaders() });
+        await fetch(`${SUPABASE_URL}/rest/v1/check_ins?user_id=in.(${idList})`, { method: 'DELETE', headers: svcHeaders() });
+        await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=in.(${idList})`, { method: 'DELETE', headers: svcHeaders() });
       }
       demoSetStatus(`✅ Cleared ${ids.length} demo profiles and all associated data.`, 'success');
     } catch(err) {
