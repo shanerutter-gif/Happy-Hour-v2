@@ -1075,7 +1075,7 @@
         profiles.push({
           id: crypto.randomUUID(),
           display_name: fn + ' ' + ln,
-          username: (fn + ln + Math.floor(Math.random() * 9999)).toLowerCase().replace(/\s/g,''),
+          username: (fn + ln).toLowerCase().replace(/\s/g,'') + '_' + Date.now() + '_' + i,
           avatar_emoji: EMOJIS[Math.floor(Math.random() * EMOJIS.length)],
           bio: 'San Diego local · ' + DEMO_TAG,
           is_public: true,
@@ -1087,11 +1087,15 @@
         const BATCH = 100;
         for (let i = 0; i < profiles.length; i += BATCH) {
           demoSetProgress(10 + (i / profiles.length) * 25, `Inserting profiles ${i + 1}–${Math.min(i + BATCH, profiles.length)} of ${profiles.length}…`);
-          await fetch(`${SUPABASE_URL}/rest/v1/profiles`, {
+          const r = await fetch(`${SUPABASE_URL}/rest/v1/profiles`, {
             method: 'POST',
-            headers: { ...svcHeaders(), 'Prefer': 'resolution=ignore-duplicates' },
+            headers: { ...svcHeaders(), 'Prefer': 'return=minimal,resolution=merge-duplicates' },
             body: JSON.stringify(profiles.slice(i, i + BATCH)),
           });
+          if (!r.ok) {
+            const errText = await r.text();
+            console.warn('Profile batch warning:', r.status, errText);
+          }
         }
       }
 
@@ -1116,7 +1120,7 @@
           demoSetProgress(38 + (i / reviews.length) * 35, `Inserting reviews ${i + 1}–${Math.min(i + RBATCH, reviews.length)} of ${reviews.length}…`);
           await fetch(`${SUPABASE_URL}/rest/v1/reviews`, {
             method: 'POST',
-            headers: { ...svcHeaders(), 'Prefer': 'resolution=ignore-duplicates' },
+            headers: { ...svcHeaders(), 'Prefer': 'return=minimal,resolution=merge-duplicates' },
             body: JSON.stringify(reviews.slice(i, i + RBATCH)),
           });
         }
@@ -1139,7 +1143,7 @@
           demoSetProgress(75 + (i / checkins.length) * 20, `Inserting check-ins ${i + 1}–${Math.min(i + CBATCH, checkins.length)}…`);
           await fetch(`${SUPABASE_URL}/rest/v1/check_ins`, {
             method: 'POST',
-            headers: { ...svcHeaders(), 'Prefer': 'resolution=ignore-duplicates' },
+            headers: { ...svcHeaders(), 'Prefer': 'return=minimal,resolution=merge-duplicates' },
             body: JSON.stringify(checkins.slice(i, i + CBATCH)),
           });
         }
