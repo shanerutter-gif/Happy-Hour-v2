@@ -2411,6 +2411,8 @@ async function dmLoadInbox() {
 async function dmOpenConvo(convoId, name, isGroup) {
   if (!currentUser) { openAuth('signin'); return; }
   closeOverlay('pubProfileOverlay');
+
+  const alreadyOpen = dmState.activeConvoId === convoId;
   dmState.activeConvoId = convoId;
   dmState.activeConvoName = name;
   dmState.isGroup = isGroup;
@@ -2421,11 +2423,17 @@ async function dmOpenConvo(convoId, name, isGroup) {
   document.getElementById('dmBackBtn').style.visibility = 'visible';
   document.getElementById('dmNewBtn').style.display = 'none';
   document.getElementById('dmTitle').textContent = name;
-  document.getElementById('dmMessages').innerHTML = '<div class="dm-loading">Loading…</div>';
   document.getElementById('dmComposeBar').style.display = '';
 
-  await dmLoadConvo();
-  dmSubscribe();
+  if (!alreadyOpen) {
+    document.getElementById('dmMessages').innerHTML = '<div class="dm-loading">Loading…</div>';
+    await dmLoadConvo();
+    dmSubscribe();
+  } else {
+    // Already loaded — just scroll to bottom
+    const el = document.getElementById('dmMessages');
+    if (el) el.scrollTop = el.scrollHeight;
+  }
 }
 
 async function dmLoadConvo() {
@@ -2764,6 +2772,7 @@ async function dmOpenVenueSharePicker(venueId) {
 function dmShowInbox() {
   if (dmState.subscription) { dmState.subscription.unsubscribe(); dmState.subscription = null; }
   dmState.activeConvoId = null;
+  dmState.activeConvoName = null;
   dmShowInboxPane();
   dmLoadInbox();
 }
