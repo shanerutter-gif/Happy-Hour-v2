@@ -165,8 +165,7 @@ function renderBottomNav(user) {
 }
 
 function _navHideAll() {
-  const dp = document.getElementById('dmPage');
-  if (dp) dp.classList.remove('sub-page--open');
+  closeOverlay('dmOverlay');
   if (dmState.subscription) { dmState.subscription.unsubscribe(); dmState.subscription = null; }
   closeSubPage('findPeoplePage');
   closeSubPage('feedPage');
@@ -1067,21 +1066,14 @@ function closeProfile() {
 function openSubPage(id) {
   const page = document.getElementById(id);
   if (!page) return;
-  if (id === 'dmPage') {
-    // dmPage uses visibility/opacity — no display toggle needed
-    requestAnimationFrame(() => page.classList.add('sub-page--open'));
-  } else {
-    page.style.display = 'block';
-    requestAnimationFrame(() => requestAnimationFrame(() => page.classList.add('sub-page--open')));
-  }
+  page.style.display = 'block';
+  requestAnimationFrame(() => requestAnimationFrame(() => page.classList.add('sub-page--open')));
 }
 function closeSubPage(id) {
   const page = document.getElementById(id);
   if (!page) return;
   page.classList.remove('sub-page--open');
-  if (id !== 'dmPage') {
-    setTimeout(() => { page.style.display = 'none'; }, 250);
-  }
+  setTimeout(() => { page.style.display = 'none'; }, 250);
 }
 
 async function renderProfile(user) {
@@ -2525,7 +2517,7 @@ let dmState = {
 
 async function openDmInbox() {
   if (!currentUser) { openAuth('signin'); return; }
-  openSubPage('dmPage');
+  openOverlay('dmOverlay');
   dmShowInboxPane();
   await dmLoadInbox();
 }
@@ -2663,7 +2655,7 @@ async function dmOpenConvo(convoId, name, isGroup) {
   dmState.activeConvoName = name;
   dmState.isGroup = isGroup;
 
-  openSubPage('dmPage');
+  openOverlay('dmOverlay');
   document.getElementById('dmInboxPane').style.display = 'none';
   document.getElementById('dmConvoPane').style.display = 'flex';
   document.getElementById('dmBackBtn').style.visibility = 'visible';
@@ -2937,7 +2929,7 @@ async function dmOpenFromProfile(userId, displayName) {
       for (const p of otherParts) {
         const { data: c } = await db.from('conversations').select('is_group').eq('id', p.conversation_id).single();
         if (c && !c.is_group) {
-          openSubPage('dmPage');
+          openOverlay('dmOverlay');
           await dmOpenConvo(p.conversation_id, displayName, false);
           return;
         }
@@ -2956,7 +2948,7 @@ async function dmOpenFromProfile(userId, displayName) {
     { conversation_id: convo.id, user_id: userId },
   ]);
 
-  openSubPage('dmPage');
+  openOverlay('dmOverlay');
   await dmOpenConvo(convo.id, displayName, false);
 }
 
