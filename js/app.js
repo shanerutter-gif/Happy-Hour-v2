@@ -170,7 +170,7 @@ function bottomNavFeed(btn) {
   closeOverlay('modalOverlay');
   closeOverlay('authOverlay');
   closeOverlay('pubProfileOverlay');
-  closeOverlay('dmOverlay');
+  closeSubPage('dmPage');
   if (dmState.subscription) { dmState.subscription.unsubscribe(); dmState.subscription = null; }
   if (!state.city) showHome();
 }
@@ -195,7 +195,7 @@ function bottomNavProfile(btn) {
   closeSubPage('leaderboardPage');
   closeOverlay('modalOverlay');
   closeOverlay('pubProfileOverlay');
-  closeOverlay('dmOverlay');
+  closeSubPage('dmPage');
   if (dmState.subscription) { dmState.subscription.unsubscribe(); dmState.subscription = null; }
   if (currentUser) openProfile();
   else openAuth('signin');
@@ -2269,10 +2269,10 @@ let dmState = { convoUserId: null, convoName: null, subscription: null };
 
 async function openDmInbox() {
   if (!currentUser) { openAuth('signin'); return; }
-  openOverlay('dmOverlay');
+  openSubPage('dmPage');
   document.getElementById('dmInboxPane').style.display = '';
   document.getElementById('dmConvoPane').style.display = 'none';
-  document.getElementById('dmBackBtn').style.display = 'none';
+  document.getElementById('dmBackBtn').style.visibility = 'hidden';
   document.getElementById('dmTitle').textContent = 'Messages';
   await dmLoadInbox();
 }
@@ -2337,10 +2337,10 @@ async function dmOpenConvo(userId, displayName) {
   dmState.convoName = displayName;
 
   // Switch to convo pane
-  openOverlay('dmOverlay');
+  openSubPage('dmPage');
   document.getElementById('dmInboxPane').style.display = 'none';
   document.getElementById('dmConvoPane').style.display = 'flex';
-  document.getElementById('dmBackBtn').style.display = '';
+  document.getElementById('dmBackBtn').style.visibility = 'visible';
   document.getElementById('dmTitle').textContent = displayName;
   document.getElementById('dmMessages').innerHTML = '<div class="dm-loading">Loading…</div>';
 
@@ -2408,7 +2408,7 @@ function dmShowInbox() {
   dmState.convoUserId = null;
   document.getElementById('dmInboxPane').style.display = '';
   document.getElementById('dmConvoPane').style.display = 'none';
-  document.getElementById('dmBackBtn').style.display = 'none';
+  document.getElementById('dmBackBtn').style.visibility = 'hidden';
   document.getElementById('dmTitle').textContent = 'Messages';
   dmLoadInbox();
 }
