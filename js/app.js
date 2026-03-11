@@ -165,7 +165,7 @@ function renderBottomNav(user) {
 }
 
 function _navHideAll() {
-  closeOverlay('dmOverlay');
+  closeDmPage();
   if (dmState.subscription) { dmState.subscription.unsubscribe(); dmState.subscription = null; }
   closeSubPage('findPeoplePage');
   closeSubPage('feedPage');
@@ -2515,9 +2515,21 @@ let dmState = {
   subscription: null,
 };
 
+function openDmPage() {
+  const page = document.getElementById('dmPage');
+  if (!page) return;
+  requestAnimationFrame(() => page.classList.add('dm-page--open'));
+}
+function closeDmPage() {
+  const page = document.getElementById('dmPage');
+  if (!page) return;
+  page.classList.remove('dm-page--open');
+  if (dmState.subscription) { dmState.subscription.unsubscribe(); dmState.subscription = null; }
+}
+
 async function openDmInbox() {
   if (!currentUser) { openAuth('signin'); return; }
-  openOverlay('dmOverlay');
+  openDmPage();
   dmShowInboxPane();
   await dmLoadInbox();
 }
@@ -2655,7 +2667,7 @@ async function dmOpenConvo(convoId, name, isGroup) {
   dmState.activeConvoName = name;
   dmState.isGroup = isGroup;
 
-  openOverlay('dmOverlay');
+  openDmPage();
   document.getElementById('dmInboxPane').style.display = 'none';
   document.getElementById('dmConvoPane').style.display = 'flex';
   document.getElementById('dmBackBtn').style.visibility = 'visible';
@@ -2929,7 +2941,7 @@ async function dmOpenFromProfile(userId, displayName) {
       for (const p of otherParts) {
         const { data: c } = await db.from('conversations').select('is_group').eq('id', p.conversation_id).single();
         if (c && !c.is_group) {
-          openOverlay('dmOverlay');
+          openDmPage();
           await dmOpenConvo(p.conversation_id, displayName, false);
           return;
         }
@@ -2948,7 +2960,7 @@ async function dmOpenFromProfile(userId, displayName) {
     { conversation_id: convo.id, user_id: userId },
   ]);
 
-  openOverlay('dmOverlay');
+  openDmPage();
   await dmOpenConvo(convo.id, displayName, false);
 }
 
