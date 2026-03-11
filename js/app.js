@@ -5,6 +5,40 @@
 
 const DAYS    = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const TODAY   = DAYS[new Date().getDay()];
+
+// Parse just today's hours from the full hours string
+// e.g. "Mon 4–10pm, Thu 4–11pm, Fri 11am–2am" → "4–11pm" on Thu
+function getTodayHours(v) {
+  if (!v.hours) return '';
+  const dayOrder = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const todayIdx = dayOrder.indexOf(TODAY);
+  if (todayIdx === -1) return v.hours;
+
+  // Split by ", " but be careful of ranges like "Mon–Thu"
+  const segments = v.hours.split(/,\s*/);
+
+  for (const seg of segments) {
+    // Match patterns like "Mon–Thu 5–9pm" or "Fri 11am–2am" or "Mon–Sun 4pm–2am"
+    const m = seg.match(/^([A-Z][a-z]+)(?:–([A-Z][a-z]+))?\s+(.+)$/);
+    if (!m) continue;
+    const startDay = m[1], endDay = m[2], time = m[3];
+    const startIdx = dayOrder.indexOf(startDay);
+    const endIdx   = endDay ? dayOrder.indexOf(endDay) : startIdx;
+    if (startIdx === -1) continue;
+
+    // Handle wrap-around ranges (e.g. Fri–Sun)
+    let inRange = false;
+    if (endIdx >= startIdx) {
+      inRange = todayIdx >= startIdx && todayIdx <= endIdx;
+    } else {
+      inRange = todayIdx >= startIdx || todayIdx <= endIdx;
+    }
+    if (inRange) return time;
+  }
+
+  // No match for today — venue not open today
+  return (v.days || []).includes(TODAY) ? v.hours : 'Not open today';
+}
 const EVENT_TYPES = ['Trivia','Live Music','Karaoke','Bingo','Game Night','Comedy'];
 const HH_TYPES    = ['Bar','Brewery','Seafood','Mexican','Italian','Asian','BBQ','Wine Bar','Steakhouse','Beach Bar'];
 const AMENITIES   = [
@@ -563,7 +597,7 @@ function venueCardHTML(v) {
     <div class="card-meta">
       <span>${esc(v.neighborhood || '')}</span>
       ${v.neighborhood && v.hours ? '<span class="card-sep">·</span>' : ''}
-      ${v.hours ? `<span class="card-when">${esc(v.hours)}</span>` : ''}
+      ${v.hours ? `<span class="card-when">${esc(getTodayHours(v))}</span>` : ''}
       ${!hasPhoto && distBadge ? `<span class="card-sep">·</span><span class="card-dist">${distBadge}</span>` : ''}
     </div>
     ${v.featured ? '<div class="featured-crown">⭐ Featured</div>' : ''}
