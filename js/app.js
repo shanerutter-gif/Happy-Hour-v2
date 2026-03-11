@@ -207,6 +207,11 @@ async function enterCity(slug, name, stateCode) {
   document.getElementById('filterDot').classList.remove('show');
   document.getElementById('filterToggle').classList.remove('active');
   document.getElementById('chipsRow').innerHTML = '';
+  // Reset select dropdowns
+  ['dayFilters','areaFilters','typeFilters','amenityFilters'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el.tagName === 'SELECT') el.selectedIndex = 0;
+  });
   // Reset show filter pills
   ['showAll','showHH','showEV'].forEach(id => {
     const el = document.getElementById(id);
@@ -226,7 +231,41 @@ async function enterCity(slug, name, stateCode) {
 
   // Build filter pills
   buildFilterPills();
-  applyFilters();
+
+  // Auto-enable nearest sort with geolocation
+  state.sort = 'distance';
+  document.querySelectorAll('#sortFilters .pill').forEach(b => b.classList.remove('active'));
+  const nearBtn = document.getElementById('sort-distance');
+  if (nearBtn) nearBtn.classList.add('active');
+  document.getElementById('sort-default')?.classList.remove('active');
+
+  if (state.userLat !== null) {
+    applyFilters();
+  } else if (navigator.geolocation) {
+    if (nearBtn) { nearBtn.textContent = '📍 Locating…'; nearBtn.disabled = true; }
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        state.userLat = pos.coords.latitude;
+        state.userLng = pos.coords.longitude;
+        if (nearBtn) { nearBtn.textContent = '📍 Nearest'; nearBtn.disabled = false; }
+        applyFilters();
+      },
+      () => {
+        // Permission denied — fall back to default sort silently
+        state.sort = 'default';
+        if (nearBtn) { nearBtn.textContent = '📍 Nearest'; nearBtn.disabled = false; nearBtn.classList.remove('active'); }
+        document.getElementById('sort-default')?.classList.add('active');
+        applyFilters();
+      },
+      { timeout: 6000 }
+    );
+  } else {
+    state.sort = 'default';
+    if (nearBtn) nearBtn.classList.remove('active');
+    document.getElementById('sort-default')?.classList.add('active');
+    applyFilters();
+  }
+
   initMap();
 }
 
@@ -241,46 +280,79 @@ function setShowFilter(val, btn) {
 
 // ── FILTERS ────────────────────────────────────────────
 function buildFilterPills() {
-  // Days
+  // Days — populate select
   const df = document.getElementById('dayFilters');
-  df.innerHTML = '';
-  DAYS.forEach(d => { const b = mkPill(d + (d === TODAY ? ' ★' : ''), () => setFilter('day', d, b)); df.appendChild(b); });
+  df.innerHTML = '<option value="">All days</option>';
+  DAYS.forEach(d => {
+    const opt = document.createElement('option');
+    opt.value = d; opt.textContent = d + (d === TODAY ? ' ★' : '');
+    df.appendChild(opt);
+  });
 
-  // Neighborhoods — from both venues and events combined
+  // Neighborhoods
   const allItems = [...state.venues, ...state.events];
   const areas = [...new Set(allItems.map(v => v.neighborhood).filter(Boolean))].sort();
   const af = document.getElementById('areaFilters');
-  af.innerHTML = '';
-  areas.forEach(a => { const b = mkPill(a, () => setFilter('area', a, b)); af.appendChild(b); });
+  af.innerHTML = '<option value="">All neighborhoods</option>';
+  areas.forEach(a => {
+    const opt = document.createElement('option');
+    opt.value = a; opt.textContent = a;
+    af.appendChild(opt);
+  });
 
   buildTypeFilters();
 }
 
 function buildTypeFilters() {
   const tf = document.getElementById('typeFilters');
-  tf.innerHTML = '';
-  // Show venue types + event types combined, or filtered by show mode
+  const currentType = state.filters.type;
+  tf.innerHTML = '<option value="">All types</option>';
   const types = state.showFilter === 'events'
     ? EVENT_TYPES
     : state.showFilter === 'happyhour'
       ? HH_TYPES
-      : [...HH_TYPES, ...EVENT_TYPES]; // all
-  types.forEach(t => { const b = mkPill(t, () => setFilter('type', t, b)); tf.appendChild(b); });
+      : [...HH_TYPES, ...EVENT_TYPES];
+  types.forEach(t => {
+    const opt = document.createElement('option');
+    opt.value = t; opt.textContent = t;
+    if (t === currentType) opt.selected = true;
+    tf.appendChild(opt);
+  });
 
-  // Amenity pills (always shown)
+  // Amenity select
   const af = document.getElementById('amenityFilters');
   if (af) {
-    af.innerHTML = '';
+    const currentAmenity = state.filters.amenity;
+    af.innerHTML = '<option value="">All amenities</option>';
     AMENITIES.forEach(a => {
-      const b = mkPill(`${a.emoji} ${a.label}`, () => setFilter('amenity', a.key, b));
-      if (state.filters.amenity === a.key) b.classList.add('active');
-      af.appendChild(b);
+      const opt = document.createElement('option');
+      opt.value = a.key; opt.textContent = a.emoji + ' ' + a.label;
+      if (a.key === currentAmenity) opt.selected = true;
+      af.appendChild(opt);
     });
   }
 }
 
 function mkPill(label, onclick) {
   const b = document.createElement('button'); b.className = 'pill'; b.textContent = label; b.onclick = onclick; return b;
+}
+function clearAllFilters() {
+  state.filters = { day: null, area: null, type: null, search: '', amenity: null };
+  state.favFilterOn = false;
+  document.getElementById('searchBox').value = '';
+  ['dayFilters','areaFilters','typeFilters','amenityFilters'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el.tagName === 'SELECT') el.selectedIndex = 0;
+  });
+  document.getElementById('chipsRow').innerHTML = '';
+  document.getElementById('favFilterBtn')?.classList.remove('active');
+  applyFilters(); updateDot();
+}
+
+function setFilterFromSelect(key, selectEl) {
+  const val = selectEl.value || null;
+  state.filters[key] = val;
+  applyFilters(); updateChips(); updateDot();
 }
 function setFilter(key, val, btn) {
   if (state.filters[key] === val) { state.filters[key] = null; btn.classList.remove('active'); }
@@ -607,31 +679,6 @@ function avgHTML(reviews) {
   return `${starHTML(avg, 5, 11)} <span class="review-summary-sub">${avg.toFixed(1)} · ${reviews.length} review${reviews.length !== 1 ? 's' : ''}</span>`;
 }
 
-function buildSocialRow(v) {
-  if (!v.instagram && !v.facebook && !v.twitter && !v.tiktok && !v.phone) return '';
-  const links = [];
-  if (v.instagram) {
-    const handle = v.instagram.replace(/^@/, '');
-    links.push('<a class="s-social-btn s-social-ig" href="https://instagram.com/' + handle + '" target="_blank" rel="noopener" onclick="event.stopPropagation()">📸 Instagram</a>');
-  }
-  if (v.tiktok) {
-    const handle = v.tiktok.replace(/^@/, '');
-    links.push('<a class="s-social-btn s-social-tt" href="https://tiktok.com/@' + handle + '" target="_blank" rel="noopener" onclick="event.stopPropagation()">🎵 TikTok</a>');
-  }
-  if (v.facebook) {
-    const href = v.facebook.startsWith('http') ? v.facebook : 'https://facebook.com/' + v.facebook;
-    links.push('<a class="s-social-btn s-social-fb" href="' + href + '" target="_blank" rel="noopener" onclick="event.stopPropagation()">👍 Facebook</a>');
-  }
-  if (v.twitter) {
-    const handle = v.twitter.replace(/^@/, '');
-    links.push('<a class="s-social-btn s-social-tw" href="https://twitter.com/' + handle + '" target="_blank" rel="noopener" onclick="event.stopPropagation()">𝕏 Twitter</a>');
-  }
-  if (v.phone) {
-    links.push('<a class="s-social-btn s-social-ph" href="tel:' + v.phone + '" onclick="event.stopPropagation()">📞 ' + v.phone + '</a>');
-  }
-  return '<div class="s-social-row">' + links.join('') + '</div>';
-}
-
 function renderModal(v, type, reviews) {
   const faved   = isFavorite(v.id);
   const isVenue = type === 'venue';
@@ -708,7 +755,6 @@ function renderModal(v, type, reviews) {
       <button class="s-act-btn" onclick="shareItem('${v.id}','${type}')">Share</button>
       ${isVenue ? `<button class="s-act-btn" id="venue-follow-btn-${v.id}" onclick="toggleVenueFollow('${v.id}','${esc(v.name)}',this)">Follow</button>` : ''}
     </div>
-    ${isVenue ? buildSocialRow(v) : ''}
     ${isVenue ? `<div id="ugc-photos-${v.id}"></div>` : ''}
     <div class="s-div"></div>
     <div class="s-label">Reviews <span id="ravg-${v.id}">${avgHTML(reviews)}</span></div>
