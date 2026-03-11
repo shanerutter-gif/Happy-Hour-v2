@@ -2299,6 +2299,7 @@ async function dmLoadInbox() {
       .from('conversation_participants')
       .select('conversation_id, last_read_at')
       .eq('user_id', currentUser.id);
+    console.log('dmLoadInbox step1:', { myParts, e1 });
     if (e1) throw e1;
     if (!myParts?.length) {
       list.innerHTML = '<div class="dm-empty">No messages yet.<br>Tap + to start a conversation.</div>';
@@ -2634,6 +2635,7 @@ async function dmCreateConvo(isGroup) {
     .insert({ is_group: isGroup, name: groupName, created_by: currentUser.id })
     .select()
     .single();
+  console.log('dmCreateConvo result:', { convo, cErr });
   if (cErr) { console.error('create convo:', cErr); showToast('Failed to create conversation'); return; }
 
   // Add participants
