@@ -1125,10 +1125,10 @@ async function renderProfile(user) {
       </div>
     </div>
 
-    <div class="profile-invite-banner" onclick="shareSpotd()">
-      <div class="profile-invite-text">
-        <span class="profile-invite-title">Invite friends to Spotd</span>
-        <span class="profile-invite-sub">Share your favorite spots</span>
+    <div class="profile-invite-banner" onclick="shareSpotd()" style="background:#FF6B4A;border-radius:14px;padding:14px 16px;margin:16px 0 8px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;">
+      <div class="profile-invite-text" style="display:flex;flex-direction:column;gap:2px;">
+        <span class="profile-invite-title" style="font-size:14px;font-weight:800;color:#fff;">Invite friends to Spotd</span>
+        <span class="profile-invite-sub" style="font-size:12px;color:rgba(255,255,255,0.85);">Share your favorite spots</span>
       </div>
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
     </div>
