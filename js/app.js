@@ -700,7 +700,9 @@ async function openModal(id, type = 'venue') {
       const fb = document.getElementById(`venue-follow-btn-${id}`);
       if (fb) {
         fb.classList.toggle('following', following);
-        fb.textContent = following ? 'Following' : 'Follow';
+        fb.innerHTML = following
+          ? '<span class="s-btn-icon">🔔</span>Following'
+          : '<span class="s-btn-icon">🔔</span>Follow';
       }
     });
   }
@@ -807,11 +809,11 @@ function renderModal(v, type, reviews) {
       ${(state.goingCounts[v.id]||0) >= 2 ? `<div class="s-going-count">🔥 ${state.goingCounts[v.id]} people are here tonight</div>` : ''}
     </div>` : ''}
     <div class="s-secondary-actions">
-      ${v.url ? `<a class="s-act-btn s-act-primary" href="${v.url}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Website ↗</a>` : `<a class="s-act-btn s-act-primary" href="https://www.google.com/search?q=${encodeURIComponent(v.name + ' ' + (state.city?.name || 'San Diego'))}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Google ↗</a>`}
-      <button class="s-act-btn" onclick="goToMap('${v.id}')">Map</button>
-      <button class="s-act-btn" onclick="shareItem('${v.id}','${type}')">Share</button>
-      ${currentUser ? `<button class="s-act-btn" onclick="dmOpenVenueSharePicker('${v.id}')">💬 Send</button>` : ''}
-      ${isVenue ? `<button class="s-act-btn" id="venue-follow-btn-${v.id}" onclick="toggleVenueFollow('${v.id}','${esc(v.name)}',this)">Follow</button>` : ''}
+      ${v.url ? `<a class="s-act-btn s-act-primary" href="${v.url}" target="_blank" rel="noopener" onclick="event.stopPropagation()"><span class="s-btn-icon">🌐</span>Website</a>` : `<a class="s-act-btn s-act-primary" href="https://www.google.com/search?q=${encodeURIComponent(v.name + ' ' + (state.city?.name || 'San Diego'))}" target="_blank" rel="noopener" onclick="event.stopPropagation()"><span class="s-btn-icon">🔍</span>Google</a>`}
+      <button class="s-act-btn" onclick="goToMap('${v.id}')"><span class="s-btn-icon">🗺️</span>Map</button>
+      <button class="s-act-btn" onclick="shareItem('${v.id}','${type}')"><span class="s-btn-icon">↗️</span>Share</button>
+      ${currentUser ? `<button class="s-act-btn" onclick="dmOpenVenueSharePicker('${v.id}')"><span class="s-btn-icon">💬</span>Send</button>` : ''}
+      ${isVenue ? `<button class="s-act-btn" id="venue-follow-btn-${v.id}" onclick="toggleVenueFollow('${v.id}','${esc(v.name)}',this)"><span class="s-btn-icon">🔔</span>Follow</button>` : ''}
     </div>
     ${isVenue ? `<div id="ugc-photos-${v.id}"></div>` : ''}
     <div class="s-div"></div>
@@ -1087,16 +1089,14 @@ async function renderProfile(user) {
       return '<span class="badge-chip" title="' + (def.desc||b.badge_key) + '">' + (def.emoji||'🏅') + ' ' + (def.label||b.badge_key) + '</span>';
     }).join('')}</div>` : ''}
     <div class="pub-tabs">
-      <button class="pub-tab active" onclick="switchMyTab('checkins',this)">Check-ins</button>
-      <button class="pub-tab" onclick="switchMyTab('reviews',this)">Reviews</button>
-      <button class="pub-tab" onclick="switchMyTab('saved',this)">Saved</button>
-      <button class="pub-tab" onclick="switchMyTab('hoods',this)">Areas</button>
-      <button class="pub-tab" onclick="switchMyTab('settings',this)">Settings</button>
-    </div>
-    <div class="profile-social-row">
-      <button class="profile-social-btn" onclick="openFindPeople()">Find People</button>
-      <button class="profile-social-btn" onclick="openActivityFeed()">Activity</button>
-      <button class="profile-social-btn" onclick="openLeaderboard()">Leaderboard</button>
+      <button class="pub-tab active" onclick="switchMyTab('checkins',this)">📍 Check-ins</button>
+      <button class="pub-tab" onclick="switchMyTab('reviews',this)">⭐ Reviews</button>
+      <button class="pub-tab" onclick="switchMyTab('saved',this)">🔖 Saved</button>
+      <button class="pub-tab" onclick="switchMyTab('hoods',this)">🏘️ Areas</button>
+      <button class="pub-tab" onclick="openFindPeople()">👥 People</button>
+      <button class="pub-tab" onclick="openActivityFeed()">📊 Activity</button>
+      <button class="pub-tab" onclick="openLeaderboard()">🏆 Ranks</button>
+      <button class="pub-tab" onclick="switchMyTab('settings',this)">⚙️ Settings</button>
     </div>
 
     <div id="my-tab-checkins" class="pub-tab-content active">
@@ -2038,12 +2038,12 @@ async function toggleVenueFollow(venueId, venueName, btn) {
   if (currently) {
     await unfollowVenue(currentUser.id, venueId);
     btn.classList.remove('following');
-    btn.textContent = '🔔 Follow';
+    btn.innerHTML = '<span class="s-btn-icon">🔔</span>Follow';
     showToast(`Unfollowed ${venueName}`);
   } else {
     await followVenue(currentUser.id, venueId);
     btn.classList.add('following');
-    btn.textContent = '🔔 Following';
+    btn.innerHTML = '<span class="s-btn-icon">🔔</span>Following';
     showToast(`🔔 Following ${venueName} — you'll be notified of new deals`);
   }
   btn.disabled = false;
