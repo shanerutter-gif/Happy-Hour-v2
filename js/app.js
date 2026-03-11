@@ -2560,11 +2560,16 @@ async function dmLoadInbox() {
     const myReadMap = {};
     myParts.forEach(r => { myReadMap[r.conversation_id] = r.last_read_at; });
 
-    // Run all queries in parallel — tolerate individual failures
+    const timeout = ms => new Promise(res => setTimeout(() => res({ data: [], error: null }), ms));
+
+    // Run all queries in parallel — messages gets a 3s timeout so it never blocks
     const [r2, r3, r4] = await Promise.allSettled([
       db.from('conversations').select('id, is_group, name, updated_at').in('id', convoIds).order('updated_at', { ascending: false }),
       db.rpc('get_conversation_participants', { convo_ids: convoIds }),
-      db.from('messages').select('conversation_id, sender_id, body, msg_type, created_at').in('conversation_id', convoIds).order('created_at', { ascending: false })
+      Promise.race([
+        db.from('messages').select('conversation_id, sender_id, body, msg_type, created_at').in('conversation_id', convoIds).order('created_at', { ascending: false }),
+        timeout(3000)
+      ])
     ]);
 
     const convos   = r2.status === 'fulfilled' ? (r2.value.data || []) : [];
@@ -2591,49 +2596,66 @@ async function dmLoadInbox() {
       convoPartsMap[p.conversation_id].push(p.user_id);
     });
 
+    // Get unique other user IDs from allParts (already have display_name/avatar if RPC returns them)
+    // Try profiles fetch with a timeout — render with blanks if it hangs
     const otherIds = [...new Set(allParts.map(p => p.user_id).filter(id => id !== currentUser.id))];
-    const { data: profiles } = otherIds.length
-      ? await db.from('profiles').select('id, display_name, avatar_emoji').in('id', otherIds)
-      : { data: [] };
     const pMap = {};
-    (profiles || []).forEach(p => { pMap[p.id] = p; });
+    if (otherIds.length) {
+      try {
+        const profResult = await Promise.race([
+          db.from('profiles').select('id, display_name, avatar_emoji').in('id', otherIds),
+          new Promise(res => setTimeout(() => res({ data: [] }), 2000))
+        ]);
+        (profResult.data || []).forEach(p => { pMap[p.id] = p; });
+      } catch(e) { /* render with blanks */ }
+    }
+
+    console.log('dmLoadInbox render:', { convoList: convoList.length, pMap: Object.keys(pMap).length });
 
     let totalUnread = 0;
-    list.innerHTML = convoList.map(c => {
-      const others = (convoPartsMap[c.id] || []).filter(id => id !== currentUser.id);
-      const last   = lastMsgMap[c.id];
-      const unread = unreadMap[c.id] || 0;
-      totalUnread += unread;
+    const rows = convoList.map(c => {
+      try {
+        const others = (convoPartsMap[c.id] || []).filter(id => id !== currentUser.id);
+        const last   = lastMsgMap[c.id];
+        const unread = unreadMap[c.id] || 0;
+        totalUnread += unread;
 
-      let name, avatar;
-      if (c.is_group) {
-        name   = c.name || others.map(id => (pMap[id]?.display_name || 'User').split(' ')[0]).join(', ');
-        avatar = '\u{1F465}';
-      } else {
-        const p = pMap[others[0]] || {};
-        name   = p.display_name || 'Spotd User';
-        avatar = p.avatar_emoji || '\u{1F37A}';
-      }
+        let name, avatar;
+        if (c.is_group) {
+          name   = c.name || others.map(id => (pMap[id]?.display_name || 'User').split(' ')[0]).join(', ') || 'Group';
+          avatar = '👥';
+        } else {
+          const p = pMap[others[0]] || {};
+          name   = p.display_name || 'Spotd User';
+          avatar = p.avatar_emoji || '🍺';
+        }
 
-      const preview = last
-        ? (last.msg_type === 'venue_share' ? '\u{1F4CD} Shared a venue' : (last.body || '').slice(0, 45))
-        : 'Say hello!';
-      const time = last ? fmtDate(last.created_at) : '';
+        const preview = last
+          ? (last.msg_type === 'venue_share' ? '📍 Shared a venue' : (last.body || '').slice(0, 45))
+          : 'Say hello!';
+        const time = last ? fmtDate(last.created_at) : '';
+        const safeName = (name || '').replace(/'/g, '&#39;');
 
-      return `<div class="dm-thread-row" id="dmrow-${c.id}">
-        <div class="dm-thread-main" onclick="dmOpenConvo('${c.id}','${esc(name)}',${!!c.is_group})">
-          <div class="dm-thread-avatar">${avatar}</div>
-          <div class="dm-thread-info">
-            <div class="dm-thread-name">${esc(name)}${unread ? `<span class="dm-unread-dot">${unread}</span>` : ''}</div>
-            <div class="dm-thread-preview">${esc(preview)}</div>
+        return `<div class="dm-thread-row" id="dmrow-${c.id}">
+          <div class="dm-thread-main" onclick="dmOpenConvo('${c.id}','${safeName}',${!!c.is_group})">
+            <div class="dm-thread-avatar">${avatar}</div>
+            <div class="dm-thread-info">
+              <div class="dm-thread-name">${esc(name)}${unread ? `<span class="dm-unread-dot">${unread}</span>` : ''}</div>
+              <div class="dm-thread-preview">${esc(preview)}</div>
+            </div>
+            <div class="dm-thread-time">${time}</div>
           </div>
-          <div class="dm-thread-time">${time}</div>
-        </div>
-        <button class="dm-thread-delete" onclick="dmDeleteConvo('${c.id}')" title="Delete">\u{1F5D1}</button>
-      </div>`;
-    }).join('') || '<div class="dm-empty">No messages yet.<br>Tap + to start a conversation.</div>';
+          <button class="dm-thread-delete" onclick="dmDeleteConvo('${c.id}')" title="Delete">🗑</button>
+        </div>`;
+      } catch(rowErr) {
+        console.error('row render error:', rowErr, c);
+        return '';
+      }
+    });
 
+    list.innerHTML = rows.join('') || '<div class="dm-empty">No messages yet.<br>Tap + to start a conversation.</div>';
     dmUpdateBadge(totalUnread);
+    console.log('dmLoadInbox done, rows:', rows.length);
   } catch(e) {
     console.error('dmLoadInbox:', e);
     list.innerHTML = '<div class="dm-empty">Failed to load messages.</div>';
