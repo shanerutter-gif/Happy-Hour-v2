@@ -507,6 +507,28 @@
       .days-picker { gap: 6px; }
       .day-btn { padding: 8px 10px; font-size: 13px; flex: 1; text-align: center; min-width: 36px; }
     }
+    /* ── PRO PAYWALL ── */
+    .tier-banner{border-radius:14px;padding:20px 24px;margin-bottom:28px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+    .tier-banner.free{background:linear-gradient(135deg,rgba(255,107,74,0.06),rgba(255,107,74,0.03));border:1px solid rgba(255,107,74,0.15)}
+    .tier-banner.pro{background:linear-gradient(135deg,rgba(255,107,74,0.12),rgba(255,180,80,0.08));border:1px solid rgba(255,107,74,0.3)}
+    .tier-banner.founding{background:linear-gradient(135deg,rgba(42,122,90,0.08),rgba(42,122,90,0.04));border:1px solid rgba(42,122,90,0.2)}
+    .tier-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:100px;font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase}
+    .tier-badge.free{background:rgba(42,31,20,0.06);color:var(--muted)}
+    .tier-badge.pro{background:rgba(255,107,74,0.15);color:var(--teal);border:1px solid rgba(255,107,74,0.25)}
+    .tier-badge.founding{background:rgba(42,122,90,0.12);color:var(--success);border:1px solid rgba(42,122,90,0.25)}
+    .tier-banner-left h4{font-family:'Cabinet Grotesk',sans-serif;font-size:17px;font-weight:800;margin-bottom:4px}
+    .tier-banner-left p{font-size:13px;color:var(--muted)}
+    .btn-upgrade{background:var(--teal);color:#fff;border:none;border-radius:10px;font-family:'Cabinet Grotesk',sans-serif;font-size:15px;font-weight:700;padding:12px 24px;cursor:pointer;transition:background .2s,transform .15s;white-space:nowrap;flex-shrink:0}
+    .btn-upgrade:hover{background:var(--teal2);transform:translateY(-1px)}
+    .btn-manage-sub{background:transparent;color:var(--teal);border:1px solid rgba(255,107,74,0.3);border-radius:10px;padding:10px 18px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:background .2s}
+    .btn-manage-sub:hover{background:rgba(255,107,74,0.06)}
+    .pro-gate{position:relative;margin-bottom:20px}
+    .pro-gate-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:20;border-radius:16px;background:rgba(245,239,230,0.88);backdrop-filter:blur(3px);flex-direction:column;gap:6px;text-align:center;padding:20px}
+    .pro-gate-label{font-family:'Cabinet Grotesk',sans-serif;font-size:14px;font-weight:800;color:var(--white)}
+    .pro-gate-sub{font-size:12px;color:var(--muted)}
+    .promo-code-row{display:flex;gap:10px;align-items:flex-end}
+    .promo-code-row .form-group{flex:1;margin-bottom:0}
+    @media(max-width:700px){.tier-banner{flex-direction:column;align-items:flex-start}.btn-upgrade,.btn-manage-sub{width:100%;text-align:center}}
   </style>
 </head>
 <body>
@@ -613,6 +635,7 @@
             <h1>Dashboard</h1>
             <p>Manage your venue listings and claims.</p>
           </div>
+          <div id="tier-banner-container"></div>
           <div id="dashboard-content">
             <div class="empty-state">
               <div class="empty-icon">🏪</div>
@@ -867,16 +890,152 @@
             </div>
 
             <!-- Amenities -->
-            <div class="edit-section" id="section-amenities">
-              <div class="edit-section-header" onclick="toggleSection('amenities')">
-                <h3><span>✨</span> Amenities & Vibes</h3>
-                <span class="toggle">▾</span>
+            <!-- ── PRO: Events ── -->
+            <div class="pro-gate">
+              <div class="edit-section" id="section-events">
+                <div class="edit-section-header" onclick="toggleSection('events')">
+                  <h3><span>🎉</span> Events</h3>
+                  <span class="toggle">▾</span>
+                </div>
+                <div class="edit-section-body">
+                  <div id="events-list"></div>
+                  <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:12px; padding:20px; margin-top:8px;">
+                    <h4 style="font-family:'Cabinet Grotesk',sans-serif; font-weight:700; margin-bottom:16px; font-size:15px;">Add an event</h4>
+                    <div class="form-group">
+                      <label>Event name</label>
+                      <input type="text" id="new-event-name" placeholder="e.g. Trivia Night, Drag Bingo, Live Jazz" />
+                    </div>
+                    <div class="form-row">
+                      <div class="form-group">
+                        <label>Event type</label>
+                        <select id="new-event-type">
+                          <option value="">Select...</option>
+                          <option>Trivia</option><option>Karaoke</option><option>Live Music</option>
+                          <option>Comedy</option><option>Bingo</option><option>Game Night</option><option>Other</option>
+                        </select>
+                      </div>
+                      <div class="form-group">
+                        <label>Price</label>
+                        <input type="text" id="new-event-price" placeholder="Free / $5 / Varies" />
+                      </div>
+                    </div>
+                    <div class="form-row">
+                      <div class="form-group"><label>Start time</label><input type="text" id="new-event-start" placeholder="e.g. 7pm" /></div>
+                      <div class="form-group"><label>End time</label><input type="text" id="new-event-end" placeholder="e.g. 9pm" /></div>
+                    </div>
+                    <div class="form-group">
+                      <label>Days</label>
+                      <div class="days-picker" id="event-days-picker">
+                        <button class="day-btn" data-day="Mon" onclick="toggleEventDay(this)">Mon</button>
+                        <button class="day-btn" data-day="Tue" onclick="toggleEventDay(this)">Tue</button>
+                        <button class="day-btn" data-day="Wed" onclick="toggleEventDay(this)">Wed</button>
+                        <button class="day-btn" data-day="Thu" onclick="toggleEventDay(this)">Thu</button>
+                        <button class="day-btn" data-day="Fri" onclick="toggleEventDay(this)">Fri</button>
+                        <button class="day-btn" data-day="Sat" onclick="toggleEventDay(this)">Sat</button>
+                        <button class="day-btn" data-day="Sun" onclick="toggleEventDay(this)">Sun</button>
+                      </div>
+                    </div>
+                    <div class="form-group">
+                      <label>Description (optional)</label>
+                      <textarea id="new-event-desc" placeholder="Brief description of the event..." style="min-height:70px;"></textarea>
+                    </div>
+                    <button class="btn btn-sm" style="width:auto;" onclick="addEvent()">Add event</button>
+                  </div>
+                </div>
               </div>
-              <div class="edit-section-body">
-                <p style="color:var(--muted); font-size:13px; margin-bottom:20px;">Let guests know what makes your spot special. These appear as tags on your listing.</p>
-                <div id="amenity-toggles" style="display:flex; flex-direction:column; gap:12px;"></div>
-                <br />
-                <button class="btn btn-sm" style="width:auto;" onclick="saveAmenities()">Save amenities</button>
+              <div class="pro-gate-overlay" id="events-lock">
+                <div style="font-size:24px;">🎉</div>
+                <div class="pro-gate-label">Pro feature</div>
+                <div class="pro-gate-sub">Upgrade to list trivia, live music, karaoke and more</div>
+                <button class="btn-upgrade" style="margin-top:10px;font-size:13px;padding:10px 20px;" onclick="startUpgrade()">Upgrade — $49/mo</button>
+              </div>
+            </div>
+
+            <!-- ── PRO: Amenities ── -->
+            <div class="pro-gate">
+              <div class="edit-section" id="section-amenities">
+                <div class="edit-section-header" onclick="toggleSection('amenities')">
+                  <h3><span>✨</span> Amenities & Vibes</h3>
+                  <span class="toggle">▾</span>
+                </div>
+                <div class="edit-section-body">
+                  <p style="color:var(--muted); font-size:13px; margin-bottom:20px;">Let guests know what makes your spot special. These appear as tags on your listing.</p>
+                  <div id="amenity-toggles" style="display:flex; flex-direction:column; gap:12px;"></div>
+                  <br />
+                  <button class="btn btn-sm" style="width:auto;" onclick="saveAmenities()">Save amenities</button>
+                </div>
+              </div>
+              <div class="pro-gate-overlay" id="amenities-lock">
+                <div style="font-size:24px;">✨</div>
+                <div class="pro-gate-label">Pro feature</div>
+                <div class="pro-gate-sub">Upgrade to showcase dog-friendly, sports TV, live music and more</div>
+                <button class="btn-upgrade" style="margin-top:10px;font-size:13px;padding:10px 20px;" onclick="startUpgrade()">Upgrade — $49/mo</button>
+              </div>
+            </div>
+
+            <!-- ── PRO: Featured Placement ── -->
+            <div class="pro-gate">
+              <div class="edit-section" id="section-featured">
+                <div class="edit-section-header" onclick="toggleSection('featured')">
+                  <h3><span>⭐</span> Featured Placement</h3>
+                  <span class="toggle">▾</span>
+                </div>
+                <div class="edit-section-body">
+                  <p style="color:var(--muted); font-size:13px; margin-bottom:20px;">Pin your venue to the top of neighborhood results with a ⭐ badge. Increases visibility up to 3×.</p>
+                  <div class="amenity-row" style="background:rgba(255,107,74,0.04);border:1px solid rgba(255,107,74,0.12);margin-bottom:12px;">
+                    <div class="amenity-row-left">
+                      <span class="amenity-row-icon">⭐</span>
+                      <div>
+                        <div class="amenity-row-label">Featured in search results</div>
+                        <div class="amenity-row-desc">Pinned to the top of your neighborhood</div>
+                      </div>
+                    </div>
+                    <label class="amenity-switch">
+                      <input type="checkbox" id="toggle-featured" onchange="saveFeatured()">
+                      <span class="amenity-switch-track"></span>
+                    </label>
+                  </div>
+                  <p style="font-size:12px;color:var(--muted);">Changes take effect immediately.</p>
+                </div>
+              </div>
+              <div class="pro-gate-overlay" id="featured-lock">
+                <div style="font-size:24px;">⭐</div>
+                <div class="pro-gate-label">Pro feature</div>
+                <div class="pro-gate-sub">Upgrade to enable featured placement</div>
+                <button class="btn-upgrade" style="margin-top:10px;font-size:13px;padding:10px 20px;" onclick="startUpgrade()">Upgrade — $49/mo</button>
+              </div>
+            </div>
+
+            <!-- ── PRO: Promo Code ── -->
+            <div class="pro-gate">
+              <div class="edit-section" id="section-promo">
+                <div class="edit-section-header" onclick="toggleSection('promo')">
+                  <h3><span>🎟️</span> Promo Code</h3>
+                  <span class="toggle">▾</span>
+                </div>
+                <div class="edit-section-body">
+                  <p style="color:var(--muted); font-size:13px; margin-bottom:20px;">
+                    Create a custom code users can tap to copy in your venue listing (e.g. <strong>NORTHPARK10</strong>). Drives new customer trial and tracks Spotd-attributed visits.
+                  </p>
+                  <div class="promo-code-row">
+                    <div class="form-group">
+                      <label>Promo code</label>
+                      <input type="text" id="edit-promo-code" placeholder="e.g. VENUENAME10" style="text-transform:uppercase;font-family:'DM Mono',monospace;letter-spacing:1px;" oninput="this.value=this.value.toUpperCase()" />
+                    </div>
+                    <div class="form-group">
+                      <label>Offer description</label>
+                      <input type="text" id="edit-promo-desc" placeholder="e.g. $3 off your first drink" />
+                    </div>
+                  </div>
+                  <button class="btn btn-sm" style="width:auto;margin-top:12px;" onclick="savePromo()">Save promo code</button>
+                  <div id="promo-save-msg" style="font-size:13px;color:var(--success);margin-top:10px;display:none;">✓ Promo code saved — visible on your listing</div>
+                </div>
+              </div>
+              <div class="pro-gate-overlay" id="promo-lock">
+                <div style="font-size:24px;">🎟️</div>
+                <div class="pro-gate-label">Pro feature</div>
+                <div class="pro-gate-sub">Upgrade to create a custom promo code for your listing</div>
+                <button class="btn-upgrade" style="margin-top:10px;font-size:13px;padding:10px 20px;" onclick="startUpgrade()">Upgrade — $49/mo</button>
               </div>
             </div>
 
@@ -1726,10 +1885,147 @@
   // ─────────────────────────────────────────────
   // INIT
   // ─────────────────────────────────────────────
-  window.addEventListener('DOMContentLoaded', () => {
-    if (checkSession()) {
-      enterApp();
+  // ═══════════════════════════════════════════════
+  // PAYWALL
+  // ═══════════════════════════════════════════════
+
+  let _currentVenueTier = 'free';
+
+  // ── Tier banner ──────────────────────────────────
+  function renderTierBanner(tier, periodEnd) {
+    const container = document.getElementById('tier-banner-container');
+    if (!container) return;
+    if (tier === 'founding') {
+      container.innerHTML = `
+        <div class="tier-banner founding">
+          <div class="tier-banner-left">
+            <div style="margin-bottom:6px;"><span class="tier-badge founding">🌟 Founding Partner</span></div>
+            <h4>Founding Partner — all Pro features, free forever</h4>
+            <p>You're locked in. Featured placement, events, amenities, and promo codes are all included at no cost.</p>
+          </div>
+        </div>`;
+    } else if (tier === 'pro') {
+      const renew = periodEnd ? new Date(periodEnd).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
+      container.innerHTML = `
+        <div class="tier-banner pro">
+          <div class="tier-banner-left">
+            <div style="margin-bottom:6px;"><span class="tier-badge pro">⚡ Pro</span></div>
+            <h4>Spotd Pro — all features unlocked</h4>
+            <p>Renews ${renew}. <a href="#" onclick="openBillingPortal(event)" style="color:var(--teal);">Manage billing →</a></p>
+          </div>
+          <button class="btn-manage-sub" onclick="openBillingPortal(event)">Manage subscription</button>
+        </div>`;
+    } else {
+      container.innerHTML = `
+        <div class="tier-banner free">
+          <div class="tier-banner-left">
+            <div style="margin-bottom:6px;"><span class="tier-badge free">Free</span></div>
+            <h4>Upgrade to Spotd Pro</h4>
+            <p>Events · Amenity tags · Featured placement · Promo code — $49/mo</p>
+          </div>
+          <button class="btn-upgrade" onclick="startUpgrade()">Upgrade — $49/mo</button>
+        </div>`;
     }
+  }
+
+  // ── Feature gating ───────────────────────────────
+  function applyTierGating(tier) {
+    _currentVenueTier = tier;
+    const isPro = tier === 'pro' || tier === 'founding';
+    ['events-lock','amenities-lock','featured-lock','promo-lock'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = isPro ? 'none' : 'flex';
+    });
+  }
+
+  // ── Patch openEdit to fetch + apply tier ─────────
+  const _origOpenEdit = openEdit;
+  openEdit = async function(venueId, status) {
+    await _origOpenEdit(venueId, status);
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/venues?id=eq.${venueId}&select=subscription_tier,subscription_current_period_end,promo_code,promo_description,featured`,
+      { headers: sb.headers() }
+    ).then(r => r.json()).catch(() => []);
+    const v = Array.isArray(res) ? res[0] : null;
+    const tier = v?.subscription_tier || 'free';
+    renderTierBanner(tier, v?.subscription_current_period_end || null);
+    applyTierGating(tier);
+    if (tier === 'pro' || tier === 'founding') {
+      if (v?.promo_code) document.getElementById('edit-promo-code').value = v.promo_code;
+      if (v?.promo_description) document.getElementById('edit-promo-desc').value = v.promo_description;
+      const featToggle = document.getElementById('toggle-featured');
+      if (featToggle) featToggle.checked = !!v?.featured;
+    }
+  };
+
+  // ── Upgrade ──────────────────────────────────────
+  async function startUpgrade() {
+    if (!window._editingVenueId) {
+      alert('Please open a venue listing first, then upgrade.');
+      return;
+    }
+    const btns = document.querySelectorAll('.btn-upgrade');
+    btns.forEach(b => { b.textContent = 'Loading…'; b.disabled = true; });
+    try {
+      const res = await fetch('/api/stripe-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
+        body: JSON.stringify({ venueId: window._editingVenueId }),
+      }).then(r => r.json());
+      if (res.error) { alert('Could not start checkout: ' + res.error); return; }
+      window.location.href = res.url;
+    } catch { alert('Something went wrong. Please try again.'); }
+    finally { btns.forEach(b => { b.textContent = 'Upgrade — $49/mo'; b.disabled = false; }); }
+  }
+
+  // ── Billing portal ───────────────────────────────
+  async function openBillingPortal(e) {
+    if (e) e.preventDefault();
+    if (!window._editingVenueId) return;
+    const res = await fetch('/api/stripe-billing-portal', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
+      body: JSON.stringify({ venueId: window._editingVenueId }),
+    }).then(r => r.json()).catch(() => ({}));
+    if (res.url) window.location.href = res.url;
+    else alert('Could not open billing portal: ' + (res.error || 'unknown error'));
+  }
+
+  // ── Featured toggle ──────────────────────────────
+  async function saveFeatured() {
+    if (_currentVenueTier === 'free') return;
+    const checked = document.getElementById('toggle-featured')?.checked ?? false;
+    await updateVenueField({ featured: checked });
+    showSaveToast(checked ? 'Featured placement enabled!' : 'Featured placement disabled.');
+  }
+
+  // ── Promo code ───────────────────────────────────
+  async function savePromo() {
+    if (_currentVenueTier === 'free') return;
+    const code = document.getElementById('edit-promo-code')?.value.trim().toUpperCase();
+    const desc = document.getElementById('edit-promo-desc')?.value.trim();
+    if (!code) return alert('Please enter a promo code.');
+    await updateVenueField({ promo_code: code, promo_description: desc || null });
+    const msg = document.getElementById('promo-save-msg');
+    if (msg) { msg.style.display = 'block'; setTimeout(() => msg.style.display = 'none', 3000); }
+    showSaveToast('Promo code saved!');
+  }
+
+  // ── Handle ?upgraded=true redirect ───────────────
+  (() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('upgraded') === 'true') {
+      history.replaceState({}, '', '/business-portal.html');
+      const venueId = params.get('venue');
+      setTimeout(() => {
+        showSaveToast('🎉 Welcome to Spotd Pro! All features unlocked.');
+        if (venueId) openEdit(venueId, 'approved');
+      }, 600);
+    }
+  })();
+
+  window.addEventListener('DOMContentLoaded', () => {
+    if (checkSession()) enterApp();
   });
   </script>
 </body>
