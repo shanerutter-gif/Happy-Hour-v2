@@ -1210,7 +1210,7 @@
   }
 
   async function openEdit(venueId, status) {
-    const { data: venues } = await sb.from('venues').select('*').eq('id', venueId);
+    const venues = await (await sb.from('venues')).select('*').eq('id', venueId).get();
     if (!Array.isArray(venues) || !venues[0]) return;
     const venue = venues[0];
 
