@@ -248,6 +248,13 @@ main{min-height:60vh}
 .s-deals li{font-size:14px;color:rgba(42,31,20,0.8);padding:9px 0;border-bottom:1px solid var(--border2);display:flex;align-items:flex-start;gap:10px}
 .s-deals li::before{content:'—';color:var(--teal);opacity:.6;flex-shrink:0;margin-top:1px}
 .s-cuisine{font-family:'DM Sans',sans-serif;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:rgba(42,31,20,0.35);margin-top:10px}
+.s-promo{display:flex;align-items:center;justify-content:space-between;gap:12px;background:rgba(255,107,74,0.06);border:1px solid rgba(255,107,74,0.18);border-radius:10px;padding:12px 14px;margin-top:12px}
+.s-promo-left{display:flex;flex-direction:column;gap:2px}
+.s-promo-code{font-family:'DM Mono',monospace;font-size:15px;font-weight:700;color:var(--teal);letter-spacing:1px}
+.s-promo-desc{font-size:12px;color:rgba(42,31,20,0.55);margin-top:1px}
+.s-promo-copy{background:var(--teal);color:#fff;border:none;border-radius:7px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap;transition:background .15s,transform .1s;flex-shrink:0}
+.s-promo-copy:hover{background:#E5543A;transform:translateY(-1px)}
+.s-promo-copy.copied{background:#2A7A5A}
 /* s-actions replaced by s-secondary-actions */
 .btn-primary{background:var(--teal);color:#FFFFFF;border:none;border-radius:var(--r);padding:13px 18px;font-family:'DM Sans',sans-serif;font-weight:700;font-size:14px;cursor:pointer;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center;min-height:var(--tap);transition:opacity .15s,transform .15s}
 .btn-primary:active{opacity:.85;transform:scale(.98)}
