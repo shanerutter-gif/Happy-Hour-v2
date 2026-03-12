@@ -494,23 +494,23 @@
   </div>
   <div class="hero-stats">
     <div class="stat">
-      <div class="stat-num" id="copy-biz-stat1num">400<span>+</span></div>
-      <div class="stat-label" id="copy-biz-stat1label">San Diego venues</div>
+      <div class="stat-num">400<span>+</span></div>
+      <div class="stat-label">San Diego venues</div>
     </div>
     <div class="stat-sep"></div>
     <div class="stat">
-      <div class="stat-num" id="copy-biz-stat2num">6</div>
-      <div class="stat-label" id="copy-biz-stat2label">Cities &amp; growing</div>
+      <div class="stat-num">6</div>
+      <div class="stat-label">Cities &amp; growing</div>
     </div>
     <div class="stat-sep"></div>
     <div class="stat">
-      <div class="stat-num" id="copy-biz-stat3num">5<span>min</span></div>
-      <div class="stat-label" id="copy-biz-stat3label">To get listed</div>
+      <div class="stat-num">5<span>min</span></div>
+      <div class="stat-label">To get listed</div>
     </div>
     <div class="stat-sep"></div>
     <div class="stat">
-      <div class="stat-num" id="copy-biz-stat4num">$<span>0</span></div>
-      <div class="stat-label" id="copy-biz-stat4label">To get started</div>
+      <div class="stat-num">$<span>0</span></div>
+      <div class="stat-label">To get started</div>
     </div>
   </div>
 </div>
@@ -780,18 +780,10 @@
     if (!data?.length) return;
     const map = Object.fromEntries(data.map(r => [r.key, r.value]));
     const set = (id, val) => { const el = document.getElementById(id); if (el && val) el.innerHTML = val; };
-    set('copy-biz-eyebrow',    map.hero_eyebrow);
-    set('copy-biz-title',      map.hero_title);
-    set('copy-biz-sub',        map.hero_sub);
-    set('copy-biz-cta',        map.cta_btn);
-    set('copy-biz-stat1num',   map.stat1_num);
-    set('copy-biz-stat1label', map.stat1_label);
-    set('copy-biz-stat2num',   map.stat2_num);
-    set('copy-biz-stat2label', map.stat2_label);
-    set('copy-biz-stat3num',   map.stat3_num);
-    set('copy-biz-stat3label', map.stat3_label);
-    set('copy-biz-stat4num',   map.stat4_num);
-    set('copy-biz-stat4label', map.stat4_label);
+    set('copy-biz-eyebrow', map.hero_eyebrow);
+    set('copy-biz-title',   map.hero_title);
+    set('copy-biz-sub',     map.hero_sub);
+    set('copy-biz-cta',     map.cta_btn);
   } catch(e) {}
 })();
 </script>
