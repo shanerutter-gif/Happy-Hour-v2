@@ -825,70 +825,6 @@
               </div>
             </div>
 
-            <!-- Events -->
-            <div class="edit-section" id="section-events">
-              <div class="edit-section-header" onclick="toggleSection('events')">
-                <h3><span>🎉</span> Events</h3>
-                <span class="toggle">▾</span>
-              </div>
-              <div class="edit-section-body">
-                <div id="events-list"></div>
-                <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:12px; padding:20px; margin-top:8px;">
-                  <h4 style="font-family:'Cabinet Grotesk',sans-serif; font-weight:700; margin-bottom:16px; font-size:15px;">Add an event</h4>
-                  <div class="form-group">
-                    <label>Event name</label>
-                    <input type="text" id="new-event-name" placeholder="e.g. Trivia Night, Drag Bingo, Live Jazz" />
-                  </div>
-                  <div class="form-row">
-                    <div class="form-group">
-                      <label>Event type</label>
-                      <select id="new-event-type">
-                        <option value="">Select...</option>
-                        <option>Trivia</option>
-                        <option>Karaoke</option>
-                        <option>Live Music</option>
-                        <option>Comedy</option>
-                        <option>Bingo</option>
-                        <option>Game Night</option>
-                        <option>Other</option>
-                      </select>
-                    </div>
-                    <div class="form-group">
-                      <label>Price</label>
-                      <input type="text" id="new-event-price" placeholder="Free / $5 / Varies" />
-                    </div>
-                  </div>
-                  <div class="form-row">
-                    <div class="form-group">
-                      <label>Start time</label>
-                      <input type="text" id="new-event-start" placeholder="e.g. 7pm" />
-                    </div>
-                    <div class="form-group">
-                      <label>End time</label>
-                      <input type="text" id="new-event-end" placeholder="e.g. 9pm" />
-                    </div>
-                  </div>
-                  <div class="form-group">
-                    <label>Days</label>
-                    <div class="days-picker" id="event-days-picker">
-                      <button class="day-btn" data-day="Mon" onclick="toggleEventDay(this)">Mon</button>
-                      <button class="day-btn" data-day="Tue" onclick="toggleEventDay(this)">Tue</button>
-                      <button class="day-btn" data-day="Wed" onclick="toggleEventDay(this)">Wed</button>
-                      <button class="day-btn" data-day="Thu" onclick="toggleEventDay(this)">Thu</button>
-                      <button class="day-btn" data-day="Fri" onclick="toggleEventDay(this)">Fri</button>
-                      <button class="day-btn" data-day="Sat" onclick="toggleEventDay(this)">Sat</button>
-                      <button class="day-btn" data-day="Sun" onclick="toggleEventDay(this)">Sun</button>
-                    </div>
-                  </div>
-                  <div class="form-group">
-                    <label>Description (optional)</label>
-                    <textarea id="new-event-desc" placeholder="Brief description of the event..." style="min-height:70px;"></textarea>
-                  </div>
-                  <button class="btn btn-sm" style="width:auto;" onclick="addEvent()">Add event</button>
-                </div>
-              </div>
-            </div>
-
             <!-- Amenities -->
             <!-- ── PRO: Events ── -->
             <div class="pro-gate">
@@ -1932,17 +1868,17 @@
   function applyTierGating(tier) {
     _currentVenueTier = tier;
     const isPro = tier === 'pro' || tier === 'founding';
-    const gates = {
-      'events-lock':   'section-events',
-      'amenities-lock':'section-amenities',
-      'featured-lock': 'section-featured',
-      'promo-lock':    'section-promo',
-    };
-    Object.entries(gates).forEach(([lockId, sectionId]) => {
+    // Show/hide each lock overlay; hide/show the sibling section inside the same pro-gate
+    ['events-lock','amenities-lock','featured-lock','promo-lock'].forEach(lockId => {
       const lock = document.getElementById(lockId);
-      const section = document.getElementById(sectionId);
-      if (lock) lock.style.display = isPro ? 'none' : 'flex';
-      if (section) section.style.display = isPro ? '' : 'none';
+      if (!lock) return;
+      lock.style.display = isPro ? 'none' : 'flex';
+      // The section to hide is the first edit-section sibling inside the same pro-gate wrapper
+      const gate = lock.closest('.pro-gate');
+      if (gate) {
+        const section = gate.querySelector('.edit-section');
+        if (section) section.style.display = isPro ? '' : 'none';
+      }
     });
   }
 
