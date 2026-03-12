@@ -793,6 +793,14 @@ function renderModal(v, type, reviews) {
       <div class="s-label">Deals &amp; Specials</div>
       <ul class="s-deals">${(v.deals || []).map(d => `<li>${esc(d)}</li>`).join('')}</ul>
       <div class="s-cuisine">${esc(v.cuisine || '')}</div>
+      ${v.promo_code ? `
+      <div class="s-promo">
+        <div class="s-promo-left">
+          <span class="s-promo-code">${esc(v.promo_code)}</span>
+          ${v.promo_description ? `<span class="s-promo-desc">${esc(v.promo_description)}</span>` : ''}
+        </div>
+        <button class="s-promo-copy" onclick="copyPromoCode('${esc(v.promo_code)}', this)">Copy code</button>
+      </div>` : ''}
       ${(() => {
         const evs = state.events.filter(e => e.venue_name && v.name && e.venue_name.trim().toLowerCase() === v.name.trim().toLowerCase());
         if (!evs.length) return '';
@@ -1734,6 +1742,27 @@ function attachSwipeDismiss(sheet, overlayId) {
 function avgFromList(r)    { return r.length ? r.reduce((s,x) => s+x.rating, 0)/r.length : 0; }
 function starHTML(rating, max=5, size=13) { return Array.from({length:max},(_,i)=>`<span style="font-size:${size}px;color:${i<Math.round(rating)?'#E8943A':'rgba(42,31,20,0.15)'}">★</span>`).join(''); }
 function fmtDate(iso)      { return new Date(iso).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }
+
+function copyPromoCode(code, btn) {
+  navigator.clipboard.writeText(code).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = '✓ Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 2000);
+  }).catch(() => {
+    // Fallback for older mobile browsers
+    const el = document.createElement('textarea');
+    el.value = code;
+    el.style.position = 'fixed'; el.style.opacity = '0';
+    document.body.appendChild(el);
+    el.select();
+    document.execCommand('copy');
+    document.body.removeChild(el);
+    btn.textContent = '✓ Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy code'; btn.classList.remove('copied'); }, 2000);
+  });
+}
 function showToast(msg)    { document.querySelectorAll('.toast').forEach(t=>t.remove()); const t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),2600); }
 function shareSpotd() {
   const text = 'Discover the best spots near you 🍺';
