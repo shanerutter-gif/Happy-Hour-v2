@@ -65,8 +65,9 @@
       border-right: 1px solid var(--border);
       padding: 32px 0;
       display: none;
+      flex-direction: column;
     }
-    .sidebar.visible { display: block; }
+    .sidebar.visible { display: flex; }
     .sidebar-section {
       padding: 0 16px;
       margin-bottom: 8px;
@@ -601,8 +602,8 @@
     <button class="mob-nav-btn" id="mob-btn-edit" onclick="showPage('edit')" style="display:none;">
       <span class="mob-icon">✏️</span>Edit
     </button>
-    <button class="mob-nav-btn" onclick="doLogout()">
-      <span class="mob-icon">👋</span>Sign Out
+    <button class="mob-nav-btn" id="mob-btn-settings" onclick="showPage('settings')">
+      <span class="mob-icon">⚙️</span>Settings
     </button>
   </div>
 
@@ -623,6 +624,11 @@
         <div class="sidebar-section" id="sidebar-venues-section" style="display:none;">
           <div class="sidebar-label">Your Listings</div>
           <div id="sidebar-venues"></div>
+        </div>
+        <div class="sidebar-section" style="margin-top:auto;">
+          <div class="sidebar-item" onclick="showPage('settings')" id="nav-settings">
+            <span class="icon">⚙️</span> Settings
+          </div>
         </div>
       </div>
 
@@ -978,6 +984,41 @@
           </div><!-- /edit-form -->
         </div><!-- /page-edit -->
 
+        <!-- SETTINGS PAGE -->
+        <div id="page-settings" class="screen">
+          <div class="page-header">
+            <h1>Settings</h1>
+            <p>Manage your account and subscription.</p>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:16px;max-width:560px;">
+
+            <!-- Subscription -->
+            <div class="edit-section" style="display:block;">
+              <div class="edit-section-header" style="cursor:default;">
+                <h3><span>💳</span> Subscription</h3>
+              </div>
+              <div class="edit-section-body" style="display:block;padding-top:0;">
+                <div id="settings-sub-content" style="font-size:14px;color:var(--muted);line-height:1.7;">
+                  Loading...
+                </div>
+              </div>
+            </div>
+
+            <!-- Account -->
+            <div class="edit-section" style="display:block;">
+              <div class="edit-section-header" style="cursor:default;">
+                <h3><span>👤</span> Account</h3>
+              </div>
+              <div class="edit-section-body" style="display:block;padding-top:0;">
+                <div style="font-size:14px;color:var(--muted);margin-bottom:20px;" id="settings-email">—</div>
+                <button class="btn-outline" onclick="doLogout()" style="color:#C0392B;border-color:rgba(192,57,43,0.3);">Sign out</button>
+              </div>
+            </div>
+
+          </div>
+        </div><!-- /page-settings -->
+
       </div><!-- /main -->
     </div><!-- /app -->
   </div><!-- /screen-app -->
@@ -1170,14 +1211,20 @@
   // NAVIGATION
   // ─────────────────────────────────────────────
   function showPage(page) {
-    document.querySelectorAll('.main .screen').forEach(s => s.classList.remove('active'));
     document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
-    document.querySelectorAll('.mob-nav-btn').forEach(i => i.classList.remove('active'));
-    document.getElementById('page-' + page)?.classList.add('active');
-    document.getElementById('nav-' + page)?.classList.add('active');
-    document.getElementById('mob-btn-' + page)?.classList.add('active');
-    // Scroll to top on page change
-    window.scrollTo(0, 0);
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.mob-nav-btn').forEach(b => b.classList.remove('active'));
+
+    const pageEl = document.getElementById('page-' + page);
+    if (pageEl) pageEl.classList.add('active');
+
+    const navEl = document.getElementById('nav-' + page);
+    if (navEl) navEl.classList.add('active');
+
+    const mobEl = document.getElementById('mob-btn-' + page);
+    if (mobEl) mobEl.classList.add('active');
+
+    if (page === 'settings') loadSettingsPage();
   }
 
   // ─────────────────────────────────────────────
@@ -1194,7 +1241,7 @@
       <div class="venue-card">
         <div class="venue-card-header">
           <div>
-            <div class="venue-name">${c.venue_name || 'Your Venue'}</div>
+            <div class="venue-name">${c.venue_name || c.name || 'Your Venue'}</div>
             <div class="venue-meta">${c.neighborhood || ''} · Submitted ${formatDate(c.created_at)}</div>
           </div>
           <span class="badge ${c.status === 'approved' ? 'badge-verified' : 'badge-pending'}">
@@ -1905,6 +1952,55 @@
       if (featToggle) featToggle.checked = !!v?.featured;
     }
   };
+
+  // ── Settings page ────────────────────────────
+  async function loadSettingsPage() {
+    // Email
+    const emailEl = document.getElementById('settings-email');
+    if (emailEl && currentUser?.email) emailEl.textContent = currentUser.email;
+
+    // Subscription — fetch tier from current editing venue, or first approved claim
+    const subEl = document.getElementById('settings-sub-content');
+    if (!subEl) return;
+
+    // Get first approved venue for this user
+    const claims = await (await sb.from('venue_claims')).select('venue_id').eq('user_id', currentUser.id).get();
+    const approvedClaim = Array.isArray(claims) ? claims.find(c => c.venue_id) : null;
+    const venueId = window._editingVenueId || approvedClaim?.venue_id;
+
+    if (!venueId) {
+      subEl.innerHTML = `<p>No venue claimed yet. <a href="#" onclick="showPage('claim')" style="color:var(--teal);">Claim a business →</a></p>`;
+      return;
+    }
+
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/venues?id=eq.${venueId}&select=subscription_tier,subscription_status,subscription_current_period_end,stripe_customer_id`,
+      { headers: sb.headers() }
+    ).then(r => r.json()).catch(() => []);
+    const v = Array.isArray(res) ? res[0] : null;
+    const tier = v?.subscription_tier || 'free';
+    const periodEnd = v?.subscription_current_period_end;
+
+    if (tier === 'founding') {
+      subEl.innerHTML = `
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+          <span style="background:rgba(255,107,74,0.1);color:var(--teal);font-size:12px;font-weight:700;padding:4px 12px;border-radius:50px;border:1px solid rgba(255,107,74,0.2);">⭐ Founding Partner</span>
+        </div>
+        <p>You have lifetime Pro access as a founding partner. No subscription required.</p>`;
+    } else if (tier === 'pro') {
+      const renewal = periodEnd ? new Date(periodEnd).toLocaleDateString('en-US', { month:'long', day:'numeric', year:'numeric' }) : '—';
+      subEl.innerHTML = `
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+          <span style="background:rgba(255,107,74,0.1);color:var(--teal);font-size:12px;font-weight:700;padding:4px 12px;border-radius:50px;border:1px solid rgba(255,107,74,0.2);">Pro — $49/mo</span>
+        </div>
+        <p style="margin-bottom:16px;">Renews ${renewal}. Manage or cancel your subscription below.</p>
+        <button class="btn-manage-sub" onclick="openBillingPortal()">Manage subscription →</button>`;
+    } else {
+      subEl.innerHTML = `
+        <p style="margin-bottom:16px;">You're on the free plan. Upgrade to Pro to unlock events, featured placement, amenity tags, promo codes and analytics.</p>
+        <button class="btn-upgrade" onclick="startUpgrade()">Upgrade to Pro — $49/mo</button>`;
+    }
+  }
 
   // ── Upgrade ──────────────────────────────────────
   async function startUpgrade() {
