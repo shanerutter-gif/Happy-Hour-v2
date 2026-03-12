@@ -142,10 +142,16 @@ function toFormData(obj, prefix = '') {
   const parts = [];
   for (const [key, value] of Object.entries(obj)) {
     const fullKey = prefix ? `${prefix}[${key}]` : key;
-    if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+    if (Array.isArray(value)) {
+      value.forEach((v, i) => {
+        if (v !== null && typeof v === 'object') {
+          parts.push(toFormData(v, `${fullKey}[${i}]`));
+        } else {
+          parts.push(`${encodeURIComponent(`${fullKey}[${i}]`)}=${encodeURIComponent(v)}`);
+        }
+      });
+    } else if (value !== null && typeof value === 'object') {
       parts.push(toFormData(value, fullKey));
-    } else if (Array.isArray(value)) {
-      value.forEach((v, i) => parts.push(`${fullKey}[${i}]=${encodeURIComponent(v)}`));
     } else {
       parts.push(`${encodeURIComponent(fullKey)}=${encodeURIComponent(value)}`);
     }
