@@ -523,8 +523,8 @@
     .btn-manage-sub{background:transparent;color:var(--teal);border:1px solid rgba(255,107,74,0.3);border-radius:10px;padding:10px 18px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:background .2s}
     .btn-manage-sub:hover{background:rgba(255,107,74,0.06)}
     .pro-gate{position:relative;margin-bottom:20px}
-    .pro-gate-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:20;border-radius:16px;background:rgba(245,239,230,0.88);backdrop-filter:blur(3px);flex-direction:column;gap:6px;text-align:center;padding:20px}
-    .pro-gate-label{font-family:'Cabinet Grotesk',sans-serif;font-size:14px;font-weight:800;color:var(--white)}
+    .pro-gate-overlay{display:flex;align-items:center;justify-content:center;z-index:20;border-radius:16px;background:rgba(245,239,230,0.95);border:1px solid var(--border);flex-direction:column;gap:6px;text-align:center;padding:32px 20px;margin-top:-1px}
+    .pro-gate-label{font-family:'Cabinet Grotesk',sans-serif;font-size:14px;font-weight:800;color:var(--text)}
     .pro-gate-sub{font-size:12px;color:var(--muted)}
     .promo-code-row{display:flex;gap:10px;align-items:flex-end}
     .promo-code-row .form-group{flex:1;margin-bottom:0}
@@ -1274,7 +1274,7 @@
   }
 
   async function openEdit(venueId, status) {
-    const venues = await (await sb.from('venues')).eq('id', venueId).get();
+    const { data: venues } = await sb.from('venues').select('*').eq('id', venueId);
     if (!Array.isArray(venues) || !venues[0]) return;
     const venue = venues[0];
 
@@ -1932,9 +1932,17 @@
   function applyTierGating(tier) {
     _currentVenueTier = tier;
     const isPro = tier === 'pro' || tier === 'founding';
-    ['events-lock','amenities-lock','featured-lock','promo-lock'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.style.display = isPro ? 'none' : 'flex';
+    const gates = {
+      'events-lock':   'section-events',
+      'amenities-lock':'section-amenities',
+      'featured-lock': 'section-featured',
+      'promo-lock':    'section-promo',
+    };
+    Object.entries(gates).forEach(([lockId, sectionId]) => {
+      const lock = document.getElementById(lockId);
+      const section = document.getElementById(sectionId);
+      if (lock) lock.style.display = isPro ? 'none' : 'flex';
+      if (section) section.style.display = isPro ? '' : 'none';
     });
   }
 
