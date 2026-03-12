@@ -1920,6 +1920,7 @@
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
         body: JSON.stringify({ venueId: window._editingVenueId }),
       }).then(r => r.json());
+      console.log('stripe-checkout response:', JSON.stringify(res));
       if (res.error) { alert('Could not start checkout: ' + res.error); btns.forEach(b => { b.textContent = 'Upgrade — $49/mo'; b.disabled = false; }); return; }
       window.location.href = res.url;
     } catch { alert('Something went wrong. Please try again.'); }
