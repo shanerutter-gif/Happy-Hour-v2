@@ -1538,6 +1538,14 @@ function peopleRowHTML(p, followingSet) {
 }
 
 let _peopleSearchTimer = null;
+let _searchTimer = null;
+function debounceSearch() {
+  clearTimeout(_searchTimer);
+  // In list view respond instantly; in map view wait 200ms to avoid marker thrash
+  const delay = state.view === 'map' ? 200 : 0;
+  _searchTimer = setTimeout(() => { applyFilters(); updateChips(); updateDot(); }, delay);
+}
+
 function debouncePeopleSearch(val) {
   clearTimeout(_peopleSearchTimer);
   _peopleSearchTimer = setTimeout(() => loadPeopleResults(val), 300);
@@ -1591,7 +1599,14 @@ function toggleView() {
   document.getElementById('mapView').classList.toggle('active',  state.view === 'map');
   document.getElementById('viewIcon').textContent = state.view === 'map' ? 'List' : 'Map';
   document.getElementById('viewToggle').classList.toggle('map-active', state.view === 'map');
-  if (state.view === 'map') setTimeout(() => { state.map.invalidateSize(); updateMapMarkers(); buildMapSidebar(); }, 100);
+  if (state.view === 'map') {
+    // invalidateSize immediately so Leaflet knows its dimensions
+    requestAnimationFrame(() => {
+      state.map.invalidateSize();
+      updateMapMarkers();
+      buildMapSidebar();
+    });
+  }
 }
 function goToMap(id) { closeOverlay('modalOverlay'); if (state.view !== 'map') toggleView(); setTimeout(() => flyTo(id), 350); }
 
@@ -1630,18 +1645,36 @@ function getCityCenter(slug) {
   return centers[slug] || [39.5, -98.35];
 }
 function updateMapMarkers() {
-  Object.values(state.markers).forEach(m => m.remove()); state.markers = {};
+  if (!state.map) return;
+
+  // Diff-based: only remove markers no longer in filtered set
+  const visibleIds = new Set(state.filtered.filter(v => v.lat && v.lng).map(v => String(v.id)));
+  Object.keys(state.markers).forEach(id => {
+    if (!visibleIds.has(id)) { state.markers[id].remove(); delete state.markers[id]; }
+  });
+
+  // Only add markers that aren't already on the map
   state.filtered.forEach(v => {
     if (!v.lat || !v.lng) return;
-    const isEvent = !!v.event_type;
+    if (state.markers[String(v.id)]) return;
+
+    const isEvent   = !!v.event_type;
     const openToday = (v.days||[]).includes(TODAY);
-    const bg = isEvent ? '#7C6FD8' : openToday ? '#FF6B4A' : '#9A8E82';
+    const bg    = isEvent ? '#7C6FD8' : openToday ? '#FF6B4A' : '#9A8E82';
     const label = v.name.length > 16 ? v.name.slice(0, 15) + '\u2026' : v.name;
     const iconHtml = `<div class="map-pin-wrap"><div class="map-pin-dot" style="background:${bg};box-shadow:0 0 0 3px ${bg}22"></div><div class="map-pin-label" style="border-color:${bg}33;color:${bg}">${label}</div></div>`;
-    const icon = L.divIcon({ className: '', html: iconHtml, iconSize: [10, 10], iconAnchor: [5, 5], popupAnchor: [0, -14] });
-    const marker = L.marker([v.lat, v.lng], { icon }).addTo(state.map).bindPopup(popupHTML(v), { maxWidth: 260 });
-    marker.on('click', () => hlMapCard(v.id));
-    state.markers[v.id] = marker;
+    const icon   = L.divIcon({ className: '', html: iconHtml, iconSize: [10, 10], iconAnchor: [5, 5], popupAnchor: [0, -14] });
+    const marker = L.marker([v.lat, v.lng], { icon }).addTo(state.map);
+
+    // Lazy popup — bind on first tap only, not upfront for all 400 venues
+    let popupBound = false;
+    marker.on('click', () => {
+      if (!popupBound) { marker.bindPopup(popupHTML(v), { maxWidth: 260 }); popupBound = true; }
+      marker.openPopup();
+      hlMapCard(v.id);
+    });
+
+    state.markers[String(v.id)] = marker;
   });
 }
 function popupHTML(v) {
@@ -1651,8 +1684,9 @@ function flyTo(id) {
   const all = [...state.venues, ...state.events];
   const v   = all.find(x => String(x.id) === String(id));
   if (!v || !v.lat || !state.map) return;
-  state.map.flyTo([v.lat, v.lng], 15, { animate: true, duration: 1.1, easeLinearity: 0.15 });
-  if (state.markers[id]) setTimeout(() => state.markers[id].openPopup(), 900);
+  state.map.flyTo([v.lat, v.lng], 15, { animate: true, duration: 0.8, easeLinearity: 0.2 });
+  const m = state.markers[String(id)];
+  if (m) setTimeout(() => { if (!m._popup) { m.bindPopup(popupHTML(v), { maxWidth: 260 }); } m.openPopup(); }, 700);
   hlMapCard(id);
 }
 function hlMapCard(id) {
@@ -1660,8 +1694,19 @@ function hlMapCard(id) {
   const c = document.querySelector(`.map-card[data-id="${id}"]`);
   if (c) c.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
+// Debounced sidebar — avoids full rebuild on every keystroke while in map view
+let _sidebarTimer = null;
 function buildMapSidebar() {
-  document.getElementById('mapCards').innerHTML = state.filtered.map(v => `<div class="map-card" data-id="${v.id}" onclick="flyTo('${v.id}')"><div class="map-card-name">${esc(v.name)}</div><div class="map-card-hood">${esc(v.neighborhood||'')}</div><div class="map-card-when">${esc(v.hours||'')}</div></div>`).join('');
+  clearTimeout(_sidebarTimer);
+  _sidebarTimer = setTimeout(() => {
+    document.getElementById('mapCards').innerHTML = state.filtered.map(v =>
+      `<div class="map-card" data-id="${v.id}" onclick="flyTo('${v.id}')">
+        <div class="map-card-name">${esc(v.name)}</div>
+        <div class="map-card-hood">${esc(v.neighborhood||'')}</div>
+        <div class="map-card-when">${esc(v.hours||'')}</div>
+      </div>`
+    ).join('');
+  }, 150);
 }
 
 // ── OVERLAY HELPERS ────────────────────────────────────
