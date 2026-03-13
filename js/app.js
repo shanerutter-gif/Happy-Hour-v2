@@ -1843,14 +1843,17 @@ async function doGoingTonight(venueId, btn) {
       showToast(`You've hit the ${CHECK_IN_DAILY_LIMIT} check-in limit for today 🙌`);
       return;
     }
-    await addCheckIn({ userId: currentUser.id, venueId, citySlug: state.city.slug, date: today });
+    // Update UI immediately — don't wait for DB
     state.goingByMe.add(venueId);
     state.todayCheckInCount++;
     state.goingCounts[venueId] = (state.goingCounts[venueId] || 0) + 1;
-    showToast('📍 Checked in!');
     if (typeof haptic === 'function') haptic('medium');
-    setTimeout(() => checkStreakAfterCheckIn(), 2200);
-    setTimeout(() => maybeOpenPhotoCheckin(venueId), 3200);
+    showToast('📍 Checked in!');
+    // Fire DB write and streak check in background
+    addCheckIn({ userId: currentUser.id, venueId, citySlug: state.city.slug, date: today })
+      .then(() => checkStreakAfterCheckIn())
+      .catch(() => {});
+    setTimeout(() => maybeOpenPhotoCheckin(venueId), 600);
   }
   const count = state.goingCounts[venueId] || 0;
   const nowIn = state.goingByMe.has(venueId);
