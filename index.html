@@ -348,17 +348,23 @@ function dismissA2HS() {
 <script src="js/push.js"></script>
 <script src="js/app.js"></script>
 
-  <!-- ── DM INBOX OVERLAY ─────────────────────────── -->
-  <div id="dmPage" class="dm-page">
+  <!-- ── MESSAGES TAB ─────────────────────────────────── -->
+  <div id="dmTab" class="dm-tab" style="display:none">
+
+    <!-- Shared header (title + nav buttons change per screen) -->
     <div class="dm-header">
-      <button class="dm-back-btn" id="dmBackBtn" onclick="dmShowInbox()">← Back</button>
+      <button class="dm-back-btn" id="dmBackBtn" onclick="dmNavBack()" style="visibility:hidden">← Back</button>
       <div class="dm-title" id="dmTitle">Messages</div>
       <button class="dm-new-btn" id="dmNewBtn" onclick="dmStartNewConvo()">＋</button>
     </div>
-    <div id="dmInboxPane" class="dm-pane">
-      <div id="dmThreadList" class="dm-thread-list"><div class="dm-empty">No messages yet</div></div>
+
+    <!-- Screen 1: Inbox -->
+    <div id="dmScreenInbox" class="dm-screen dm-screen--scroll">
+      <div id="dmThreadList" class="dm-thread-list"></div>
     </div>
-    <div id="dmConvoPane" class="dm-pane" style="display:none">
+
+    <!-- Screen 2: Conversation -->
+    <div id="dmScreenConvo" class="dm-screen dm-screen--flex" style="display:none">
       <div id="dmMembersBar" class="dm-members-bar" style="display:none"></div>
       <div id="dmMessages" class="dm-messages"></div>
       <div class="dm-compose" id="dmComposeBar">
@@ -367,6 +373,15 @@ function dismissA2HS() {
         <button class="dm-send-btn" onclick="dmSend()">Send</button>
       </div>
     </div>
+
+    <!-- Screen 3: New message / picker -->
+    <div id="dmScreenPicker" class="dm-screen dm-screen--flex" style="display:none">
+      <div id="dmPickerScroll" class="dm-picker-scroll"></div>
+      <div class="dm-picker-footer">
+        <button id="dmPickerBtn" class="dm-send-btn" style="width:100%;padding:14px;border-radius:14px;" onclick="dmCreateConvoFromPicker()">Start Chat</button>
+      </div>
+    </div>
+
   </div>
 
   <script defer src="/_vercel/insights/script.js"></script>
