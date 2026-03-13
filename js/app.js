@@ -1266,13 +1266,13 @@ function openProfileSettings() {
 
   const overlay = document.createElement('div');
   overlay.className = 'overlay open';
-  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+  overlay.onclick = e => { if (e.target === overlay) dismissOverlay(overlay); };
 
   const currentColor = document.getElementById('myBanner')?.style.getPropertyValue('--banner-color') || '#FF6B4A';
 
   overlay.innerHTML = `
     <div class="sheet">
-      <button class="sheet-close" onclick="this.closest('.overlay').remove()">✕</button>
+      <button class="sheet-close" onclick="dismissOverlay(this.closest('.overlay'))">✕</button>
       <div style="font-weight:800;font-size:17px;margin-bottom:20px;">Settings</div>
 
       <div class="p-section">
@@ -1337,7 +1337,7 @@ function openProfileSettings() {
         </div>
       </div>
 
-      <button onclick="authSignOut().then(()=>{this.closest('.overlay').remove();closeProfile();})"
+      <button onclick="authSignOut().then(()=>{dismissOverlay(this.closest('.overlay'));closeProfile();})"
         style="width:100%;margin-top:8px;padding:13px;border-radius:12px;border:1.5px solid #e53935;background:none;color:#e53935;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;cursor:pointer;">
         Sign Out
       </button>
@@ -1405,10 +1405,10 @@ function showBadgeInfo(badgeKey) {
   const overlay = document.createElement('div');
   overlay.className = 'overlay open';
   overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;';
-  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+  overlay.onclick = e => { if (e.target === overlay) dismissOverlay(overlay); };
   overlay.innerHTML = `
     <div style="background:var(--card);border-radius:20px;padding:28px 24px;max-width:300px;width:90%;text-align:center;position:relative;">
-      <button onclick="this.closest('.overlay').remove()" style="position:absolute;top:12px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);">✕</button>
+      <button onclick="dismissOverlay(this.closest('.overlay'))" style="position:absolute;top:12px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);">✕</button>
       <div style="font-size:48px;margin-bottom:12px;">${def.emoji || '🏅'}</div>
       <div style="font-size:18px;font-weight:800;margin-bottom:8px;">${def.label || badgeKey}</div>
       <div style="font-size:14px;color:var(--muted);line-height:1.5;">${def.desc || 'Badge earned on Spotd'}</div>
@@ -1421,11 +1421,11 @@ async function showFollowersList() {
   if (!currentUser) return;
   const overlay = document.createElement('div');
   overlay.className = 'overlay open';
-  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+  overlay.onclick = e => { if (e.target === overlay) dismissOverlay(overlay); };
   overlay.innerHTML = `
     <div class="sheet" style="max-height:70vh;display:flex;flex-direction:column;">
       <div style="font-weight:800;font-size:17px;margin-bottom:16px;">Followers</div>
-      <button class="sheet-close" onclick="this.closest('.overlay').remove()">✕</button>
+      <button class="sheet-close" onclick="dismissOverlay(this.closest('.overlay'))">✕</button>
       <div id="followers-list" style="overflow-y:auto;flex:1;">
         <div style="text-align:center;padding:20px;color:var(--muted);">Loading…</div>
       </div>
@@ -1446,7 +1446,7 @@ async function showFollowersList() {
     .in('id', followerIds);
   list.innerHTML = (profiles || []).map(p => `
     <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);cursor:pointer;"
-      onclick="this.closest('.overlay').remove();openPublicProfile('${p.id}')">
+      onclick="dismissOverlay(this.closest('.overlay'));openPublicProfile('${p.id}')">
       <div style="width:42px;height:42px;border-radius:50%;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">${p.avatar_emoji || '🍺'}</div>
       <div style="flex:1;min-width:0;">
         <div style="font-weight:700;font-size:14px;">${esc(p.display_name || 'Spotd User')}</div>
@@ -1673,6 +1673,14 @@ function closeOverlay(id) {
   const el = document.getElementById(id); if (!el) return;
   el.classList.remove('open');
   if (!document.querySelector('.overlay.open')) document.body.style.overflow = '';
+}
+function dismissOverlay(el) {
+  if (!el) return;
+  el.classList.remove('open');
+  if (!document.querySelector('.overlay.open')) document.body.style.overflow = '';
+  el.addEventListener('transitionend', () => el.remove(), { once: true });
+  // Fallback in case transitionend never fires
+  setTimeout(() => { if (el.parentNode) el.remove(); }, 500);
 }
 
 function attachSwipeDismiss(sheet, overlayId) {
@@ -3041,7 +3049,7 @@ async function dmOpenVenueSharePicker(venueId) {
   const overlay = document.createElement('div');
   overlay.id = 'dmSharePickerOverlay';
   overlay.className = 'overlay open';
-  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+  overlay.onclick = e => { if (e.target === overlay) dismissOverlay(overlay); };
   overlay.innerHTML = `<div class="sheet" style="max-height:60vh;overflow-y:auto;">
     <div style="font-weight:800;font-size:17px;margin-bottom:16px;padding-right:32px;">Send to…</div>
     <button class="sheet-close" onclick="document.getElementById('dmSharePickerOverlay').remove()">✕</button>
