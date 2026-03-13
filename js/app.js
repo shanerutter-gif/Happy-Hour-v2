@@ -2731,7 +2731,9 @@ async function dmLoadInbox() {
 
         let name, avatar;
         if (c.is_group) {
-          name   = c.name || others.map(id => (pMap[id]?.display_name || 'User').split(' ')[0]).join(', ') || 'Group';
+          const myFirst = (currentUser?.user_metadata?.full_name || 'You').split(' ')[0];
+          const otherNames = others.map(id => (pMap[id]?.display_name || 'User').split(' ')[0]);
+          name   = c.name || [myFirst, ...otherNames].join(', ') || 'Group';
           avatar = '👥';
         } else {
           const p = pMap[others[0]] || {};
@@ -3085,8 +3087,9 @@ async function dmCreateConvo(isGroup) {
   if (pErr) { showToast('Failed to add participants'); return; }
 
   const others      = window._dmPickerUsers?.filter(u => sel.has(u.id)) || [];
+  const myFirstName = (currentUser?.user_metadata?.full_name || 'You').split(' ')[0];
   const displayName = groupName || (isGroup
-    ? others.map(u => (u.display_name||'User').split(' ')[0]).join(', ')
+    ? [myFirstName, ...others.map(u => (u.display_name||'User').split(' ')[0])].join(', ')
     : (others[0]?.display_name || 'Chat'));
 
   await dmOpenConvo(convo.id, displayName, isGroup);
@@ -3154,7 +3157,8 @@ async function dmOpenVenueSharePicker(venueId) {
     <button class="sheet-close" onclick="document.getElementById('dmSharePickerOverlay').remove()">✕</button>
     ${uniqueConvos.map(c => {
       const others = convoPartsMap[c.id] || [];
-      const name   = c.is_group ? (c.name || others.map(id=>(pMap[id]?.display_name||'User').split(' ')[0]).join(', ')) : (pMap[others[0]]?.display_name || 'Spotd User');
+      const myFirst = (currentUser?.user_metadata?.full_name || 'You').split(' ')[0];
+      const name   = c.is_group ? (c.name || [myFirst, ...others.map(id=>(pMap[id]?.display_name||'User').split(' ')[0])].join(', ')) : (pMap[others[0]]?.display_name || 'Spotd User');
       const avatar = c.is_group ? '👥' : (pMap[others[0]]?.avatar_emoji || '🍺');
       return `<div class="dm-thread-row" style="border-bottom:1px solid var(--bg2);" onclick="dmSendVenue('${venueId}','${c.id}');document.getElementById('dmSharePickerOverlay').remove()">
         <div class="dm-thread-main">
