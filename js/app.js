@@ -783,7 +783,6 @@ function renderModal(v, type, reviews) {
         </div>`
       ).join('')}</div>`;
     })()}
-    <div class="s-tag ${isVenue ? 'hh' : 'ev'}">${isVenue ? '🍺 Happy Hour' : esc(v.event_type || 'Event')}</div>
     <div style="display:flex;align-items:flex-start;gap:10px;padding-right:38px">
       <div style="flex:1">
         <div class="s-name">${esc(v.name)}${v.owner_verified ? ' <span class="verified-badge verified-badge--modal">✓ Verified</span>' : ''}</div>
@@ -834,7 +833,6 @@ function renderModal(v, type, reviews) {
     ${isVenue ? `
     <div class="s-going-wrap">
       <button class="going-btn going-btn--lg${state.goingByMe.has(v.id) ? ' going-active' : ''}" id="modal-going-btn" onclick="doGoingTonight('${v.id}', this)">${checkInBtnLabel(state.goingCounts[v.id]||0, state.goingByMe.has(v.id))}</button>
-      ${(state.goingCounts[v.id]||0) >= 2 ? `<div class="s-going-count">🔥 ${state.goingCounts[v.id]} people are here tonight</div>` : ''}
     </div>` : ''}
     <div class="s-secondary-actions">
       ${v.url ? `<a class="s-act-btn s-act-primary" href="${v.url}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Website"><span class="s-btn-icon">🌐</span></a>` : `<a class="s-act-btn s-act-primary" href="https://www.google.com/search?q=${encodeURIComponent(v.name + ' ' + (state.city?.name || 'San Diego'))}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Search"><span class="s-btn-icon">🔍</span></a>`}
