@@ -18,24 +18,56 @@ let currentUser   = null;
 let userFavorites = new Set();
 let _accessToken  = null;
 
-// Restore session on every page load
+// Restore session on every page load — refreshes token if expired
 (async () => {
   try {
     const raw = localStorage.getItem(_storageKey);
-    if (raw) {
-      const stored = JSON.parse(raw);
-      if (stored?.user && stored?.expires_at > Math.floor(Date.now() / 1000)) {
-        currentUser  = stored.user;
-        _accessToken = stored.access_token;
-        // Inject token into the db client so RLS works
-        await db.auth.setSession({
-          access_token:  stored.access_token,
-          refresh_token: stored.refresh_token || '',
-        });
-        await loadFavorites();
-        if (typeof onAuthChange === 'function') onAuthChange(currentUser);
+    if (!raw) return;
+    const stored = JSON.parse(raw);
+    if (!stored?.user) return;
+
+    const now = Math.floor(Date.now() / 1000);
+    const isValid = stored.expires_at > now;
+
+    if (isValid) {
+      // Token still good — restore directly
+      currentUser  = stored.user;
+      _accessToken = stored.access_token;
+      await db.auth.setSession({
+        access_token:  stored.access_token,
+        refresh_token: stored.refresh_token || '',
+      });
+    } else if (stored.refresh_token) {
+      // Token expired — silently refresh using Supabase
+      const { data, error } = await db.auth.refreshSession({
+        refresh_token: stored.refresh_token,
+      });
+      if (!error && data?.session) {
+        const s = data.session;
+        currentUser  = s.user;
+        _accessToken = s.access_token;
+        // Persist the new tokens
+        localStorage.setItem(_storageKey, JSON.stringify({
+          access_token:  s.access_token,
+          refresh_token: s.refresh_token,
+          expires_at:    s.expires_at,
+          expires_in:    s.expires_in,
+          token_type:    'bearer',
+          user:          s.user,
+        }));
+      } else {
+        // Refresh failed (revoked/expired) — clear session
+        localStorage.removeItem(_storageKey);
+        return;
       }
+    } else {
+      // No refresh token and expired — clear
+      localStorage.removeItem(_storageKey);
+      return;
     }
+
+    await loadFavorites();
+    if (typeof onAuthChange === 'function') onAuthChange(currentUser);
   } catch(e) {}
 })();
 
