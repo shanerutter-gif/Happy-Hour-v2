@@ -778,7 +778,7 @@ function renderModal(v, type, reviews) {
         </div>`
       ).join('')}</div>`;
     })()}
-    <div class="s-tag ${isVenue ? 'hh' : 'ev'}">${isVenue ? 'Happy Hour' : esc(v.event_type || 'Event')}</div>
+    <div class="s-tag ${isVenue ? 'hh' : 'ev'}">${isVenue ? '🍺 Happy Hour' : esc(v.event_type || 'Event')}</div>
     <div style="display:flex;align-items:flex-start;gap:10px;padding-right:38px">
       <div style="flex:1">
         <div class="s-name">${esc(v.name)}${v.owner_verified ? ' <span class="verified-badge verified-badge--modal">✓ Verified</span>' : ''}</div>
@@ -1611,8 +1611,22 @@ function goToMap(id) { closeOverlay('modalOverlay'); if (state.view !== 'map') t
 function initMap() {
   if (state.map) { state.map.remove(); state.map = null; }
   const cityCenter = getCityCenter(state.city?.slug);
-  const map = L.map('map', { center: cityCenter, zoom: 11 });
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: '© OpenStreetMap © CARTO', subdomains: 'abcd', maxZoom: 19 }).addTo(map);
+  const map = L.map('map', {
+    center: cityCenter,
+    zoom: 12,
+    zoomSnap: 0.25,
+    zoomDelta: 0.5,
+    wheelPxPerZoomLevel: 120,
+    inertia: true,
+    inertiaDeceleration: 2800,
+    inertiaMaxSpeed: 1200,
+    easeLinearity: 0.25,
+  });
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    attribution: '© OpenStreetMap © CARTO',
+    subdomains: 'abcd',
+    maxZoom: 19,
+  }).addTo(map);
   state.map = map;
 }
 function getCityCenter(slug) {
@@ -1632,9 +1646,12 @@ function updateMapMarkers() {
   state.filtered.forEach(v => {
     if (!v.lat || !v.lng) return;
     const isEvent = !!v.event_type;
-    const color   = isEvent ? '#a588ff' : (v.days||[]).includes(TODAY) ? '#FF6B4A' : '#3A4560';
-    const icon = L.divIcon({ className:'', html:`<div style="width:24px;height:24px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:${color};border:2px solid rgba(255,255,255,0.6);box-shadow:0 2px 8px rgba(0,0,0,.5)"></div>`, iconSize:[24,24], iconAnchor:[12,24], popupAnchor:[0,-26] });
-    const marker = L.marker([v.lat, v.lng], { icon }).addTo(state.map).bindPopup(popupHTML(v), { maxWidth: 250 });
+    const openToday = (v.days||[]).includes(TODAY);
+    const bg = isEvent ? '#7C6FD8' : openToday ? '#FF6B4A' : '#9A8E82';
+    const label = v.name.length > 16 ? v.name.slice(0, 15) + '\u2026' : v.name;
+    const iconHtml = `<div class="map-pin-wrap"><div class="map-pin-dot" style="background:${bg};box-shadow:0 0 0 3px ${bg}22"></div><div class="map-pin-label" style="border-color:${bg}33;color:${bg}">${label}</div></div>`;
+    const icon = L.divIcon({ className: '', html: iconHtml, iconSize: [10, 10], iconAnchor: [5, 5], popupAnchor: [0, -14] });
+    const marker = L.marker([v.lat, v.lng], { icon }).addTo(state.map).bindPopup(popupHTML(v), { maxWidth: 260 });
     marker.on('click', () => hlMapCard(v.id));
     state.markers[v.id] = marker;
   });
@@ -1646,7 +1663,7 @@ function flyTo(id) {
   const all = [...state.venues, ...state.events];
   const v   = all.find(x => String(x.id) === String(id));
   if (!v || !v.lat || !state.map) return;
-  state.map.flyTo([v.lat, v.lng], 15, { animate: true, duration: 0.8 });
+  state.map.flyTo([v.lat, v.lng], 15, { animate: true, duration: 1.1, easeLinearity: 0.15 });
   if (state.markers[id]) setTimeout(() => state.markers[id].openPopup(), 900);
   hlMapCard(id);
 }
