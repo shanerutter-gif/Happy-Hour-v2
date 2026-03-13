@@ -88,10 +88,7 @@
       <div class="fp-inner">
         <div class="fp-header">
           <div class="fp-title">Filters &amp; Sort</div>
-          <div style="display:flex;gap:8px;align-items:center">
-            <button class="fp-clear-all" onclick="clearAllFilters()">Clear all</button>
-            <button class="fp-close" onclick="toggleFilters()">✕ Close</button>
-          </div>
+          <button class="fp-close" onclick="toggleFilters()">✕</button>
         </div>
         <div class="filter-group">
           <div class="fg-label">Sort by</div>
@@ -131,13 +128,9 @@
             <button class="pill" id="favFilterBtn" onclick="toggleFavFilter()">★ Saved</button>
           </div>
         </div>
-        <div class="filter-group">
-          <div class="fg-label">Show</div>
-          <div class="filter-scroll" id="showFilters">
-            <button class="pill active" id="showAll" onclick="setShowFilter('all',this)">Everything</button>
-            <button class="pill" id="showHH" onclick="setShowFilter('happyhour',this)">Happy Hours</button>
-            <button class="pill" id="showEV" onclick="setShowFilter('events',this)">Events only</button>
-          </div>
+        <div class="fp-footer">
+          <button class="fp-clear-all" onclick="clearAllFilters()">Clear all</button>
+          <button class="fp-done" onclick="toggleFilters()">Done</button>
         </div>
       </div>
     </div>
