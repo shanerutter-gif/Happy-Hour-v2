@@ -432,7 +432,7 @@ function clearAllFilters() {
   });
   document.getElementById('chipsRow').innerHTML = '';
   document.getElementById('favFilterBtn')?.classList.remove('active');
-  applyFilters(); updateDot();
+  applyFilters(); updateDot(); toggleFilters();
 }
 
 function setFilterFromSelect(key, selectEl) {
