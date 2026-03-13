@@ -98,6 +98,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const ffg = document.getElementById('favFilterGroup');
   if (ffg) ffg.style.display = currentUser ? '' : 'none';
 
+  // If already signed in, try to auto-route to their city
+  if (currentUser) tryAutoEnterCity();
+
   // Detect password reset redirect from Supabase email link
   // Supabase appends #access_token=...&type=recovery to the URL
   const hash = window.location.hash;
@@ -117,6 +120,52 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
+// City bounding boxes for geo-matching [minLat, maxLat, minLng, maxLng]
+const CITY_BOUNDS = {
+  'san-diego':     { name:'San Diego',     stateCode:'CA', bounds:[32.53, 33.11, -117.60, -116.91] },
+  'los-angeles':   { name:'Los Angeles',   stateCode:'CA', bounds:[33.70, 34.34, -118.67, -117.65] },
+  'new-york':      { name:'New York',      stateCode:'NY', bounds:[40.48, 40.92, -74.26,  -73.70] },
+  'chicago':       { name:'Chicago',       stateCode:'IL', bounds:[41.64, 42.02, -87.94,  -87.52] },
+  'austin':        { name:'Austin',        stateCode:'TX', bounds:[30.10, 30.52, -97.98,  -97.55] },
+  'miami':         { name:'Miami',         stateCode:'FL', bounds:[25.59, 25.98, -80.44,  -80.12] },
+  'orange-county': { name:'Orange County', stateCode:'CA', bounds:[33.38, 33.95, -118.12, -117.41] },
+};
+
+function detectCityFromCoords(lat, lng) {
+  for (const [slug, city] of Object.entries(CITY_BOUNDS)) {
+    const [minLat, maxLat, minLng, maxLng] = city.bounds;
+    if (lat >= minLat && lat <= maxLat && lng >= minLng && lng <= maxLng) {
+      return { slug, name: city.name, stateCode: city.stateCode };
+    }
+  }
+  return null;
+}
+
+function tryAutoEnterCity() {
+  // Only auto-route if we're on the home screen (no city selected yet)
+  if (state.city) return;
+
+  // If we already have cached coords, try to match immediately
+  if (state.userLat !== null) {
+    const match = detectCityFromCoords(state.userLat, state.userLng);
+    if (match) { enterCity(match.slug, match.name, match.stateCode); return; }
+  }
+
+  // Otherwise request location silently — no UI if denied, just stays on home screen
+  if (!navigator.geolocation) return;
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      saveGeo(pos.coords.latitude, pos.coords.longitude);
+      // Only auto-enter if still on home screen
+      if (state.city) return;
+      const match = detectCityFromCoords(pos.coords.latitude, pos.coords.longitude);
+      if (match) enterCity(match.slug, match.name, match.stateCode);
+    },
+    () => { /* denied or unavailable — stay on home screen, no error shown */ },
+    { timeout: 5000, maximumAge: 300000 } // accept cached position up to 5 min old
+  );
+}
+
 function onAuthChange(user) {
   // Guard: DOM may not be ready if called during session restore
   if (!document.getElementById('navRight')) return;
@@ -132,6 +181,9 @@ function onAuthChange(user) {
     const { slug, name, stateCode } = window._pendingCity;
     window._pendingCity = null;
     enterCity(slug, name, stateCode);
+  } else if (user && !state.city) {
+    // No pending city — try auto-detect from location
+    tryAutoEnterCity();
   }
 }
 
@@ -228,7 +280,7 @@ function renderCityGrid() {
   const grid = document.getElementById('cityGrid');
 
   const cities = [
-    { slug:'san-diego',    name:'San Diego',     state_code:'CA', venue_count:85, active:true  },
+    { slug:'san-diego',    name:'San Diego',     state_code:'CA', venue_count:400, active:true  },
     { slug:'los-angeles',  name:'Los Angeles',   state_code:'CA', venue_count:0,  active:false },
     { slug:'new-york',     name:'New York',      state_code:'NY', venue_count:0,  active:false },
     { slug:'chicago',      name:'Chicago',       state_code:'IL', venue_count:0,  active:false },
