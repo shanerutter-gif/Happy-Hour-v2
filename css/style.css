@@ -222,12 +222,41 @@ main{min-height:60vh}
 .map-card-hood{font-family:'DM Sans',sans-serif;font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--teal);opacity:.6}
 .map-card-when{font-size:11px;color:var(--muted);margin-top:4px}
 
-/* SHEET */
-.overlay{position:fixed;inset:0;background:rgba(10,6,2,0.82);z-index:700;display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
-.overlay.open{display:flex}
-.sheet{background:var(--card);border:1px solid var(--border2);border-radius:20px 20px 0 0;width:100%;max-width:640px;max-height:92vh;overflow-y:auto;overflow-x:hidden;padding:16px 20px calc(72px + env(safe-area-inset-bottom, 0px));position:relative;animation:sheetUp .28s cubic-bezier(.32,1.1,.6,1);-webkit-overflow-scrolling:touch;box-shadow:0 -8px 40px rgba(0,0,0,0.35),0 -2px 12px rgba(0,0,0,0.2)}
+/* ── OVERLAY + SHEET — smooth slide up/down ── */
+.overlay{
+  position:fixed;inset:0;
+  background:rgba(10,6,2,0.82);
+  z-index:700;
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .3s cubic-bezier(.4,0,.2,1);
+}
+.overlay.open{
+  opacity:1;
+  pointer-events:auto;
+}
+.sheet{
+  background:var(--card);
+  border:1px solid var(--border2);
+  border-radius:20px 20px 0 0;
+  width:100%;max-width:640px;max-height:92vh;
+  overflow-y:auto;overflow-x:hidden;
+  padding:16px 20px calc(72px + env(safe-area-inset-bottom, 0px));
+  position:relative;
+  transform:translateY(100%);
+  transition:transform .38s cubic-bezier(.32,1.1,.6,1);
+  -webkit-overflow-scrolling:touch;
+  box-shadow:0 -8px 40px rgba(0,0,0,0.35),0 -2px 12px rgba(0,0,0,0.2);
+}
+.overlay.open .sheet{
+  transform:translateY(0);
+}
 .sheet--wide{max-width:740px}
-@keyframes sheetUp{from{transform:translateY(60px);opacity:0}to{transform:none;opacity:1}}
+
 .sheet-handle{width:40px;height:4px;background:rgba(42,31,20,0.18);border-radius:2px;margin:0 auto 16px;cursor:grab}
 .sheet-close{position:sticky;top:0;float:right;margin:0 0 -32px;z-index:20;background:var(--bg2);border:1px solid var(--border2);color:var(--muted);width:32px;height:32px;border-radius:6px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center}
 .sheet-close:active{background:var(--card2)}
@@ -255,7 +284,6 @@ main{min-height:60vh}
 .s-promo-copy{background:var(--teal);color:#fff;border:none;border-radius:7px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap;transition:background .15s,transform .1s;flex-shrink:0}
 .s-promo-copy:hover{background:#E5543A;transform:translateY(-1px)}
 .s-promo-copy.copied{background:#2A7A5A}
-/* s-actions replaced by s-secondary-actions */
 .btn-primary{background:var(--teal);color:#FFFFFF;border:none;border-radius:var(--r);padding:13px 18px;font-family:'DM Sans',sans-serif;font-weight:700;font-size:14px;cursor:pointer;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center;min-height:var(--tap);transition:opacity .15s,transform .15s}
 .btn-primary:active{opacity:.85;transform:scale(.98)}
 .btn-sec{background:var(--card);border:1px solid var(--border2);border-radius:var(--r);color:var(--muted);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;padding:13px 14px;cursor:pointer;white-space:nowrap;min-height:var(--tap);display:flex;align-items:center;gap:5px;transition:all .15s}
@@ -358,13 +386,9 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 .s-event-desc{font-size:13px;color:rgba(42,31,20,0.6);margin-top:5px;line-height:1.5}
 
 /* ── SOCIAL PROFILES ──────────────────────────────────── */
-/* my-profile-header — see bottom of file */
 .avatar-picker{position:absolute;top:70px;left:0;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:8px;display:flex;flex-wrap:wrap;gap:4px;width:160px;z-index:10;box-shadow:0 4px 20px rgba(0,0,0,0.1)}
 .avatar-opt{background:transparent;border:none;font-size:22px;width:36px;height:36px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .avatar-opt:hover{background:rgba(255,107,74,0.1)}
-
-/* my-stats — see bottom of file */
-/* profile-action-btn replaced */
 
 /* Badges */
 .pub-badges{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
@@ -534,7 +558,6 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
    PHOTO CHECK-INS
    ══════════════════════════════════════════════ */
 
-/* ── UGC photo strip on venue modal ── */
 .ugc-photos-section { margin: 0 0 4px; }
 .ugc-photos-label {
   font-size: 11px; font-weight: 700; letter-spacing: 1px;
@@ -575,7 +598,6 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 .ugc-photo-thumb:hover .ugc-photo-delete,
 .ugc-photo-thumb:focus-within .ugc-photo-delete { opacity: 1; }
 
-/* ── Photo upload prompt (post check-in sheet) ── */
 .photo-prompt-title {
   font-family: 'Cabinet Grotesk', sans-serif; font-size: 19px; font-weight: 700;
   color: var(--ink); margin-bottom: 4px;
@@ -634,7 +656,6 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
    BOTTOM NAV + LAYOUT ADJUSTMENTS
    ══════════════════════════════════════════════ */
 
-/* Bottom nav bar */
 .bottom-nav {
   position: fixed; bottom: 0; left: 0; right: 0;
   height: 64px;
@@ -659,7 +680,6 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 .bottom-nav-btn.active { color: var(--coral); }
 .bottom-nav-btn.active svg { stroke: currentColor; }
 .bottom-nav-btn:active { opacity: .7; }
-/* Active indicator dot under icon */
 .bottom-nav-btn::after {
   content: '';
   position: absolute;
@@ -676,27 +696,19 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   transform: scale(1);
 }
 
-/* Push content above bottom nav when in city view */
 .app-page { padding-bottom: 72px; }
-
-/* Hide top nav controls row when in city view (controls moves sticky to top) */
 .app-page .top-nav { display: none; }
-
-/* City bar also from top:0 */
 .city-bar { position: sticky; top: 0; z-index: 250; }
 
-/* ── CLEAN UP CARD CARD-TOP — remove card-right wrapper ── */
 .card-top {
   display: flex; align-items: flex-start;
   justify-content: space-between; gap: 8px;
 }
 
-
 /* ══════════════════════════════════════════════
-   MODAL ACTION BUTTONS — redesigned
+   MODAL ACTION BUTTONS
    ══════════════════════════════════════════════ */
 
-/* Check-in / Going button — full width pill, prominent */
 .s-going-wrap { margin: 16px 0 4px; }
 .going-btn--lg {
   width: 100%; padding: 14px 20px;
@@ -713,7 +725,6 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   color: #C87000;
 }
 
-/* Secondary action row — icon-only equal pills */
 .s-secondary-actions {
   display: flex; gap: 8px; margin: 12px 0 4px;
 }
@@ -737,10 +748,9 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 .s-act-primary:hover, .s-act-primary:active { opacity: .88; background: var(--coral); }
 
 /* ══════════════════════════════════════════════
-   PROFILE — clean tab strip + social row
+   PROFILE — tab strip + social row
    ══════════════════════════════════════════════ */
 
-/* Tab strip */
 .pub-tabs {
   display: flex; overflow-x: auto; border-bottom: 1.5px solid var(--border2);
   margin: 16px 0 0; gap: 0;
@@ -758,9 +768,6 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 .pub-tab.active { color: var(--coral); border-bottom-color: var(--coral); }
 .pub-tab:active { color: var(--coral); }
 
-/* ══════════════════════════════════════════════
-   CARD going-btn — pill, clean
-   ══════════════════════════════════════════════ */
 .going-btn {
   width: 100%; padding: 11px 16px; border-radius: 50px;
   background: rgba(255,107,74,0.06); border: 1.5px solid rgba(255,107,74,0.18);
@@ -773,20 +780,16 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   background: rgba(255,140,0,0.1); border-color: rgba(255,140,0,0.3); color: #C87000;
 }
 
-/* Follow button active state */
 .s-act-btn.following {
   background: rgba(0,194,168,0.08);
   border-color: rgba(0,194,168,0.3);
   color: var(--teal);
 }
-.s-act-btn.following .s-btn-icon::after { content: ''; }
-
-/* sheet--full removed — profile uses .profile-page */
 
 /* ══════════════════════════════════════════════
-   PROFILE HEADER — centered, full-width stats
+   PROFILE HEADER
    ══════════════════════════════════════════════ */
-/* ── Profile Banner Header (Option B) ── */
+
 .my-profile-banner {
   height: calc(90px + env(safe-area-inset-top, 0px));
   padding-top: env(safe-area-inset-top, 0px);
@@ -823,7 +826,6 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 .profile-email {
   font-size: 12px; color: var(--muted); margin-bottom: 10px;
 }
-/* Stats: single row, even spread */
 .my-stats {
   display: flex; gap: 0;
   width: 100%; justify-content: space-around;
@@ -846,11 +848,9 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 }
 
 /* ══════════════════════════════════════════════
-   PROFILE PAGE — full-screen native push panel
+   PROFILE PAGE
    ══════════════════════════════════════════════ */
-/* ══════════════════════════════════════════════
-   PROFILE PAGE — fade+lift in (tab-style, not slide)
-   ══════════════════════════════════════════════ */
+
 .profile-page {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
@@ -872,8 +872,9 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 }
 
 /* ══════════════════════════════════════════════
-   SUB-PAGE PANELS — still slide right (drill-down feel)
+   SUB-PAGE PANELS
    ══════════════════════════════════════════════ */
+
 .sub-page {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
@@ -892,9 +893,6 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   transform: translateX(0);
 }
 
-/* dmPage is a peer tab — fade+lift like profile, not slide */
-
-/* Sub-page sticky header with back button */
 .sub-page-header {
   position: sticky;
   top: 0; left: 0; right: 0;
@@ -924,7 +922,6 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   color: var(--charcoal); line-height: 1;
 }
 
-/* Content padding inside sub-pages */
 #findPeopleContent,
 #feedContent,
 #leaderboardContent {
@@ -1002,7 +999,6 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 .dm-invite-btn:active { opacity:.85; }
 .dm-invite-btn svg { stroke:#fff; flex-shrink:0; }
 
-/* Profile invite banner */
 .my-profile-name-row { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
 .my-profile-btns { display:flex; align-items:center; gap:6px; flex-shrink:0; padding-top:4px; }
 .profile-icon-btn { background:var(--bg2); border:none; border-radius:50%; width:36px; height:36px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--text); transition:background .15s; flex-shrink:0; }
