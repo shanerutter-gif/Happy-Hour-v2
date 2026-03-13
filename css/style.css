@@ -31,9 +31,12 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
 .nav-signout{font-size:11px;opacity:.5}
 
 /* HOME */
-.home-page{min-height:calc(100vh - 52px);display:flex;align-items:center;justify-content:center;padding:40px 20px 80px;position:relative;overflow:hidden}
+.home-page{min-height:calc(100vh - 52px);display:flex;flex-direction:column;position:relative;overflow:hidden}
+.home-top-bar{display:flex;justify-content:flex-end;padding:16px 20px 0;position:relative;z-index:2}
+.home-biz-link{font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;color:var(--muted);text-decoration:none;padding:6px 0;}
+.home-biz-link:hover{color:var(--text)}
 .home-bg-glow{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 0%,rgba(255,107,74,0.08) 0%,transparent 60%),radial-gradient(ellipse at 80% 80%,rgba(255,140,60,0.06) 0%,transparent 50%)}
-.home-inner{max-width:760px;width:100%;position:relative;z-index:1}
+.home-inner{max-width:760px;width:100%;position:relative;z-index:1;padding:24px 20px 80px;margin:0 auto;flex:1}
 .home-eyebrow{font-family:'DM Sans',sans-serif;font-size:10px;letter-spacing:2.5px;text-transform:uppercase;color:var(--teal);opacity:.8;margin-bottom:16px}
 .home-title{font-family:'Cabinet Grotesk',sans-serif;font-weight:900;font-size:clamp(46px,10vw,92px);line-height:.95;letter-spacing:-3px;color:var(--ink);margin-bottom:16px}
 .home-accent{color:var(--teal)}
