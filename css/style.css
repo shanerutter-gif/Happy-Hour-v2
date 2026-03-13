@@ -265,7 +265,7 @@ main{min-height:60vh}
 .sheet-close{position:sticky;top:0;float:right;margin:0 0 -32px;z-index:20;background:var(--bg2);border:1px solid var(--border2);color:var(--muted);width:32px;height:32px;border-radius:6px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center}
 .sheet-close:active{background:var(--card2)}
 .s-tag{display:inline-block;font-family:'DM Sans',sans-serif;font-size:9px;text-transform:uppercase;letter-spacing:1px;padding:3px 9px;border-radius:4px;margin-bottom:8px}
-.s-tag.hh{background:rgba(0,194,168,.12);border:1px solid rgba(0,194,168,.3);color:var(--teal)}
+.s-tag.hh{background:rgba(255,107,74,.12);border:1px solid rgba(255,107,74,.3);color:var(--teal)}
 .s-tag.ev{background:rgba(130,100,255,.12);border:1px solid rgba(130,100,255,.3);color:#a588ff}
 .s-name{font-family:'Cabinet Grotesk',sans-serif;font-weight:800;font-size:26px;line-height:1.1;color:var(--ink);margin-bottom:2px}
 .s-hood{font-family:'DM Sans',sans-serif;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--teal);opacity:.7;margin-bottom:3px}
@@ -1118,3 +1118,13 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 .consent-text {
   font-size: 12px; color: var(--muted); line-height: 1.5;
 }
+
+/* ── MAP PINS ──────────────────────────────────────── */
+.map-pin-wrap{display:flex;flex-direction:column;align-items:center;gap:3px;pointer-events:none}
+.map-pin-dot{width:12px;height:12px;border-radius:50%;border:2px solid #fff;transition:transform .15s;flex-shrink:0}
+.map-pin-label{background:rgba(255,255,255,0.92);backdrop-filter:blur(4px);border:1px solid;border-radius:20px;padding:2px 7px;font-family:'DM Sans',sans-serif;font-size:10px;font-weight:600;white-space:nowrap;line-height:1.4;box-shadow:0 1px 6px rgba(0,0,0,.12)}
+.leaflet-marker-icon:hover .map-pin-dot{transform:scale(1.4)}
+/* Popup refinements for voyager tile */
+.leaflet-popup-content-wrapper{background:#FFFFFF!important;border:none!important;border-radius:14px!important;box-shadow:0 8px 30px rgba(42,31,20,.18),0 2px 8px rgba(42,31,20,.08)!important;color:#2A1F14!important;font-family:'DM Sans',sans-serif!important;padding:0!important}
+.leaflet-popup-tip{background:#FFFFFF!important;box-shadow:none!important}
+.popup-btn{background:var(--teal);color:#fff!important}
