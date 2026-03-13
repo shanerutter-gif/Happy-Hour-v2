@@ -1119,7 +1119,15 @@ async function renderProfile(user) {
   const bannerColor = profile?.banner_color || '#FF6B4A';
 
   document.getElementById('profileContent').innerHTML = `
-    <div class="my-profile-banner" id="myBanner" style="background: linear-gradient(135deg, ${bannerColor} 0%, ${bannerColor}cc 55%, ${bannerColor}88 100%);">
+    <div class="my-profile-banner" id="myBanner" style="background: linear-gradient(135deg, ${bannerColor} 0%, ${bannerColor}cc 60%, ${bannerColor}88 100%);">
+      <div class="my-profile-banner-actions">
+        <button class="profile-banner-btn" onclick="shareSpotd()" title="Share">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        </button>
+        <button class="profile-banner-btn" onclick="openProfileSettings()" title="Settings">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
+      </div>
       <div class="my-avatar-wrap banner-avatar-wrap">
         <div class="my-avatar" id="myAvatar" onclick="toggleAvatarPicker()" title="Change avatar">${avatar}</div>
         <div class="avatar-picker" id="avatarPicker" style="display:none">
@@ -1127,48 +1135,29 @@ async function renderProfile(user) {
         </div>
       </div>
     </div>
+
     <div class="my-profile-body">
-      <div class="my-profile-name-row">
-        <div>
-          <div class="my-name">${esc(displayName)}</div>
-          <div class="profile-email">${esc(user.email)}</div>
-        </div>
-        <div class="my-profile-btns">
-          <button class="profile-icon-btn" onclick="shareSpotd()" title="Share">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-          </button>
-          <button class="profile-icon-btn" onclick="openProfileSettings()" title="Settings">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-          </button>
-        </div>
-      </div>
-      ${badges.length ? `<div class="pub-badges">${badges.map(b => {
+      <div class="my-name">${esc(displayName)}</div>
+      ${profile?.bio ? `<div class="my-bio">${esc(profile.bio)}</div>` : `<div class="my-bio my-bio--empty" onclick="openProfileSettings()">+ add a bio</div>`}
+      ${badges.length ? `<div class="pub-badges" style="margin-top:8px">${badges.map(b => {
         const def = BADGE_DEFS[b.badge_key] || {};
         return '<span class="badge-chip" onclick="showBadgeInfo(\'' + b.badge_key + '\')">' + (def.emoji||'🏅') + ' ' + (def.label||b.badge_key) + '</span>';
       }).join('')}</div>` : ''}
       <div class="my-stats" id="myStatBar">
-        <div class="my-stat" onclick="openActivityFeed()" style="cursor:pointer"><span>${checkIns.length}</span>Check-ins</div>
-        <div class="my-stat"><span>${myReviews.length}</span>Reviews</div>
-        ${currentStreak >= 2 ? `<div class="my-stat"><span>${currentStreak}</span>Streak</div>` : ''}
-        <div class="my-stat" onclick="openFindPeople()" style="cursor:pointer"><span id="stat-following">${following.length}</span>Following</div>
-        <div class="my-stat" onclick="showFollowersList()" style="cursor:pointer"><span id="stat-followers">${followers.length}</span>Followers</div>
+        <div class="my-stat" onclick="openActivityFeed()" style="cursor:pointer"><span>${checkIns.length}</span>check-ins</div>
+        <div class="my-stat"><span>${myReviews.length}</span>reviews</div>
+        ${currentStreak >= 2 ? `<div class="my-stat"><span>${currentStreak}🔥</span>streak</div>` : ''}
+        <div class="my-stat" onclick="openFindPeople()" style="cursor:pointer"><span id="stat-following">${following.length}</span>following</div>
+        <div class="my-stat" onclick="showFollowersList()" style="cursor:pointer"><span id="stat-followers">${followers.length}</span>followers</div>
       </div>
     </div>
 
-    <div class="profile-section-picker">
-      <button class="profile-section-btn" onclick="toggleProfileDropdown(this)" id="profileSectionBtn">
-        <span id="profileSectionLabel">📍 Check-ins</span>
-        <svg class="profile-dropdown-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>
-      </button>
-      <div class="profile-section-menu" id="profileSectionMenu" style="display:none">
-        <button onclick="selectProfileSection('checkins','📍 Check-ins',this)">📍 Check-ins</button>
-        <button onclick="selectProfileSection('reviews','⭐ Reviews',this)">⭐ Reviews</button>
-        <button onclick="selectProfileSection('saved','🔖 Saved',this)">🔖 Saved</button>
-        <button onclick="selectProfileSection('hoods','🏘️ Areas',this)">🏘️ Areas</button>
-        <button onclick="openFindPeople()">👥 People</button>
-        <button onclick="openActivityFeed()">📊 Activity</button>
-        <button onclick="openLeaderboard()">🏆 Ranks</button>
-      </div>
+    <div class="profile-tabs">
+      <button class="profile-tab active" onclick="selectProfileTab('checkins',this)">Check-ins</button>
+      <button class="profile-tab" onclick="selectProfileTab('reviews',this)">Reviews</button>
+      <button class="profile-tab" onclick="selectProfileTab('saved',this)">Saved</button>
+      <button class="profile-tab" onclick="selectProfileTab('hoods',this)">Areas</button>
+      <button class="profile-tab" onclick="openFindPeople()">People</button>
     </div>
 
     <div id="my-tab-checkins" class="pub-tab-content active">
@@ -3265,4 +3254,11 @@ if (window.visualViewport) {
     if (!page?.classList.contains('dm-page--open')) return;
     page.style.top = window.visualViewport.offsetTop + 'px';
   });
+}
+
+function selectProfileTab(tab, btn) {
+  document.querySelectorAll('.pub-tab-content').forEach(el => el.style.display = 'none');
+  document.getElementById('my-tab-' + tab).style.display = 'block';
+  document.querySelectorAll('.profile-tab').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
 }
