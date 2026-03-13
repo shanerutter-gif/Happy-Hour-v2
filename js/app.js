@@ -3206,16 +3206,43 @@ function dmScrollToBottom() {
   const el = document.getElementById('dmMessages');
   if (el) setTimeout(() => { el.scrollTop = el.scrollHeight; }, 50);
 }
+
+// Reset sheet height when keyboard dismisses
+document.addEventListener('focusout', e => {
+  if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') {
+    const sheet = e.target.closest('.sheet');
+    if (sheet) setTimeout(() => { sheet.style.maxHeight = ''; }, 100);
+  }
+});
 if (window.visualViewport) {
   window.visualViewport.addEventListener('resize', () => {
-    const page = document.getElementById('dmPage');
-    if (!page?.classList.contains('dm-page--open')) return;
-    // Shrink dm-page to the visual viewport so it sits above the keyboard
     const vv = window.visualViewport;
-    page.style.height = vv.height + 'px';
-    page.style.top = vv.offsetTop + 'px';
-    dmScrollToBottom();
+
+    // DM page keyboard handling
+    const page = document.getElementById('dmPage');
+    if (page?.classList.contains('dm-page--open')) {
+      page.style.height = vv.height + 'px';
+      page.style.top = vv.offsetTop + 'px';
+      dmScrollToBottom();
+    }
+
+    // Sheet keyboard handling — resize all open sheets to sit above keyboard
+    document.querySelectorAll('.overlay.open .sheet').forEach(sheet => {
+      sheet.style.maxHeight = vv.height * 0.92 + 'px';
+    });
+
+    // Scroll focused textarea into view within its sheet
+    const focused = document.activeElement;
+    if (focused && (focused.tagName === 'TEXTAREA' || focused.tagName === 'INPUT')) {
+      const sheet = focused.closest('.sheet');
+      if (sheet) {
+        setTimeout(() => {
+          focused.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 50);
+      }
+    }
   });
+
   window.visualViewport.addEventListener('scroll', () => {
     const page = document.getElementById('dmPage');
     if (!page?.classList.contains('dm-page--open')) return;
