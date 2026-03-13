@@ -128,10 +128,13 @@
 
     /* Hero stat pills */
     .hero-stats {
-      display: flex; gap: 12px; flex-wrap: wrap;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px 32px;
       margin-top: 56px;
       padding-top: 40px;
       border-top: 1px solid var(--border);
+      max-width: 380px;
     }
     .stat {
       display: flex; flex-direction: column;
@@ -148,10 +151,7 @@
       font-size: 10px; letter-spacing: 1.5px;
       text-transform: uppercase; color: var(--muted);
     }
-    .stat-sep {
-      width: 1px; background: var(--border);
-      align-self: stretch; margin: 0 12px;
-    }
+    .stat-sep { display: none; }
 
     /* ── HOW IT WORKS ── */
     .section {
@@ -467,8 +467,7 @@
       .proof-section { padding: 60px 20px; }
       .cta-section { padding: 70px 20px; }
       footer { padding: 20px; flex-direction: column; text-align: center; }
-      .hero-stats { gap: 24px; }
-      .stat-sep { display: none; }
+      .hero-stats { gap: 20px 28px; }
     }
   </style>
 </head>
@@ -497,17 +496,14 @@
       <div class="stat-num">400<span>+</span></div>
       <div class="stat-label">San Diego venues</div>
     </div>
-    <div class="stat-sep"></div>
     <div class="stat">
       <div class="stat-num">6</div>
       <div class="stat-label">Cities &amp; growing</div>
     </div>
-    <div class="stat-sep"></div>
     <div class="stat">
       <div class="stat-num">5<span>min</span></div>
       <div class="stat-label">To get listed</div>
     </div>
-    <div class="stat-sep"></div>
     <div class="stat">
       <div class="stat-num">$<span>0</span></div>
       <div class="stat-label">To get started</div>
@@ -564,8 +560,8 @@
     <div class="feature">
       <div class="feature-icon">🔥</div>
       <div>
-        <h4>Going Tonight buzz</h4>
-        <p>When customers tap "Going Tonight", a 🔥 fire badge appears on your card. Social proof that builds momentum and gets more people through the door.</p>
+        <h4>Check-in buzz</h4>
+        <p>When customers tap "Going Tonight", a 🔥 fire badge appears on your listing. Real people saying they're headed to your bar — social proof that pulls more people off the fence.</p>
       </div>
     </div>
     <div class="feature">
@@ -580,6 +576,13 @@
       <div>
         <h4>Events listings <span style="font-size:10px;font-weight:600;color:var(--coral);background:rgba(255,107,74,0.1);padding:2px 8px;border-radius:50px;margin-left:4px;font-family:'DM Sans',sans-serif;letter-spacing:.5px;">PRO</span></h4>
         <p>Add trivia nights, live music, karaoke, bingo and more to your profile. Events surface in their own discovery feed, putting you in front of people looking for something to do tonight.</p>
+      </div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">✏️</div>
+      <div>
+        <h4>Edit your listing anytime</h4>
+        <p>Update your deals, hours, photos, and specials whenever you want — changes go live instantly. Running a one-night special? Add it in 30 seconds and it's live before the doors open.</p>
       </div>
     </div>
     <div class="feature">
@@ -599,7 +602,7 @@
     <div class="feature">
       <div class="feature-icon">📊</div>
       <div>
-        <h4>Analytics dashboard <span style="font-size:10px;font-weight:600;color:var(--coral);background:rgba(255,107,74,0.1);padding:2px 8px;border-radius:50px;margin-left:4px;font-family:'DM Sans',sans-serif;letter-spacing:.5px;">PRO</span></h4>
+        <h4>Analytics dashboard <span style="font-size:10px;font-weight:600;color:#888;background:rgba(0,0,0,0.06);padding:2px 8px;border-radius:50px;margin-left:4px;font-family:'DM Sans',sans-serif;letter-spacing:.5px;">COMING SOON</span></h4>
         <p>See saves, Going Tonight counts, and reviews over time. Know what's working and when your listing is getting the most attention.</p>
       </div>
     </div>
@@ -681,7 +684,6 @@
         <li>🎉 Events listings — trivia, live music, karaoke &amp; more</li>
         <li>✨ Amenity tags — dog-friendly, sports TV and more</li>
         <li>🎟️ Custom promo code on your listing</li>
-        <li>📊 Analytics — saves, check-ins &amp; reviews</li>
       </ul>
       <a href="/business-portal.html" class="btn-pricing btn-pricing-primary">Upgrade to Pro →</a>
     </div>
@@ -729,7 +731,7 @@
         What's included in Pro?
         <span class="faq-chevron">▾</span>
       </div>
-      <div class="faq-a">Pro unlocks featured placement (pinned to the top of neighborhood results), events listings (trivia, live music, karaoke and more), amenity tags (dog-friendly, sports TV, etc.), a custom promo code on your listing, and an analytics dashboard showing saves, Going Tonight counts, and reviews.</div>
+      <div class="faq-a">Pro unlocks featured placement (pinned to the top of neighborhood results), events listings (trivia, live music, karaoke and more), amenity tags (dog-friendly, sports TV, etc.), and a custom promo code on your listing.</div>
     </div>
     <div class="faq-item">
       <div class="faq-q" onclick="toggleFaq(this)">
