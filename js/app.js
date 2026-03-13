@@ -55,15 +55,10 @@ const AMENITIES   = [
 const EVENT_TYPE_AMENITY = {};
 AMENITIES.forEach(a => { if (a.eventType) EVENT_TYPE_AMENITY[a.eventType] = a; });
 
-// Restore persisted geolocation (saved on prior opt-in)
-const _geoStored = (() => {
-  try { return JSON.parse(localStorage.getItem('spotd_geo') || 'null'); } catch(e) { return null; }
-})();
-
 const state = {
   sort: 'default',
-  userLat: _geoStored?.lat ?? null,
-  userLng: _geoStored?.lng ?? null,
+  userLat: null,
+  userLng: null,
   view: 'list',
   showFilter: 'all', // 'all' | 'happyhour' | 'events'
   filtersOpen: false, favFilterOn: false,
@@ -332,13 +327,13 @@ async function enterCity(slug, name, stateCode) {
     if (nearBtn) { nearBtn.textContent = '📍 Locating…'; nearBtn.disabled = true; }
     navigator.geolocation.getCurrentPosition(
       pos => {
-        saveGeo(pos.coords.latitude, pos.coords.longitude);
+        state.userLat = pos.coords.latitude;
+        state.userLng = pos.coords.longitude;
         if (nearBtn) { nearBtn.textContent = '📍 Nearest'; nearBtn.disabled = false; }
         applyFilters();
       },
       () => {
         // Permission denied — fall back to default sort silently
-        clearGeo();
         state.sort = 'default';
         if (nearBtn) { nearBtn.textContent = '📍 Nearest'; nearBtn.disabled = false; nearBtn.classList.remove('active'); }
         document.getElementById('sort-default')?.classList.add('active');
@@ -545,19 +540,6 @@ function applyFilters() {
   if (rc) rc.textContent = `${state.filtered.length} of ${pool.length} venues`;
 }
 // ── SORT & GEO ────────────────────────────────────────
-// Persist user's geo consent + coords across sessions
-function saveGeo(lat, lng) {
-  state.userLat = lat;
-  state.userLng = lng;
-  try { localStorage.setItem('spotd_geo', JSON.stringify({ lat, lng, ts: Date.now() })); } catch(e) {}
-}
-
-function clearGeo() {
-  state.userLat = null;
-  state.userLng = null;
-  try { localStorage.removeItem('spotd_geo'); } catch(e) {}
-}
-
 function haversine(lat1, lng1, lat2, lng2) {
   if (lat2 == null || lng2 == null) return Infinity;
   const R = 3958.8; // miles
@@ -588,14 +570,14 @@ function setSort(val, btn) {
       btn.disabled = true;
       navigator.geolocation.getCurrentPosition(
         pos => {
-          saveGeo(pos.coords.latitude, pos.coords.longitude);
+          state.userLat = pos.coords.latitude;
+          state.userLng = pos.coords.longitude;
           btn.textContent = '📍 Nearest';
           btn.disabled = false;
           applyFilters();
         },
         err => {
           showToast('Location access denied — enable in browser settings');
-          clearGeo();
           state.sort = 'default';
           btn.textContent = '📍 Nearest';
           btn.disabled = false;
@@ -2722,15 +2704,17 @@ async function dmLoadInbox() {
         const safeName = (name || '').replace(/'/g, '&#39;');
 
         return `<div class="dm-thread-row" id="dmrow-${c.id}">
-          <div class="dm-thread-main" onclick="dmOpenConvo('${c.id}','${safeName}',${!!c.is_group})">
-            <div class="dm-thread-avatar">${avatar}</div>
-            <div class="dm-thread-info">
-              <div class="dm-thread-name">${esc(name)}${unread ? `<span class="dm-unread-dot">${unread}</span>` : ''}</div>
-              <div class="dm-thread-preview">${esc(preview)}</div>
+          <div class="dm-thread-swipe-wrap" ontouchstart="dmSwipeStart(event,this)" ontouchmove="dmSwipeMove(event,this)" ontouchend="dmSwipeEnd(event,this,'${c.id}')">
+            <div class="dm-thread-main" onclick="dmOpenConvo('${c.id}','${safeName}',${!!c.is_group})">
+              <div class="dm-thread-avatar">${avatar}</div>
+              <div class="dm-thread-info">
+                <div class="dm-thread-name">${esc(name)}${unread ? `<span class="dm-unread-dot">${unread}</span>` : ''}</div>
+                <div class="dm-thread-preview">${esc(preview)}</div>
+              </div>
+              <div class="dm-thread-time">${time}</div>
             </div>
-            <div class="dm-thread-time">${time}</div>
+            <button class="dm-swipe-delete" onclick="dmDeleteConvo('${c.id}')">Delete</button>
           </div>
-          <button class="dm-thread-delete" onclick="dmDeleteConvo('${c.id}')" title="Delete">🗑</button>
         </div>`;
       } catch(rowErr) {
         console.error('row render error:', rowErr, c);
@@ -2764,6 +2748,42 @@ async function dmOpenConvo(convoId, name, isGroup) {
   document.getElementById('dmNewBtn').style.display = 'none';
   document.getElementById('dmTitle').textContent = name;
   document.getElementById('dmComposeBar').style.display = '';
+
+  // Show/hide group members bar
+  const membersBar = document.getElementById('dmMembersBar');
+  if (membersBar) {
+    if (isGroup) {
+      membersBar.style.display = '';
+      membersBar.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px 16px">Loading members…</div>';
+      // Load participants async
+      try {
+        const { data: parts } = await db.from('conversation_participants')
+          .select('user_id').eq('conversation_id', convoId);
+        const ids = (parts || []).map(p => p.user_id);
+        const { data: profiles } = ids.length
+          ? await db.from('profiles').select('id, display_name, avatar_emoji').in('id', ids)
+          : { data: [] };
+        const members = (profiles || []).sort((a, b) =>
+          a.id === currentUser.id ? -1 : b.id === currentUser.id ? 1 : 0
+        );
+        membersBar.innerHTML = `
+          <div class="dm-members-row" id="dmMembersRow">
+            <div class="dm-members-pills">
+              ${members.map(p => `
+                <div class="dm-member-pill">
+                  <span>${p.avatar_emoji || '🍺'}</span>
+                  <span>${esc((p.display_name || 'User').split(' ')[0])}${p.id === currentUser.id ? ' (you)' : ''}</span>
+                </div>`).join('')}
+            </div>
+          </div>`;
+      } catch(e) {
+        membersBar.innerHTML = '';
+      }
+    } else {
+      membersBar.style.display = 'none';
+      membersBar.innerHTML = '';
+    }
+  }
 
   if (!alreadyOpen) {
     document.getElementById('dmMessages').innerHTML = '<div class="dm-loading">Loading…</div>';
@@ -2931,10 +2951,12 @@ function dmShowUserPicker(users, isGroup) {
           : '<div class="dm-empty" style="padding:20px">Follow people to message them</div>'
         }
       </div>
-      <button class="dm-send-btn" style="margin:12px 16px;width:calc(100% - 32px);padding:14px;border-radius:14px;"
-        onclick="dmCreateConvo(${isGroup})">
-        ${isGroup ? 'Create Group' : 'Start Chat'}
-      </button>
+      <div class="dm-picker-footer">
+        <button class="dm-send-btn" style="width:100%;padding:14px;border-radius:14px;"
+          onclick="dmCreateConvo(${isGroup})">
+          ${isGroup ? 'Create Group' : 'Start Chat'}
+        </button>
+      </div>
     </div>`;
 }
 
@@ -3118,8 +3140,54 @@ function dmShowInbox() {
 }
 
 // ── Delete conversation ────────────────────────────────
+// ── Swipe-to-delete for inbox threads ─────────────────
+const _swipeState = { startX: 0, startY: 0, el: null, swiping: false, revealed: null };
+const DM_SWIPE_THRESHOLD = 72; // px to reveal delete button
+
+function dmSwipeStart(e, wrap) {
+  const t = e.touches[0];
+  _swipeState.startX = t.clientX;
+  _swipeState.startY = t.clientY;
+  _swipeState.el = wrap;
+  _swipeState.swiping = false;
+}
+
+function dmSwipeMove(e, wrap) {
+  const t = e.touches[0];
+  const dx = t.clientX - _swipeState.startX;
+  const dy = t.clientY - _swipeState.startY;
+  // Only handle horizontal swipes
+  if (!_swipeState.swiping && Math.abs(dy) > Math.abs(dx)) return;
+  if (Math.abs(dx) > 8) _swipeState.swiping = true;
+  if (!_swipeState.swiping) return;
+  e.preventDefault();
+  const clamped = Math.max(-DM_SWIPE_THRESHOLD, Math.min(0, dx));
+  wrap.style.transform = `translateX(${clamped}px)`;
+}
+
+function dmSwipeEnd(e, wrap, convoId) {
+  if (!_swipeState.swiping) return;
+  const dx = e.changedTouches[0].clientX - _swipeState.startX;
+  if (dx < -DM_SWIPE_THRESHOLD / 2) {
+    // Snap open — reveal delete
+    wrap.style.transform = `translateX(-${DM_SWIPE_THRESHOLD}px)`;
+    wrap.style.transition = 'transform .2s ease';
+    // Close any other revealed rows
+    if (_swipeState.revealed && _swipeState.revealed !== wrap) {
+      _swipeState.revealed.style.transform = '';
+      _swipeState.revealed.style.transition = 'transform .2s ease';
+    }
+    _swipeState.revealed = wrap;
+  } else {
+    // Snap closed
+    wrap.style.transform = '';
+    wrap.style.transition = 'transform .2s ease';
+    if (_swipeState.revealed === wrap) _swipeState.revealed = null;
+  }
+  _swipeState.swiping = false;
+}
+
 async function dmDeleteConvo(convoId) {
-  if (!confirm('Delete this conversation?')) return;
   // Remove self from participants (soft delete — others keep the convo)
   const { error } = await db
     .from('conversation_participants')
