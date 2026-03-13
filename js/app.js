@@ -55,10 +55,15 @@ const AMENITIES   = [
 const EVENT_TYPE_AMENITY = {};
 AMENITIES.forEach(a => { if (a.eventType) EVENT_TYPE_AMENITY[a.eventType] = a; });
 
+// Restore persisted geolocation (saved on prior opt-in)
+const _geoStored = (() => {
+  try { return JSON.parse(localStorage.getItem('spotd_geo') || 'null'); } catch(e) { return null; }
+})();
+
 const state = {
   sort: 'default',
-  userLat: null,
-  userLng: null,
+  userLat: _geoStored?.lat ?? null,
+  userLng: _geoStored?.lng ?? null,
   view: 'list',
   showFilter: 'all', // 'all' | 'happyhour' | 'events'
   filtersOpen: false, favFilterOn: false,
@@ -327,13 +332,13 @@ async function enterCity(slug, name, stateCode) {
     if (nearBtn) { nearBtn.textContent = '📍 Locating…'; nearBtn.disabled = true; }
     navigator.geolocation.getCurrentPosition(
       pos => {
-        state.userLat = pos.coords.latitude;
-        state.userLng = pos.coords.longitude;
+        saveGeo(pos.coords.latitude, pos.coords.longitude);
         if (nearBtn) { nearBtn.textContent = '📍 Nearest'; nearBtn.disabled = false; }
         applyFilters();
       },
       () => {
         // Permission denied — fall back to default sort silently
+        clearGeo();
         state.sort = 'default';
         if (nearBtn) { nearBtn.textContent = '📍 Nearest'; nearBtn.disabled = false; nearBtn.classList.remove('active'); }
         document.getElementById('sort-default')?.classList.add('active');
@@ -540,6 +545,19 @@ function applyFilters() {
   if (rc) rc.textContent = `${state.filtered.length} of ${pool.length} venues`;
 }
 // ── SORT & GEO ────────────────────────────────────────
+// Persist user's geo consent + coords across sessions
+function saveGeo(lat, lng) {
+  state.userLat = lat;
+  state.userLng = lng;
+  try { localStorage.setItem('spotd_geo', JSON.stringify({ lat, lng, ts: Date.now() })); } catch(e) {}
+}
+
+function clearGeo() {
+  state.userLat = null;
+  state.userLng = null;
+  try { localStorage.removeItem('spotd_geo'); } catch(e) {}
+}
+
 function haversine(lat1, lng1, lat2, lng2) {
   if (lat2 == null || lng2 == null) return Infinity;
   const R = 3958.8; // miles
@@ -570,14 +588,14 @@ function setSort(val, btn) {
       btn.disabled = true;
       navigator.geolocation.getCurrentPosition(
         pos => {
-          state.userLat = pos.coords.latitude;
-          state.userLng = pos.coords.longitude;
+          saveGeo(pos.coords.latitude, pos.coords.longitude);
           btn.textContent = '📍 Nearest';
           btn.disabled = false;
           applyFilters();
         },
         err => {
           showToast('Location access denied — enable in browser settings');
+          clearGeo();
           state.sort = 'default';
           btn.textContent = '📍 Nearest';
           btn.disabled = false;
