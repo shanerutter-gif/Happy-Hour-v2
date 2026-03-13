@@ -248,6 +248,7 @@ main{min-height:60vh}
   border-radius:20px 20px 0 0;
   width:100%;max-width:640px;max-height:92vh;
   overflow-y:auto;overflow-x:hidden;
+  scroll-padding-bottom:80px;
   padding:16px 20px calc(72px + env(safe-area-inset-bottom, 0px));
   position:relative;
   transform:translateY(100%);
