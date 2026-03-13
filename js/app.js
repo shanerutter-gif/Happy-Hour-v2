@@ -188,9 +188,11 @@ function renderBottomNav(user) {
 }
 
 function _navHideAll(keep) {
-  if (keep !== 'dm') closeDmTab();
+  // Just remove --open; pages stay in DOM at z-index 498 (behind the incoming page at 499)
+  if (keep !== 'dm') closeDmPage();
   if (keep !== 'profile') closeProfile();
   closeSubPage('findPeoplePage');
+  closeSubPage('followersPage');
   closeSubPage('feedPage');
   closeSubPage('leaderboardPage');
   closeOverlay('modalOverlay');
@@ -1414,41 +1416,33 @@ function showBadgeInfo(badgeKey) {
 
 async function showFollowersList() {
   if (!currentUser) return;
-  const overlay = document.createElement('div');
-  overlay.className = 'overlay open';
-  overlay.onclick = e => { if (e.target === overlay) dismissOverlay(overlay); };
-  overlay.innerHTML = `
-    <div class="sheet" style="max-height:70vh;display:flex;flex-direction:column;">
-      <div style="font-weight:800;font-size:17px;margin-bottom:16px;">Followers</div>
-      <button class="sheet-close" onclick="dismissOverlay(this.closest('.overlay'))">✕</button>
-      <div id="followers-list" style="overflow-y:auto;flex:1;">
-        <div style="text-align:center;padding:20px;color:var(--muted);">Loading…</div>
-      </div>
-    </div>`;
-  document.body.appendChild(overlay);
+
+  const content = document.getElementById('followersContent');
+  content.innerHTML = '<div style="text-align:center;padding:32px;color:var(--muted)">Loading…</div>';
+  openSubPage('followersPage');
 
   const followerRows = await getFollowers(currentUser.id);
-  const list = document.getElementById('followers-list');
-  // getFollowers returns [{follower_id: '...'}]
   const followerIds = (followerRows || []).map(r => r.follower_id || r).filter(Boolean);
 
   if (!followerIds.length) {
-    list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);">No followers yet</div>';
+    content.innerHTML = '<div style="text-align:center;padding:32px;color:var(--muted)">No followers yet</div>';
     return;
   }
+
   const { data: profiles } = await db.from('profiles')
     .select('id, display_name, avatar_emoji, username')
     .in('id', followerIds);
-  list.innerHTML = (profiles || []).map(p => `
-    <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);cursor:pointer;"
-      onclick="dismissOverlay(this.closest('.overlay'));openPublicProfile('${p.id}')">
+
+  content.innerHTML = (profiles || []).map(p => `
+    <div style="display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--border);cursor:pointer;"
+      onclick="closeSubPage('followersPage');openPublicProfile('${p.id}')">
       <div style="width:42px;height:42px;border-radius:50%;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">${p.avatar_emoji || '🍺'}</div>
       <div style="flex:1;min-width:0;">
         <div style="font-weight:700;font-size:14px;">${esc(p.display_name || 'Spotd User')}</div>
         ${p.username ? `<div style="font-size:12px;color:var(--muted);">@${esc(p.username)}</div>` : ''}
       </div>
       <div style="color:var(--muted);font-size:18px;">›</div>
-    </div>`).join('') || '<div style="text-align:center;padding:20px;color:var(--muted);">No followers yet</div>';
+    </div>`).join('') || '<div style="text-align:center;padding:32px;color:var(--muted)">No followers yet</div>';
 }
 function toggleAvatarPicker() {
   const p = document.getElementById('avatarPicker');
@@ -2571,94 +2565,42 @@ function skipToTagFriends(venueId) {
 
 
 
-// ── MESSAGES ───────────────────────────────────────────
-// Clean tab architecture — no overlays, no inline style hacks.
-// Three named screens: inbox | convo | picker.
-// Tab is shown/hidden via display:none/flex, same as feed.
-
+// ── MESSAGES V2 ────────────────────────────────────────
 let dmState = {
-  screen: 'inbox',       // 'inbox' | 'convo' | 'picker'
   activeConvoId: null,
   activeConvoName: null,
   isGroup: false,
   subscription: null,
 };
 
-// ── Tab open/close (called by bottomNav) ───────────────
-function openDmTab() {
-  document.getElementById('dmTab').style.display = 'flex';
+function openDmPage() {
+  const page = document.getElementById('dmPage');
+  if (!page) return;
+  page.classList.add('dm-page--open');
 }
-function closeDmTab() {
-  document.getElementById('dmTab').style.display = 'none';
-  if (dmState.subscription) {
-    dmState.subscription.unsubscribe();
-    dmState.subscription = null;
-  }
-}
-
-// Alias kept for any external callers
-function openDmPage()  { openDmTab(); }
-function closeDmPage() { closeDmTab(); }
-
-// ── Screen switching ────────────────────────────────────
-function dmShowScreen(name) {
-  ['dmScreenInbox', 'dmScreenConvo', 'dmScreenPicker'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.style.display = 'none';
-  });
-  const target = document.getElementById('dmScreen' + name.charAt(0).toUpperCase() + name.slice(1));
-  if (target) target.style.display = (name === 'inbox') ? 'block' : 'flex';
-  dmState.screen = name;
-
-  // Header state
-  const backBtn = document.getElementById('dmBackBtn');
-  const newBtn  = document.getElementById('dmNewBtn');
-  const title   = document.getElementById('dmTitle');
-  if (name === 'inbox') {
-    backBtn.style.visibility = 'hidden';
-    newBtn.style.display     = '';
-    title.textContent        = 'Messages';
-  } else {
-    backBtn.style.visibility = 'visible';
-    newBtn.style.display     = 'none';
-  }
+function closeDmPage() {
+  const page = document.getElementById('dmPage');
+  if (!page) return;
+  page.classList.remove('dm-page--open');
+  page.style.height = '';
+  page.style.top = '';
+  if (dmState.subscription) { dmState.subscription.unsubscribe(); dmState.subscription = null; }
 }
 
-function dmNavBack() {
-  if (dmState.screen === 'convo' || dmState.screen === 'picker') {
-    // Unsubscribe realtime if leaving convo
-    if (dmState.subscription) {
-      dmState.subscription.unsubscribe();
-      dmState.subscription = null;
-    }
-    dmState.activeConvoId = null;
-    dmShowScreen('inbox');
-    dmLoadInbox();
-  }
-}
-
-// ── Open inbox ─────────────────────────────────────────
 async function openDmInbox() {
   if (!currentUser) { openAuth('signin'); return; }
-  openDmTab();
-  dmShowScreen('inbox');
+  openDmPage();
+  dmShowInboxPane();
   await dmLoadInbox();
 }
 
-// ── Load inbox ─────────────────────────────────────────
-const DM_EMPTY_HTML = `<div class="dm-empty-state">
-  <div class="dm-empty-icon">💬</div>
-  <div class="dm-empty-title">No messages yet</div>
-  <div class="dm-empty-sub">Chat with fellow Spotd users<br>about your favorite spots</div>
-  <button class="dm-invite-btn" onclick="shareSpotd()">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
-      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
-      <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
-    </svg>
-    Invite a Friend to Spotd
-  </button>
-</div>`;
+function dmShowInboxPane() {
+  document.getElementById('dmInboxPane').style.display = '';
+  document.getElementById('dmConvoPane').style.display = 'none';
+  document.getElementById('dmBackBtn').style.visibility = 'hidden';
+  document.getElementById('dmNewBtn').style.display = '';
+  document.getElementById('dmTitle').textContent = 'Messages';
+}
 
 async function dmLoadInbox() {
   const list = document.getElementById('dmThreadList');
@@ -2669,14 +2611,18 @@ async function dmLoadInbox() {
       .select('conversation_id, last_read_at')
       .eq('user_id', currentUser.id);
     if (e1) throw e1;
-    if (!myParts?.length) { list.innerHTML = DM_EMPTY_HTML; dmUpdateBadge(0); return; }
+    if (!myParts?.length) {
+      list.innerHTML = '<div class="dm-empty-state"><div class="dm-empty-icon">💬</div><div class="dm-empty-title">No messages yet</div><div class="dm-empty-sub">Chat with fellow Spotd users<br>about your favorite spots</div><button class="dm-invite-btn" onclick="shareSpotd()"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"18\" cy=\"5\" r=\"3\"/><circle cx=\"6\" cy=\"12\" r=\"3\"/><circle cx=\"18\" cy=\"19\" r=\"3\"/><line x1=\"8.59\" y1=\"13.51\" x2=\"15.42\" y2=\"17.49\"/><line x1=\"15.41\" y1=\"6.51\" x2=\"8.59\" y2=\"10.49\"/></svg> Invite a Friend to Spotd</button></div>';
+      dmUpdateBadge(0); return;
+    }
 
-    const convoIds  = myParts.map(r => r.conversation_id);
+    const convoIds = myParts.map(r => r.conversation_id);
     const myReadMap = {};
     myParts.forEach(r => { myReadMap[r.conversation_id] = r.last_read_at; });
 
-    const timeout = ms => new Promise(res => setTimeout(() => res({ data: [] }), ms));
+    const timeout = ms => new Promise(res => setTimeout(() => res({ data: [], error: null }), ms));
 
+    // Run all queries in parallel — messages gets a 3s timeout so it never blocks
     const [r2, r3, r4] = await Promise.allSettled([
       db.from('conversations').select('id, is_group, name, updated_at').in('id', convoIds).order('updated_at', { ascending: false }),
       db.rpc('get_conversation_participants', { convo_ids: convoIds }),
@@ -2690,6 +2636,7 @@ async function dmLoadInbox() {
     const allParts = r3.status === 'fulfilled' ? (r3.value.data || []) : [];
     const lastMsgs = r4.status === 'fulfilled' ? (r4.value.data || []) : [];
 
+    // Fall back to synthetic list if conversations query failed/empty
     const convoList = convos.length ? convos : convoIds.map(id => ({ id, is_group: false, name: null, updated_at: null }));
 
     const lastMsgMap = {};
@@ -2709,17 +2656,21 @@ async function dmLoadInbox() {
       convoPartsMap[p.conversation_id].push(p.user_id);
     });
 
+    // Get unique other user IDs from allParts (already have display_name/avatar if RPC returns them)
+    // Try profiles fetch with a timeout — render with blanks if it hangs
     const otherIds = [...new Set(allParts.map(p => p.user_id).filter(id => id !== currentUser.id))];
     const pMap = {};
     if (otherIds.length) {
       try {
-        const res = await Promise.race([
+        const profResult = await Promise.race([
           db.from('profiles').select('id, display_name, avatar_emoji').in('id', otherIds),
           new Promise(res => setTimeout(() => res({ data: [] }), 2000))
         ]);
-        (res.data || []).forEach(p => { pMap[p.id] = p; });
-      } catch(e) {}
+        (profResult.data || []).forEach(p => { pMap[p.id] = p; });
+      } catch(e) { /* render with blanks */ }
     }
+
+    console.log('dmLoadInbox render:', { convoList: convoList.length, pMap: Object.keys(pMap).length });
 
     let totalUnread = 0;
     const rows = convoList.map(c => {
@@ -2731,9 +2682,7 @@ async function dmLoadInbox() {
 
         let name, avatar;
         if (c.is_group) {
-          const myFirst = (currentUser?.user_metadata?.full_name || 'You').split(' ')[0];
-          const otherNames = others.map(id => (pMap[id]?.display_name || 'User').split(' ')[0]);
-          name   = c.name || [myFirst, ...otherNames].join(', ') || 'Group';
+          name   = c.name || others.map(id => (pMap[id]?.display_name || 'User').split(' ')[0]).join(', ') || 'Group';
           avatar = '👥';
         } else {
           const p = pMap[others[0]] || {};
@@ -2741,140 +2690,67 @@ async function dmLoadInbox() {
           avatar = p.avatar_emoji || '🍺';
         }
 
-        const preview  = last ? (last.msg_type === 'venue_share' ? '📍 Shared a venue' : (last.body || '').slice(0, 45)) : 'Say hello!';
-        const time     = last ? fmtDate(last.created_at) : '';
+        const preview = last
+          ? (last.msg_type === 'venue_share' ? '📍 Shared a venue' : (last.body || '').slice(0, 45))
+          : 'Say hello!';
+        const time = last ? fmtDate(last.created_at) : '';
         const safeName = (name || '').replace(/'/g, '&#39;');
 
         return `<div class="dm-thread-row" id="dmrow-${c.id}">
-          <div class="dm-thread-swipe-wrap"
-            ontouchstart="dmSwipeStart(event,this)"
-            ontouchmove="dmSwipeMove(event,this)"
-            ontouchend="dmSwipeEnd(event,this,'${c.id}')">
-            <div class="dm-thread-main" onclick="dmOpenConvo('${c.id}','${safeName}',${!!c.is_group})">
-              <div class="dm-thread-avatar">${avatar}</div>
-              <div class="dm-thread-info">
-                <div class="dm-thread-name">${esc(name)}${unread ? `<span class="dm-unread-dot">${unread}</span>` : ''}</div>
-                <div class="dm-thread-preview">${esc(preview)}</div>
-              </div>
-              <div class="dm-thread-time">${time}</div>
+          <div class="dm-thread-main" onclick="dmOpenConvo('${c.id}','${safeName}',${!!c.is_group})">
+            <div class="dm-thread-avatar">${avatar}</div>
+            <div class="dm-thread-info">
+              <div class="dm-thread-name">${esc(name)}${unread ? `<span class="dm-unread-dot">${unread}</span>` : ''}</div>
+              <div class="dm-thread-preview">${esc(preview)}</div>
             </div>
-            <button class="dm-swipe-delete" onclick="dmDeleteConvo('${c.id}')">Delete</button>
+            <div class="dm-thread-time">${time}</div>
           </div>
+          <button class="dm-thread-delete" onclick="dmDeleteConvo('${c.id}')" title="Delete">🗑</button>
         </div>`;
-      } catch(e) { return ''; }
+      } catch(rowErr) {
+        console.error('row render error:', rowErr, c);
+        return '';
+      }
     });
 
-    list.innerHTML = rows.join('') || DM_EMPTY_HTML;
+    list.innerHTML = rows.join('') || '<div class="dm-empty-state"><div class="dm-empty-icon">💬</div><div class="dm-empty-title">No messages yet</div><div class="dm-empty-sub">Chat with fellow Spotd users<br>about your favorite spots</div><button class="dm-invite-btn" onclick="shareSpotd()"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"18\" cy=\"5\" r=\"3\"/><circle cx=\"6\" cy=\"12\" r=\"3\"/><circle cx=\"18\" cy=\"19\" r=\"3\"/><line x1=\"8.59\" y1=\"13.51\" x2=\"15.42\" y2=\"17.49\"/><line x1=\"15.41\" y1=\"6.51\" x2=\"8.59\" y2=\"10.49\"/></svg> Invite a Friend to Spotd</button></div>';
     dmUpdateBadge(totalUnread);
+    console.log('dmLoadInbox done, rows:', rows.length);
   } catch(e) {
     console.error('dmLoadInbox:', e);
     list.innerHTML = '<div class="dm-empty">Failed to load messages.</div>';
   }
 }
 
-// ── Swipe-to-delete ────────────────────────────────────
-const _sw = { x0: 0, y0: 0, swiping: false, revealed: null };
-const SW_THRESH = 72;
 
-function dmSwipeStart(e, wrap) {
-  _sw.x0 = e.touches[0].clientX;
-  _sw.y0 = e.touches[0].clientY;
-  _sw.swiping = false;
-}
-function dmSwipeMove(e, wrap) {
-  const dx = e.touches[0].clientX - _sw.x0;
-  const dy = e.touches[0].clientY - _sw.y0;
-  if (!_sw.swiping && Math.abs(dy) > Math.abs(dx)) return;
-  if (Math.abs(dx) > 8) _sw.swiping = true;
-  if (!_sw.swiping) return;
-  e.preventDefault();
-  wrap.style.transition = 'none';
-  wrap.style.transform  = `translateX(${Math.max(-SW_THRESH, Math.min(0, dx))}px)`;
-}
-function dmSwipeEnd(e, wrap, convoId) {
-  if (!_sw.swiping) return;
-  _sw.swiping = false;
-  const dx = e.changedTouches[0].clientX - _sw.x0;
-  wrap.style.transition = 'transform .2s ease';
-  if (dx < -(SW_THRESH / 2)) {
-    wrap.style.transform = `translateX(-${SW_THRESH}px)`;
-    if (_sw.revealed && _sw.revealed !== wrap) {
-      _sw.revealed.style.transform = '';
-    }
-    _sw.revealed = wrap;
-  } else {
-    wrap.style.transform = '';
-    if (_sw.revealed === wrap) _sw.revealed = null;
-  }
-}
-
-// ── Delete conversation ────────────────────────────────
-async function dmDeleteConvo(convoId) {
-  const { error } = await db
-    .from('conversation_participants')
-    .delete()
-    .eq('conversation_id', convoId)
-    .eq('user_id', currentUser.id);
-  if (error) { showToast('Failed to delete'); return; }
-  document.getElementById(`dmrow-${convoId}`)?.remove();
-  const list = document.getElementById('dmThreadList');
-  if (!list?.querySelector('.dm-thread-row')) list.innerHTML = DM_EMPTY_HTML;
-  showToast('Conversation removed');
-}
-
-// ── Open conversation ──────────────────────────────────
-async function dmOpenConvo(convoId, name, isGroup, knownMembers) {
+async function dmOpenConvo(convoId, name, isGroup) {
   if (!currentUser) { openAuth('signin'); return; }
   closeOverlay('pubProfileOverlay');
 
   const alreadyOpen = dmState.activeConvoId === convoId;
-  dmState.activeConvoId   = convoId;
+  dmState.activeConvoId = convoId;
   dmState.activeConvoName = name;
-  dmState.isGroup         = isGroup;
+  dmState.isGroup = isGroup;
 
-  openDmTab();
-  dmShowScreen('convo');
+  openDmPage();
+  document.getElementById('dmInboxPane').style.display = 'none';
+  document.getElementById('dmConvoPane').style.display = 'flex';
+  document.getElementById('dmBackBtn').style.visibility = 'visible';
+  document.getElementById('dmNewBtn').style.display = 'none';
   document.getElementById('dmTitle').textContent = name;
-
-  // Members bar for groups
-  const bar = document.getElementById('dmMembersBar');
-  if (isGroup) {
-    bar.style.display = '';
-    const renderMembers = (profs) => {
-      const sorted = (profs || []).sort((a, b) => a.id === currentUser.id ? -1 : b.id === currentUser.id ? 1 : 0);
-      bar.innerHTML = `<div class="dm-members-pills">${sorted.map(p =>
-        `<div class="dm-member-pill">${p.avatar_emoji||'🍺'} ${esc((p.display_name||'User').split(' ')[0])}${p.id===currentUser.id?' (you)':''}</div>`
-      ).join('')}</div>`;
-    };
-    if (knownMembers?.length) {
-      // Passed in from create — render immediately, no DB fetch needed
-      renderMembers(knownMembers);
-    } else {
-      bar.innerHTML = '<div class="dm-members-pills"><div style="color:var(--muted);font-size:13px">Loading…</div></div>';
-      (async () => {
-        try {
-          const { data: parts } = await db.from('conversation_participants').select('user_id').eq('conversation_id', convoId);
-          const ids = (parts || []).map(p => p.user_id);
-          const { data: profs } = ids.length ? await db.from('profiles').select('id, display_name, avatar_emoji').in('id', ids) : { data: [] };
-          renderMembers(profs);
-        } catch(e) { bar.style.display = 'none'; }
-      })();
-    }
-  } else {
-    bar.style.display = 'none';
-    bar.innerHTML = '';
-  }
+  document.getElementById('dmComposeBar').style.display = '';
 
   if (!alreadyOpen) {
     document.getElementById('dmMessages').innerHTML = '<div class="dm-loading">Loading…</div>';
     await dmLoadConvo();
     dmSubscribe();
   } else {
-    dmScrollToBottom();
+    // Already loaded — just scroll to bottom
+    const el = document.getElementById('dmMessages');
+    if (el) el.scrollTop = el.scrollHeight;
   }
 }
 
-// ── Load conversation messages ─────────────────────────
 async function dmLoadConvo() {
   const { data, error } = await db
     .from('messages')
@@ -2882,11 +2758,11 @@ async function dmLoadConvo() {
     .eq('conversation_id', dmState.activeConvoId)
     .order('created_at', { ascending: true });
 
-  const el = document.getElementById('dmMessages');
-  if (error) { el.innerHTML = '<div class="dm-empty">Failed to load.</div>'; return; }
+  if (error) { document.getElementById('dmMessages').innerHTML = '<div class="dm-empty">Failed to load.</div>'; return; }
 
   const msgs = data || [];
 
+  // Fetch sender profiles
   const senderIds = [...new Set(msgs.map(m => m.sender_id).filter(Boolean))];
   const { data: profiles } = senderIds.length
     ? await db.from('profiles').select('id, display_name, avatar_emoji').in('id', senderIds)
@@ -2894,6 +2770,7 @@ async function dmLoadConvo() {
   const pMap = {};
   (profiles || []).forEach(p => { pMap[p.id] = p; });
 
+  // Fetch venues for shares
   const venueIds = [...new Set(msgs.filter(m => m.venue_id).map(m => m.venue_id))];
   const { data: venues } = venueIds.length
     ? await db.from('venues').select('id, name, neighborhood, google_rating').in('id', venueIds)
@@ -2901,60 +2778,59 @@ async function dmLoadConvo() {
   const vMap = {};
   (venues || []).forEach(v => { vMap[v.id] = v; });
 
+  const el = document.getElementById('dmMessages');
   if (!msgs.length) { el.innerHTML = '<div class="dm-empty">Say hi! 👋</div>'; return; }
 
-  el.innerHTML = msgs.map(m => dmRenderMsg(m, pMap, vMap)).join('');
-  dmScrollToBottom();
+  el.innerHTML = msgs.map(m => {
+    const isMine = m.sender_id === currentUser.id;
+    const senderName = isMine ? 'You' : (pMap[m.sender_id]?.display_name || 'User');
 
+    if (m.msg_type === 'venue_share') {
+      const v = vMap[m.venue_id] || {};
+      return `<div class="dm-msg ${isMine ? 'dm-msg--mine' : 'dm-msg--theirs'}">
+        ${dmState.isGroup && !isMine ? `<div class="dm-sender-name">${esc(senderName)}</div>` : ''}
+        <div class="dm-venue-card" onclick="openModal('${m.venue_id}','venue')">
+          <div class="dm-venue-icon">📍</div>
+          <div class="dm-venue-info">
+            <div class="dm-venue-name">${esc(v.name || 'Venue')}</div>
+            <div class="dm-venue-meta">${esc(v.neighborhood || '')}${v.google_rating ? ` · ⭐ ${v.google_rating}` : ''}</div>
+          </div>
+          <div class="dm-venue-arrow">›</div>
+        </div>
+        <div class="dm-msg-time">${new Date(m.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</div>
+      </div>`;
+    }
+
+    return `<div class="dm-msg ${isMine ? 'dm-msg--mine' : 'dm-msg--theirs'}">
+      ${dmState.isGroup && !isMine ? `<div class="dm-sender-name">${esc(senderName)}</div>` : ''}
+      <div class="dm-bubble">${esc(m.body || '')}</div>
+      <div class="dm-msg-time">${new Date(m.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</div>
+    </div>`;
+  }).join('');
+
+  el.scrollTop = el.scrollHeight;
+
+  // Mark read
   await db.from('conversation_participants')
     .update({ last_read_at: new Date().toISOString() })
     .eq('conversation_id', dmState.activeConvoId)
     .eq('user_id', currentUser.id);
 }
 
-function dmRenderMsg(m, pMap, vMap) {
-  const isMine     = m.sender_id === currentUser.id;
-  const senderName = isMine ? 'You' : (pMap[m.sender_id]?.display_name || 'User');
-  const cls        = isMine ? 'dm-msg--mine' : 'dm-msg--theirs';
-  const groupLabel = dmState.isGroup && !isMine ? `<div class="dm-sender-name">${esc(senderName)}</div>` : '';
-  const time       = `<div class="dm-msg-time">${new Date(m.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</div>`;
-
-  if (m.msg_type === 'venue_share') {
-    const v = vMap?.[m.venue_id] || {};
-    return `<div class="dm-msg ${cls}">
-      ${groupLabel}
-      <div class="dm-venue-card" onclick="openModal('${m.venue_id}','venue')">
-        <div class="dm-venue-icon">📍</div>
-        <div class="dm-venue-info">
-          <div class="dm-venue-name">${esc(v.name || 'Venue')}</div>
-          <div class="dm-venue-meta">${esc(v.neighborhood || '')}${v.google_rating ? ` · ⭐ ${v.google_rating}` : ''}</div>
-        </div>
-        <div class="dm-venue-arrow">›</div>
-      </div>
-      ${time}
-    </div>`;
-  }
-  return `<div class="dm-msg ${cls}">
-    ${groupLabel}
-    <div class="dm-bubble">${esc(m.body || '')}</div>
-    ${time}
-  </div>`;
-}
-
-// ── Send message ───────────────────────────────────────
 async function dmSend() {
   const input = document.getElementById('dmInput');
-  const body  = input.value.trim();
+  const body = input.value.trim();
   if (!body || !dmState.activeConvoId) return;
   input.value = '';
 
+  // Optimistic append
   const el = document.getElementById('dmMessages');
-  const tmp = document.createElement('div');
-  tmp.className = 'dm-msg dm-msg--mine';
-  tmp.innerHTML = `<div class="dm-bubble">${esc(body)}</div>
+  const tempDiv = document.createElement('div');
+  tempDiv.className = 'dm-msg dm-msg--mine';
+  tempDiv.innerHTML = `<div class="dm-bubble">${esc(body)}</div>
     <div class="dm-msg-time">${new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</div>`;
-  el?.appendChild(tmp);
-  dmScrollToBottom();
+  el?.appendChild(tempDiv);
+  el.scrollTop = el.scrollHeight;
 
   const { error } = await db.from('messages').insert({
     conversation_id: dmState.activeConvoId,
@@ -2962,10 +2838,13 @@ async function dmSend() {
     body,
     msg_type: 'text',
   });
-  if (error) { showToast('Failed to send'); tmp.remove(); input.value = body; }
+  if (error) {
+    showToast('Failed to send');
+    tempDiv.remove();
+    input.value = body;
+  }
 }
 
-// ── Send venue share ───────────────────────────────────
 async function dmSendVenue(venueId, convoId) {
   const { error } = await db.from('messages').insert({
     conversation_id: convoId,
@@ -2982,50 +2861,57 @@ async function dmSendVenue(venueId, convoId) {
 // ── New conversation ───────────────────────────────────
 async function dmStartNewConvo() {
   if (!currentUser) { openAuth('signin'); return; }
-  const { data: following } = await db.from('user_follows').select('following_id').eq('follower_id', currentUser.id);
+  const { data: following } = await db
+    .from('user_follows')
+    .select('following_id')
+    .eq('follower_id', currentUser.id);
+
   const followIds = (following || []).map(f => f.following_id);
   const { data: profiles } = followIds.length
     ? await db.from('profiles').select('id, display_name, avatar_emoji').in('id', followIds)
     : { data: [] };
-  dmShowPicker(profiles || [], false);
+
+  dmShowUserPicker(profiles || [], false);
 }
 
-function dmShowPicker(users, isGroup) {
-  window._dmPickerSelected = new Set();
-  window._dmPickerUsers    = users;
-  window._dmPickerIsGroup  = isGroup;
-
-  openDmTab();
-  dmShowScreen('picker');
+function dmShowUserPicker(users, isGroup) {
+  document.getElementById('dmInboxPane').style.display = 'none';
+  document.getElementById('dmConvoPane').style.display = 'flex';
+  document.getElementById('dmBackBtn').style.visibility = 'visible';
+  document.getElementById('dmNewBtn').style.display = 'none';
   document.getElementById('dmTitle').textContent = isGroup ? 'New Group' : 'New Message';
+  document.getElementById('dmComposeBar').style.display = 'none';
 
-  const btn = document.getElementById('dmPickerBtn');
-  btn.textContent   = isGroup ? 'Create Group' : 'Start Chat';
-  btn._pickerIsGroup = isGroup;
+  window._dmPickerSelected = new Set();
+  window._dmPickerUsers = users;
+  window._dmPickerIsGroup = isGroup;
 
-  document.getElementById('dmPickerScroll').innerHTML = `
-    <div class="dm-picker-search-wrap">
-      <input class="dm-picker-search" placeholder="Search by name…" oninput="dmFilterPicker(this.value)">
-    </div>
-    ${isGroup
-      ? `<div class="dm-group-name-wrap"><input class="dm-picker-search" id="dmGroupName" placeholder="Group name (optional)…"></div>`
-      : `<div class="dm-picker-toggle" onclick="dmShowPicker(window._dmPickerUsers,true)">👥 Create Group Instead</div>`
-    }
-    <div id="dmPickerList">
-      ${users.length
-        ? users.map(u => `
-          <div class="dm-picker-row" id="dpick-${u.id}" onclick="dmPickerToggle('${u.id}',${isGroup})">
-            <div class="dm-thread-avatar" style="width:36px;height:36px;font-size:20px">${u.avatar_emoji||'🍺'}</div>
-            <div style="flex:1">${esc(u.display_name||'User')}</div>
-            <div class="dm-pick-check" id="dcheck-${u.id}">○</div>
-          </div>`).join('')
-        : '<div class="dm-empty">Follow people to message them</div>'
+  document.getElementById('dmMessages').innerHTML = `
+    <div class="dm-picker">
+      <div class="dm-picker-search-wrap">
+        <input class="dm-picker-search" placeholder="Search by name…" oninput="dmFilterPicker(this.value)">
+      </div>
+      ${isGroup
+        ? `<div class="dm-group-name-wrap"><input class="dm-picker-search" id="dmGroupName" placeholder="Group name (optional)…"></div>`
+        : `<div class="dm-picker-toggle" onclick="dmShowUserPicker(window._dmPickerUsers, true)">👥 Create Group Instead</div>`
       }
+      <div id="dmPickerList" class="dm-picker-list">
+        ${users.length
+          ? users.map(u => `
+            <div class="dm-picker-row" id="dpick-${u.id}" onclick="dmPickerToggle('${u.id}',${isGroup})">
+              <div class="dm-thread-avatar" style="width:36px;height:36px;font-size:20px;">${u.avatar_emoji||'🍺'}</div>
+              <div style="flex:1">${esc(u.display_name||'User')}</div>
+              <div class="dm-pick-check" id="dcheck-${u.id}">○</div>
+            </div>`).join('')
+          : '<div class="dm-empty" style="padding:20px">Follow people to message them</div>'
+        }
+      </div>
+      <button class="dm-send-btn" style="margin:12px 16px;width:calc(100% - 32px);padding:14px;border-radius:14px;"
+        onclick="dmCreateConvo(${isGroup})">
+        ${isGroup ? 'Create Group' : 'Start Chat'}
+      </button>
     </div>`;
 }
-
-// Alias for old callers
-function dmShowUserPicker(users, isGroup) { dmShowPicker(users, isGroup); }
 
 function dmFilterPicker(q) {
   document.querySelectorAll('.dm-picker-row').forEach(row => {
@@ -3034,18 +2920,19 @@ function dmFilterPicker(q) {
 }
 
 function dmPickerToggle(userId, isGroup) {
-  const sel   = window._dmPickerSelected;
+  const sel = window._dmPickerSelected;
   const check = document.getElementById(`dcheck-${userId}`);
-  const row   = document.getElementById(`dpick-${userId}`);
+  const row = document.getElementById(`dpick-${userId}`);
   if (sel.has(userId)) {
     sel.delete(userId);
     check.textContent = '○';
     row.classList.remove('dm-picker-row--selected');
   } else {
     if (!isGroup) {
+      // DM: clear others first
       sel.forEach(id => {
         document.getElementById(`dcheck-${id}`).textContent = '○';
-        document.getElementById(`dpick-${id}`)?.classList.remove('dm-picker-row--selected');
+        document.getElementById(`dpick-${id}`).classList.remove('dm-picker-row--selected');
       });
       sel.clear();
     }
@@ -3055,18 +2942,13 @@ function dmPickerToggle(userId, isGroup) {
   }
 }
 
-function dmCreateConvoFromPicker() {
-  const btn = document.getElementById('dmPickerBtn');
-  dmCreateConvo(!!btn._pickerIsGroup);
-}
-
 async function dmCreateConvo(isGroup) {
   const sel = window._dmPickerSelected;
   if (!sel?.size) { showToast('Select at least one person'); return; }
 
   const groupName = isGroup ? (document.getElementById('dmGroupName')?.value.trim() || null) : null;
 
-  // Check for existing 1:1 DM
+  // For DMs check if conversation already exists
   if (!isGroup && sel.size === 1) {
     const otherId = [...sel][0];
     const { data: myParts } = await db.from('conversation_participants').select('conversation_id').eq('user_id', currentUser.id);
@@ -3074,39 +2956,40 @@ async function dmCreateConvo(isGroup) {
       const myIds = myParts.map(r => r.conversation_id);
       const { data: otherParts } = await db.from('conversation_participants').select('conversation_id').eq('user_id', otherId).in('conversation_id', myIds);
       if (otherParts?.length) {
-        const { data: c } = await db.from('conversations').select('is_group').eq('id', otherParts[0].conversation_id).single();
-        if (c && !c.is_group) {
+        const sharedId = otherParts[0].conversation_id;
+        const { data: convoCheck } = await db.from('conversations').select('is_group').eq('id', sharedId).single();
+        if (convoCheck && !convoCheck.is_group) {
           const name = window._dmPickerUsers?.find(u => u.id === otherId)?.display_name || 'Chat';
-          await dmOpenConvo(otherParts[0].conversation_id, name, false);
+          document.getElementById('dmComposeBar').style.display = '';
+          await dmOpenConvo(sharedId, name, false);
           return;
         }
       }
     }
   }
 
-  const { data: convo, error: cErr } = await db.from('conversations')
+  // Create conversation
+  const { data: convo, error: cErr } = await db
+    .from('conversations')
     .insert({ is_group: isGroup, name: groupName, created_by: currentUser.id })
-    .select().single();
-  if (cErr) { showToast('Failed to create conversation'); return; }
+    .select()
+    .single();
+  console.log('dmCreateConvo result:', { convo, cErr });
+  if (cErr) { console.error('create convo:', cErr); showToast('Failed to create conversation'); return; }
 
+  // Add participants
   const participantIds = [currentUser.id, ...[...sel]];
   const { error: pErr } = await db.from('conversation_participants')
     .insert(participantIds.map(uid => ({ conversation_id: convo.id, user_id: uid })));
-  if (pErr) { showToast('Failed to add participants'); return; }
+  if (pErr) { console.error('add participants:', pErr); showToast('Failed to add participants'); return; }
 
-  const others      = window._dmPickerUsers?.filter(u => sel.has(u.id)) || [];
-  const myFirstName = (currentUser?.user_metadata?.full_name || 'You').split(' ')[0];
+  const others = window._dmPickerUsers?.filter(u => sel.has(u.id)) || [];
   const displayName = groupName || (isGroup
-    ? [myFirstName, ...others.map(u => (u.display_name||'User').split(' ')[0])].join(', ')
+    ? others.map(u => (u.display_name||'User').split(' ')[0]).join(', ')
     : (others[0]?.display_name || 'Chat'));
 
-  // Build knownMembers for instant bar render — include self from currentUser metadata
-  const knownMembers = isGroup ? [
-    { id: currentUser.id, display_name: currentUser.user_metadata?.full_name || 'You', avatar_emoji: null },
-    ...others.map(u => ({ id: u.id, display_name: u.display_name, avatar_emoji: u.avatar_emoji || null }))
-  ] : null;
-
-  await dmOpenConvo(convo.id, displayName, isGroup, knownMembers);
+  document.getElementById('dmComposeBar').style.display = '';
+  await dmOpenConvo(convo.id, displayName, isGroup);
 }
 
 // ── Open DM from public profile ────────────────────────
@@ -3114,6 +2997,7 @@ async function dmOpenFromProfile(userId, displayName) {
   if (!currentUser) { openAuth('signin'); return; }
   closeOverlay('pubProfileOverlay');
 
+  // Check for existing DM
   const { data: myParts } = await db.from('conversation_participants').select('conversation_id').eq('user_id', currentUser.id);
   if (myParts?.length) {
     const myIds = myParts.map(r => r.conversation_id);
@@ -3121,30 +3005,40 @@ async function dmOpenFromProfile(userId, displayName) {
     if (otherParts?.length) {
       for (const p of otherParts) {
         const { data: c } = await db.from('conversations').select('is_group').eq('id', p.conversation_id).single();
-        if (c && !c.is_group) { await dmOpenConvo(p.conversation_id, displayName, false); return; }
+        if (c && !c.is_group) {
+          openDmPage();
+          await dmOpenConvo(p.conversation_id, displayName, false);
+          return;
+        }
       }
     }
   }
 
+  // Create new DM
   const { data: convo, error } = await db.from('conversations')
     .insert({ is_group: false, created_by: currentUser.id })
     .select().single();
   if (error) { showToast('Failed to start conversation'); return; }
+
   await db.from('conversation_participants').insert([
     { conversation_id: convo.id, user_id: currentUser.id },
     { conversation_id: convo.id, user_id: userId },
   ]);
+
+  openDmPage();
   await dmOpenConvo(convo.id, displayName, false);
 }
 
 // ── Venue share picker ─────────────────────────────────
 async function dmOpenVenueSharePicker(venueId) {
   if (!currentUser) { openAuth('signin'); return; }
+
   const { data: myParts } = await db.from('conversation_participants').select('conversation_id').eq('user_id', currentUser.id);
   if (!myParts?.length) { showToast('No conversations yet — start one first'); return; }
 
+  // Deduplicate conversation IDs
   const convoIds = [...new Set(myParts.map(r => r.conversation_id))];
-  const { data: convos }   = await db.from('conversations').select('id, is_group, name, updated_at').in('id', convoIds).order('updated_at', { ascending: false });
+  const { data: convos } = await db.from('conversations').select('id, is_group, name, updated_at').in('id', convoIds).order('updated_at', { ascending: false });
   const { data: allParts } = await db.rpc('get_conversation_participants', { convo_ids: convoIds });
 
   const otherIds = [...new Set((allParts||[]).map(p=>p.user_id).filter(id=>id!==currentUser.id))];
@@ -3158,8 +3052,12 @@ async function dmOpenVenueSharePicker(venueId) {
     if (p.user_id !== currentUser.id) convoPartsMap[p.conversation_id].push(p.user_id);
   });
 
-  const seen = new Set();
-  const uniqueConvos = (convos||[]).filter(c => { if (seen.has(c.id)) return false; seen.add(c.id); return true; });
+  // Deduplicate convos by id just in case
+  const seenConvos = new Set();
+  const uniqueConvos = (convos||[]).filter(c => {
+    if (seenConvos.has(c.id)) return false;
+    seenConvos.add(c.id); return true;
+  });
 
   document.getElementById('dmSharePickerOverlay')?.remove();
   const overlay = document.createElement('div');
@@ -3171,28 +3069,56 @@ async function dmOpenVenueSharePicker(venueId) {
     <button class="sheet-close" onclick="document.getElementById('dmSharePickerOverlay').remove()">✕</button>
     ${uniqueConvos.map(c => {
       const others = convoPartsMap[c.id] || [];
-      const myFirst = (currentUser?.user_metadata?.full_name || 'You').split(' ')[0];
-      const name   = c.is_group ? (c.name || [myFirst, ...others.map(id=>(pMap[id]?.display_name||'User').split(' ')[0])].join(', ')) : (pMap[others[0]]?.display_name || 'Spotd User');
+      const name = c.is_group ? (c.name || others.map(id=>(pMap[id]?.display_name||'User').split(' ')[0]).join(', ')) : (pMap[others[0]]?.display_name || 'Spotd User');
       const avatar = c.is_group ? '👥' : (pMap[others[0]]?.avatar_emoji || '🍺');
       return `<div class="dm-thread-row" style="border-bottom:1px solid var(--bg2);" onclick="dmSendVenue('${venueId}','${c.id}');document.getElementById('dmSharePickerOverlay').remove()">
         <div class="dm-thread-main">
           <div class="dm-thread-avatar">${avatar}</div>
           <div class="dm-thread-info"><div class="dm-thread-name">${esc(name)}</div></div>
         </div>
-        <div style="color:var(--coral);font-weight:700;font-size:13px;flex-shrink:0;padding-right:16px">Send</div>
+        <div style="color:var(--coral);font-weight:700;font-size:13px;flex-shrink:0;">Send</div>
       </div>`;
     }).join('')}
   </div>`;
   document.body.appendChild(overlay);
 }
 
-// ── Realtime subscription ──────────────────────────────
+// ── Back to inbox ──────────────────────────────────────
+function dmShowInbox() {
+  if (dmState.subscription) { dmState.subscription.unsubscribe(); dmState.subscription = null; }
+  dmState.activeConvoId = null;
+  dmState.activeConvoName = null;
+  dmShowInboxPane();
+  dmLoadInbox();
+}
+
+// ── Delete conversation ────────────────────────────────
+async function dmDeleteConvo(convoId) {
+  if (!confirm('Delete this conversation?')) return;
+  // Remove self from participants (soft delete — others keep the convo)
+  const { error } = await db
+    .from('conversation_participants')
+    .delete()
+    .eq('conversation_id', convoId)
+    .eq('user_id', currentUser.id);
+  if (error) { showToast('Failed to delete'); return; }
+  // Remove from UI immediately
+  document.getElementById(`dmrow-${convoId}`)?.remove();
+  const list = document.getElementById('dmThreadList');
+  if (!list?.children.length) {
+    list.innerHTML = '<div class="dm-empty-state"><div class="dm-empty-icon">💬</div><div class="dm-empty-title">No messages yet</div><div class="dm-empty-sub">Chat with fellow Spotd users<br>about your favorite spots</div><button class="dm-invite-btn" onclick="shareSpotd()"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"18\" cy=\"5\" r=\"3\"/><circle cx=\"6\" cy=\"12\" r=\"3\"/><circle cx=\"18\" cy=\"19\" r=\"3\"/><line x1=\"8.59\" y1=\"13.51\" x2=\"15.42\" y2=\"17.49\"/><line x1=\"15.41\" y1=\"6.51\" x2=\"8.59\" y2=\"10.49\"/></svg> Invite a Friend to Spotd</button></div>';
+  }
+  showToast('Conversation removed');
+}
+
+
 function dmSubscribe() {
   if (dmState.subscription) dmState.subscription.unsubscribe();
   dmState.subscription = db.channel('dm-' + dmState.activeConvoId)
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages',
       filter: `conversation_id=eq.${dmState.activeConvoId}` }, payload => {
         const m = payload.new;
+        // Don't re-render if it's our own message (already shown optimistically or via dmSend)
         if (m.sender_id === currentUser.id) return;
         dmAppendMessage(m);
       })
@@ -3203,38 +3129,70 @@ async function dmAppendMessage(m) {
   const el = document.getElementById('dmMessages');
   if (!el) return;
 
+  // Fetch venue if needed
   let venue = null;
   if (m.venue_id) {
     const { data } = await db.from('venues').select('id, name, neighborhood, google_rating').eq('id', m.venue_id).single();
     venue = data;
   }
+
+  // Fetch sender name for groups
   let senderName = 'User';
   if (dmState.isGroup) {
     const { data } = await db.from('profiles').select('display_name').eq('id', m.sender_id).single();
     senderName = data?.display_name || 'User';
   }
 
-  const pMap = { [m.sender_id]: { display_name: senderName } };
-  const vMap = venue ? { [m.venue_id]: venue } : {};
-  el.insertAdjacentHTML('beforeend', dmRenderMsg(m, pMap, vMap));
-  dmScrollToBottom();
+  const div = document.createElement('div');
+  div.className = 'dm-msg dm-msg--theirs';
+  if (m.msg_type === 'venue_share') {
+    div.innerHTML = `
+      ${dmState.isGroup ? `<div class="dm-sender-name">${esc(senderName)}</div>` : ''}
+      <div class="dm-venue-card" onclick="openModal('${m.venue_id}','venue')">
+        <div class="dm-venue-icon">📍</div>
+        <div class="dm-venue-info">
+          <div class="dm-venue-name">${esc(venue?.name || 'Venue')}</div>
+          <div class="dm-venue-meta">${esc(venue?.neighborhood || '')}${venue?.google_rating ? ` · ⭐ ${venue.google_rating}` : ''}</div>
+        </div>
+        <div class="dm-venue-arrow">›</div>
+      </div>
+      <div class="dm-msg-time">${new Date(m.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</div>`;
+  } else {
+    div.innerHTML = `
+      ${dmState.isGroup ? `<div class="dm-sender-name">${esc(senderName)}</div>` : ''}
+      <div class="dm-bubble">${esc(m.body || '')}</div>
+      <div class="dm-msg-time">${new Date(m.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</div>`;
+  }
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
 
+  // Mark read
   await db.from('conversation_participants')
     .update({ last_read_at: new Date().toISOString() })
     .eq('conversation_id', dmState.activeConvoId)
     .eq('user_id', currentUser.id);
 }
 
-// ── Badge ──────────────────────────────────────────────
+// ── Badge refresh (silent, background) ────────────────
 async function dmRefreshBadge() {
   if (!currentUser) return;
   try {
-    const { data: myParts } = await db.from('conversation_participants').select('conversation_id, last_read_at').eq('user_id', currentUser.id);
+    const { data: myParts } = await db
+      .from('conversation_participants')
+      .select('conversation_id, last_read_at')
+      .eq('user_id', currentUser.id);
     if (!myParts?.length) { dmUpdateBadge(0); return; }
-    const convoIds  = myParts.map(r => r.conversation_id);
+
+    const convoIds = myParts.map(r => r.conversation_id);
     const myReadMap = {};
     myParts.forEach(r => { myReadMap[r.conversation_id] = r.last_read_at; });
-    const { data: msgs } = await db.from('messages').select('conversation_id, sender_id, created_at').in('conversation_id', convoIds).neq('sender_id', currentUser.id);
+
+    const { data: msgs } = await db
+      .from('messages')
+      .select('conversation_id, sender_id, created_at')
+      .in('conversation_id', convoIds)
+      .neq('sender_id', currentUser.id);
+
     let unread = 0;
     (msgs || []).forEach(m => {
       const myRead = myReadMap[m.conversation_id];
@@ -3243,6 +3201,8 @@ async function dmRefreshBadge() {
     dmUpdateBadge(unread);
   } catch(e) {}
 }
+
+// Poll for new messages every 60s
 setInterval(() => { if (currentUser) dmRefreshBadge(); }, 60000);
 
 function dmUpdateBadge(count) {
@@ -3252,23 +3212,13 @@ function dmUpdateBadge(count) {
   else badge.style.display = 'none';
 }
 
+// ── iOS keyboard handling ──────────────────────────────
 function dmScrollToBottom() {
   const el = document.getElementById('dmMessages');
   if (el) setTimeout(() => { el.scrollTop = el.scrollHeight; }, 50);
 }
 
-// ── Keyboard handling (no inline style hacks) ──────────
-// The compose bar uses padding-bottom to float above the nav.
-// On iOS, the browser natively resizes the viewport when the keyboard opens,
-// so a properly contained fixed pane shrinks correctly without JS.
-// We only need to scroll to bottom when the input focuses.
-document.addEventListener('focusin', e => {
-  if (e.target.id === 'dmInput') {
-    setTimeout(() => dmScrollToBottom(), 300);
-  }
-});
-
-// ── Sheet keyboard handling (unchanged) ────────────────
+// Reset sheet height when keyboard dismisses
 document.addEventListener('focusout', e => {
   if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') {
     const sheet = e.target.closest('.sheet');
@@ -3278,17 +3228,38 @@ document.addEventListener('focusout', e => {
 if (window.visualViewport) {
   window.visualViewport.addEventListener('resize', () => {
     const vv = window.visualViewport;
+
+    // DM page keyboard handling
+    const page = document.getElementById('dmPage');
+    if (page?.classList.contains('dm-page--open')) {
+      page.style.height = vv.height + 'px';
+      page.style.top = vv.offsetTop + 'px';
+      dmScrollToBottom();
+    }
+
+    // Sheet keyboard handling — resize all open sheets to sit above keyboard
     document.querySelectorAll('.overlay.open .sheet').forEach(sheet => {
       sheet.style.maxHeight = vv.height * 0.92 + 'px';
     });
+
+    // Scroll focused textarea into view within its sheet
     const focused = document.activeElement;
     if (focused && (focused.tagName === 'TEXTAREA' || focused.tagName === 'INPUT')) {
       const sheet = focused.closest('.sheet');
-      if (sheet) setTimeout(() => { focused.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 50);
+      if (sheet) {
+        setTimeout(() => {
+          focused.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 50);
+      }
     }
   });
-}
 
+  window.visualViewport.addEventListener('scroll', () => {
+    const page = document.getElementById('dmPage');
+    if (!page?.classList.contains('dm-page--open')) return;
+    page.style.top = window.visualViewport.offsetTop + 'px';
+  });
+}
 
 function selectProfileTab(tab, btn) {
   if(typeof haptic==='function')haptic('light');
