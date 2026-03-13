@@ -2823,7 +2823,7 @@ async function dmDeleteConvo(convoId) {
 }
 
 // ── Open conversation ──────────────────────────────────
-async function dmOpenConvo(convoId, name, isGroup) {
+async function dmOpenConvo(convoId, name, isGroup, knownMembers) {
   if (!currentUser) { openAuth('signin'); return; }
   closeOverlay('pubProfileOverlay');
 
@@ -2840,18 +2840,26 @@ async function dmOpenConvo(convoId, name, isGroup) {
   const bar = document.getElementById('dmMembersBar');
   if (isGroup) {
     bar.style.display = '';
-    bar.innerHTML = '<div class="dm-members-pills"><div style="color:var(--muted);font-size:13px">Loading…</div></div>';
-    (async () => {
-      try {
-        const { data: parts } = await db.from('conversation_participants').select('user_id').eq('conversation_id', convoId);
-        const ids = (parts || []).map(p => p.user_id);
-        const { data: profs } = ids.length ? await db.from('profiles').select('id, display_name, avatar_emoji').in('id', ids) : { data: [] };
-        const sorted = (profs || []).sort((a, b) => a.id === currentUser.id ? -1 : b.id === currentUser.id ? 1 : 0);
-        bar.innerHTML = `<div class="dm-members-pills">${sorted.map(p =>
-          `<div class="dm-member-pill">${p.avatar_emoji||'🍺'} ${esc((p.display_name||'User').split(' ')[0])}${p.id===currentUser.id?' (you)':''}</div>`
-        ).join('')}</div>`;
-      } catch(e) { bar.style.display = 'none'; }
-    })();
+    const renderMembers = (profs) => {
+      const sorted = (profs || []).sort((a, b) => a.id === currentUser.id ? -1 : b.id === currentUser.id ? 1 : 0);
+      bar.innerHTML = `<div class="dm-members-pills">${sorted.map(p =>
+        `<div class="dm-member-pill">${p.avatar_emoji||'🍺'} ${esc((p.display_name||'User').split(' ')[0])}${p.id===currentUser.id?' (you)':''}</div>`
+      ).join('')}</div>`;
+    };
+    if (knownMembers?.length) {
+      // Passed in from create — render immediately, no DB fetch needed
+      renderMembers(knownMembers);
+    } else {
+      bar.innerHTML = '<div class="dm-members-pills"><div style="color:var(--muted);font-size:13px">Loading…</div></div>';
+      (async () => {
+        try {
+          const { data: parts } = await db.from('conversation_participants').select('user_id').eq('conversation_id', convoId);
+          const ids = (parts || []).map(p => p.user_id);
+          const { data: profs } = ids.length ? await db.from('profiles').select('id, display_name, avatar_emoji').in('id', ids) : { data: [] };
+          renderMembers(profs);
+        } catch(e) { bar.style.display = 'none'; }
+      })();
+    }
   } else {
     bar.style.display = 'none';
     bar.innerHTML = '';
@@ -3092,7 +3100,13 @@ async function dmCreateConvo(isGroup) {
     ? [myFirstName, ...others.map(u => (u.display_name||'User').split(' ')[0])].join(', ')
     : (others[0]?.display_name || 'Chat'));
 
-  await dmOpenConvo(convo.id, displayName, isGroup);
+  // Build knownMembers for instant bar render — include self from currentUser metadata
+  const knownMembers = isGroup ? [
+    { id: currentUser.id, display_name: currentUser.user_metadata?.full_name || 'You', avatar_emoji: null },
+    ...others.map(u => ({ id: u.id, display_name: u.display_name, avatar_emoji: u.avatar_emoji || null }))
+  ] : null;
+
+  await dmOpenConvo(convo.id, displayName, isGroup, knownMembers);
 }
 
 // ── Open DM from public profile ────────────────────────
