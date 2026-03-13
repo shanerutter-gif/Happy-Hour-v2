@@ -139,11 +139,7 @@ function onAuthChange(user) {
 function renderNav(user) {
   // No top nav — render home CTA buttons
   const cta = document.getElementById('homeCta');
-  if (cta) {
-    if (!state.city) {
-      cta.innerHTML = `<a class="home-cta-btn home-cta-sec" href="business-landing.html">For Business</a>`;
-    }
-  }
+  // homeCta reserved for future CTAs
   // Add For Business to city bar if not already there
   const cityBar = document.getElementById('cityBar');
   if (cityBar && !document.getElementById('city-bar-biz-link')) {
