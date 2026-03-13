@@ -82,7 +82,7 @@
 
   <div class="controls" id="controls">
     <div class="controls-top">
-      <input class="search-box" id="searchBox" type="text" placeholder="Search venues, neighborhoods…" oninput="applyFilters()" autocomplete="off" autocorrect="off">
+      <input class="search-box" id="searchBox" type="text" placeholder="Search venues, neighborhoods…" oninput="debounceSearch()" autocomplete="off" autocorrect="off">
       <button class="filter-toggle" id="filterToggle" onclick="toggleFilters()">Filters <span class="filter-dot" id="filterDot"></span></button>
       <button class="view-toggle" id="viewToggle" onclick="toggleView()"><span id="viewIcon">Map</span></button>
     </div>
