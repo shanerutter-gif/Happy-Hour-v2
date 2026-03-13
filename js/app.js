@@ -437,7 +437,7 @@ function setFilterFromSelect(key, selectEl) {
   applyFilters(); updateChips(); updateDot();
 }
 function setFilter(key, val, btn) {
-  haptic('light');
+  if(typeof haptic==='function')haptic('light');
   if (state.filters[key] === val) { state.filters[key] = null; btn.classList.remove('active'); }
   else { btn.parentElement.querySelectorAll('.pill.active').forEach(b => b.classList.remove('active')); state.filters[key] = val; btn.classList.add('active'); }
   applyFilters(); updateChips(); updateDot();
@@ -557,7 +557,7 @@ function fmtDistance(miles) {
 }
 
 function setSort(val, btn) {
-  haptic('light');
+  if(typeof haptic==='function')haptic('light');
   state.sort = val;
   document.querySelectorAll('#sortFilters .pill').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
@@ -593,7 +593,7 @@ function setSort(val, btn) {
 }
 
 function toggleFilters() {
-  haptic('light');
+  if(typeof haptic==='function')haptic('light');
   state.filtersOpen = !state.filtersOpen;
   document.getElementById('filterPanel').classList.toggle('open', state.filtersOpen);
   document.getElementById('filterToggle').classList.toggle('active', state.filtersOpen || !!(state.filters.day || state.filters.area || state.filters.type));
@@ -691,7 +691,7 @@ function eventCardHTML(v) {
 
 async function doFavorite(itemId, itemType, btn) {
   if (!currentUser) { openAuth('signin'); showToast('Sign in to save'); return; }
-  haptic('light');
+  if(typeof haptic==='function')haptic('light');
   const added = await toggleFavorite(itemId, itemType);
   btn.textContent = added ? '★' : '☆'; btn.classList.toggle('faved', added);
   showToast(added ? 'Saved ★' : 'Removed');
@@ -879,13 +879,13 @@ function renderReviewList(reviews, itemId, type) {
 }
 
 function pickStar(itemId, n) {
-  haptic('light');
+  if(typeof haptic==='function')haptic('light');
   const p = document.getElementById(`sp-${itemId}`);
   p.dataset.val = n;
   p.querySelectorAll('.sp').forEach((b, i) => b.classList.toggle('lit', i < n));
 }
 async function submitReview(itemId, type) {
-  haptic('medium');
+  if(typeof haptic==='function')haptic('medium');
   const rating = parseInt(document.getElementById(`sp-${itemId}`).dataset.val || '0');
   if (!rating) { showToast('Pick a star rating first'); return; }
   const text      = document.getElementById(`rtext-${itemId}`)?.value.trim();
@@ -1384,7 +1384,7 @@ async function submitFeedback() {
 }
 
 async function pickBannerColor(color, btn) {
-  haptic('light');
+  if(typeof haptic==='function')haptic('light');
   // Update banner immediately
   const banner = document.getElementById('myBanner');
   if (banner) banner.style.background = `linear-gradient(135deg, ${color} 0%, ${color}cc 55%, ${color}88 100%)`;
@@ -1456,14 +1456,14 @@ function toggleAvatarPicker() {
   p.style.display = p.style.display === 'none' ? 'flex' : 'none';
 }
 async function pickAvatar(emoji) {
-  haptic('light');
+  if(typeof haptic==='function')haptic('light');
   document.getElementById('myAvatar').textContent = emoji;
   document.getElementById('avatarPicker').style.display = 'none';
   await updateProfile(currentUser.id, { avatar_emoji: emoji });
   showToast('Avatar updated!');
 }
-async function saveName() { const n = document.getElementById('pName').value.trim(); if (!n) return; haptic('medium'); await updateProfile(currentUser.id, { display_name: n }); showToast('Name saved'); }
-async function saveBio() { const b = document.getElementById('pBio').value.trim(); haptic('medium'); await updateProfile(currentUser.id, { bio: b }); showToast('Bio saved'); }
+async function saveName() { const n = document.getElementById('pName').value.trim(); if (!n) return; if(typeof haptic==='function')haptic('medium'); await updateProfile(currentUser.id, { display_name: n }); showToast('Name saved'); }
+async function saveBio() { const b = document.getElementById('pBio').value.trim(); if(typeof haptic==='function')haptic('medium'); await updateProfile(currentUser.id, { bio: b }); showToast('Bio saved'); }
 async function saveDigest(v) { await setDigestPreference(currentUser.id, v); showToast(v ? 'Digest enabled' : 'Digest off'); }
 async function savePrivacy(isPublic) { await savePrivacySetting(currentUser.id, isPublic); showToast(isPublic ? 'Profile is now public' : 'Profile is now private'); }
 async function renderHoodFollowBar() {
@@ -1489,7 +1489,7 @@ async function toggleHoodFromBar(hood, btn) {
 }
 
 async function toggleHood(hood, btn) { if (!currentUser) return;
-  haptic('light'); const added = await toggleNeighborhoodFollow(currentUser.id, hood); btn.classList.toggle('on', added); showToast(added ? `Following ${hood}` : `Unfollowed ${hood}`); }
+  if(typeof haptic==='function')haptic('light'); const added = await toggleNeighborhoodFollow(currentUser.id, hood); btn.classList.toggle('on', added); showToast(added ? `Following ${hood}` : `Unfollowed ${hood}`); }
 
 // ── FIND PEOPLE ────────────────────────────────────────
 async function openFindPeople() {
@@ -1596,7 +1596,7 @@ function shareItem(id, type) {
 
 // ── VIEW TOGGLE ────────────────────────────────────────
 function toggleView() {
-  haptic('light');
+  if(typeof haptic==='function')haptic('light');
   const isMap = state.view === 'map'; state.view = isMap ? 'list' : 'map';
   document.getElementById('listView').classList.toggle('active', state.view === 'list');
   document.getElementById('mapView').classList.toggle('active',  state.view === 'map');
@@ -1863,7 +1863,7 @@ async function doGoingTonight(venueId, btn) {
     state.goingByMe.add(venueId);
     state.todayCheckInCount++;
     state.goingCounts[venueId] = (state.goingCounts[venueId] || 0) + 1;
-    if (typeof haptic === 'function') haptic('medium');
+    if (typeof haptic === 'function') if(typeof haptic==='function')haptic('medium');
     showToast('📍 Checked in!');
     // Fire DB write and streak check in background
     addCheckIn({ userId: currentUser.id, venueId, citySlug: state.city.slug, date: today })
@@ -2400,7 +2400,7 @@ async function openTagFriends(venueId, venueName, followingIds) {
 }
 
 async function tagFriend(toUserId, toName, venueId, venueName, chip) {
-  haptic('light');
+  if(typeof haptic==='function')haptic('light');
   if (chip.classList.contains('tagged')) return; // already tagged
   chip.classList.add('tagged');
   chip.style.pointerEvents = 'none';
@@ -2565,7 +2565,7 @@ async function doDeleteCheckinPhoto(photoId, storagePath, venueId, btn) {
 }
 
 function skipToTagFriends(venueId) {
-  haptic('light');
+  if(typeof haptic==='function')haptic('light');
   closeOverlay('photoCheckinOverlay');
   setTimeout(() => maybeOpenTagFriends(venueId), 300);
 }
@@ -3269,7 +3269,7 @@ if (window.visualViewport) {
 }
 
 function selectProfileTab(tab, btn) {
-  haptic('light');
+  if(typeof haptic==='function')haptic('light');
   document.querySelectorAll('.pub-tab-content').forEach(el => el.style.display = 'none');
   document.getElementById('my-tab-' + tab).style.display = 'block';
   document.querySelectorAll('.profile-tab').forEach(b => b.classList.remove('active'));
