@@ -81,7 +81,6 @@ async function loadSiteCopy() {
     if (!data?.length) return;
     const map = Object.fromEntries(data.map(r => [r.key, r.value]));
     if (map.hero_title)    document.getElementById('copy-home-title').innerHTML    = map.hero_title;
-    if (map.hero_subtitle) document.getElementById('copy-home-subtitle').textContent = map.hero_subtitle;
     if (map.hero_eyebrow)  document.getElementById('copy-home-eyebrow').textContent = map.hero_eyebrow;
     if (map.meta_desc) {
       const m = document.querySelector('meta[name="description"]');
