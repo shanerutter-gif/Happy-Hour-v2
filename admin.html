@@ -310,6 +310,13 @@
       .pipeline-arrow { display:none; }
     }
 
+    /* ── Board page — full bleed iframe ── */
+    #page-board { padding: 0 !important; margin: -32px -40px !important; }
+    #page-board.active { display: flex !important; flex-direction: column; height: calc(100vh - 56px); }
+    @media(max-width:680px) {
+      #page-board.active { margin: -72px -16px -24px !important; height: calc(100vh - 0px); }
+    }
+
     /* CMS */
     .cms-tab { background:none;border:1px solid #e8e0d8;border-radius:8px;padding:7px 14px;cursor:pointer;font-size:13px;font-weight:600;color:#888;transition:all .15s; }
     .cms-tab-active { background:#FF6B4A;color:#fff;border-color:#FF6B4A; }
@@ -391,6 +398,7 @@
     <button class="drawer-item" onclick="showPage('pipeline');closeMobileMenu()" id="mob-nav-pipeline">💰 Revenue Pipeline</button>
     <div class="drawer-section-label">Tools</div>
     <button class="drawer-item" onclick="showPage('cms');closeMobileMenu()" id="mob-nav-cms">✏️ Site Copy</button>
+    <button class="drawer-item" onclick="showPage('board');closeMobileMenu()" id="mob-nav-board">🗂️ Project Board</button>
     <button class="drawer-item" onclick="showPage('demo');closeMobileMenu()" id="mob-nav-demo">🎭 Demo Data</button>
     <div class="drawer-footer">
       <button class="drawer-signout" onclick="handleLogout()">👋 Sign Out</button>
@@ -430,6 +438,9 @@
       <div class="sidebar-label" style="margin-top:20px;margin-bottom:8px">Tools</div>
       <div class="sidebar-item" onclick="showPage('cms')" id="nav-cms">
         ✏️ Site Copy
+      </div>
+      <div class="sidebar-item" onclick="showPage('board')" id="nav-board">
+        🗂️ Project Board
       </div>
       <div class="sidebar-item" onclick="showPage('demo')" id="nav-demo">
         🎭 Demo Data
@@ -657,6 +668,11 @@
             </table>
           </div>
         </div>
+      </div>
+
+      <!-- BOARD PAGE -->
+      <div class="page" id="page-board" style="padding:0;margin:-32px -40px;height:calc(100vh - 56px);display:none">
+        <iframe id="board-iframe" style="width:100%;height:100%;border:none;display:block;"></iframe>
       </div>
 
       <!-- DEMO DATA PAGE -->
@@ -1354,7 +1370,7 @@
   const PAGE_TITLES = {
     requests: 'Venue Requests', venues: 'All Venues', users: 'User Analytics',
     churn: 'Churned Users', 'venues-top': 'Top Venues', cities: 'City Breakdown',
-    pipeline: 'Revenue Pipeline', cms: 'Site Copy', demo: 'Demo Data'
+    pipeline: 'Revenue Pipeline', cms: 'Site Copy', board: 'Project Board', demo: 'Demo Data'
   };
 
   function showPage(page) {
@@ -1373,6 +1389,14 @@
     if (page === 'churn')      loadChurn();
     if (page === 'pipeline')   loadPipeline();
     if (page === 'cms')        loadCms();
+    if (page === 'board') {
+      // Lazy-load the iframe on first visit
+      const iframe = document.getElementById('board-iframe');
+      if (iframe && !iframe.dataset.loaded) {
+        iframe.src = '/admin/board.html';
+        iframe.dataset.loaded = '1';
+      }
+    }
   }
 
   function toggleMobileMenu() {
