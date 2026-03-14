@@ -189,8 +189,7 @@ function onAuthChange(user) {
 // ── NAV ────────────────────────────────────────────────
 function renderNav(user) {
   // No top nav — render home CTA buttons
-  const cta = document.getElementById('homeCta');
-  // homeCta reserved for future CTAs
+  // homeCta removed — reserved for future use
   // Add For Business to city bar if not already there
   const cityBar = document.getElementById('cityBar');
   if (cityBar && !document.getElementById('city-bar-biz-link')) {
