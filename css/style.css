@@ -31,8 +31,8 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
 .nav-signout{font-size:11px;opacity:.5}
 
 /* HOME */
-.home-page{min-height:calc(100vh - 52px);display:flex;flex-direction:column;position:relative;overflow:hidden}
-.home-top-bar{display:flex;justify-content:flex-end;padding:16px 20px 0;position:relative;z-index:2}
+.home-page{min-height:100vh;display:flex;flex-direction:column;position:relative;overflow:hidden}
+.home-top-bar{display:flex;justify-content:flex-end;padding:calc(env(safe-area-inset-top,0px) + 12px) 20px 0;position:relative;z-index:2}
 .home-biz-link{font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;color:var(--muted);text-decoration:none;padding:6px 0;}
 .home-biz-link:hover{color:var(--text)}
 .home-bg-glow{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 0%,rgba(255,107,74,0.08) 0%,transparent 60%),radial-gradient(ellipse at 80% 80%,rgba(255,140,60,0.06) 0%,transparent 50%)}
@@ -974,7 +974,7 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 .home-logo-fallback { font-family: 'Cabinet Grotesk', sans-serif; font-weight: 900; font-size: 28px; color: var(--teal); letter-spacing: -1px; }
 
 /* ── HOME CTA BUTTONS ── */
-.home-cta-row { display: flex; flex-direction: column; gap: 10px; margin-top: 28px; margin-bottom: 32px; max-width: 400px; }
+.home-cta-row { display: flex; flex-direction: column; gap: 10px; max-width: 400px; }
 .home-cta-btn { display: flex; align-items: center; justify-content: center; width: 100%; padding: 16px 24px; border-radius: 14px; font-family: 'Cabinet Grotesk', sans-serif; font-weight: 800; font-size: 16px; cursor: pointer; text-decoration: none; transition: all .18s; border: none; min-height: 54px; }
 .home-cta-primary { background: var(--teal); color: #fff; box-shadow: 0 4px 16px rgba(255,107,74,0.3); }
 .home-cta-primary:active { opacity: .88; transform: scale(.98); }
