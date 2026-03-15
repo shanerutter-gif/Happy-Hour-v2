@@ -252,15 +252,12 @@ function maybeShowSocialNudge() {
     overlay.id = 'socialNudgeOverlay';
     overlay.style.cssText = 'position:fixed;inset:0;z-index:600;background:rgba(42,31,20,0.55);display:flex;align-items:center;justify-content:center;padding:24px;backdrop-filter:blur(3px);animation:fadeInOverlay .2s ease';
     overlay.innerHTML = `
-      <div style="background:var(--card);border-radius:24px;padding:24px 24px 20px;max-width:340px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(42,31,20,0.18);animation:scaleInModal .22s ease;max-height:85vh;overflow-y:auto">
-        <div style="font-size:36px;margin-bottom:12px">📸</div>
-        <div style="font-family:'Cabinet Grotesk',sans-serif;font-size:20px;font-weight:900;letter-spacing:-0.5px;margin-bottom:8px;color:var(--text)">Share your night out</div>
-        <div style="font-size:14px;color:var(--muted);line-height:1.6;margin-bottom:20px">Check in at your next spot and add a photo — it shows up right here in the social feed for everyone in the city to see.</div>
-        <button onclick="document.getElementById('socialNudgeOverlay').remove()"
-          style="width:100%;padding:14px;background:var(--coral);color:#fff;border:none;border-radius:12px;font-family:'Cabinet Grotesk',sans-serif;font-size:16px;font-weight:700;cursor:pointer">
-          Got it 👊
-        </button>
-        ${seen < 2 ? `<div style="font-size:11px;color:var(--muted);margin-top:10px">${2 - seen} reminder${2 - seen !== 1 ? 's' : ''} left</div>` : ''}
+      <div style="background:var(--card);border-radius:20px;padding:28px 24px;max-width:320px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(42,31,20,0.18);animation:scaleInModal .22s ease">
+        <div style="font-size:32px;margin-bottom:10px">📸</div>
+        <div style="font-family:'Cabinet Grotesk',sans-serif;font-size:19px;font-weight:900;margin-bottom:8px;color:var(--text)">Share your night out</div>
+        <div style="font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:20px">Check in at a spot and add a photo — it shows up in this feed for everyone in the city.</div>
+        <button onclick="document.getElementById('socialNudgeOverlay').remove()" style="width:100%;padding:13px;background:var(--coral);color:#fff;border:none;border-radius:12px;font-family:'Cabinet Grotesk',sans-serif;font-size:15px;font-weight:700;cursor:pointer">Got it 👊</button>
+        ${seen < 2 ? `<div style="font-size:11px;color:var(--muted);margin-top:8px">${2 - seen} reminder${2 - seen !== 1 ? 's' : ''} left</div>` : ''}
       </div>`;
     overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
     document.body.appendChild(overlay);
