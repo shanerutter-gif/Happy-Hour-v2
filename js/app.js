@@ -2447,31 +2447,23 @@ function openPhotoCheckinPrompt(venueId, venueName) {
   const el = document.getElementById('photoCheckinContent');
   if (!el) return;
 
-  // Wire up the body-level file inputs to this specific check-in
-  const cameraInput  = document.getElementById('photoInputCamera');
-  const libraryInput = document.getElementById('photoInputLibrary');
-  if (cameraInput) {
-    cameraInput.onchange  = e => handlePhotoDropOrChange(e, venueId, venueName);
-    // Reset value so same file can be re-selected
-    cameraInput.value = '';
-  }
-  if (libraryInput) {
-    libraryInput.onchange = e => handlePhotoDropOrChange(e, venueId, venueName);
-    libraryInput.value = '';
+  // Wire the single body-level input (no capture — iOS shows native "Take Photo / Library" sheet)
+  const input = document.getElementById('photoInputLibrary');
+  if (input) {
+    input.value = '';
+    input.onchange = e => handlePhotoDropOrChange(e, venueId, venueName);
   }
 
   el.innerHTML = `
     <div class="photo-prompt-title">Add a photo? 📸</div>
     <div class="photo-prompt-sub">Show others what's happening at ${esc(venueName)} right now.</div>
     <div class="photo-upload-area" id="photoUploadArea"
+      onclick="document.getElementById('photoInputLibrary').click()"
       ondragover="event.preventDefault();this.classList.add('dragover')"
       ondragleave="this.classList.remove('dragover')"
       ondrop="handlePhotoDropOrChange(event,'${venueId}','${esc(venueName)}')">
       <div class="photo-upload-icon">📷</div>
-      <div class="photo-source-btns">
-        <button class="photo-source-btn" onclick="document.getElementById('photoInputCamera').click()">📷 Take Photo</button>
-        <button class="photo-source-btn" onclick="document.getElementById('photoInputLibrary').click()">🖼️ Choose from Library</button>
-      </div>
+      <div class="photo-upload-hint">Tap to take a photo or<br><strong>choose from your library</strong></div>
     </div>
     <div class="photo-preview-wrap" id="photoPreviewWrap">
       <img id="photoPreviewImg" src="" alt="Preview">
