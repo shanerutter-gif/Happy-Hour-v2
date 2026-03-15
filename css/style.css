@@ -995,6 +995,107 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 /* The tab sits in normal flow, shown/hidden like feed/profile.
    position:fixed + inset:0 gives it full viewport.
    overscroll-behavior:contain stops scroll bleeding to feed below. */
+/* ══════════════════════════════════════════════
+   SOCIAL TAB
+   ══════════════════════════════════════════════ */
+
+.social-tab {
+  position: fixed;
+  inset: 0;
+  z-index: 499;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  overscroll-behavior: contain;
+}
+.social-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  padding-top: calc(14px + env(safe-area-inset-top, 0px));
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  background: var(--bg);
+}
+.social-header-title { font-family: 'Cabinet Grotesk', sans-serif; font-weight: 900; font-size: 22px; letter-spacing: -0.5px; }
+.social-refresh-btn  { background: none; border: none; cursor: pointer; padding: 6px; color: var(--muted); display: flex; align-items: center; border-radius: 8px; }
+.social-refresh-btn:active { background: var(--bg2); }
+
+.social-feed-content {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+}
+
+/* Loading */
+.social-loading  { display: flex; align-items: center; justify-content: center; padding: 60px 0; }
+.social-spinner  { width: 28px; height: 28px; border: 3px solid var(--bg2); border-top-color: var(--coral); border-radius: 50%; animation: spin .7s linear infinite; }
+@keyframes spin  { to { transform: rotate(360deg); } }
+
+/* Empty state */
+.social-empty      { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 64px 24px; text-align: center; }
+.social-empty-icon { font-size: 40px; }
+.social-empty-title { font-family: 'Cabinet Grotesk', sans-serif; font-size: 18px; font-weight: 800; }
+.social-empty-sub  { font-size: 14px; color: var(--muted); line-height: 1.5; }
+
+/* ── Photo card ── */
+.social-card {
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 0;
+}
+.social-card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px 10px;
+}
+.social-avatar {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: var(--bg2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; flex-shrink: 0;
+}
+.social-card-meta    { flex: 1; min-width: 0; }
+.social-card-name    { font-weight: 700; font-size: 14px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.social-card-action  { font-size: 13px; color: var(--muted); margin-top: 1px; }
+.social-card-time    { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.social-venue-link   { color: var(--coral); font-weight: 600; }
+.social-venue-link[onclick] { cursor: pointer; }
+.social-venue-link[onclick]:active { opacity: .7; }
+.social-follow-badge {
+  font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
+  background: rgba(255,107,74,0.1); color: var(--coral);
+  padding: 2px 7px; border-radius: 20px;
+}
+.social-photo-wrap { width: 100%; overflow: hidden; background: var(--bg2); }
+.social-photo      { width: 100%; display: block; max-height: 400px; object-fit: cover; }
+.social-photo-wrap[onclick] { cursor: pointer; }
+.social-photo-wrap[onclick]:active { opacity: .92; }
+.social-caption    { padding: 10px 16px 14px; font-size: 14px; color: var(--text); line-height: 1.5; }
+
+/* ── Activity rows (check-in, review, favorite, going) ── */
+.social-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--card);
+}
+.social-row[onclick] { cursor: pointer; }
+.social-row[onclick]:active { background: var(--bg2); }
+.social-row-body   { flex: 1; min-width: 0; }
+.social-row-text   { font-size: 14px; color: var(--text); line-height: 1.5; }
+.social-row-name   { font-weight: 700; }
+.social-row-meta   { font-size: 11px; color: var(--muted); margin-top: 3px; }
+.social-row-note   { font-size: 13px; color: var(--muted); margin-top: 5px; font-style: italic; }
+.social-row-stars  { font-size: 12px; color: var(--amber); margin-top: 3px; letter-spacing: 1px; }
+.social-row-icon   { font-size: 18px; flex-shrink: 0; padding-top: 2px; }
+
 .dm-tab {
   position: fixed;
   inset: 0;
