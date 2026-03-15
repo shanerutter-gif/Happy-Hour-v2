@@ -2443,31 +2443,106 @@ async function maybeOpenPhotoCheckin(venueId) {
   openPhotoCheckinPrompt(venueId, venue?.name || 'this spot');
 }
 
+// ── PHOTO CHECK-IN — Capacitor Camera plugin ──────────
+// Uses @capacitor/camera on native iOS/Android — no WKWebView file input hacks.
+// Falls back to a plain file input when running in browser (dev/testing).
+
+function _isCapacitorNative() {
+  return !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+}
+
+// Convert a base64 data string + mime type into a File object
+// (uploadCheckinPhoto expects a File — this keeps db.js unchanged)
+function _base64ToFile(base64Data, mimeType, fileName) {
+  const byteString = atob(base64Data);
+  const ab = new ArrayBuffer(byteString.length);
+  const ia = new Uint8Array(ab);
+  for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
+  return new File([ab], fileName, { type: mimeType });
+}
+
+// Show the preview once we have a data URL (shared by both native and web paths)
+function _showPhotoPreview(dataUrl) {
+  const wrap = document.getElementById('photoPreviewWrap');
+  const img  = document.getElementById('photoPreviewImg');
+  const area = document.getElementById('photoUploadArea');
+  const btn  = document.getElementById('photoSubmitBtn');
+  if (img)  img.src = dataUrl;
+  if (wrap) wrap.style.display = 'block';
+  if (area) area.style.display = 'none';
+  if (btn)  btn.disabled = false;
+}
+
+// Take photo using Capacitor Camera plugin (native path)
+async function _capacitorTakePhoto() {
+  const { Camera, CameraResultType, CameraSource } = window.Capacitor.Plugins;
+  const image = await Camera.getPhoto({
+    quality:      90,
+    allowEditing: false,
+    resultType:   CameraResultType.Base64,
+    source:       CameraSource.Camera,
+  });
+  const mime = 'image/jpeg';
+  const file = _base64ToFile(image.base64String, mime, `checkin-${Date.now()}.jpg`);
+  window._pendingCheckinPhoto = file;
+  _showPhotoPreview(`data:${mime};base64,${image.base64String}`);
+}
+
+// Choose from library using Capacitor Camera plugin (native path)
+async function _capacitorChoosePhoto() {
+  const { Camera, CameraResultType, CameraSource } = window.Capacitor.Plugins;
+  const image = await Camera.getPhoto({
+    quality:      90,
+    allowEditing: false,
+    resultType:   CameraResultType.Base64,
+    source:       CameraSource.Photos,
+  });
+  const mime = 'image/jpeg';
+  const file = _base64ToFile(image.base64String, mime, `checkin-${Date.now()}.jpg`);
+  window._pendingCheckinPhoto = file;
+  _showPhotoPreview(`data:${mime};base64,${image.base64String}`);
+}
+
 function openPhotoCheckinPrompt(venueId, venueName) {
   const el = document.getElementById('photoCheckinContent');
   if (!el) return;
 
-  // Wire the single body-level input (no capture — iOS shows native "Take Photo / Library" sheet)
-  const input = document.getElementById('photoInputLibrary');
-  if (input) {
-    input.value = '';
-    input.onchange = e => handlePhotoDropOrChange(e, venueId, venueName);
-  }
+  const isNative = _isCapacitorNative();
+
+  // Native: two explicit buttons (take photo / library) — no file input at all
+  // Web fallback: standard file input for browser testing
+  const uploadZone = isNative ? `
+    <div class="photo-upload-area" id="photoUploadArea">
+      <div class="photo-upload-icon">📷</div>
+      <div class="photo-source-btns">
+        <button class="photo-source-btn" onclick="window._capacitorTakePhoto().catch(e=>{ if(e.message!=='User cancelled photos app') showToast('Camera unavailable'); })">
+          📷 Take Photo
+        </button>
+        <button class="photo-source-btn" onclick="window._capacitorChoosePhoto().catch(e=>{ if(e.message!=='User cancelled photos app') showToast('Could not open library'); })">
+          🖼️ Choose from Library
+        </button>
+      </div>
+    </div>` : `
+    <div class="photo-upload-area" id="photoUploadArea"
+      ondragover="event.preventDefault();this.classList.add('dragover')"
+      ondragleave="this.classList.remove('dragover')"
+      ondrop="handlePhotoDropOrChange(event,'${venueId}','${esc(venueName)}')">
+      <input type="file" accept="image/*" id="photoFileInput"
+        style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;z-index:2"
+        onchange="handlePhotoDropOrChange(event,'${venueId}','${esc(venueName)}')">
+      <div class="photo-upload-icon" style="position:relative;z-index:1;pointer-events:none">📷</div>
+      <div class="photo-upload-hint" style="position:relative;z-index:1;pointer-events:none">
+        Tap to add a photo
+      </div>
+    </div>`;
 
   el.innerHTML = `
     <div class="photo-prompt-title">Add a photo? 📸</div>
     <div class="photo-prompt-sub">Show others what's happening at ${esc(venueName)} right now.</div>
-    <div class="photo-upload-area" id="photoUploadArea"
-      onclick="document.getElementById('photoInputLibrary').click()"
-      ondragover="event.preventDefault();this.classList.add('dragover')"
-      ondragleave="this.classList.remove('dragover')"
-      ondrop="handlePhotoDropOrChange(event,'${venueId}','${esc(venueName)}')">
-      <div class="photo-upload-icon">📷</div>
-      <div class="photo-upload-hint">Tap to take a photo or<br><strong>choose from your library</strong></div>
-    </div>
+    ${uploadZone}
     <div class="photo-preview-wrap" id="photoPreviewWrap">
       <img id="photoPreviewImg" src="" alt="Preview">
-      <button class="photo-preview-remove" onclick="clearPhotoPreview()">✕</button>
+      <button class="photo-preview-remove" onclick="clearPhotoPreview('${venueId}','${esc(venueName)}')">✕</button>
     </div>
     <textarea class="photo-caption-field" id="photoCaptionField"
       placeholder="Add a caption (optional)…" rows="2"></textarea>
@@ -2478,32 +2553,20 @@ function openPhotoCheckinPrompt(venueId, venueName) {
   openOverlay('photoCheckinOverlay');
 }
 
-// Shared handler for both file input change and drag-drop
+// Web fallback handler (file input / drag-drop)
 function handlePhotoDropOrChange(event, venueId, venueName) {
   event.preventDefault();
   document.getElementById('photoUploadArea')?.classList.remove('dragover');
   const file = event.dataTransfer?.files?.[0] || event.target?.files?.[0];
   if (!file || !file.type.startsWith('image/')) { showToast('Please choose an image file'); return; }
-  if (file.size > 5 * 1024 * 1024) { showToast('Photo must be under 5 MB'); return; }
-
-  // Store file reference on the window so submitPhotoCheckin can grab it
+  if (file.size > 10 * 1024 * 1024) { showToast('Photo must be under 10 MB'); return; }
   window._pendingCheckinPhoto = file;
-
   const reader = new FileReader();
-  reader.onload = e => {
-    const wrap = document.getElementById('photoPreviewWrap');
-    const img  = document.getElementById('photoPreviewImg');
-    const area = document.getElementById('photoUploadArea');
-    const btn  = document.getElementById('photoSubmitBtn');
-    if (wrap) { wrap.style.display = 'block'; }
-    if (img)  { img.src = e.target.result; }
-    if (area) { area.style.display = 'none'; }
-    if (btn)  { btn.disabled = false; }
-  };
+  reader.onload = e => _showPhotoPreview(e.target.result);
   reader.readAsDataURL(file);
 }
 
-function clearPhotoPreview() {
+function clearPhotoPreview(venueId, venueName) {
   window._pendingCheckinPhoto = null;
   const wrap = document.getElementById('photoPreviewWrap');
   const area = document.getElementById('photoUploadArea');
@@ -2513,6 +2576,8 @@ function clearPhotoPreview() {
   if (img)  img.src = '';
   if (area) area.style.display = '';
   if (btn)  btn.disabled = true;
+  // On native, re-show the source buttons
+  if (_isCapacitorNative() && area) area.style.display = '';
 }
 
 async function submitPhotoCheckin(venueId, venueName) {
@@ -2539,7 +2604,6 @@ async function submitPhotoCheckin(venueId, venueName) {
   showToast('📸 Photo shared!');
   closeOverlay('photoCheckinOverlay');
 
-  // Refresh UGC strip if the modal for this venue is open
   const ugcEl = document.getElementById(`ugc-photos-${venueId}`);
   if (ugcEl) {
     fetchCheckinPhotos(venueId).then(photos => {
@@ -2547,7 +2611,6 @@ async function submitPhotoCheckin(venueId, venueName) {
     });
   }
 
-  // Now open tag friends (the full post-check-in chain: photo → tag)
   setTimeout(() => maybeOpenTagFriends(venueId), 600);
 }
 
