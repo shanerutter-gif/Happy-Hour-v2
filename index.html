@@ -258,6 +258,9 @@
 </div>
 
 <!-- PHOTO CHECK-IN OVERLAY -->
+<!-- These file inputs live on body (outside any fixed/overflow container) to prevent iOS WebKit crash -->
+<input type="file" id="photoInputCamera"  accept="image/*" capture="environment" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none">
+<input type="file" id="photoInputLibrary" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none">
 <div class="overlay" id="photoCheckinOverlay" onclick="if(event.target===this)closeOverlay('photoCheckinOverlay')">
   <div class="sheet">
     <div class="sheet-handle"></div>
