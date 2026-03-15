@@ -238,6 +238,33 @@ function openSocialTab() {
   if (!currentUser) { openAuth('signin'); return; }
   document.getElementById('socialTab').style.display = 'flex';
   loadSocialFeed();
+  maybeShowSocialNudge();
+}
+
+function maybeShowSocialNudge() {
+  const KEY = 'spotd_social_nudge';
+  const seen = parseInt(localStorage.getItem(KEY) || '0', 10);
+  if (seen >= 3) return;
+  localStorage.setItem(KEY, String(seen + 1));
+  // Small delay so the feed loads behind the modal
+  setTimeout(() => {
+    const overlay = document.createElement('div');
+    overlay.id = 'socialNudgeOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:600;background:rgba(42,31,20,0.55);display:flex;align-items:center;justify-content:center;padding:24px;backdrop-filter:blur(3px);animation:fadeInOverlay .2s ease';
+    overlay.innerHTML = `
+      <div style="background:var(--card);border-radius:24px;padding:32px 28px;max-width:340px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(42,31,20,0.18);animation:scaleInModal .22s ease">
+        <div style="font-size:48px;margin-bottom:16px">📸</div>
+        <div style="font-family:'Cabinet Grotesk',sans-serif;font-size:21px;font-weight:900;letter-spacing:-0.5px;margin-bottom:10px;color:var(--text)">Share your night out</div>
+        <div style="font-size:14px;color:var(--muted);line-height:1.6;margin-bottom:28px">Check in at your next spot and add a photo — it'll show up right here in the social feed for everyone in the city to see.</div>
+        <button onclick="document.getElementById('socialNudgeOverlay').remove()"
+          style="width:100%;padding:14px;background:var(--coral);color:#fff;border:none;border-radius:12px;font-family:'Cabinet Grotesk',sans-serif;font-size:16px;font-weight:700;cursor:pointer">
+          Got it 👊
+        </button>
+        ${seen < 2 ? `<div style="font-size:11px;color:var(--muted);margin-top:12px">${2 - seen} reminder${2 - seen !== 1 ? 's' : ''} left</div>` : ''}
+      </div>`;
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+    document.body.appendChild(overlay);
+  }, 400);
 }
 function closeSocialTab() {
   document.getElementById('socialTab').style.display = 'none';
