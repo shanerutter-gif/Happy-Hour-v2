@@ -171,6 +171,10 @@ function renderBottomNav(user) {
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
         <span>Feed</span>
       </button>
+      <button class="bottom-nav-btn" id="bnSocial" onclick="bottomNavSocial(this)">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span>Social</span>
+      </button>
       <button class="bottom-nav-btn" id="bnMessages" onclick="bottomNavMessages(this)">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
         <span>Messages<span class="bn-badge" id="bnMsgBadge" style="display:none"></span></span>
@@ -188,8 +192,8 @@ function renderBottomNav(user) {
 }
 
 function _navHideAll(keep) {
-  // Just remove --open; pages stay in DOM at z-index 498 (behind the incoming page at 499)
-  if (keep !== 'dm') closeDmTab();
+  if (keep !== 'dm')     closeDmTab();
+  if (keep !== 'social') closeSocialTab();
   if (keep !== 'profile') closeProfile();
   closeSubPage('findPeoplePage');
   closeSubPage('followersPage');
@@ -207,6 +211,13 @@ function bottomNavFeed(btn) {
   if (!state.city) showHome();
 }
 
+function bottomNavSocial(btn) {
+  document.querySelectorAll('.bottom-nav-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  _navHideAll('social');
+  openSocialTab();
+}
+
 function bottomNavMessages(btn) {
   document.querySelectorAll('.bottom-nav-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
@@ -220,6 +231,153 @@ function bottomNavProfile(btn) {
   _navHideAll('profile');
   if (currentUser) openProfile();
   else openAuth('signin');
+}
+
+// ── SOCIAL TAB ─────────────────────────────────────────
+function openSocialTab() {
+  if (!currentUser) { openAuth('signin'); return; }
+  document.getElementById('socialTab').style.display = 'flex';
+  loadSocialFeed();
+}
+function closeSocialTab() {
+  document.getElementById('socialTab').style.display = 'none';
+}
+
+let _socialLoading = false;
+
+async function loadSocialFeed() {
+  if (_socialLoading) return;
+  _socialLoading = true;
+
+  const container = document.getElementById('socialFeedContent');
+  container.innerHTML = '<div class="social-loading"><div class="social-spinner"></div></div>';
+
+  try {
+    const followingIds = currentUser ? await getFollowing(currentUser.id) : [];
+    const citySlug = state.city?.slug || 'san-diego';
+    const items = await fetchSocialFeed(citySlug, followingIds, 60);
+
+    if (!items.length) {
+      container.innerHTML = `
+        <div class="social-empty">
+          <div class="social-empty-icon">📸</div>
+          <div class="social-empty-title">Nothing here yet</div>
+          <div class="social-empty-sub">Be the first to check in and share a photo tonight</div>
+        </div>`;
+      return;
+    }
+
+    container.innerHTML = items.map(item => renderSocialItem(item)).join('');
+  } catch(e) {
+    console.error('loadSocialFeed:', e);
+    container.innerHTML = '<div class="social-empty"><div class="social-empty-sub">Failed to load — pull to refresh</div></div>';
+  } finally {
+    _socialLoading = false;
+  }
+}
+
+function renderSocialItem(item) {
+  const allItems = [...(state.venues || []), ...(state.events || [])];
+  const venue = item.venue_id ? allItems.find(v => String(v.id) === String(item.venue_id)) : null;
+  const venueName = venue?.name || item.venue_name || 'a spot';
+  const neighborhood = venue?.neighborhood || item.neighborhood || '';
+  const profile = item.profile || {};
+  const displayName = profile.display_name || 'Someone';
+  const avatar = profile.avatar_emoji || '🍺';
+  const isMe = item.user_id === currentUser?.id;
+  const timeAgo = fmtDate(item.created_at);
+  const followBadge = item.isFollowing && !isMe
+    ? '<span class="social-follow-badge">Following</span>' : '';
+
+  const profileClick = !isMe
+    ? `onclick="openPublicProfile('${item.user_id}')" style="cursor:pointer"` : '';
+  const venueClick = venue
+    ? `onclick="openModal('${item.venue_id}','${venue.event_type ? 'event' : 'venue'}')" style="cursor:pointer"` : '';
+
+  // ── Photo post — full card with image ──
+  if (item.type === 'photo') {
+    return `<div class="social-card social-card--photo">
+      <div class="social-card-header">
+        <div class="social-avatar" ${profileClick}>${avatar}</div>
+        <div class="social-card-meta">
+          <div class="social-card-name" ${profileClick}>${esc(displayName)}${followBadge}</div>
+          <div class="social-card-action">checked in at <span class="social-venue-link" ${venueClick}>${esc(venueName)}</span></div>
+          <div class="social-card-time">${neighborhood ? neighborhood + ' · ' : ''}${timeAgo}</div>
+        </div>
+      </div>
+      <div class="social-photo-wrap" ${venueClick}>
+        <img class="social-photo" src="${esc(item.photo_url)}" alt="${esc(venueName)}" loading="lazy"
+          onerror="this.closest('.social-card').remove()">
+      </div>
+      ${item.caption ? `<div class="social-caption">${esc(item.caption)}</div>` : ''}
+    </div>`;
+  }
+
+  // ── Check-in (no photo) ──
+  if (item.type === 'check_in') {
+    return `<div class="social-row" ${venueClick ? venueClick.replace('onclick=', 'onclick=') : ''}>
+      <div class="social-avatar" ${profileClick}>${avatar}</div>
+      <div class="social-row-body">
+        <div class="social-row-text">
+          <span class="social-row-name" ${profileClick}>${esc(displayName)}</span>${followBadge}
+          checked in at <span class="social-venue-link" ${venueClick}>${esc(venueName)}</span>
+        </div>
+        <div class="social-row-meta">${neighborhood ? neighborhood + ' · ' : ''}${timeAgo}</div>
+        ${item.meta?.note ? `<div class="social-row-note">"${esc(item.meta.note)}"</div>` : ''}
+      </div>
+      <div class="social-row-icon">📍</div>
+    </div>`;
+  }
+
+  // ── Review ──
+  if (item.type === 'review') {
+    const stars = item.meta?.rating ? '★'.repeat(item.meta.rating) + '☆'.repeat(5 - item.meta.rating) : '';
+    return `<div class="social-row" ${venueClick}>
+      <div class="social-avatar" ${profileClick}>${avatar}</div>
+      <div class="social-row-body">
+        <div class="social-row-text">
+          <span class="social-row-name" ${profileClick}>${esc(displayName)}</span>${followBadge}
+          reviewed <span class="social-venue-link" ${venueClick}>${esc(venueName)}</span>
+        </div>
+        ${stars ? `<div class="social-row-stars">${stars}</div>` : ''}
+        ${item.meta?.text ? `<div class="social-row-note">"${esc(item.meta.text)}"</div>` : ''}
+        <div class="social-row-meta">${neighborhood ? neighborhood + ' · ' : ''}${timeAgo}</div>
+      </div>
+      <div class="social-row-icon">⭐</div>
+    </div>`;
+  }
+
+  // ── Favorite ──
+  if (item.type === 'favorite') {
+    return `<div class="social-row" ${venueClick}>
+      <div class="social-avatar" ${profileClick}>${avatar}</div>
+      <div class="social-row-body">
+        <div class="social-row-text">
+          <span class="social-row-name" ${profileClick}>${esc(displayName)}</span>${followBadge}
+          saved <span class="social-venue-link" ${venueClick}>${esc(venueName)}</span>
+        </div>
+        <div class="social-row-meta">${neighborhood ? neighborhood + ' · ' : ''}${timeAgo}</div>
+      </div>
+      <div class="social-row-icon">🔖</div>
+    </div>`;
+  }
+
+  // ── Going tonight ──
+  if (item.type === 'going_tonight') {
+    return `<div class="social-row" ${venueClick}>
+      <div class="social-avatar" ${profileClick}>${avatar}</div>
+      <div class="social-row-body">
+        <div class="social-row-text">
+          <span class="social-row-name" ${profileClick}>${esc(displayName)}</span>${followBadge}
+          is going to <span class="social-venue-link" ${venueClick}>${esc(venueName)}</span> tonight
+        </div>
+        <div class="social-row-meta">${neighborhood ? neighborhood + ' · ' : ''}${timeAgo}</div>
+      </div>
+      <div class="social-row-icon">🔥</div>
+    </div>`;
+  }
+
+  return '';
 }
 async function doSignOut() { await authSignOut(); showToast('Signed out'); }
 
