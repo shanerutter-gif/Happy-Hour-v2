@@ -18,56 +18,24 @@ let currentUser   = null;
 let userFavorites = new Set();
 let _accessToken  = null;
 
-// Restore session on every page load — refreshes token if expired
+// Restore session on every page load
 (async () => {
   try {
     const raw = localStorage.getItem(_storageKey);
-    if (!raw) return;
-    const stored = JSON.parse(raw);
-    if (!stored?.user) return;
-
-    const now = Math.floor(Date.now() / 1000);
-    const isValid = stored.expires_at > now;
-
-    if (isValid) {
-      // Token still good — restore directly
-      currentUser  = stored.user;
-      _accessToken = stored.access_token;
-      await db.auth.setSession({
-        access_token:  stored.access_token,
-        refresh_token: stored.refresh_token || '',
-      });
-    } else if (stored.refresh_token) {
-      // Token expired — silently refresh using Supabase
-      const { data, error } = await db.auth.refreshSession({
-        refresh_token: stored.refresh_token,
-      });
-      if (!error && data?.session) {
-        const s = data.session;
-        currentUser  = s.user;
-        _accessToken = s.access_token;
-        // Persist the new tokens
-        localStorage.setItem(_storageKey, JSON.stringify({
-          access_token:  s.access_token,
-          refresh_token: s.refresh_token,
-          expires_at:    s.expires_at,
-          expires_in:    s.expires_in,
-          token_type:    'bearer',
-          user:          s.user,
-        }));
-      } else {
-        // Refresh failed (revoked/expired) — clear session
-        localStorage.removeItem(_storageKey);
-        return;
+    if (raw) {
+      const stored = JSON.parse(raw);
+      if (stored?.user && stored?.expires_at > Math.floor(Date.now() / 1000)) {
+        currentUser  = stored.user;
+        _accessToken = stored.access_token;
+        // Inject token into the db client so RLS works
+        await db.auth.setSession({
+          access_token:  stored.access_token,
+          refresh_token: stored.refresh_token || '',
+        });
+        await loadFavorites();
+        if (typeof onAuthChange === 'function') onAuthChange(currentUser);
       }
-    } else {
-      // No refresh token and expired — clear
-      localStorage.removeItem(_storageKey);
-      return;
     }
-
-    await loadFavorites();
-    if (typeof onAuthChange === 'function') onAuthChange(currentUser);
   } catch(e) {}
 })();
 
@@ -616,4 +584,144 @@ async function deleteCheckinPhotoFromDB(photoId, storagePath) {
     await client.from('checkin_photos').delete().eq('id', photoId);
     return true;
   } catch(e) { return false; }
+}
+
+// ── SOCIAL FEED ────────────────────────────────────────
+// Fetches a city-wide social feed merging photos, check-ins,
+// reviews, and going-tonight activity. Following-first ordering
+// is applied client-side after the parallel fetches.
+async function fetchSocialFeed(citySlug, followingIds = [], limit = 60) {
+  try {
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+    // Parallel fetch all four sources
+    const [photosRes, activityRes, goingRes] = await Promise.allSettled([
+      // 1. Photo check-ins (city-wide, last 7 days)
+      db.from('checkin_photos')
+        .select('id, user_id, venue_id, photo_url, caption, city_slug, created_at')
+        .eq('city_slug', citySlug)
+        .gte('created_at', sevenDaysAgo)
+        .order('created_at', { ascending: false })
+        .limit(limit),
+
+      // 2. Activity feed (check-ins, reviews, favorites) city-wide via venue
+      db.from('activity_feed')
+        .select('id, user_id, activity_type, venue_id, venue_name, neighborhood, meta, created_at')
+        .in('activity_type', ['check_in', 'review', 'favorite'])
+        .gte('created_at', sevenDaysAgo)
+        .order('created_at', { ascending: false })
+        .limit(limit),
+
+      // 3. Going tonight (today only)
+      db.from('check_ins')
+        .select('id, user_id, venue_id, city_slug, created_at')
+        .eq('city_slug', citySlug)
+        .eq('date', new Date().toISOString().slice(0, 10))
+        .order('created_at', { ascending: false })
+        .limit(40),
+    ]);
+
+    const photos   = photosRes.status   === 'fulfilled' ? (photosRes.value.data   || []) : [];
+    const activity = activityRes.status === 'fulfilled' ? (activityRes.value.data || []) : [];
+    const going    = goingRes.status    === 'fulfilled' ? (goingRes.value.data    || []) : [];
+
+    // Collect all unique user IDs across all sources
+    const allUserIds = [...new Set([
+      ...photos.map(r => r.user_id),
+      ...activity.map(r => r.user_id),
+      ...going.map(r => r.user_id),
+    ].filter(Boolean))];
+
+    // Fetch profiles in one shot
+    const pMap = {};
+    if (allUserIds.length) {
+      const { data: profiles } = await db.from('profiles')
+        .select('id, display_name, avatar_emoji, username')
+        .in('id', allUserIds);
+      (profiles || []).forEach(p => { pMap[p.id] = p; });
+    }
+
+    // Fetch venue names for going-tonight (not denormalized there)
+    const venueIds = [...new Set(going.map(r => r.venue_id).filter(Boolean))];
+    const vMap = {};
+    if (venueIds.length) {
+      const { data: venues } = await db.from('venues')
+        .select('id, name, neighborhood')
+        .in('id', venueIds);
+      (venues || []).forEach(v => { vMap[v.id] = v; });
+    }
+
+    // Normalise into a unified shape
+    const followSet = new Set(followingIds);
+
+    const items = [
+      // Photo check-ins
+      ...photos.map(r => ({
+        id:          `photo-${r.id}`,
+        type:        'photo',
+        user_id:     r.user_id,
+        venue_id:    r.venue_id,
+        photo_url:   r.photo_url,
+        caption:     r.caption || '',
+        venue_name:  null, // resolved client-side via state.venues
+        neighborhood: null,
+        created_at:  r.created_at,
+        profile:     pMap[r.user_id] || null,
+        isFollowing: followSet.has(r.user_id),
+      })),
+
+      // Activity feed events (dedupe check-ins that also have a photo)
+      ...activity.map(r => ({
+        id:          `activity-${r.id}`,
+        type:        r.activity_type,  // 'check_in' | 'review' | 'favorite'
+        user_id:     r.user_id,
+        venue_id:    r.venue_id,
+        venue_name:  r.venue_name,
+        neighborhood: r.neighborhood,
+        meta:        r.meta || {},
+        created_at:  r.created_at,
+        profile:     pMap[r.user_id] || null,
+        isFollowing: followSet.has(r.user_id),
+      })),
+
+      // Going tonight
+      ...going.map(r => ({
+        id:          `going-${r.id}`,
+        type:        'going_tonight',
+        user_id:     r.user_id,
+        venue_id:    r.venue_id,
+        venue_name:  vMap[r.venue_id]?.name || null,
+        neighborhood: vMap[r.venue_id]?.neighborhood || null,
+        created_at:  r.created_at,
+        profile:     pMap[r.user_id] || null,
+        isFollowing: followSet.has(r.user_id),
+      })),
+    ];
+
+    // Remove current user's own activity (they see it in their profile)
+    // Actually keep it — seeing yourself in the city feed is a nice touch
+
+    // Dedupe: if a check_in and a photo share the same user+venue+day, keep only the photo
+    const photoKeys = new Set(
+      items
+        .filter(i => i.type === 'photo')
+        .map(i => `${i.user_id}-${i.venue_id}-${i.created_at?.slice(0,10)}`)
+    );
+    const deduped = items.filter(i => {
+      if (i.type !== 'check_in') return true;
+      return !photoKeys.has(`${i.user_id}-${i.venue_id}-${i.created_at?.slice(0,10)}`);
+    });
+
+    // Sort: following first, then by recency within each group
+    deduped.sort((a, b) => {
+      if (a.isFollowing && !b.isFollowing) return -1;
+      if (!a.isFollowing && b.isFollowing) return 1;
+      return new Date(b.created_at) - new Date(a.created_at);
+    });
+
+    return deduped.slice(0, limit);
+  } catch(e) {
+    console.error('fetchSocialFeed error', e);
+    return [];
+  }
 }
