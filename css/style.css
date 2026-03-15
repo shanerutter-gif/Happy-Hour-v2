@@ -615,17 +615,17 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 .photo-upload-area {
   border: 2px dashed var(--border); border-radius: 14px;
   padding: 28px 20px; text-align: center;
-  background: var(--bg); cursor: pointer; transition: all .2s; margin-bottom: 14px;
-  position: relative;
+  background: var(--bg); transition: all .2s; margin-bottom: 14px;
 }
-.photo-upload-area.dragover,
-.photo-upload-area:hover { border-color: var(--teal); background: rgba(255,107,74,0.04); }
-.photo-upload-area input[type=file] {
-  position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+.photo-upload-area.dragover { border-color: var(--teal); background: rgba(255,107,74,0.04); }
+.photo-upload-icon  { font-size: 32px; margin-bottom: 12px; }
+.photo-source-btns  { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.photo-source-btn   {
+  background: var(--bg2); border: 1.5px solid var(--border2); border-radius: 10px;
+  padding: 10px 18px; font-size: 14px; font-weight: 600; color: var(--text);
+  cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all .15s;
 }
-.photo-upload-icon  { font-size: 32px; margin-bottom: 8px; }
-.photo-upload-hint  { font-size: 13px; color: var(--muted); }
-.photo-upload-hint strong { color: var(--teal); }
+.photo-source-btn:active { background: var(--border2); }
 .photo-preview-wrap {
   position: relative; border-radius: 14px; overflow: hidden;
   margin-bottom: 14px; background: var(--bg2); max-height: 240px; display: none;
