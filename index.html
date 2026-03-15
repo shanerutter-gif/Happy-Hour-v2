@@ -258,8 +258,8 @@
 </div>
 
 <!-- PHOTO CHECK-IN OVERLAY -->
-<!-- Single file input on body — no capture attribute, iOS shows its own "Take Photo / Library" sheet natively -->
-<input type="file" id="photoInputLibrary" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none">
+<!-- Single file input on body — iOS shows native "Take Photo / Library" sheet -->
+<input type="file" id="photoInputLibrary" accept="image/*" capture="environment" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none">
 <div class="overlay" id="photoCheckinOverlay" onclick="if(event.target===this)closeOverlay('photoCheckinOverlay')">
   <div class="sheet">
     <div class="sheet-handle"></div>
