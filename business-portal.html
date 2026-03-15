@@ -156,7 +156,16 @@
       border-color: rgba(255,107,74,0.5);
     }
     textarea { resize: vertical; min-height: 90px; }
-    select option { background: #1a2235; }
+    select {
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      padding-right: 38px;
+      cursor: pointer;
+    }
+    select option { background: #fff; color: #2A1F14; }
     .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 
     .btn {
@@ -263,6 +272,20 @@
     .edit-section.open .edit-section-body {
       max-height: 1200px;
       padding: 24px 28px;
+    }
+
+    /* ── SETTINGS CARDS ── */
+    .settings-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px 24px;
+    }
+    .settings-card-title {
+      font-family: 'Cabinet Grotesk', sans-serif;
+      font-size: 17px; font-weight: 700;
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 14px;
     }
 
     /* ── DAYS PICKER ── */
@@ -994,26 +1017,16 @@
           <div style="display:flex;flex-direction:column;gap:16px;max-width:560px;">
 
             <!-- Subscription -->
-            <div class="edit-section" style="display:block;">
-              <div class="edit-section-header" style="cursor:default;">
-                <h3><span>💳</span> Subscription</h3>
-              </div>
-              <div class="edit-section-body" style="display:block;padding-top:0;">
-                <div id="settings-sub-content" style="font-size:14px;color:var(--muted);line-height:1.7;">
-                  Loading...
-                </div>
-              </div>
+            <div class="settings-card">
+              <div class="settings-card-title"><span>💳</span> Subscription</div>
+              <div id="settings-sub-content" style="font-size:14px;color:var(--muted);line-height:1.7;">Loading...</div>
             </div>
 
             <!-- Account -->
-            <div class="edit-section" style="display:block;">
-              <div class="edit-section-header" style="cursor:default;">
-                <h3><span>👤</span> Account</h3>
-              </div>
-              <div class="edit-section-body" style="display:block;padding-top:0;">
-                <div style="font-size:14px;color:var(--muted);margin-bottom:20px;" id="settings-email">—</div>
-                <button class="btn-outline" onclick="doLogout()" style="color:#C0392B;border-color:rgba(192,57,43,0.3);">Sign out</button>
-              </div>
+            <div class="settings-card">
+              <div class="settings-card-title"><span>👤</span> Account</div>
+              <div style="font-size:14px;color:var(--muted);margin-bottom:16px;" id="settings-email">—</div>
+              <button class="btn-outline" onclick="doLogout()" style="color:#C0392B;border-color:rgba(192,57,43,0.3);">Sign out</button>
             </div>
 
           </div>
