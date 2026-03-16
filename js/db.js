@@ -18,44 +18,16 @@ let currentUser   = null;
 let userFavorites = new Set();
 let _accessToken  = null;
 
-// Session restore — called explicitly by app.js after all scripts load
-// so that onAuthChange is guaranteed to be defined when called.
-async function initAuth() {
+// Restore session on every page load
+(async () => {
   try {
-    // ── Handle Google OAuth redirect ──────────────────────
-    if (window.location.hash.includes('access_token') ||
-        window.location.search.includes('auth=google')) {
-      const { data, error } = await db.auth.getSession();
-      if (!error && data?.session) {
-        const s = data.session;
-        currentUser  = s.user;
-        _accessToken = s.access_token;
-        localStorage.setItem(_storageKey, JSON.stringify({
-          access_token:  s.access_token,
-          refresh_token: s.refresh_token,
-          expires_at:    s.expires_at,
-          token_type:    'bearer',
-          user:          s.user
-        }));
-        const existing = await getProfile(s.user.id).catch(() => null);
-        if (!existing?.display_name) {
-          const name = s.user.user_metadata?.full_name || s.user.email?.split('@')[0] || 'Spotd User';
-          await upsertProfile(s.user.id, { display_name: name });
-        }
-        await loadFavorites();
-        history.replaceState(null, '', window.location.pathname);
-        if (typeof onAuthChange === 'function') onAuthChange(currentUser);
-        return;
-      }
-    }
-
-    // ── Restore existing session from localStorage ────────
     const raw = localStorage.getItem(_storageKey);
     if (raw) {
       const stored = JSON.parse(raw);
       if (stored?.user && stored?.expires_at > Math.floor(Date.now() / 1000)) {
         currentUser  = stored.user;
         _accessToken = stored.access_token;
+        // Inject token into the db client so RLS works
         await db.auth.setSession({
           access_token:  stored.access_token,
           refresh_token: stored.refresh_token || '',
@@ -64,8 +36,8 @@ async function initAuth() {
         if (typeof onAuthChange === 'function') onAuthChange(currentUser);
       }
     }
-  } catch(e) { console.warn('initAuth error', e); }
-}
+  } catch(e) {}
+})();
 
 function getSession() {
   return _accessToken ? { user: currentUser, access_token: _accessToken } : null;
@@ -133,24 +105,6 @@ async function authSignOut() {
   userFavorites = new Set();
   try { await db.auth.signOut(); } catch(e) {}
   if (typeof onAuthChange === 'function') onAuthChange(null);
-}
-
-async function authWithGoogle() {
-  try {
-    const { error } = await db.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: window.location.origin + '/?auth=google',
-        queryParams: { access_type: 'offline', prompt: 'consent' }
-      }
-    });
-    if (error) throw error;
-    // Supabase redirects the browser — no further action needed here.
-    // On return, the session is picked up automatically by the existing
-    // session restore logic in db.js init.
-  } catch(e) {
-    return { error: { message: e.message } };
-  }
 }
 
 // ── PROFILE ────────────────────────────────────────────
