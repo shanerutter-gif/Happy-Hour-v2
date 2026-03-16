@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -7,6 +8,7 @@
 <title>Spotd — Happy Hours & Events Near You</title>
 
 <!-- PWA -->
+
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#FF6B4A">
 <meta name="mobile-web-app-capable" content="yes">
@@ -46,8 +48,8 @@
 </head>
 <body>
 
-
 <!-- HOME / CITY SELECTOR -->
+
 <div id="homePage" class="home-page">
   <div class="home-top-bar">
     <a href="/business-landing.html" class="home-biz-link">For Business</a>
@@ -67,7 +69,176 @@
   <div class="home-bg-glow"></div>
 </div>
 
+<!-- ═══════════════════════════════════════════
+     BTF — BELOW THE FOLD LANDING CONTENT
+     ═══════════════════════════════════════════ -->
+
+<div class="btf">
+
+  <!-- 1. SOCIAL LEAD -->
+
+  <section class="btf-section btf-social">
+    <div class="btf-inner">
+      <div class="btf-eyebrow">The social feed</div>
+      <h2 class="btf-heading">Finally know where<br>everyone's actually going.</h2>
+      <p class="btf-body">The feed shows real check-ins from real people in your city — tonight. Not reviews from last March. See where your friends landed, check in yourself, and let the night figure itself out.</p>
+      <div class="btf-feed-preview">
+        <div class="btf-feed-item">
+          <div class="btf-feed-av">🍺</div>
+          <div class="btf-feed-text">
+            <span class="btf-feed-name">Jordan K.</span> checked in at <span class="btf-feed-venue">Coin-Op Game Room</span>
+            <div class="btf-feed-meta">North Park · 2h ago</div>
+          </div>
+          <div class="btf-feed-badge">📍</div>
+        </div>
+        <div class="btf-feed-item">
+          <div class="btf-feed-av">🌮</div>
+          <div class="btf-feed-text">
+            <span class="btf-feed-name">Taylor M.</span> checked in at <span class="btf-feed-venue">Fairweather</span>
+            <div class="btf-feed-meta">Downtown · 3h ago</div>
+          </div>
+          <div class="btf-feed-badge">📍</div>
+        </div>
+        <div class="btf-feed-item">
+          <div class="btf-feed-av">🎉</div>
+          <div class="btf-feed-text">
+            <span class="btf-feed-name">Morgan L.</span> reviewed <span class="btf-feed-venue">Basic Bar &amp; Pizza</span>
+            <div class="btf-feed-stars">★★★★★</div>
+            <div class="btf-feed-meta">North Park · 5h ago</div>
+          </div>
+          <div class="btf-feed-badge">⭐</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. RIGHT NOW -->
+
+  <section class="btf-section btf-rightnow">
+    <div class="btf-inner">
+      <div class="btf-eyebrow">Built for tonight</div>
+      <h2 class="btf-heading">Open it when you're<br>already in the car.</h2>
+      <p class="btf-body">Spotd isn't a research tool. It's a go-out tool. In two taps you've got every happy hour, live music set, and trivia night happening near you right now — filtered exactly how you want it.</p>
+      <div class="btf-steps">
+        <div class="btf-step">
+          <div class="btf-step-num">1</div>
+          <div class="btf-step-text">
+            <div class="btf-step-title">Find it</div>
+            <div class="btf-step-sub">Search happy hours, events, and deals happening tonight</div>
+          </div>
+        </div>
+        <div class="btf-step-line"></div>
+        <div class="btf-step">
+          <div class="btf-step-num">2</div>
+          <div class="btf-step-text">
+            <div class="btf-step-title">Pick your spot</div>
+            <div class="btf-step-sub">See the deals, hours, and vibe — then decide</div>
+          </div>
+        </div>
+        <div class="btf-step-line"></div>
+        <div class="btf-step">
+          <div class="btf-step-num">3</div>
+          <div class="btf-step-text">
+            <div class="btf-step-title">Check in</div>
+            <div class="btf-step-sub">Let your city know where the night took you</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. FILTERS / AMENITIES -->
+
+  <section class="btf-section btf-filters">
+    <div class="btf-inner">
+      <div class="btf-eyebrow">Filter for exactly what you need</div>
+      <h2 class="btf-heading">"Dog-friendly patio<br>with the game on."</h2>
+      <p class="btf-body">That's a totally reasonable thing to want. Spotd is the only place you can actually find it.</p>
+      <div class="btf-tags">
+        <span class="btf-tag">🍺 Happy Hours</span>
+        <span class="btf-tag">🎵 Live Music</span>
+        <span class="btf-tag">🧠 Trivia Night</span>
+        <span class="btf-tag">📺 Sports TV</span>
+        <span class="btf-tag">🐶 Dog Friendly</span>
+        <span class="btf-tag">🎤 Karaoke</span>
+        <span class="btf-tag">🎭 Comedy</span>
+        <span class="btf-tag">🎲 Game Night</span>
+        <span class="btf-tag">🍷 Wine Bar</span>
+        <span class="btf-tag">🌅 Rooftop</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. VS YELP -->
+
+  <section class="btf-section btf-vs">
+    <div class="btf-inner">
+      <div class="btf-eyebrow">Why not just Google it?</div>
+      <h2 class="btf-heading">Because Google doesn't<br>know what's on tonight.</h2>
+      <div class="btf-compare">
+        <div class="btf-compare-col btf-compare-them">
+          <div class="btf-compare-label">Yelp / Google</div>
+          <div class="btf-compare-item btf-no">Reviews from months ago</div>
+          <div class="btf-compare-item btf-no">No real-time deal info</div>
+          <div class="btf-compare-item btf-no">Can't filter for Sports TV</div>
+          <div class="btf-compare-item btf-no">No events, just restaurants</div>
+          <div class="btf-compare-item btf-no">No social layer</div>
+        </div>
+        <div class="btf-compare-col btf-compare-us">
+          <div class="btf-compare-label btf-compare-label--us">Spotd</div>
+          <div class="btf-compare-item btf-yes">Live deals updated by venues</div>
+          <div class="btf-compare-item btf-yes">What's on right now, tonight</div>
+          <div class="btf-compare-item btf-yes">Sports TV, dog-friendly &amp; more</div>
+          <div class="btf-compare-item btf-yes">HH + trivia + live music + events</div>
+          <div class="btf-compare-item btf-yes">See where your city is going</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. SOCIAL PROOF -->
+
+  <section class="btf-section btf-proof">
+    <div class="btf-inner">
+      <div class="btf-stat-row">
+        <div class="btf-stat">
+          <div class="btf-stat-num">400+</div>
+          <div class="btf-stat-lbl">San Diego venues</div>
+        </div>
+        <div class="btf-stat-divider"></div>
+        <div class="btf-stat">
+          <div class="btf-stat-num">Free</div>
+          <div class="btf-stat-lbl">Always, for users</div>
+        </div>
+        <div class="btf-stat-divider"></div>
+        <div class="btf-stat">
+          <div class="btf-stat-num">Tonight</div>
+          <div class="btf-stat-lbl">Not last month</div>
+        </div>
+      </div>
+      <p class="btf-proof-sub">San Diego is just the start. More cities dropping soon.</p>
+    </div>
+  </section>
+
+  <!-- 6. BOTTOM CTA -->
+
+  <section class="btf-section btf-cta-bottom">
+    <div class="btf-inner btf-cta-inner">
+      <h2 class="btf-cta-heading">Ready to find tonight's spot?</h2>
+      <p class="btf-cta-sub">Pick your city above and start exploring — it's free.</p>
+      <button class="btf-cta-btn" onclick="window.scrollTo({top:0,behavior:'smooth'})">Find tonight's spot →</button>
+    </div>
+  </section>
+
+  <footer class="btf-footer">
+    <p>Spotd · Happy Hours &amp; Events · Always verify times directly with venues</p>
+    <a href="/business-landing.html" class="btf-footer-biz">Own a venue? List it free →</a>
+  </footer>
+
+</div><!-- /btf -->
+
 <!-- CITY APP VIEW -->
+
 <div id="appPage" class="app-page" style="display:none">
 
   <div class="city-bar" id="cityBar">
@@ -155,6 +326,7 @@
 </div><!-- /appPage -->
 
 <!-- VENUE/EVENT MODAL -->
+
 <div class="overlay" id="modalOverlay" onclick="closeModal(event)">
   <div class="sheet" id="venueSheet">
     <div class="sheet-handle"></div>
@@ -164,6 +336,7 @@
 </div>
 
 <!-- AUTH MODAL -->
+
 <div class="overlay" id="authOverlay" onclick="closeAuth(event)">
   <div class="sheet" id="authSheet">
     <div class="sheet-handle"></div>
@@ -173,11 +346,13 @@
 </div>
 
 <!-- PROFILE PAGE (slide-in panel) -->
+
 <div id="profilePage" class="profile-page">
   <div id="profileContent"></div>
 </div>
 
 <!-- FIND PEOPLE SUB-PAGE -->
+
 <div id="findPeoplePage" class="sub-page" style="display:none">
   <div class="sub-page-header">
     <button class="sub-page-back" onclick="closeSubPage('findPeoplePage')">
@@ -189,6 +364,7 @@
 </div>
 
 <!-- FOLLOWERS SUB-PAGE -->
+
 <div id="followersPage" class="sub-page" style="display:none">
   <div class="sub-page-header">
     <button class="sub-page-back" onclick="closeSubPage('followersPage')">
@@ -200,6 +376,7 @@
 </div>
 
 <!-- ACTIVITY FEED SUB-PAGE -->
+
 <div id="feedPage" class="sub-page" style="display:none">
   <div class="sub-page-header">
     <button class="sub-page-back" onclick="closeSubPage('feedPage')">
@@ -211,6 +388,7 @@
 </div>
 
 <!-- LEADERBOARD SUB-PAGE -->
+
 <div id="leaderboardPage" class="sub-page" style="display:none">
   <div class="sub-page-header">
     <button class="sub-page-back" onclick="closeSubPage('leaderboardPage')">
@@ -222,6 +400,7 @@
 </div>
 
 <!-- PUBLIC PROFILE OVERLAY -->
+
 <div class="overlay" id="pubProfileOverlay" onclick="if(event.target===this)closeOverlay('pubProfileOverlay')">
   <div class="sheet sheet--wide" id="pubProfileSheet">
     <div class="sheet-handle"></div>
@@ -231,6 +410,7 @@
 </div>
 
 <!-- EDIT REVIEW MODAL -->
+
 <div class="overlay" id="editOverlay" onclick="closeEditReview(event)">
   <div class="sheet" id="editSheet">
     <div class="sheet-handle"></div>
@@ -240,6 +420,7 @@
 </div>
 
 <!-- REQUEST VENUE MODAL -->
+
 <div class="overlay" id="requestOverlay" onclick="closeRequestVenue(event)">
   <div class="sheet" id="requestSheet">
     <div class="sheet-handle"></div>
@@ -249,6 +430,7 @@
 </div>
 
 <!-- TAG FRIENDS OVERLAY -->
+
 <div class="overlay" id="tagFriendsOverlay" onclick="if(event.target===this)closeOverlay('tagFriendsOverlay')">
   <div class="sheet">
     <div class="sheet-handle"></div>
@@ -258,6 +440,7 @@
 </div>
 
 <!-- PHOTO CHECK-IN OVERLAY -->
+
 <div class="overlay" id="photoCheckinOverlay" onclick="if(event.target===this)closeOverlay('photoCheckinOverlay')">
   <div class="sheet">
     <div class="sheet-handle"></div>
@@ -266,11 +449,8 @@
   </div>
 </div>
 
-<footer id="mainFooter">
-  <p>Spotd · Happy Hours & Events · 2025 · Always verify times directly with venues</p>
-</footer>
-
 <!-- ADD TO HOME SCREEN BANNER (iOS only, shown once) -->
+
 <div id="a2hsBanner" style="display:none">
   <div class="a2hs-inner">
     <div class="a2hs-icon">📲</div>
@@ -355,11 +535,15 @@ function dismissA2HS() {
 </script>
 
 <script src="js/db.js"></script>
+
 <script src="js/push.js"></script>
+
 <script src="js/app.js"></script>
 
   <!-- ── DM INBOX OVERLAY ─────────────────────────── -->
+
   <!-- ── SOCIAL TAB ──────────────────────────────────── -->
+
   <div id="socialTab" class="social-tab" style="display:none">
     <div class="social-header">
       <div class="social-header-title">Social</div>
@@ -371,41 +555,45 @@ function dismissA2HS() {
   </div>
 
   <!-- ── MESSAGES TAB ─────────────────────────────────── -->
+
   <div id="dmTab" class="dm-tab" style="display:none">
 
-    <!-- Shared header (title + nav buttons change per screen) -->
-    <div class="dm-header">
-      <button class="dm-back-btn" id="dmBackBtn" onclick="dmNavBack()" style="visibility:hidden">← Back</button>
-      <div class="dm-title" id="dmTitle">Messages</div>
-      <button class="dm-new-btn" id="dmNewBtn" onclick="dmStartNewConvo()">＋</button>
-    </div>
+```
+<!-- Shared header (title + nav buttons change per screen) -->
+<div class="dm-header">
+  <button class="dm-back-btn" id="dmBackBtn" onclick="dmNavBack()" style="visibility:hidden">← Back</button>
+  <div class="dm-title" id="dmTitle">Messages</div>
+  <button class="dm-new-btn" id="dmNewBtn" onclick="dmStartNewConvo()">＋</button>
+</div>
 
-    <!-- Screen 1: Inbox -->
-    <div id="dmScreenInbox" class="dm-screen dm-screen--scroll">
-      <div id="dmThreadList" class="dm-thread-list"></div>
-    </div>
+<!-- Screen 1: Inbox -->
+<div id="dmScreenInbox" class="dm-screen dm-screen--scroll">
+  <div id="dmThreadList" class="dm-thread-list"></div>
+</div>
 
-    <!-- Screen 2: Conversation -->
-    <div id="dmScreenConvo" class="dm-screen dm-screen--flex" style="display:none">
-      <div id="dmMembersBar" class="dm-members-bar" style="display:none"></div>
-      <div id="dmMessages" class="dm-messages"></div>
-      <div class="dm-compose" id="dmComposeBar">
-        <input id="dmInput" class="dm-input" placeholder="Message…" maxlength="500"
-          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();dmSend()}">
-        <button class="dm-send-btn" onclick="dmSend()">Send</button>
-      </div>
-    </div>
+<!-- Screen 2: Conversation -->
+<div id="dmScreenConvo" class="dm-screen dm-screen--flex" style="display:none">
+  <div id="dmMembersBar" class="dm-members-bar" style="display:none"></div>
+  <div id="dmMessages" class="dm-messages"></div>
+  <div class="dm-compose" id="dmComposeBar">
+    <input id="dmInput" class="dm-input" placeholder="Message…" maxlength="500"
+      onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();dmSend()}">
+    <button class="dm-send-btn" onclick="dmSend()">Send</button>
+  </div>
+</div>
 
-    <!-- Screen 3: New message / picker -->
-    <div id="dmScreenPicker" class="dm-screen dm-screen--flex" style="display:none">
-      <div id="dmPickerScroll" class="dm-picker-scroll"></div>
-      <div class="dm-picker-footer">
-        <button id="dmPickerBtn" class="dm-send-btn" style="width:100%;padding:14px;border-radius:14px;" onclick="dmCreateConvoFromPicker()">Start Chat</button>
-      </div>
-    </div>
+<!-- Screen 3: New message / picker -->
+<div id="dmScreenPicker" class="dm-screen dm-screen--flex" style="display:none">
+  <div id="dmPickerScroll" class="dm-picker-scroll"></div>
+  <div class="dm-picker-footer">
+    <button id="dmPickerBtn" class="dm-send-btn" style="width:100%;padding:14px;border-radius:14px;" onclick="dmCreateConvoFromPicker()">Start Chat</button>
+  </div>
+</div>
+```
 
   </div>
 
   <script defer src="/_vercel/insights/script.js"></script>
+
 </body>
 </html>
