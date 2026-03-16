@@ -18,12 +18,11 @@ let currentUser   = null;
 let userFavorites = new Set();
 let _accessToken  = null;
 
-// Restore session on every page load
-(async () => {
+// Session restore — called explicitly by app.js after all scripts load
+// so that onAuthChange is guaranteed to be defined when called.
+async function initAuth() {
   try {
     // ── Handle Google OAuth redirect ──────────────────────
-    // Supabase returns tokens in the URL hash after OAuth redirect.
-    // getSession() picks them up automatically if the hash is present.
     if (window.location.hash.includes('access_token') ||
         window.location.search.includes('auth=google')) {
       const { data, error } = await db.auth.getSession();
@@ -38,21 +37,19 @@ let _accessToken  = null;
           token_type:    'bearer',
           user:          s.user
         }));
-        // Ensure profile exists for new Google users
         const existing = await getProfile(s.user.id).catch(() => null);
         if (!existing?.display_name) {
           const name = s.user.user_metadata?.full_name || s.user.email?.split('@')[0] || 'Spotd User';
           await upsertProfile(s.user.id, { display_name: name });
         }
         await loadFavorites();
-        // Clean up URL
         history.replaceState(null, '', window.location.pathname);
         if (typeof onAuthChange === 'function') onAuthChange(currentUser);
         return;
       }
     }
 
-    // ── Restore existing email/password session ───────────
+    // ── Restore existing session from localStorage ────────
     const raw = localStorage.getItem(_storageKey);
     if (raw) {
       const stored = JSON.parse(raw);
@@ -67,8 +64,8 @@ let _accessToken  = null;
         if (typeof onAuthChange === 'function') onAuthChange(currentUser);
       }
     }
-  } catch(e) {}
-})();
+  } catch(e) { console.warn('initAuth error', e); }
+}
 
 function getSession() {
   return _accessToken ? { user: currentUser, access_token: _accessToken } : null;
