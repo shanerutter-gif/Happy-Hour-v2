@@ -4,7 +4,7 @@
    Font: Cabinet Grotesk (display) · DM Sans (body)
    ═══════════════════════════════════════════════════════ */
 
-/* Prevent iOS auto-zoom on input focus (requires font-size >= 16p) */
+/* Prevent iOS auto-zoom on input focus (requires font-size >= 16px) */
 input, textarea, select { font-size: 16px; }
 
 :root {
