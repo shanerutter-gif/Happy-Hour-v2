@@ -1128,6 +1128,14 @@ function renderAuth(mode) {
   document.getElementById('authContent').innerHTML = `
     <div class="auth-title">${si ? 'Welcome back' : 'Create account'}</div>
     <p class="auth-sub">${si ? 'Sign in to save spots & manage reviews' : 'Free forever — save spots, write reviews'}</p>
+
+    <button class="btn-google" onclick="authWithGoogle()">
+      <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      Continue with Google
+    </button>
+
+    <div class="auth-divider"><span>or</span></div>
+
     ${!si ? `<div class="field-group"><div class="field-label">Name</div><input class="field" id="aName" type="text" placeholder="Your name" autocomplete="name"></div>` : ''}
     <div class="field-group"><div class="field-label">Email</div><input class="field" id="aEmail" type="email" placeholder="you@example.com" autocomplete="email"></div>
     <div class="field-group"><div class="field-label">Password</div><input class="field" id="aPass" type="password" placeholder="${si ? 'Your password' : 'Min 8 characters'}" autocomplete="${si ? 'current-password' : 'new-password'}"></div>
@@ -1307,100 +1315,122 @@ async function renderProfile(user) {
 
   const bannerColor = profile?.banner_color || '#FF6B4A';
 
+  const AVATARS = ['🍺','🍹','🍷','🥂','🍸','🎉','🌮','🔥','🎸','🏄','🌊','🎭'];
+
   document.getElementById('profileContent').innerHTML = `
-    <div class="my-profile-banner" id="myBanner" style="background: linear-gradient(135deg, ${bannerColor} 0%, ${bannerColor}cc 60%, ${bannerColor}88 100%);">
-      <div class="my-profile-banner-actions">
-        <button class="profile-banner-btn" onclick="shareSpotd()" title="Share">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+    <!-- ── DARK HEADER ── -->
+    <div class="pf-hero" id="myBanner">
+      <div class="pf-burst"></div>
+      <div class="pf-grid"></div>
+      <div class="pf-ring pf-r1"></div>
+      <div class="pf-ring pf-r2"></div>
+      <div class="pf-ring pf-r3"></div>
+      <div class="pf-actions">
+        <button class="pf-btn" onclick="shareSpotd()" title="Share">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
         </button>
-        <button class="profile-banner-btn" onclick="openProfileSettings()" title="Settings">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <button class="pf-btn" onclick="openProfileSettings()" title="Settings">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         </button>
       </div>
-      <div class="my-avatar-wrap banner-avatar-wrap">
-        <div class="my-avatar" id="myAvatar" onclick="toggleAvatarPicker()" title="Change avatar">${avatar}</div>
+      <div class="pf-avatar-zone">
+        <div class="pf-avatar" id="myAvatar" onclick="toggleAvatarPicker()" title="Change avatar">${avatar}</div>
         <div class="avatar-picker" id="avatarPicker" style="display:none">
           ${AVATARS.map(e => `<button class="avatar-opt" onclick="pickAvatar('${e}',this)">${e}</button>`).join('')}
         </div>
       </div>
     </div>
 
-    <div class="my-profile-body">
-      <div class="my-name">${esc(displayName)}</div>
-      ${profile?.bio ? `<div class="my-bio">${esc(profile.bio)}</div>` : `<div class="my-bio my-bio--empty" onclick="openProfileSettings()">+ add a bio</div>`}
-      ${badges.length ? `<div class="pub-badges" style="margin-top:8px">${badges.map(b => {
+    <!-- ── IDENTITY ── -->
+    <div class="pf-body">
+      <div class="pf-name">${esc(displayName)}</div>
+      ${profile?.bio
+        ? `<div class="pf-bio">${esc(profile.bio)}</div>`
+        : `<div class="pf-bio pf-bio--empty" onclick="openProfileSettings()">+ add a bio</div>`}
+      ${badges.length ? `<div class="pf-chips">${badges.map(b => {
         const def = BADGE_DEFS[b.badge_key] || {};
-        return '<span class="badge-chip" onclick="showBadgeInfo(\'' + b.badge_key + '\')">' + (def.emoji||'🏅') + ' ' + (def.label||b.badge_key) + '</span>';
+        return '<span class="pf-chip" onclick="showBadgeInfo(\'' + b.badge_key + '\')">' + (def.emoji||'🏅') + ' ' + (def.label||b.badge_key) + '</span>';
       }).join('')}</div>` : ''}
-      <div class="my-stats" id="myStatBar">
-        <div class="my-stat" onclick="openActivityFeed()" style="cursor:pointer"><span>${checkIns.length}</span>check-ins</div>
-        <div class="my-stat"><span>${myReviews.length}</span>reviews</div>
-        ${currentStreak >= 2 ? `<div class="my-stat"><span>${currentStreak}🔥</span>streak</div>` : ''}
-        <div class="my-stat" onclick="openFindPeople()" style="cursor:pointer"><span id="stat-following">${following.length}</span>following</div>
-        <div class="my-stat" onclick="showFollowersList()" style="cursor:pointer"><span id="stat-followers">${followers.length}</span>followers</div>
+
+      <!-- ── STAT CARDS ── -->
+      <div class="pf-stat-grid">
+        <div class="pf-stat-card" onclick="openActivityFeed()">
+          <div class="pf-snum">${checkIns.length}</div>
+          <div class="pf-slbl">Check-ins</div>
+          <div class="pf-sbar"><div class="pf-sbar-fill" style="width:${Math.min(100, checkIns.length * 2.5)}%"></div></div>
+        </div>
+        <div class="pf-stat-card">
+          <div class="pf-snum">${myReviews.length}</div>
+          <div class="pf-slbl">Reviews</div>
+          <div class="pf-sbar"><div class="pf-sbar-fill" style="width:${Math.min(100, myReviews.length * 5)}%"></div></div>
+        </div>
+        <div class="pf-stat-card" onclick="openFindPeople()">
+          <div class="pf-snum" id="stat-following">${following.length}</div>
+          <div class="pf-slbl">Following</div>
+          <div class="pf-sbar"><div class="pf-sbar-fill" style="width:${Math.min(100, following.length * 4)}%"></div></div>
+        </div>
+        <div class="pf-stat-card" onclick="showFollowersList()">
+          <div class="pf-snum" id="stat-followers">${followers.length}</div>
+          <div class="pf-slbl">Followers</div>
+          <div class="pf-sbar"><div class="pf-sbar-fill" style="width:${Math.min(100, followers.length * 4)}%"></div></div>
+        </div>
       </div>
     </div>
 
-    <div class="profile-tabs">
-      <button class="profile-tab active" onclick="selectProfileTab('checkins',this)">Check-ins</button>
-      <button class="profile-tab" onclick="selectProfileTab('reviews',this)">Reviews</button>
-      <button class="profile-tab" onclick="selectProfileTab('saved',this)">Saved</button>
-      <button class="profile-tab" onclick="selectProfileTab('hoods',this)">Areas</button>
-      <button class="profile-tab" onclick="openFindPeople()">People</button>
+    <!-- ── TABS ── -->
+    <div class="pf-tabs">
+      <button class="pf-tab on" onclick="selectProfileTab('checkins',this)">Check-ins</button>
+      <button class="pf-tab" onclick="selectProfileTab('reviews',this)">Reviews</button>
+      <button class="pf-tab" onclick="selectProfileTab('saved',this)">Saved</button>
+      <button class="pf-tab" onclick="selectProfileTab('hoods',this)">Areas</button>
+      <button class="pf-tab" onclick="openFindPeople()">People</button>
     </div>
 
-    <div id="my-tab-checkins" class="pub-tab-content active">
+    <!-- ── TAB CONTENT ── -->
+    <div class="pf-content" id="my-tab-checkins">
       ${checkIns.length ? checkIns.slice(0,30).map(c => {
         const v = allItems.find(x => String(x.id) === String(c.venue_id));
-        return '<div class="pub-activity-row"' + (v ? ' onclick="closeProfile();openModal(\'' + c.venue_id + '\',\'venue\')" style="cursor:pointer"' : '') + '>'
-          + '<div class="pub-activity-icon">📍</div>'
-          + '<div class="pub-activity-body">'
-          + '<div class="pub-activity-title">' + (v ? esc(v.name) : esc(c.venue_name||'A spot')) + '</div>'
-          + '<div class="pub-activity-meta">' + (c.neighborhood||'') + ' · ' + fmtDate(c.created_at||c.date) + '</div>'
+        return '<div class="pf-row"' + (v ? ' onclick="closeProfile();openModal(\'' + c.venue_id + '\',\'venue\')" style="cursor:pointer"' : '') + '>'
+          + '<div class="pf-row-dot"></div>'
+          + '<div class="pf-row-body">'
+          + '<div class="pf-row-name">' + (v ? esc(v.name) : esc(c.venue_name||'A spot')) + '</div>'
+          + '<div class="pf-row-meta">' + (c.neighborhood||'') + (c.neighborhood ? ' · ' : '') + fmtDate(c.created_at||c.date) + '</div>'
           + '</div></div>';
-      }).join('') : '<div class="pub-empty">No check-ins yet — go explore! 🗺️</div>'}
+      }).join('') : '<div class="pf-empty">No check-ins yet — go explore! 🗺️</div>'}
     </div>
 
-    <div id="my-tab-reviews" class="pub-tab-content" style="display:none">
+    <div class="pf-content" id="my-tab-reviews" style="display:none">
       ${myReviews.length ? myReviews.map(r => {
         const item = allItems.find(x => String(x.id) === String(r.venue_id || r.event_id));
         const itype = r.venue_id ? 'venue' : 'event';
-        return '<div class="pub-activity-row">'
-          + '<div class="pub-activity-icon">⭐</div>'
-          + '<div class="pub-activity-body" style="flex:1">'
-          + '<div class="pub-activity-title" onclick="closeProfile();openModal(\'' + (r.venue_id||r.event_id) + '\',\'' + itype + '\')" style="cursor:pointer">' + (item ? esc(item.name) : 'Unknown Spot') + '</div>'
-          + '<div class="pub-activity-meta">' + starHTML(r.rating,5,11) + ' · ' + fmtDate(r.created_at) + '</div>'
-          + (r.text ? '<div class="pub-activity-note">"' + esc(r.text) + '"</div>' : '')
+        return '<div class="pf-row">'
+          + '<div class="pf-row-dot" style="background:rgba(255,107,74,0.4)"></div>'
+          + '<div class="pf-row-body" style="flex:1">'
+          + '<div class="pf-row-name" onclick="closeProfile();openModal(\'' + (r.venue_id||r.event_id) + '\',\'' + itype + '\')" style="cursor:pointer">' + (item ? esc(item.name) : 'Unknown Spot') + '</div>'
+          + '<div class="pf-row-meta">' + starHTML(r.rating,5,11) + ' · ' + fmtDate(r.created_at) + '</div>'
+          + (r.text ? '<div class="pf-row-note">"' + esc(r.text) + '"</div>' : '')
           + '<div class="review-acts">'
           + '<button class="review-act" onclick="openEditReview(\'' + r.id + '\',\'' + (r.venue_id||r.event_id) + '\',\'' + itype + '\',' + r.rating + ',\'' + esc(r.text||'') + '\')">Edit</button>'
           + '<button class="review-act del" onclick="doDeleteReview(\'' + r.id + '\',\'' + (r.venue_id||r.event_id) + '\',\'' + itype + '\')">Delete</button>'
           + '</div></div></div>';
-      }).join('') : '<div class="pub-empty">No reviews yet</div>'}
+      }).join('') : '<div class="pf-empty">No reviews yet</div>'}
     </div>
 
-    <div id="my-tab-saved" class="pub-tab-content" style="display:none">
+    <div class="pf-content" id="my-tab-saved" style="display:none">
       ${favSpots.length ? favSpots.map(v =>
-        '<div class="pub-activity-row" onclick="closeProfile();openModal(\'' + v.id + '\',\'' + (v.event_type?'event':'venue') + '\')" style="cursor:pointer">'
-        + '<div class="pub-activity-icon">♥</div>'
-        + '<div class="pub-activity-body"><div class="pub-activity-title">' + esc(v.name) + '</div>'
-        + '<div class="pub-activity-meta">' + esc(v.neighborhood||'') + ' · ' + esc(v.hours||'') + '</div></div></div>'
-      ).join('') : `<div class="empty-state" style="padding:32px 16px">
-        <svg width="72" height="72" viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="36" cy="36" r="30" fill="rgba(255,107,74,0.07)"/>
-          <path d="M36 50 C36 50 20 40 20 28 C20 22 25 18 30 18 C33 18 35 20 36 22 C37 20 39 18 42 18 C47 18 52 22 52 28 C52 40 36 50 36 50Z" stroke="#FF6B4A" stroke-width="2.5" fill="rgba(255,107,74,0.12)" stroke-linejoin="round"/>
-        </svg>
-        <div class="empty-state-title">No saved spots yet</div>
-        <div class="empty-state-sub">Tap the ★ on any venue to save it here</div>
-      </div>`}
+        '<div class="pf-row" onclick="closeProfile();openModal(\'' + v.id + '\',\'' + (v.event_type?'event':'venue') + '\')" style="cursor:pointer">'
+        + '<div class="pf-row-dot" style="background:rgba(255,107,74,0.35)"></div>'
+        + '<div class="pf-row-body"><div class="pf-row-name">' + esc(v.name) + '</div>'
+        + '<div class="pf-row-meta">' + esc(v.neighborhood||'') + (v.neighborhood && v.hours ? ' · ' : '') + esc(v.hours||'') + '</div></div></div>'
+      ).join('') : '<div class="pf-empty">No saved spots yet — tap ★ on any venue</div>'}
     </div>
 
-    <div id="my-tab-hoods" class="pub-tab-content" style="display:none">
-      <div style="margin-bottom:12px;font-size:13px;color:var(--muted);line-height:1.5">Follow neighborhoods to get notified when new deals are added nearby.</div>
+    <div class="pf-content" id="my-tab-hoods" style="display:none">
+      <div class="pf-hood-hint">Follow neighborhoods to get notified when new deals are added.</div>
       ${areas.length ? `<div class="hood-grid">${areas.map(a =>
-        `<button class="hood-pill${followed.includes(a) ? ' on' : ''}" onclick="toggleHood('${a.replace(/'/g,"\\'")}',this)">${a}</button>`
-      ).join('')}</div>` : '<div class="pub-empty">No neighborhoods found for this city yet.</div>'}
+        `<button class="hood-pill${followed.includes(a) ? ' on' : ''}" onclick="toggleHood('${a.replace(/'/g,"\'")}',this)">${a}</button>`
+      ).join('')}</div>` : '<div class="pf-empty">No neighborhoods found yet.</div>'}
     </div>`;
-}
 
 function switchMyTab(tab, btn) {
   document.querySelectorAll('.pub-tab-content').forEach(el => el.style.display = 'none');
@@ -3372,6 +3402,12 @@ if (window.visualViewport) {
 
 
 function selectProfileTab(tab, btn) {
+  document.querySelectorAll('.pf-content').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('.pf-tab').forEach(b => b.classList.remove('on'));
+  const el = document.getElementById('my-tab-' + tab);
+  if (el) el.style.display = 'block';
+  if (btn) btn.classList.add('on');
+}
   if(typeof haptic==='function')haptic('light');
   document.querySelectorAll('.pub-tab-content').forEach(el => el.style.display = 'none');
   document.getElementById('my-tab-' + tab).style.display = 'block';
