@@ -98,6 +98,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const ffg = document.getElementById('favFilterGroup');
   if (ffg) ffg.style.display = currentUser ? '' : 'none';
 
+  // If session was already restored by db.js before DOM ready, auto-enter city now
+  if (currentUser && !state.city) tryAutoEnterCity();
+
   // Detect password reset redirect from Supabase email link
   // Supabase appends #access_token=...&type=recovery to the URL
   const hash = window.location.hash;
@@ -132,7 +135,10 @@ function onAuthChange(user) {
     const { slug, name, stateCode } = window._pendingCity;
     window._pendingCity = null;
     enterCity(slug, name, stateCode);
+    return;
   }
+  // Auto-enter city on sign-in if not already in one
+  if (user && !state.city) tryAutoEnterCity();
 }
 
 // ── NAV ────────────────────────────────────────────────
@@ -534,7 +540,53 @@ async function enterCity(slug, name, stateCode) {
   initMap();
 }
 
-// ── SHOW FILTER ────────────────────────────────────────
+// Auto-enter city based on cached geo or GPS — defaults to San Diego
+async function tryAutoEnterCity() {
+  if (state.city || !currentUser) return;
+
+  // Check cached geo first
+  const cached = localStorage.getItem('spotd_geo');
+  if (cached) {
+    try {
+      const { lat, lng } = JSON.parse(cached);
+      const city = _cityFromLatLng(lat, lng);
+      if (city) { enterCity(city.slug, city.name, city.stateCode); return; }
+    } catch(e) {}
+  }
+
+  // Try silent GPS (non-blocking, short timeout)
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        const { latitude: lat, longitude: lng } = pos.coords;
+        localStorage.setItem('spotd_geo', JSON.stringify({ lat, lng }));
+        const city = _cityFromLatLng(lat, lng);
+        if (city && !state.city) enterCity(city.slug, city.name, city.stateCode);
+        else if (!state.city)    enterCity('san-diego', 'San Diego', 'CA');
+      },
+      () => { if (!state.city) enterCity('san-diego', 'San Diego', 'CA'); },
+      { timeout: 5000, maximumAge: 300000 }
+    );
+  } else {
+    enterCity('san-diego', 'San Diego', 'CA');
+  }
+}
+
+const CITY_BOUNDS = {
+  'san-diego':  { minLat:32.53, maxLat:33.11, minLng:-117.60, maxLng:-116.90, name:'San Diego',    stateCode:'CA' },
+  'los-angeles':{ minLat:33.70, maxLat:34.34, minLng:-118.67, maxLng:-117.65, name:'Los Angeles',  stateCode:'CA' },
+  'new-york':   { minLat:40.48, maxLat:40.93, minLng:-74.26,  maxLng:-73.68,  name:'New York',     stateCode:'NY' },
+  'chicago':    { minLat:41.64, maxLat:42.02, minLng:-87.94,  maxLng:-87.52,  name:'Chicago',      stateCode:'IL' },
+  'austin':     { minLat:30.10, maxLat:30.52, minLng:-97.95,  maxLng:-97.55,  name:'Austin',       stateCode:'TX' },
+  'miami':      { minLat:25.55, maxLat:25.97, minLng:-80.45,  maxLng:-80.10,  name:'Miami',        stateCode:'FL' },
+};
+function _cityFromLatLng(lat, lng) {
+  for (const [slug, b] of Object.entries(CITY_BOUNDS)) {
+    if (lat >= b.minLat && lat <= b.maxLat && lng >= b.minLng && lng <= b.maxLng)
+      return { slug, name: b.name, stateCode: b.stateCode };
+  }
+  return null;
+}
 function setShowFilter(val, btn) {
   state.showFilter = val;
   document.querySelectorAll('#showFilters .pill').forEach(b => b.classList.remove('active'));
