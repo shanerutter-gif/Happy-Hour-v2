@@ -544,32 +544,9 @@ async function enterCity(slug, name, stateCode) {
 async function tryAutoEnterCity() {
   if (state.city || !currentUser) return;
 
-  // Check cached geo first
-  const cached = localStorage.getItem('spotd_geo');
-  if (cached) {
-    try {
-      const { lat, lng } = JSON.parse(cached);
-      const city = _cityFromLatLng(lat, lng);
-      if (city) { enterCity(city.slug, city.name, city.stateCode); return; }
-    } catch(e) {}
-  }
-
-  // Try silent GPS (non-blocking, short timeout)
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(
-      pos => {
-        const { latitude: lat, longitude: lng } = pos.coords;
-        localStorage.setItem('spotd_geo', JSON.stringify({ lat, lng }));
-        const city = _cityFromLatLng(lat, lng);
-        if (city && !state.city) enterCity(city.slug, city.name, city.stateCode);
-        else if (!state.city)    enterCity('san-diego', 'San Diego', 'CA');
-      },
-      () => { if (!state.city) enterCity('san-diego', 'San Diego', 'CA'); },
-      { timeout: 5000, maximumAge: 300000 }
-    );
-  } else {
-    enterCity('san-diego', 'San Diego', 'CA');
-  }
+  // San Diego is the only active city — enter it immediately.
+  // Don't block on GPS; it can hang indefinitely in WKWebView.
+  enterCity('san-diego', 'San Diego', 'CA');
 }
 
 const CITY_BOUNDS = {
