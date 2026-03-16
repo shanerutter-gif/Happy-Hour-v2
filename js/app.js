@@ -93,13 +93,9 @@ async function loadSiteCopy() {
 document.addEventListener('DOMContentLoaded', () => {
   loadSiteCopy();
   renderCityGrid();
-  // Re-render nav in case auth session was restored before DOM was ready
   renderNav(currentUser);
   const ffg = document.getElementById('favFilterGroup');
   if (ffg) ffg.style.display = currentUser ? '' : 'none';
-
-  // If session was already restored by db.js before DOM ready, auto-enter city now
-  if (currentUser && !state.city) tryAutoEnterCity();
 
   // Detect password reset redirect from Supabase email link
   // Supabase appends #access_token=...&type=recovery to the URL
@@ -3443,3 +3439,8 @@ function selectProfileTab(tab, btn) {
   document.querySelectorAll('.profile-tab').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
 }
+
+// ── BOOT ───────────────────────────────────────────────
+// initAuth is defined in db.js. Calling it here guarantees
+// onAuthChange (defined above) exists before the callback fires.
+initAuth();
