@@ -136,8 +136,7 @@ window._pendingCity = null;
 enterCity(slug, name, stateCode);
 return;
 }
-// Auto-enter city on sign-in if not already in one
-if (user && !state.city) tryAutoEnterCity();
+// Show home/city selector — do not auto-enter
 }
 
 // ── NAV ────────────────────────────────────────────────
