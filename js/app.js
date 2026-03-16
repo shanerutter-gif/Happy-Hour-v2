@@ -1340,8 +1340,6 @@ async function renderProfile(user) {
 
   const bannerColor = profile?.banner_color || '#FF6B4A';
 
-  const AVATARS = ['🍺','🍹','🍷','🥂','🍸','🎉','🌮','🔥','🎸','🏄','🌊','🎭'];
-
   document.getElementById('profileContent').innerHTML = `
     <!-- ── DARK HEADER ── -->
     <div class="pf-hero" id="myBanner">
