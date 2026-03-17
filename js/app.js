@@ -1944,8 +1944,6 @@ function attachSwipeDismiss(sheet, overlayId) {
   sheet._swipeHandler = (e) => {
     // Only start drag if at the very top of the sheet scroll
     if (sheet.scrollTop > 4) return;
-    // Don't intercept touches on links, buttons, or inputs — let them fire normally
-    if (e.target.closest('a, button, input, textarea, select')) return;
     startY = e.touches[0].clientY;
     currentY = startY;
     dragging = true;
