@@ -930,7 +930,7 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
-  padding: env(safe-area-inset-top, 0px) 20px 80px;
+  padding: env(safe-area-inset-top, 0px) 0 80px;
   opacity: 0;
   pointer-events: none;
   transition: opacity .22s ease;
@@ -1682,11 +1682,19 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
    ═══════════════════════════════════════════════════════ */
 
 /* ── Global transitions ── */
-.card,.sheet,.overlay,.bottom-nav,.city-bar,.controls,
+.card,.bottom-nav,.city-bar,.controls,
 .social-tab,.dm-tab,.profile-page,.sub-page,
 .social-card,.social-row,.dm-thread-main,
 .field,.filter-select,.pill,.going-btn {
   transition: background .3s, border-color .3s, color .3s, box-shadow .3s;
+}
+/* Sheet keeps its own transform transition for slide animation */
+.sheet {
+  transition: transform .38s cubic-bezier(.32,1.1,.6,1), background .3s, border-color .3s;
+}
+/* Overlay keeps its opacity transition */
+.overlay {
+  transition: opacity .3s cubic-bezier(.4,0,.2,1), background .3s;
 }
 
 /* ── REDESIGNED VENUE CARD ── */
@@ -2014,7 +2022,9 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   background: var(--nav-bg);
   border-top: 1px solid var(--border2);
   position: fixed; bottom: 0; left: 0; right: 0;
-  z-index: 400;
+  z-index: 600;
+  height: 64px;
+  align-items: stretch;
   padding-bottom: env(safe-area-inset-bottom, 0px);
   backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
 }
