@@ -867,7 +867,7 @@ function venueCardHTML(v) {
         <div class="vcard-stars">${starHTML(avg,5,11)}<span style="margin-left:3px;font-size:10px;color:var(--muted)">${cached.length ? `(${cached.length})` : ''}</span></div>
       </div>
       <div class="vcard-checkin-row">
-        <button class="vcard-checkin-btn${checkInCount >= 1 ? ' hot' : ''}"
+        <button class="vcard-checkin-btn${isMeIn ? ' hot' : checkInCount >= 1 ? ' hot' : ''}"
           onclick="event.stopPropagation();doGoingTonight('${v.id}',this)">${ciLabel}</button>
       </div>
       ${!v.owner_verified ? `<div class="card-claim"><a href="business-portal.html" onclick="event.stopPropagation()" class="claim-link">Own this spot? Claim it →</a></div>` : ''}
@@ -898,7 +898,7 @@ function venueCardHTML(v) {
       <div class="vcard-stars">${starHTML(avg,5,11)}<span style="margin-left:3px;font-size:10px;color:var(--muted)">${cached.length ? `(${cached.length})` : ''}</span></div>
     </div>
     <div class="vcard-checkin-row">
-      <button class="vcard-checkin-btn${checkInCount >= 1 ? ' hot' : ''}"
+      <button class="vcard-checkin-btn${isMeIn ? ' hot' : checkInCount >= 1 ? ' hot' : ''}"
         onclick="event.stopPropagation();doGoingTonight('${v.id}',this)">${ciLabel}</button>
     </div>
     ${!v.owner_verified ? `<div class="card-claim"><a href="business-portal.html" onclick="event.stopPropagation()" class="claim-link">Own this spot? Claim it →</a></div>` : ''}
@@ -3465,10 +3465,19 @@ if (window.visualViewport) {
 
 function selectProfileTab(tab, btn) {
   if(typeof haptic==='function')haptic('light');
-  document.querySelectorAll('.pub-tab-content').forEach(el => el.style.display = 'none');
-  document.getElementById('my-tab-' + tab).style.display = 'block';
-  document.querySelectorAll('.profile-tab').forEach(b => b.classList.remove('active'));
-  if (btn) btn.classList.add('active');
+  // Hide all tab content panels
+  ['checkins','reviews','saved','hoods'].forEach(t => {
+    const el = document.getElementById('my-tab-' + t);
+    if (el) el.style.display = 'none';
+  });
+  // Show selected panel
+  const target = document.getElementById('my-tab-' + tab);
+  if (target) target.style.display = 'block';
+  // Update active state on buttons (supports both old .profile-tab and new .pf-tab)
+  document.querySelectorAll('.pf-tab, .profile-tab').forEach(b => {
+    b.classList.remove('active', 'on');
+  });
+  if (btn) { btn.classList.add('on'); btn.classList.add('active'); }
 }
 
 // ── BOOT ──────────────────────────────────────────────
