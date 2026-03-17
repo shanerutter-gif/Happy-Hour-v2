@@ -7,44 +7,37 @@ const DAYS    = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const TODAY   = DAYS[new Date().getDay()];
 
 // Parse just today's hours from the full hours string
-// Handles multiple formats:
-//   "Mon–Thu 11am–10pm · Fri–Sat 11am–midnight"  (dot separator, Day first)
-//   "Mon 4–10pm, Thu 4–11pm, Fri 11am–2am"       (comma separator)
-//   "11am – 10pm Mon–Thu · 11am – midnight Fri–Sat" (time first)
+// e.g. "Mon 4–10pm, Thu 4–11pm, Fri 11am–2am" → "4–11pm" on Thu
 function getTodayHours(v) {
   if (!v.hours) return '';
   const dayOrder = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
   const todayIdx = dayOrder.indexOf(TODAY);
   if (todayIdx === -1) return v.hours;
 
-  // Split on " · " or ", " separators
-  const segments = v.hours.split(/\s*[·,]\s*/);
+  // Split by ", " but be careful of ranges like "Mon–Thu"
+  const segments = v.hours.split(/,\s*/);
 
   for (const seg of segments) {
-    const s = seg.trim();
-    // Format A: "Day[–Day] Time"  e.g. "Mon–Thu 11am–10pm"
-    const mA = s.match(/^([A-Z][a-z]+)(?:[–-]([A-Z][a-z]+))?\s+(.+)$/);
-    if (mA) {
-      const startIdx = dayOrder.indexOf(mA[1]);
-      const endIdx   = mA[2] ? dayOrder.indexOf(mA[2]) : startIdx;
-      if (startIdx !== -1 && inDayRange(todayIdx, startIdx, endIdx)) return mA[3].trim();
-      continue;
+    // Match patterns like "Mon–Thu 5–9pm" or "Fri 11am–2am" or "Mon–Sun 4pm–2am"
+    const m = seg.match(/^([A-Z][a-z]+)(?:–([A-Z][a-z]+))?\s+(.+)$/);
+    if (!m) continue;
+    const startDay = m[1], endDay = m[2], time = m[3];
+    const startIdx = dayOrder.indexOf(startDay);
+    const endIdx   = endDay ? dayOrder.indexOf(endDay) : startIdx;
+    if (startIdx === -1) continue;
+
+    // Handle wrap-around ranges (e.g. Fri–Sun)
+    let inRange = false;
+    if (endIdx >= startIdx) {
+      inRange = todayIdx >= startIdx && todayIdx <= endIdx;
+    } else {
+      inRange = todayIdx >= startIdx || todayIdx <= endIdx;
     }
-    // Format B: "Time Day[–Day]"  e.g. "11am–10pm Mon–Thu" or "11am – midnight Fri–Sat"
-    const mB = s.match(/^([\d][\d:apm –\-]+(?:am|pm|midnight|noon))\s+([A-Z][a-z]+)(?:[–-]([A-Z][a-z]+))?$/i);
-    if (mB) {
-      const startIdx = dayOrder.indexOf(mB[2]);
-      const endIdx   = mB[3] ? dayOrder.indexOf(mB[3]) : startIdx;
-      if (startIdx !== -1 && inDayRange(todayIdx, startIdx, endIdx)) return mB[1].trim();
-    }
+    if (inRange) return time;
   }
 
-  // No segment matched today — fall back to raw hours if venue is open today
+  // No match for today — venue not open today
   return (v.days || []).includes(TODAY) ? v.hours : 'Not open today';
-}
-function inDayRange(todayIdx, startIdx, endIdx) {
-  if (endIdx >= startIdx) return todayIdx >= startIdx && todayIdx <= endIdx;
-  return todayIdx >= startIdx || todayIdx <= endIdx; // wraps e.g. Fri–Mon
 }
 const EVENT_TYPES = ['Trivia','Live Music','Karaoke','Bingo','Game Night','Comedy'];
 const HH_TYPES    = ['Bar','Brewery','Seafood','Mexican','Italian','Asian','BBQ','Wine Bar','Steakhouse','Beach Bar'];
@@ -1051,7 +1044,7 @@ function renderModal(v, type, reviews) {
       ${(state.goingCounts[v.id]||0) >= 2 ? `<div class="s-going-count">🔥 ${state.goingCounts[v.id]} people are here tonight</div>` : ''}
     </div>` : ''}
     <div class="s-secondary-actions">
-      ${v.url ? `<button class="s-act-btn s-act-primary" onclick="openVenueUrl(this)" data-url="${esc(v.url)}" title="Website"><span class="s-btn-icon">🌐</span></button>` : `<button class="s-act-btn s-act-primary" onclick="openVenueUrl(this)" data-url="https://www.google.com/search?q=${encodeURIComponent((v.name||'')+' '+(state.city?.name||'San Diego'))}" title="Search"><span class="s-btn-icon">🔍</span></button>`}
+      ${v.url ? `<a class="s-act-btn s-act-primary" href="${v.url}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Website"><span class="s-btn-icon">🌐</span></a>` : `<a class="s-act-btn s-act-primary" href="https://www.google.com/search?q=${encodeURIComponent(v.name + ' ' + (state.city?.name || 'San Diego'))}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Search"><span class="s-btn-icon">🔍</span></a>`}
       <button class="s-act-btn" onclick="goToMap('${v.id}')" title="Map"><span class="s-btn-icon">🗺️</span></button>
       <button class="s-act-btn" onclick="shareItem('${v.id}','${type}')" title="Share"><span class="s-btn-icon">↗️</span></button>
       ${currentUser ? `<button class="s-act-btn" onclick="dmOpenVenueSharePicker('${v.id}')" title="Send"><span class="s-btn-icon">💬</span></button>` : ''}
@@ -1115,12 +1108,6 @@ async function submitReview(itemId, type) {
 }
 function closeModal(e) { if (e && e.target !== document.getElementById('modalOverlay')) return; closeOverlay('modalOverlay'); }
 
-// Opens venue website or search URL safely on iOS WebKit inside sheets
-function openVenueUrl(btn) {
-  event.stopPropagation();
-  const url = btn.dataset.url;
-  if (url) window.open(url, '_blank');
-}
 
 // ── EDIT REVIEW ────────────────────────────────────────
 function openEditReview(reviewId, itemId, type, rating, text) {
