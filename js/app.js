@@ -3378,3 +3378,8 @@ function selectProfileTab(tab, btn) {
   document.querySelectorAll('.profile-tab').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
 }
+
+// ── BOOT ──────────────────────────────────────────────
+// Called here — after ALL functions above are defined —
+// so onAuthChange exists when initAuth fires the callback.
+initAuth();
