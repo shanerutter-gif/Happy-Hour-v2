@@ -1038,7 +1038,7 @@ function renderModal(v, type, reviews) {
       </div>
 
       <div class="modal-actions-grid">
-        <div class="modal-action primary" onclick="${v.url ? `window.open('${v.url}','_blank')` : `window.open('https://www.google.com/search?q=${encodeURIComponent(v.name + ' ' + (state.city?.name || 'San Diego'))}','_blank')`}">
+        <div class="modal-action primary" onclick="${v.url && v.url !== '#' ? `window.open('${v.url}','_blank')` : `window.open('https://www.google.com/search?q=${encodeURIComponent(v.name + ' ' + (state.city?.name || 'San Diego'))}','_blank')`}">
           <span class="modal-action-icon">🌐</span>
           <span class="modal-action-label">Website</span>
         </div>
