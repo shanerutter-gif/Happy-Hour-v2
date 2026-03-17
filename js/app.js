@@ -6,6 +6,12 @@
 const DAYS    = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const TODAY   = DAYS[new Date().getDay()];
 
+// Opens external URLs in Safari on iOS Capacitor (target="_blank" doesn't work in WKWebView)
+function spotdOpenUrl(url) {
+  if (!url) return;
+  window.open(url, '_system');
+}
+
 // Parse just today's hours from the full hours string
 // e.g. "Mon 4–10pm, Thu 4–11pm, Fri 11am–2am" → "4–11pm" on Thu
 function getTodayHours(v) {
@@ -93,7 +99,6 @@ async function loadSiteCopy() {
 document.addEventListener('DOMContentLoaded', () => {
   loadSiteCopy();
   renderCityGrid();
-  // Re-render nav in case auth session was restored before DOM was ready
   renderNav(currentUser);
   const ffg = document.getElementById('favFilterGroup');
   if (ffg) ffg.style.display = currentUser ? '' : 'none';
@@ -119,7 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function onAuthChange(user) {
   // Guard: DOM may not be ready if called during session restore
-  if (!document.getElementById('navRight')) return;
+  if (!document.getElementById('homePage')) return;
   renderNav(user);
   const ffg = document.getElementById('favFilterGroup');
   if (ffg) ffg.style.display = user ? '' : 'none';
@@ -132,7 +137,10 @@ function onAuthChange(user) {
     const { slug, name, stateCode } = window._pendingCity;
     window._pendingCity = null;
     enterCity(slug, name, stateCode);
+    return;
   }
+  // Auto-enter city on sign-in if not already in one
+  if (user && !state.city) tryAutoEnterCity();
 }
 
 // ── NAV ────────────────────────────────────────────────
@@ -150,16 +158,6 @@ function renderNav(user) {
     link.style.cssText = 'margin-left:auto;padding:0 4px;white-space:nowrap;';
     link.textContent = 'For Business';
     cityBar.appendChild(link);
-  }
-  if (cityBar && !document.getElementById('themeToggleBtn')) {
-    const btn = document.createElement('button');
-    btn.id = 'themeToggleBtn';
-    btn.className = 'theme-toggle-btn';
-    btn.setAttribute('aria-label', 'Toggle dark/light mode');
-    btn.onclick = toggleTheme;
-    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-    btn.textContent = isDark ? '☀️' : '🌙';
-    cityBar.appendChild(btn);
   }
   renderBottomNav(user);
 }
@@ -199,16 +197,6 @@ function renderBottomNav(user) {
     if (lbl) lbl.textContent = (user.user_metadata?.full_name || 'Profile').split(' ')[0];
   }
   bar.style.display = 'flex';
-}
-
-// ── THEME ──────────────────────────────────────────────
-function toggleTheme() {
-  const root = document.documentElement;
-  const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-  root.setAttribute('data-theme', next);
-  localStorage.setItem('spotd-theme', next);
-  const btn = document.getElementById('themeToggleBtn');
-  if (btn) btn.textContent = next === 'dark' ? '☀️' : '🌙';
 }
 
 function _navHideAll(keep) {
@@ -554,7 +542,30 @@ async function enterCity(slug, name, stateCode) {
   initMap();
 }
 
-// ── SHOW FILTER ────────────────────────────────────────
+// Auto-enter city based on cached geo or GPS — defaults to San Diego
+async function tryAutoEnterCity() {
+  if (state.city || !currentUser) return;
+
+  // San Diego is the only active city — enter it immediately.
+  // Don't block on GPS; it can hang indefinitely in WKWebView.
+  enterCity('san-diego', 'San Diego', 'CA');
+}
+
+const CITY_BOUNDS = {
+  'san-diego':  { minLat:32.53, maxLat:33.11, minLng:-117.60, maxLng:-116.90, name:'San Diego',    stateCode:'CA' },
+  'los-angeles':{ minLat:33.70, maxLat:34.34, minLng:-118.67, maxLng:-117.65, name:'Los Angeles',  stateCode:'CA' },
+  'new-york':   { minLat:40.48, maxLat:40.93, minLng:-74.26,  maxLng:-73.68,  name:'New York',     stateCode:'NY' },
+  'chicago':    { minLat:41.64, maxLat:42.02, minLng:-87.94,  maxLng:-87.52,  name:'Chicago',      stateCode:'IL' },
+  'austin':     { minLat:30.10, maxLat:30.52, minLng:-97.95,  maxLng:-97.55,  name:'Austin',       stateCode:'TX' },
+  'miami':      { minLat:25.55, maxLat:25.97, minLng:-80.45,  maxLng:-80.10,  name:'Miami',        stateCode:'FL' },
+};
+function _cityFromLatLng(lat, lng) {
+  for (const [slug, b] of Object.entries(CITY_BOUNDS)) {
+    if (lat >= b.minLat && lat <= b.maxLat && lng >= b.minLng && lng <= b.maxLng)
+      return { slug, name: b.name, stateCode: b.stateCode };
+  }
+  return null;
+}
 function setShowFilter(val, btn) {
   state.showFilter = val;
   document.querySelectorAll('#showFilters .pill').forEach(b => b.classList.remove('active'));
@@ -825,81 +836,49 @@ function renderCards() {
 }
 
 function venueCardHTML(v) {
-  const cached    = state.reviewCache[v.id] || [];
-  const avg       = avgFromList(cached);
-  const faved     = isFavorite(v.id);
-  const hasPhoto  = !!(v.photo_url || (v.photo_urls && v.photo_urls.length));
-  const photoUrl  = v.photo_url || (v.photo_urls && v.photo_urls[0]) || '';
+  const isToday = (v.days || []).includes(TODAY);
+  const cached  = state.reviewCache[v.id] || [];
+  const avg     = avgFromList(cached);
+  const faved   = isFavorite(v.id);
+  const hasPhoto = !!(v.photo_url || (v.photo_urls && v.photo_urls.length));
+  const photoUrl = v.photo_url || (v.photo_urls && v.photo_urls[0]) || '';
   const distBadge = state.sort === 'distance' && state.userLat !== null
     ? fmtDistance(haversine(state.userLat, state.userLng, v.lat, v.lng)) : '';
-  const todayHours = getTodayHours(v);
-  const checkInCount = state.goingCounts[v.id] || 0;
-  const isMeIn = state.goingByMe.has(v.id);
-  const ciLabel = checkInBtnLabel(checkInCount, isMeIn);
-  const amenityTags = AMENITIES.filter(a => v[a.key]).map(a =>
-    `<span class="amenity-tag amenity-tag--${a.key}">${a.emoji} ${a.label}</span>`).join('');
-
-  if (hasPhoto) {
-    return `<div class="vcard" data-id="${v.id}" onclick="openModal('${v.id}','venue')" role="button" tabindex="0">
-      <div class="vcard-photo">
-        <img src="${photoUrl}" alt="${esc(v.name)}" loading="lazy"
-          onerror="this.closest('.vcard-photo').style.background='linear-gradient(135deg,#2A1F14,#1A1208)';this.remove()">
-        <div class="vcard-photo-grad"></div>
-        <div class="vcard-photo-name">${esc(v.name)}${v.owner_verified ? ' <span class="vcard-photo-verified">✓</span>' : ''}</div>
-        ${distBadge ? `<div class="vcard-photo-dist">${distBadge}</div>` : ''}
-        <button class="vcard-photo-fav${faved ? ' faved' : ''}"
-          onclick="event.stopPropagation();doFavorite('${v.id}','venue',this);this.classList.toggle('faved');this.textContent=this.classList.contains('faved')?'★':'☆'">${faved ? '★' : '☆'}</button>
-      </div>
-      <div class="vcard-body">
-        <div class="vcard-meta">
-          ${todayHours ? `<span class="vcard-hours">${esc(todayHours)}</span>` : ''}
-          ${v.neighborhood ? `<span class="vcard-hood">${esc(v.neighborhood)}</span>` : ''}
-          ${distBadge && todayHours ? `<span class="vcard-sep">·</span><span class="vcard-hood">${distBadge}</span>` : ''}
-        </div>
-        ${amenityTags ? `<div class="amenity-tags" style="margin-bottom:6px">${amenityTags}</div>` : ''}
-        <div class="vcard-deals">
-          ${(v.deals || []).slice(0,3).map(d => `<div class="vcard-deal"><div class="vcard-deal-dot"></div>${esc(d)}</div>`).join('')}
-          ${(v.deals||[]).length > 3 ? `<div class="vcard-deal" style="opacity:.5"><div class="vcard-deal-dot"></div>+${v.deals.length-3} more deals</div>` : ''}
-        </div>
-      </div>
-      <div class="vcard-foot">
-        <span class="vcard-cuisine">${esc(v.cuisine || '')}</span>
-        <div class="vcard-stars">${starHTML(avg,5,11)}<span style="margin-left:3px;font-size:10px;color:var(--muted)">${cached.length ? `(${cached.length})` : ''}</span></div>
-      </div>
-      <div class="vcard-checkin-row">
-        <button class="vcard-checkin-btn${isMeIn ? ' hot' : checkInCount >= 1 ? ' hot' : ''}"
-          onclick="event.stopPropagation();doGoingTonight('${v.id}',this)">${ciLabel}</button>
-      </div>
-      ${!v.owner_verified ? `<div class="card-claim"><a href="business-portal.html" onclick="event.stopPropagation()" class="claim-link">Own this spot? Claim it →</a></div>` : ''}
-    </div>`;
-  }
-
-  // No photo variant
-  return `<div class="vcard" data-id="${v.id}" onclick="openModal('${v.id}','venue')" role="button" tabindex="0">
-    <div class="vcard-nophoto">
-      <div class="vcard-nophoto-top">
-        <div class="vcard-nophoto-name">${esc(v.name)}${v.owner_verified ? ' <span class="verified-badge verified-badge--card">✓</span>' : ''}</div>
-        <button class="vcard-nophoto-fav${faved ? ' faved' : ''}"
-          onclick="event.stopPropagation();doFavorite('${v.id}','venue',this);this.classList.toggle('faved');this.textContent=this.classList.contains('faved')?'★':'☆'">${faved ? '★' : '☆'}</button>
-      </div>
-      <div class="vcard-meta">
-        ${todayHours ? `<span class="vcard-hours">${esc(todayHours)}</span>` : ''}
-        ${v.neighborhood ? `<span class="vcard-hood">${esc(v.neighborhood)}</span>` : ''}
-        ${distBadge ? `<span class="vcard-sep">·</span><span class="vcard-hood">${distBadge}</span>` : ''}
-      </div>
-      ${amenityTags ? `<div class="amenity-tags" style="margin-bottom:6px">${amenityTags}</div>` : ''}
-      <div class="vcard-deals">
-        ${(v.deals || []).slice(0,3).map(d => `<div class="vcard-deal"><div class="vcard-deal-dot"></div>${esc(d)}</div>`).join('')}
-        ${(v.deals||[]).length > 3 ? `<div class="vcard-deal" style="opacity:.5"><div class="vcard-deal-dot"></div>+${v.deals.length-3} more</div>` : ''}
-      </div>
+  const photoBlock = hasPhoto ? `
+    <div class="card-photo-wrap">
+      <img src="${photoUrl}" class="card-photo-img" alt="${esc(v.name)}" loading="lazy" onerror="this.closest('.card-photo-wrap').style.display='none';this.closest('.card').classList.add('card-no-photo')">
+      <div class="card-photo-gradient"></div>
+      <div class="card-photo-name-over">${esc(v.name)}</div>
+      ${distBadge ? `<div class="card-photo-dist-badge">${distBadge}</div>` : ''}
+      <button class="card-photo-heart${faved ? ' faved' : ''}" onclick="event.stopPropagation();doFavorite('${v.id}','venue',this);this.classList.toggle('faved');this.textContent=this.classList.contains('faved')?'★':'☆'">${faved ? '★' : '☆'}</button>
+    </div>` : '';
+  return `<div class="card${hasPhoto ? '' : ' card-no-photo'}" data-id="${v.id}" onclick="openModal('${v.id}','venue')" role="button" tabindex="0">
+    ${photoBlock}
+    <div class="card-body">
+    ${hasPhoto ? '' : `<div class="card-top">
+      <div class="card-name">${esc(v.name)}${v.owner_verified ? ' <span class="verified-badge verified-badge--card">✓</span>' : ''}</div>
+      <button class="heart-btn${faved ? ' faved' : ''}" onclick="event.stopPropagation();doFavorite('${v.id}','venue',this)">${faved ? '★' : '☆'}</button>
+    </div>`}
+    <div class="card-meta">
+      <span>${esc(v.neighborhood || '')}</span>
+      ${v.neighborhood && v.hours ? '<span class="card-sep">·</span>' : ''}
+      ${v.hours ? `<span class="card-when">${esc(getTodayHours(v))}</span>` : ''}
+      ${!hasPhoto && distBadge ? `<span class="card-sep">·</span><span class="card-dist">${distBadge}</span>` : ''}
     </div>
-    <div class="vcard-foot">
-      <span class="vcard-cuisine">${esc(v.cuisine || '')}</span>
-      <div class="vcard-stars">${starHTML(avg,5,11)}<span style="margin-left:3px;font-size:10px;color:var(--muted)">${cached.length ? `(${cached.length})` : ''}</span></div>
+    ${v.featured ? '<div class="featured-crown">⭐ Featured</div>' : ''}
+    ${(() => {
+      const tags = AMENITIES.filter(a => v[a.key]).map(a => `<span class="amenity-tag amenity-tag--${a.key}">${a.emoji} ${a.label}</span>`).join('');
+      return tags ? `<div class="amenity-tags">${tags}</div>` : '';
+    })()}
+    <ul class="deals">${(v.deals || []).slice(0, 3).map(d => `<li>${esc(d)}</li>`).join('')}${(v.deals || []).length > 3 ? `<li class="deals-more">+${v.deals.length - 3} more</li>` : ''}</ul>
+    ${goingFireBadge(v.id)}
     </div>
-    <div class="vcard-checkin-row">
-      <button class="vcard-checkin-btn${isMeIn ? ' hot' : checkInCount >= 1 ? ' hot' : ''}"
-        onclick="event.stopPropagation();doGoingTonight('${v.id}',this)">${ciLabel}</button>
+    <div class="card-foot">
+      <span class="card-cuisine">${esc(v.cuisine || '')}${v.owner_verified ? ' <span class="verified-badge verified-badge--card">✓ Verified</span>' : ''}</span>
+      <div class="card-stars">${starHTML(avg, 5, 11)}<span class="card-rcount">${cached.length ? `(${cached.length})` : '—'}</span></div>
+    </div>
+    <div class="card-going">
+      <button class="going-btn${state.goingByMe.has(v.id) ? ' going-active' : ''}" onclick="event.stopPropagation();doGoingTonight('${v.id}',this)">${checkInBtnLabel(state.goingCounts[v.id]||0, state.goingByMe.has(v.id))}</button>
     </div>
     ${!v.owner_verified ? `<div class="card-claim"><a href="business-portal.html" onclick="event.stopPropagation()" class="claim-link">Own this spot? Claim it →</a></div>` : ''}
   </div>`;
@@ -1003,110 +982,91 @@ function avgHTML(reviews) {
 function renderModal(v, type, reviews) {
   const faved   = isFavorite(v.id);
   const isVenue = type === 'venue';
-  const photos  = v.photo_urls?.length ? v.photo_urls : (v.photo_url ? [v.photo_url] : []);
-  const photo   = photos[0] || '';
-  const checkInCount = state.goingCounts[v.id] || 0;
-  const isMeIn  = state.goingByMe.has(v.id);
-
   document.getElementById('modalContent').innerHTML = `
-    ${photo ? `
-    <div class="modal-hero-wrap">
-      <img src="${esc(photo)}" alt="${esc(v.name)}" loading="lazy" onerror="this.closest('.modal-hero-wrap').style.background='linear-gradient(135deg,#2A1F14,#1A1208)';this.remove()">
-      <div class="modal-hero-grad"></div>
-      <div class="modal-hero-tag">${isVenue ? '🍺 Happy Hour' : esc(v.event_type || 'Event')}</div>
-      <div class="modal-hero-name">${esc(v.name)}${v.owner_verified ? ' ✓' : ''}</div>
-      <button class="modal-hero-fav${faved ? ' faved' : ''}" onclick="doFavorite('${v.id}','${type}',this)">${faved ? '★' : '☆'}</button>
-    </div>` : `
-    <div style="padding:16px 16px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
-      <div>
-        <div class="s-tag ${isVenue ? 'hh' : 'ev'}">${isVenue ? '🍺 Happy Hour' : esc(v.event_type || 'Event')}</div>
+    ${(() => {
+      const photos = v.photo_urls?.length ? v.photo_urls : (v.photo_url ? [v.photo_url] : []);
+      if (!photos.length) return '';
+      if (photos.length === 1) {
+        return `<div class="s-photo-thumb" onclick="openPhotoLightbox('${photos[0]}','${esc(v.name)}')" title="Tap to enlarge"><img src="${photos[0]}" alt="${esc(v.name)}" loading="lazy" onerror="this.parentElement.remove()"><div class="s-photo-hint">📷 Tap to expand</div></div>`;
+      }
+      return `<div class="s-photos-strip">${photos.map((url, i) =>
+        `<div class="s-photo-thumb s-photo-thumb--multi" onclick="openPhotoLightbox('${url}','${esc(v.name)}')" title="Tap to enlarge">
+          <img src="${url}" alt="${esc(v.name)} photo ${i+1}" loading="lazy" onerror="this.parentElement.remove()">
+          <div class="s-photo-hint">📷 ${i+1}/${photos.length}</div>
+        </div>`
+      ).join('')}</div>`;
+    })()}
+    <div class="s-tag ${isVenue ? 'hh' : 'ev'}">${isVenue ? '🍺 Happy Hour' : esc(v.event_type || 'Event')}</div>
+    <div style="display:flex;align-items:flex-start;gap:10px;padding-right:38px">
+      <div style="flex:1">
         <div class="s-name">${esc(v.name)}${v.owner_verified ? ' <span class="verified-badge verified-badge--modal">✓ Verified</span>' : ''}</div>
+        <div class="s-hood">${esc(v.neighborhood || '')}</div>
+        <div class="s-addr">📍 ${esc(v.address || '')}</div>
+      ${isVenue ? (() => {
+        const tags = AMENITIES.filter(a => v[a.key]).map(a => `<span class="amenity-tag amenity-tag--${a.key}">${a.emoji} ${a.label}</span>`).join('');
+        return tags ? `<div class="amenity-tags amenity-tags--modal">${tags}</div>` : '';
+      })() : ''}
       </div>
-      <button class="heart-btn heart-btn--lg${faved ? ' faved' : ''}" onclick="doFavorite('${v.id}','${type}',this)" style="margin-top:4px;flex-shrink:0">${faved ? '★' : '☆'}</button>
-    </div>`}
-
-    <div class="modal-body-inner">
-      <div class="modal-loc-row">
-        <span class="modal-hood">${esc(v.neighborhood || '')}</span>
-        ${v.neighborhood && v.address ? '<span class="modal-sep">·</span>' : ''}
-        <span class="modal-addr">📍 ${esc(v.address || '')}</span>
-      </div>
-
-      <div class="modal-actions-grid">
-        <div class="modal-action primary" onclick="${v.url ? `window.open('${v.url}','_blank')` : `window.open('https://www.google.com/search?q=${encodeURIComponent(v.name + ' ' + (state.city?.name || 'San Diego'))}','_blank')`}">
-          <span class="modal-action-icon">🌐</span>
-          <span class="modal-action-label">Website</span>
-        </div>
-        <div class="modal-action" onclick="goToMap('${v.id}')">
-          <span class="modal-action-icon">🗺️</span>
-          <span class="modal-action-label">Map</span>
-        </div>
-        <div class="modal-action" onclick="shareItem('${v.id}','${type}')">
-          <span class="modal-action-icon">↗️</span>
-          <span class="modal-action-label">Share</span>
-        </div>
-        ${currentUser ? `<div class="modal-action" onclick="dmOpenVenueSharePicker('${v.id}')">
-          <span class="modal-action-icon">💬</span>
-          <span class="modal-action-label">Send</span>
-        </div>` : `<div class="modal-action" onclick="openAuth('signin')">
-          <span class="modal-action-icon">🔔</span>
-          <span class="modal-action-label">Alerts</span>
-        </div>`}
-      </div>
-
-      ${isVenue && currentUser ? `<button id="venue-follow-btn-${v.id}" class="going-btn going-btn--lg" style="width:100%;margin-bottom:14px" onclick="toggleVenueFollow('${v.id}','${esc(v.name)}',this)"><span class="s-btn-icon">🔔</span> Deal Alerts</button>` : ''}
-
+      <button class="heart-btn heart-btn--lg${faved ? ' faved' : ''}" onclick="doFavorite('${v.id}','${type}',this)" style="margin-top:4px">${faved ? '★' : '☆'}</button>
+    </div>
+    <div class="s-div"></div>
+    <div class="s-label">Schedule</div>
+    <div class="s-when">${esc(v.hours || '')}</div>
+    <div class="s-days">${DAYS.map(d => `<span class="day-pill${(v.days || []).includes(d) ? (d === TODAY ? ' today' : ' on') : ''}">${d}</span>`).join('')}</div>
+    ${isVenue ? `
       <div class="s-div"></div>
-      <div class="modal-section-label">Schedule</div>
-      <div class="modal-when">${esc(v.hours || '')}</div>
-      <div class="s-days">${DAYS.map(d => `<span class="day-pill${(v.days || []).includes(d) ? (d === TODAY ? ' today' : ' on') : ''}">${d}</span>`).join('')}</div>
-
-      ${isVenue ? `
-        ${(() => { const tags = AMENITIES.filter(a => v[a.key]).map(a => `<span class="amenity-tag amenity-tag--${a.key}">${a.emoji} ${a.label}</span>`).join(''); return tags ? `<div class="amenity-tags amenity-tags--modal" style="margin-top:10px">${tags}</div>` : ''; })()}
-        <div class="s-div"></div>
-        <div class="modal-section-label">Deals &amp; Specials</div>
-        ${(v.deals || []).map(d => `<div class="modal-deal-item"><div class="modal-deal-arrow">→</div>${esc(d)}</div>`).join('')}
-        <div style="margin-top:4px;font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted)">${esc(v.cuisine || '')}</div>
-        ${(() => {
-          const evs = state.events.filter(e => e.venue_name && v.name && e.venue_name.trim().toLowerCase() === v.name.trim().toLowerCase());
-          if (!evs.length) return '';
-          return `<div class="s-div"></div><div class="modal-section-label">Events at this venue</div>
-          <div class="s-events-list">${evs.map(e => {
-            const evToday = (e.days||[]).includes(TODAY);
-            return `<div class="s-event-item">
-              <div class="s-event-top">
-                <span class="s-event-name">${esc(e.name||e.event_type)}</span>
-                <span class="card-event-type">${esc(e.event_type||'')}</span>
-                ${evToday ? `<span style="font-size:10px;color:var(--teal);font-weight:700">TONIGHT</span>` : ''}
-              </div>
-              <div class="s-event-meta">${(e.days||[]).join(', ')} · ${esc(e.hours||'')}${e.price && e.price !== 'Free' ? ` · ${esc(e.price)}` : ' · Free'}</div>
-              ${e.description ? `<div class="s-event-desc">${esc(e.description)}</div>` : ''}
-            </div>`;
-          }).join('')}</div>`;
-        })()}
-        <div class="s-div"></div>
-        <button class="modal-checkin-cta" onclick="doGoingTonight('${v.id}', this)">${checkInBtnLabel(checkInCount, isMeIn)}</button>
-        ${checkInCount >= 2 ? `<div class="s-going-count">🔥 ${checkInCount} people checked in tonight</div>` : ''}
-      ` : `
-        <div class="s-div"></div>
-        <div class="modal-section-label">About</div>
-        <p style="font-size:14px;color:var(--muted);line-height:1.6">${esc(v.description || '')}</p>
-        ${v.venue_name ? `<div style="margin-top:8px;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px">At ${esc(v.venue_name)}</div>` : ''}
-        ${v.price ? `<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px">Entry: ${esc(v.price)}</div>` : ''}
-      `}
-
-      ${isVenue ? `<div id="ugc-photos-${v.id}"></div>` : ''}
+      <div class="s-label">Deals &amp; Specials</div>
+      <ul class="s-deals">${(v.deals || []).map(d => `<li>${esc(d)}</li>`).join('')}</ul>
+      <div class="s-cuisine">${esc(v.cuisine || '')}</div>
+      ${(() => {
+        const evs = state.events.filter(e => e.venue_name && v.name && e.venue_name.trim().toLowerCase() === v.name.trim().toLowerCase());
+        if (!evs.length) return '';
+        return `<div class="s-div"></div>
+        <div class="s-label">Events at this venue</div>
+        <div class="s-events-list">${evs.map(e => {
+          const evToday = (e.days||[]).includes(TODAY);
+          return `<div class="s-event-item">
+            <div class="s-event-top">
+              <span class="s-event-name">${esc(e.name||e.event_type)}</span>
+              <span class="card-event-type">${esc(e.event_type||'')}</span>
+              ${evToday ? `<span style="font-size:10px;color:var(--teal);font-weight:700;font-family:'DM Sans',sans-serif">TONIGHT</span>` : ''}
+            </div>
+            <div class="s-event-meta">${(e.days||[]).join(', ')} · ${esc(e.hours||'')}${e.price && e.price !== 'Free' ? ` · ${esc(e.price)}` : ' · Free'}</div>
+            ${e.description ? `<div class="s-event-desc">${esc(e.description)}</div>` : ''}
+          </div>`;
+        }).join('')}</div>`;
+      })()}
+    ` : `
       <div class="s-div"></div>
-      <div class="modal-section-label">Reviews <span id="ravg-${v.id}">${avgHTML(reviews)}</span></div>
-      <div class="review-form">
-        <div class="star-picker" id="sp-${v.id}" data-val="0">${[1,2,3,4,5].map(n => `<button class="sp" onclick="pickStar('${v.id}',${n})">★</button>`).join('')}</div>
-        ${!currentUser ? `<p class="review-guest-note">Posting as guest — <button class="auth-switch-btn" onclick="openAuth('signin')">sign in</button> to manage reviews</p>` : ''}
-        <input class="field" id="rname-${v.id}" type="text" value="${currentUser ? esc(currentUser.user_metadata?.full_name || '') : ''}" placeholder="Your name" ${currentUser ? 'style="display:none"' : ''} autocomplete="name">
-        <textarea class="field" id="rtext-${v.id}" placeholder="How was it?" rows="3"></textarea>
-        <button class="btn-submit" onclick="submitReview('${v.id}','${type}')">Post Review</button>
-      </div>
-      <div class="reviews-list" id="rlist-${v.id}">${reviews.length ? renderReviewList(reviews, v.id, type) : '<div class="no-reviews">Loading…</div>'}</div>
-    </div>`;
+      <div class="s-label">About</div>
+      <p style="font-size:14px;color:rgba(232,236,244,.75);line-height:1.6">${esc(v.description || '')}</p>
+      ${v.venue_name ? `<div class="s-cuisine" style="margin-top:8px">At ${esc(v.venue_name)}</div>` : ''}
+      ${v.price ? `<div class="s-cuisine">Entry: ${esc(v.price)}</div>` : ''}
+    `}
+    <div class="s-div"></div>
+    ${isVenue ? `
+    <div class="s-going-wrap">
+      <button class="going-btn going-btn--lg${state.goingByMe.has(v.id) ? ' going-active' : ''}" id="modal-going-btn" onclick="doGoingTonight('${v.id}', this)">${checkInBtnLabel(state.goingCounts[v.id]||0, state.goingByMe.has(v.id))}</button>
+      ${(state.goingCounts[v.id]||0) >= 2 ? `<div class="s-going-count">🔥 ${state.goingCounts[v.id]} people are here tonight</div>` : ''}
+    </div>` : ''}
+    <div class="s-secondary-actions">
+      ${v.url ? `<button class="s-act-btn s-act-primary" onclick="spotdOpenUrl('${esc(v.url)}')" title="Website"><span class="s-btn-icon">🌐</span></button>` : `<button class="s-act-btn s-act-primary" onclick="spotdOpenUrl('https://www.google.com/search?q=${encodeURIComponent((v.name||'')+' '+(state.city?.name||'San Diego'))}' )" title="Search"><span class="s-btn-icon">🔍</span></button>`}
+      <button class="s-act-btn" onclick="goToMap('${v.id}')" title="Map"><span class="s-btn-icon">🗺️</span></button>
+      <button class="s-act-btn" onclick="shareItem('${v.id}','${type}')" title="Share"><span class="s-btn-icon">↗️</span></button>
+      ${currentUser ? `<button class="s-act-btn" onclick="dmOpenVenueSharePicker('${v.id}')" title="Send"><span class="s-btn-icon">💬</span></button>` : ''}
+      ${isVenue ? `<button class="s-act-btn" id="venue-follow-btn-${v.id}" onclick="toggleVenueFollow('${v.id}','${esc(v.name)}',this)" title="Follow"><span class="s-btn-icon">🔔</span></button>` : ''}
+    </div>
+    ${isVenue ? `<div id="ugc-photos-${v.id}"></div>` : ''}
+    <div class="s-div"></div>
+    <div class="s-label">Reviews <span id="ravg-${v.id}">${avgHTML(reviews)}</span></div>
+    <div class="review-form">
+      <div class="star-picker" id="sp-${v.id}" data-val="0">${[1,2,3,4,5].map(n => `<button class="sp" onclick="pickStar('${v.id}',${n})">★</button>`).join('')}</div>
+      ${!currentUser ? `<p class="review-guest-note">Posting as guest — <button class="auth-switch-btn" onclick="openAuth('signin')">sign in</button> to manage reviews</p>` : ''}
+      <input class="field" id="rname-${v.id}" type="text" value="${currentUser ? esc(currentUser.user_metadata?.full_name || '') : ''}" placeholder="Your name" ${currentUser ? 'style="display:none"' : ''} autocomplete="name">
+      <textarea class="field" id="rtext-${v.id}" placeholder="How was it?" rows="3"></textarea>
+      <button class="btn-submit" onclick="submitReview('${v.id}','${type}')">Post Review</button>
+    </div>
+    <div class="reviews-list" id="rlist-${v.id}">${reviews.length ? renderReviewList(reviews, v.id, type) : '<div class="no-reviews">Loading…</div>'}</div>`;
 }
 
 function renderReviewList(reviews, itemId, type) {
@@ -1154,6 +1114,7 @@ async function submitReview(itemId, type) {
 }
 function closeModal(e) { if (e && e.target !== document.getElementById('modalOverlay')) return; closeOverlay('modalOverlay'); }
 
+
 // ── EDIT REVIEW ────────────────────────────────────────
 function openEditReview(reviewId, itemId, type, rating, text) {
   document.getElementById('editContent').innerHTML = `
@@ -1199,6 +1160,14 @@ function renderAuth(mode) {
   document.getElementById('authContent').innerHTML = `
     <div class="auth-title">${si ? 'Welcome back' : 'Create account'}</div>
     <p class="auth-sub">${si ? 'Sign in to save spots & manage reviews' : 'Free forever — save spots, write reviews'}</p>
+
+    <button class="btn-google" onclick="authWithGoogle()">
+      <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      Continue with Google
+    </button>
+
+    <div class="auth-divider"><span>or</span></div>
+
     ${!si ? `<div class="field-group"><div class="field-label">Name</div><input class="field" id="aName" type="text" placeholder="Your name" autocomplete="name"></div>` : ''}
     <div class="field-group"><div class="field-label">Email</div><input class="field" id="aEmail" type="email" placeholder="you@example.com" autocomplete="email"></div>
     <div class="field-group"><div class="field-label">Password</div><input class="field" id="aPass" type="password" placeholder="${si ? 'Your password' : 'Min 8 characters'}" autocomplete="${si ? 'current-password' : 'new-password'}"></div>
@@ -1362,76 +1331,83 @@ async function renderProfile(user) {
     getUserBadges(user.id), getFollowing(user.id), getFollowers(user.id),
   ]);
 
+  // If no city loaded yet, fetch San Diego venues so check-in names resolve
   let venueList = state.venues;
   if (!venueList.length && checkIns.length) {
     try { venueList = await fetchVenues('san-diego'); } catch(e) { venueList = []; }
   }
-  const allItems     = [...venueList, ...state.events];
-  const favIds       = new Set(favItems.map(f => String(f.item_id)));
-  const favSpots     = allItems.filter(v => favIds.has(String(v.id)));
-  const displayName  = profile?.display_name || user.user_metadata?.full_name || 'You';
-  const avatar       = profile?.avatar_emoji || '🍺';
-  const totalVenues  = new Set(checkIns.map(c => c.venue_id)).size;
+  const allItems = [...venueList, ...state.events];
+  const favIds   = new Set(favItems.map(f => String(f.item_id)));
+  const favSpots = allItems.filter(v => favIds.has(String(v.id)));
+  const displayName = profile?.display_name || user.user_metadata?.full_name || 'You';
+  const avatar = profile?.avatar_emoji || '🍺';
+  const totalVenues = new Set(checkIns.map(c => c.venue_id)).size;
   const currentStreak = computeCurrentStreak(checkIns);
   const AVATARS = ['🍺','🍹','🍷','🥂','🍸','🎉','🌮','🔥','🎸','🏄','🌊','🎭'];
 
+  const bannerColor = profile?.banner_color || '#FF6B4A';
+
   document.getElementById('profileContent').innerHTML = `
-    <div class="pf-hero">
-      <div class="pf-hero-burst"></div>
-      <div class="pf-hero-grid"></div>
-      <div class="pf-ring pf-ring-1"></div>
-      <div class="pf-ring pf-ring-2"></div>
-      <div class="pf-ring pf-ring-3"></div>
+    <!-- ── DARK HEADER ── -->
+    <div class="pf-hero" id="myBanner">
+      <div class="pf-burst"></div>
+      <div class="pf-grid"></div>
+      <div class="pf-ring pf-r1"></div>
+      <div class="pf-ring pf-r2"></div>
+      <div class="pf-ring pf-r3"></div>
+      <div class="pf-actions">
+        <button class="pf-btn" onclick="shareSpotd()" title="Share">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        </button>
+        <button class="pf-btn" onclick="openProfileSettings()" title="Settings">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
+      </div>
       <div class="pf-avatar-zone">
         <div class="pf-avatar" id="myAvatar" onclick="toggleAvatarPicker()" title="Change avatar">${avatar}</div>
         <div class="avatar-picker" id="avatarPicker" style="display:none">
           ${AVATARS.map(e => `<button class="avatar-opt" onclick="pickAvatar('${e}',this)">${e}</button>`).join('')}
         </div>
       </div>
-      <div class="pf-hero-actions">
-        <button class="pf-hero-btn" onclick="shareSpotd()" title="Share">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-        </button>
-        <button class="pf-hero-btn" onclick="openProfileSettings()" title="Settings">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-        </button>
-      </div>
     </div>
 
+    <!-- ── IDENTITY ── -->
     <div class="pf-body">
       <div class="pf-name">${esc(displayName)}</div>
       ${profile?.bio
         ? `<div class="pf-bio">${esc(profile.bio)}</div>`
-        : `<div class="pf-bio--empty" onclick="openProfileSettings()">+ add a bio</div>`}
-      ${badges.length ? `<div class="pf-badges">${badges.map(b => {
+        : `<div class="pf-bio pf-bio--empty" onclick="openProfileSettings()">+ add a bio</div>`}
+      ${badges.length ? `<div class="pf-chips">${badges.map(b => {
         const def = BADGE_DEFS[b.badge_key] || {};
-        return `<span class="pf-badge" onclick="showBadgeInfo('${b.badge_key}')">${def.emoji||'🏅'} ${def.label||b.badge_key}</span>`;
+        return '<span class="pf-chip" onclick="showBadgeInfo(\'' + b.badge_key + '\')">' + (def.emoji||'🏅') + ' ' + (def.label||b.badge_key) + '</span>';
       }).join('')}</div>` : ''}
+
+      <!-- ── STAT CARDS ── -->
+      <div class="pf-stat-grid">
+        <div class="pf-stat-card" onclick="openActivityFeed()">
+          <div class="pf-snum">${checkIns.length}</div>
+          <div class="pf-slbl">Check-ins</div>
+          <div class="pf-sbar"><div class="pf-sbar-fill" style="width:${Math.min(100, checkIns.length * 2.5)}%"></div></div>
+        </div>
+        <div class="pf-stat-card">
+          <div class="pf-snum">${myReviews.length}</div>
+          <div class="pf-slbl">Reviews</div>
+          <div class="pf-sbar"><div class="pf-sbar-fill" style="width:${Math.min(100, myReviews.length * 5)}%"></div></div>
+        </div>
+        <div class="pf-stat-card" onclick="openFindPeople()">
+          <div class="pf-snum" id="stat-following">${following.length}</div>
+          <div class="pf-slbl">Following</div>
+          <div class="pf-sbar"><div class="pf-sbar-fill" style="width:${Math.min(100, following.length * 4)}%"></div></div>
+        </div>
+        <div class="pf-stat-card" onclick="showFollowersList()">
+          <div class="pf-snum" id="stat-followers">${followers.length}</div>
+          <div class="pf-slbl">Followers</div>
+          <div class="pf-sbar"><div class="pf-sbar-fill" style="width:${Math.min(100, followers.length * 4)}%"></div></div>
+        </div>
+      </div>
     </div>
 
-    <div class="pf-stat-grid">
-      <div class="pf-stat-card" onclick="openActivityFeed()" style="cursor:pointer">
-        <div class="pf-snum">${checkIns.length}</div>
-        <div class="pf-slbl">Check-ins</div>
-        <div class="pf-sbar"><div class="pf-sbar-fill" style="width:${Math.min(100,checkIns.length*2)}%"></div></div>
-      </div>
-      <div class="pf-stat-card">
-        <div class="pf-snum">${myReviews.length}</div>
-        <div class="pf-slbl">Reviews</div>
-        <div class="pf-sbar"><div class="pf-sbar-fill" style="width:${Math.min(100,myReviews.length*4)}%"></div></div>
-      </div>
-      <div class="pf-stat-card" onclick="openFindPeople()" style="cursor:pointer">
-        <div class="pf-snum" id="stat-following">${following.length}</div>
-        <div class="pf-slbl">Following</div>
-        <div class="pf-sbar"><div class="pf-sbar-fill" style="width:${Math.min(100,following.length*5)}%"></div></div>
-      </div>
-      <div class="pf-stat-card" onclick="showFollowersList()" style="cursor:pointer">
-        <div class="pf-snum" id="stat-followers">${followers.length}</div>
-        <div class="pf-slbl">Followers</div>
-        <div class="pf-sbar"><div class="pf-sbar-fill" style="width:${Math.min(100,followers.length*5)}%"></div></div>
-      </div>
-    </div>
-
+    <!-- ── TABS ── -->
     <div class="pf-tabs">
       <button class="pf-tab on" onclick="selectProfileTab('checkins',this)">Check-ins</button>
       <button class="pf-tab" onclick="selectProfileTab('reviews',this)">Reviews</button>
@@ -1440,59 +1416,51 @@ async function renderProfile(user) {
       <button class="pf-tab" onclick="openFindPeople()">People</button>
     </div>
 
-    <div class="pf-content">
-      <div id="my-tab-checkins">
-        ${checkIns.length ? checkIns.slice(0,30).map(c => {
-          const v = allItems.find(x => String(x.id) === String(c.venue_id));
-          return `<div class="pf-row"${v ? ` onclick="closeProfile();openModal('${c.venue_id}','venue')"` : ''}>
-            <div class="pf-row-dot"></div>
-            <div class="pf-row-body">
-              <div class="pf-row-name">${v ? esc(v.name) : esc(c.venue_name||'A spot')}</div>
-              <div class="pf-row-meta">${c.neighborhood||''} · ${fmtDate(c.created_at||c.date)}</div>
-            </div>
-          </div>`;
-        }).join('') : '<div class="pf-empty">No check-ins yet — go explore! 🗺️</div>'}
-      </div>
+    <!-- ── TAB CONTENT ── -->
+    <div class="pf-content" id="my-tab-checkins">
+      ${checkIns.length ? checkIns.slice(0,30).map(c => {
+        const v = allItems.find(x => String(x.id) === String(c.venue_id));
+        return '<div class="pf-row"' + (v ? ' onclick="closeProfile();openModal(\'' + c.venue_id + '\',\'venue\')" style="cursor:pointer"' : '') + '>'
+          + '<div class="pf-row-dot"></div>'
+          + '<div class="pf-row-body">'
+          + '<div class="pf-row-name">' + (v ? esc(v.name) : esc(c.venue_name||'A spot')) + '</div>'
+          + '<div class="pf-row-meta">' + (c.neighborhood||'') + (c.neighborhood ? ' · ' : '') + fmtDate(c.created_at||c.date) + '</div>'
+          + '</div></div>';
+      }).join('') : '<div class="pf-empty">No check-ins yet — go explore! 🗺️</div>'}
+    </div>
 
-      <div id="my-tab-reviews" style="display:none">
-        ${myReviews.length ? myReviews.map(r => {
-          const item = allItems.find(x => String(x.id) === String(r.venue_id || r.event_id));
-          const itype = r.venue_id ? 'venue' : 'event';
-          return `<div class="pf-row">
-            <div class="pf-row-dot"></div>
-            <div class="pf-row-body" style="flex:1">
-              <div class="pf-row-name" onclick="closeProfile();openModal('${r.venue_id||r.event_id}','${itype}')" style="cursor:pointer">${item ? esc(item.name) : 'Unknown Spot'}</div>
-              <div class="pf-row-meta">${starHTML(r.rating,5,11)} · ${fmtDate(r.created_at)}</div>
-              ${r.text ? `<div class="pf-row-note">"${esc(r.text)}"</div>` : ''}
-              <div class="review-acts">
-                <button class="review-act" onclick="openEditReview('${r.id}','${r.venue_id||r.event_id}','${itype}',${r.rating},'${esc(r.text||'')}')">Edit</button>
-                <button class="review-act del" onclick="doDeleteReview('${r.id}','${r.venue_id||r.event_id}','${itype}')">Delete</button>
-              </div>
-            </div>
-          </div>`;
-        }).join('') : '<div class="pf-empty">No reviews yet</div>'}
-      </div>
+    <div class="pf-content" id="my-tab-reviews" style="display:none">
+      ${myReviews.length ? myReviews.map(r => {
+        const item = allItems.find(x => String(x.id) === String(r.venue_id || r.event_id));
+        const itype = r.venue_id ? 'venue' : 'event';
+        return '<div class="pf-row">'
+          + '<div class="pf-row-dot" style="background:rgba(255,107,74,0.4)"></div>'
+          + '<div class="pf-row-body" style="flex:1">'
+          + '<div class="pf-row-name" onclick="closeProfile();openModal(\'' + (r.venue_id||r.event_id) + '\',\'' + itype + '\')" style="cursor:pointer">' + (item ? esc(item.name) : 'Unknown Spot') + '</div>'
+          + '<div class="pf-row-meta">' + starHTML(r.rating,5,11) + ' · ' + fmtDate(r.created_at) + '</div>'
+          + (r.text ? '<div class="pf-row-note">"' + esc(r.text) + '"</div>' : '')
+          + '<div class="review-acts">'
+          + '<button class="review-act" onclick="openEditReview(\'' + r.id + '\',\'' + (r.venue_id||r.event_id) + '\',\'' + itype + '\',' + r.rating + ',\'' + esc(r.text||'') + '\')">Edit</button>'
+          + '<button class="review-act del" onclick="doDeleteReview(\'' + r.id + '\',\'' + (r.venue_id||r.event_id) + '\',\'' + itype + '\')">Delete</button>'
+          + '</div></div></div>';
+      }).join('') : '<div class="pf-empty">No reviews yet</div>'}
+    </div>
 
-      <div id="my-tab-saved" style="display:none">
-        ${favSpots.length ? favSpots.map(v =>
-          `<div class="pf-row" onclick="closeProfile();openModal('${v.id}','${v.event_type?'event':'venue'}')">
-            <div class="pf-row-dot"></div>
-            <div class="pf-row-body">
-              <div class="pf-row-name">${esc(v.name)}</div>
-              <div class="pf-row-meta">${esc(v.neighborhood||'')} · ${esc(v.hours||'')}</div>
-            </div>
-          </div>`
-        ).join('') : '<div class="pf-empty">No saved spots yet — tap ★ on any venue</div>'}
-      </div>
+    <div class="pf-content" id="my-tab-saved" style="display:none">
+      ${favSpots.length ? favSpots.map(v =>
+        '<div class="pf-row" onclick="closeProfile();openModal(\'' + v.id + '\',\'' + (v.event_type?'event':'venue') + '\')" style="cursor:pointer">'
+        + '<div class="pf-row-dot" style="background:rgba(255,107,74,0.35)"></div>'
+        + '<div class="pf-row-body"><div class="pf-row-name">' + esc(v.name) + '</div>'
+        + '<div class="pf-row-meta">' + esc(v.neighborhood||'') + (v.neighborhood && v.hours ? ' · ' : '') + esc(v.hours||'') + '</div></div></div>'
+      ).join('') : '<div class="pf-empty">No saved spots yet — tap ★ on any venue</div>'}
+    </div>
 
-      <div id="my-tab-hoods" style="display:none">
-        <div style="margin-bottom:12px;font-size:13px;color:var(--muted);line-height:1.5">Follow neighborhoods to get notified when new deals are added.</div>
-        ${areas.length ? `<div class="hood-grid">${areas.map(a =>
-          `<button class="hood-pill${followed.includes(a) ? ' on' : ''}" onclick="toggleHood('${a.replace(/'/g,"\'")}',this)">${a}</button>`
-        ).join('')}</div>` : '<div class="pf-empty">No neighborhoods found yet.</div>'}
-      </div>
+    <div class="pf-content" id="my-tab-hoods" style="display:none">
+      <div class="pf-hood-hint">Follow neighborhoods to get notified when new deals are added.</div>
+      ${areas.length ? `<div class="hood-grid">${areas.map(a =>
+        `<button class="hood-pill${followed.includes(a) ? ' on' : ''}" onclick="toggleHood('${a.replace(/'/g,"\'")}',this)">${a}</button>`
+      ).join('')}</div>` : '<div class="pf-empty">No neighborhoods found yet.</div>'}
     </div>`;
-}
 
 function switchMyTab(tab, btn) {
   document.querySelectorAll('.pub-tab-content').forEach(el => el.style.display = 'none');
@@ -1976,6 +1944,8 @@ function attachSwipeDismiss(sheet, overlayId) {
   sheet._swipeHandler = (e) => {
     // Only start drag if at the very top of the sheet scroll
     if (sheet.scrollTop > 4) return;
+    // Don't intercept touches on links, buttons, or inputs — let them fire normally
+    if (e.target.closest('a, button, input, textarea, select')) return;
     startY = e.touches[0].clientY;
     currentY = startY;
     dragging = true;
@@ -2026,7 +1996,7 @@ function attachSwipeDismiss(sheet, overlayId) {
 
 // ── UTILS ──────────────────────────────────────────────
 function avgFromList(r)    { return r.length ? r.reduce((s,x) => s+x.rating, 0)/r.length : 0; }
-function starHTML(rating, max=5, size=13) { return Array.from({length:max},(_,i)=>`<span style="font-size:${size}px;color:${i<Math.round(rating)?'var(--amber)':'var(--border2)'}">★</span>`).join(''); }
+function starHTML(rating, max=5, size=13) { return Array.from({length:max},(_,i)=>`<span style="font-size:${size}px;color:${i<Math.round(rating)?'#E8943A':'rgba(42,31,20,0.15)'}">★</span>`).join(''); }
 function fmtDate(iso)      { return new Date(iso).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }
 function showToast(msg)    { document.querySelectorAll('.toast').forEach(t=>t.remove()); const t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),2600); }
 function shareSpotd() {
@@ -3464,23 +3434,20 @@ if (window.visualViewport) {
 
 
 function selectProfileTab(tab, btn) {
+  document.querySelectorAll('.pf-content').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('.pf-tab').forEach(b => b.classList.remove('on'));
+  const el = document.getElementById('my-tab-' + tab);
+  if (el) el.style.display = 'block';
+  if (btn) btn.classList.add('on');
+}
   if(typeof haptic==='function')haptic('light');
-  // Hide all tab content panels
-  ['checkins','reviews','saved','hoods'].forEach(t => {
-    const el = document.getElementById('my-tab-' + t);
-    if (el) el.style.display = 'none';
-  });
-  // Show selected panel
-  const target = document.getElementById('my-tab-' + tab);
-  if (target) target.style.display = 'block';
-  // Update active state on buttons (supports both old .profile-tab and new .pf-tab)
-  document.querySelectorAll('.pf-tab, .profile-tab').forEach(b => {
-    b.classList.remove('active', 'on');
-  });
-  if (btn) { btn.classList.add('on'); btn.classList.add('active'); }
+  document.querySelectorAll('.pub-tab-content').forEach(el => el.style.display = 'none');
+  document.getElementById('my-tab-' + tab).style.display = 'block';
+  document.querySelectorAll('.profile-tab').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
 }
 
-// ── BOOT ──────────────────────────────────────────────
-// Called here — after ALL functions above are defined —
-// so onAuthChange exists when initAuth fires the callback.
+// ── BOOT ───────────────────────────────────────────────
+// initAuth is defined in db.js. Calling it here guarantees
+// onAuthChange (defined above) exists before the callback fires.
 initAuth();
