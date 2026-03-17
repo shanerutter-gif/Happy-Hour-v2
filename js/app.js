@@ -1038,7 +1038,7 @@ function renderModal(v, type, reviews) {
       </div>
 
       <div class="modal-actions-grid">
-        <div class="modal-action primary" onclick="${v.url && v.url !== '#' ? `window.open('${v.url}','_blank')` : `window.open('https://www.google.com/search?q=${encodeURIComponent(v.name + ' ' + (state.city?.name || 'San Diego'))}','_blank')`}">
+        <div class="modal-action primary" onclick="openVenueWebsite('${v.id}')">
           <span class="modal-action-icon">🌐</span>
           <span class="modal-action-label">Website</span>
         </div>
@@ -1158,6 +1158,18 @@ async function submitReview(itemId, type) {
   showToast('Review posted!');
 }
 function closeModal(e) { if (e && e.target !== document.getElementById('modalOverlay')) return; closeOverlay('modalOverlay'); }
+
+function openVenueWebsite(id) {
+  const all = [...state.venues, ...state.events];
+  const v = all.find(x => String(x.id) === String(id));
+  if (v && v.url && v.url !== '#' && v.url.trim() !== '') {
+    window.open(v.url, '_blank');
+  } else {
+    const name = v ? v.name : '';
+    const city = state.city?.name || 'San Diego';
+    window.open('https://www.google.com/search?q=' + encodeURIComponent(name + ' ' + city), '_blank');
+  }
+}
 
 // ── EDIT REVIEW ────────────────────────────────────────
 function openEditReview(reviewId, itemId, type, rating, text) {
