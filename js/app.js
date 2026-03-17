@@ -673,6 +673,11 @@ function updateDot() {
   document.getElementById('filterDot').classList.toggle('show', !!has);
   document.getElementById('filterToggle').classList.toggle('active', !!has);
 }
+let _searchTimer = null;
+function debounceSearch() {
+  clearTimeout(_searchTimer);
+  _searchTimer = setTimeout(() => { applyFilters(); updateChips(); updateDot(); }, 250);
+}
 function applyFilters() {
   const search = (document.getElementById('searchBox')?.value || '').toLowerCase().trim();
   state.filters.search = search;
