@@ -1802,10 +1802,10 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 .vcard-checkin-btn {
   width: 100%; padding: 10px;
   border-radius: 12px;
-  border: 1.5px solid var(--border2);
-  background: transparent;
+  border: 1.5px solid var(--teal);
+  background: var(--teal);
   font-size: 12px; font-weight: 600;
-  color: var(--muted);
+  color: #fff;
   font-family: 'DM Sans', sans-serif;
   cursor: pointer; transition: all .15s;
   display: flex; align-items: center; justify-content: center; gap: 6px;
@@ -2274,7 +2274,7 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 [data-theme="dark"] .day-pill.on { background: var(--coral-dim); color: var(--teal); border-color: rgba(255,107,74,0.3); }
 [data-theme="dark"] .day-pill.today { background: var(--teal); color: #fff; }
 [data-theme="dark"] .modal-action { background: var(--bg2); }
-[data-theme="dark"] .vcard-checkin-btn { border-color: var(--border2); }
+[data-theme="dark"] .vcard-checkin-btn { border-color: var(--teal); }
 [data-theme="dark"] .pf-stat-card { background: var(--card); }
 [data-theme="dark"] .pf-tabs { background: rgba(255,255,255,0.03); }
 [data-theme="dark"] .pf-tab.on { background: var(--card); }
