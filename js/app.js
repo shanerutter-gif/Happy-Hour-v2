@@ -1051,7 +1051,7 @@ function renderModal(v, type, reviews) {
       ${(state.goingCounts[v.id]||0) >= 2 ? `<div class="s-going-count">🔥 ${state.goingCounts[v.id]} people are here tonight</div>` : ''}
     </div>` : ''}
     <div class="s-secondary-actions">
-      ${v.url ? `<button class="s-act-btn s-act-primary" onclick="event.stopPropagation();window.open('${v.url.replace(/'/g,\"\'\")}')" title="Website"><span class="s-btn-icon">🌐</span></button>` : `<button class="s-act-btn s-act-primary" onclick="event.stopPropagation();window.open('https://www.google.com/search?q=${encodeURIComponent(v.name + ' ' + (state.city?.name || 'San Diego'))}')" title="Search"><span class="s-btn-icon">🔍</span></button>`}
+      ${v.url ? `<button class="s-act-btn s-act-primary" onclick="openVenueUrl(this)" data-url="${esc(v.url)}" title="Website"><span class="s-btn-icon">🌐</span></button>` : `<button class="s-act-btn s-act-primary" onclick="openVenueUrl(this)" data-url="https://www.google.com/search?q=${encodeURIComponent((v.name||'')+' '+(state.city?.name||'San Diego'))}" title="Search"><span class="s-btn-icon">🔍</span></button>`}
       <button class="s-act-btn" onclick="goToMap('${v.id}')" title="Map"><span class="s-btn-icon">🗺️</span></button>
       <button class="s-act-btn" onclick="shareItem('${v.id}','${type}')" title="Share"><span class="s-btn-icon">↗️</span></button>
       ${currentUser ? `<button class="s-act-btn" onclick="dmOpenVenueSharePicker('${v.id}')" title="Send"><span class="s-btn-icon">💬</span></button>` : ''}
@@ -1114,6 +1114,13 @@ async function submitReview(itemId, type) {
   showToast('Review posted!');
 }
 function closeModal(e) { if (e && e.target !== document.getElementById('modalOverlay')) return; closeOverlay('modalOverlay'); }
+
+// Opens venue website or search URL safely on iOS WebKit inside sheets
+function openVenueUrl(btn) {
+  event.stopPropagation();
+  const url = btn.dataset.url;
+  if (url) window.open(url, '_blank');
+}
 
 // ── EDIT REVIEW ────────────────────────────────────────
 function openEditReview(reviewId, itemId, type, rating, text) {
