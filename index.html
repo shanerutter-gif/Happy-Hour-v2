@@ -566,38 +566,36 @@ function dismissA2HS() {
 
   <div id="dmTab" class="dm-tab" style="display:none">
 
-```
-<!-- Shared header (title + nav buttons change per screen) -->
-<div class="dm-header">
-  <button class="dm-back-btn" id="dmBackBtn" onclick="dmNavBack()" style="visibility:hidden">← Back</button>
-  <div class="dm-title" id="dmTitle">Messages</div>
-  <button class="dm-new-btn" id="dmNewBtn" onclick="dmStartNewConvo()">＋</button>
-</div>
+    <!-- Shared header (title + nav buttons change per screen) -->
+    <div class="dm-header">
+      <button class="dm-back-btn" id="dmBackBtn" onclick="dmNavBack()" style="visibility:hidden">← Back</button>
+      <div class="dm-title" id="dmTitle">Messages</div>
+      <button class="dm-new-btn" id="dmNewBtn" onclick="dmStartNewConvo()">＋</button>
+    </div>
 
-<!-- Screen 1: Inbox -->
-<div id="dmScreenInbox" class="dm-screen dm-screen--scroll">
-  <div id="dmThreadList" class="dm-thread-list"></div>
-</div>
+    <!-- Screen 1: Inbox -->
+    <div id="dmScreenInbox" class="dm-screen dm-screen--scroll">
+      <div id="dmThreadList" class="dm-thread-list"></div>
+    </div>
 
-<!-- Screen 2: Conversation -->
-<div id="dmScreenConvo" class="dm-screen dm-screen--flex" style="display:none">
-  <div id="dmMembersBar" class="dm-members-bar" style="display:none"></div>
-  <div id="dmMessages" class="dm-messages"></div>
-  <div class="dm-compose" id="dmComposeBar">
-    <input id="dmInput" class="dm-input" placeholder="Message…" maxlength="500"
-      onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();dmSend()}">
-    <button class="dm-send-btn" onclick="dmSend()">Send</button>
-  </div>
-</div>
+    <!-- Screen 2: Conversation -->
+    <div id="dmScreenConvo" class="dm-screen dm-screen--flex" style="display:none">
+      <div id="dmMembersBar" class="dm-members-bar" style="display:none"></div>
+      <div id="dmMessages" class="dm-messages"></div>
+      <div class="dm-compose" id="dmComposeBar">
+        <input id="dmInput" class="dm-input" placeholder="Message…" maxlength="500"
+          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();dmSend()}">
+        <button class="dm-send-btn" onclick="dmSend()">Send</button>
+      </div>
+    </div>
 
-<!-- Screen 3: New message / picker -->
-<div id="dmScreenPicker" class="dm-screen dm-screen--flex" style="display:none">
-  <div id="dmPickerScroll" class="dm-picker-scroll"></div>
-  <div class="dm-picker-footer">
-    <button id="dmPickerBtn" class="dm-send-btn" style="width:100%;padding:14px;border-radius:14px;" onclick="dmCreateConvoFromPicker()">Start Chat</button>
-  </div>
-</div>
-```
+    <!-- Screen 3: New message / picker -->
+    <div id="dmScreenPicker" class="dm-screen dm-screen--flex" style="display:none">
+      <div id="dmPickerScroll" class="dm-picker-scroll"></div>
+      <div class="dm-picker-footer">
+        <button id="dmPickerBtn" class="dm-send-btn" style="width:100%;padding:14px;border-radius:14px;" onclick="dmCreateConvoFromPicker()">Start Chat</button>
+      </div>
+    </div>
 
   </div>
 
