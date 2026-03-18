@@ -1038,10 +1038,10 @@ function renderModal(v, type, reviews) {
       </div>
 
       <div class="modal-actions-grid">
-        <div class="modal-action primary" onclick="openVenueWebsite('${v.id}')">
+        <a class="modal-action primary" href="${getVenueWebsiteUrl(v)}" target="_blank" rel="noopener">
           <span class="modal-action-icon">🌐</span>
           <span class="modal-action-label">Website</span>
-        </div>
+        </a>
         <div class="modal-action" onclick="goToMap('${v.id}')">
           <span class="modal-action-icon">🗺️</span>
           <span class="modal-action-label">Map</span>
@@ -1159,16 +1159,13 @@ async function submitReview(itemId, type) {
 }
 function closeModal(e) { if (e && e.target !== document.getElementById('modalOverlay')) return; closeOverlay('modalOverlay'); }
 
-function openVenueWebsite(id) {
-  const all = [...state.venues, ...state.events];
-  const v = all.find(x => String(x.id) === String(id));
+function getVenueWebsiteUrl(v) {
   if (v && v.url && v.url !== '#' && v.url.trim() !== '') {
-    window.open(v.url, '_blank');
-  } else {
-    const name = v ? v.name : '';
-    const city = state.city?.name || 'San Diego';
-    window.open('https://www.google.com/search?q=' + encodeURIComponent(name + ' ' + city), '_blank');
+    return v.url;
   }
+  const name = v ? v.name : '';
+  const city = state.city?.name || 'San Diego';
+  return 'https://www.google.com/search?q=' + encodeURIComponent(name + ' ' + city);
 }
 
 // ── EDIT REVIEW ────────────────────────────────────────
