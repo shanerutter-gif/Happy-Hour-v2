@@ -1162,13 +1162,17 @@ function closeModal(e) { if (e && e.target !== document.getElementById('modalOve
 function openVenueWebsite(id) {
   const all = [...state.venues, ...state.events];
   const v = all.find(x => String(x.id) === String(id));
+  let url;
   if (v && v.url && v.url !== '#' && v.url.trim() !== '') {
-    window.open(v.url, '_blank');
+    url = v.url;
   } else {
     const name = v ? v.name : '';
     const city = state.city?.name || 'San Diego';
-    window.open('https://www.google.com/search?q=' + encodeURIComponent(name + ' ' + city), '_blank');
+    url = 'https://www.google.com/search?q=' + encodeURIComponent(name + ' ' + city);
   }
+  // Use location.href so WKWebView's decidePolicyFor handler intercepts
+  // and opens external URLs in Safari (window.open is silently blocked)
+  window.location.href = url;
 }
 
 // ── EDIT REVIEW ────────────────────────────────────────
