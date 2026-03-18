@@ -274,9 +274,9 @@
         <div class="filter-group">
           <div class="fg-label">Sort by</div>
           <div class="filter-scroll" id="sortFilters">
-            <button class="pill active" id="sort-default" onclick="setSort('default',this)">Featured</button>
+            <button class="pill active" id="sort-name" onclick="setSort('name',this)">A–Z</button>
             <button class="pill" id="sort-distance" onclick="setSort('distance',this)">📍 Nearest</button>
-            <button class="pill" id="sort-name" onclick="setSort('name',this)">A–Z</button>
+            <button class="pill" id="sort-default" onclick="setSort('default',this)">Featured</button>
           </div>
         </div>
         <div class="filter-group" id="fgDay">
@@ -299,9 +299,7 @@
         </div>
         <div class="filter-group">
           <div class="fg-label">Amenities</div>
-          <select class="filter-select" id="amenityFilters" onchange="setFilterFromSelect('amenity', this)">
-            <option value="">All amenities</option>
-          </select>
+          <div class="filter-scroll" id="amenityFilters"></div>
         </div>
         <div class="filter-group" id="favFilterGroup" style="display:none">
           <div class="fg-label">My List</div>
