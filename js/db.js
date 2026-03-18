@@ -623,6 +623,71 @@ async function deleteCheckinPhotoFromDB(photoId, storagePath) {
   } catch(e) { return false; }
 }
 
+// ── PROFILE PHOTO UPLOAD ──────────────────────────────
+const PROFILE_PHOTO_BUCKET = 'checkin-photos'; // reuse same bucket, different path prefix
+
+async function uploadProfilePhoto(file, userId, type) {
+  // type: 'avatar' or 'header'
+  const ext  = file.name?.split('.').pop().replace('heic','jpg') || 'jpg';
+  const path = `profiles/${userId}/${type}-${Date.now()}.${ext}`;
+
+  const session = getSession();
+  const client  = session?.access_token
+    ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        global: { headers: { Authorization: `Bearer ${session.access_token}` } }
+      })
+    : db;
+
+  const { data, error } = await client.storage
+    .from(PROFILE_PHOTO_BUCKET)
+    .upload(path, file, { contentType: file.type, upsert: true });
+
+  if (error) { console.error('uploadProfilePhoto error', error); return null; }
+
+  const { data: urlData } = client.storage
+    .from(PROFILE_PHOTO_BUCKET)
+    .getPublicUrl(path);
+
+  // Save URL to profile
+  const field = type === 'avatar' ? 'avatar_url' : 'header_url';
+  await updateProfile(userId, { [field]: urlData.publicUrl });
+
+  return urlData.publicUrl;
+}
+
+// ── SOCIAL COMMENTS ───────────────────────────────────
+async function fetchComments(postId, postType) {
+  try {
+    const { data } = await db.from('social_comments')
+      .select('id, user_id, post_id, post_type, text, created_at')
+      .eq('post_id', postId)
+      .eq('post_type', postType)
+      .order('created_at', { ascending: true })
+      .limit(50);
+    if (!data || !data.length) return [];
+    const uids = [...new Set(data.map(c => c.user_id))];
+    const { data: profiles } = await db.from('profiles').select('id, display_name, avatar_emoji').in('id', uids);
+    const pmap = Object.fromEntries((profiles||[]).map(p => [p.id, p]));
+    return data.map(c => ({ ...c, profile: pmap[c.user_id] || {} }));
+  } catch(e) { console.error('fetchComments:', e); return []; }
+}
+
+async function addComment(postId, postType, userId, text) {
+  try {
+    const session = getSession();
+    const client = session?.access_token
+      ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+          global: { headers: { Authorization: `Bearer ${session.access_token}` } }
+        })
+      : db;
+    const { data, error } = await client.from('social_comments').insert({
+      post_id: postId, post_type: postType, user_id: userId, text
+    }).select().single();
+    if (error) throw error;
+    return data;
+  } catch(e) { console.error('addComment:', e); return null; }
+}
+
 // ── SOCIAL FEED ────────────────────────────────────────
 // Fetches a city-wide social feed merging photos, check-ins,
 // reviews, and going-tonight activity. Following-first ordering

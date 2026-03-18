@@ -38,8 +38,13 @@ input, textarea, select { font-size: 16px; }
   --amber:#F59E0B;
 }
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
-body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;overscroll-behavior-y:none;transition:background .3s,color .3s}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;color-scheme:light dark}
+body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;overscroll-behavior-y:none;transition:background .35s ease,color .35s ease}
+*{transition-property:background-color,border-color,color,box-shadow,fill,stroke;transition-duration:.35s;transition-timing-function:ease}
+/* Exclude elements that need their own transform transitions */
+.sheet,.overlay,.vcard,.going-btn,.modal-action,.pill,.nav-btn,img,svg,canvas,video,
+.bottom-nav-btn,.pf-hero-btn,.vcard-photo-fav,.modal-hero-fav,.heart-btn,
+.dm-thread-swipe-wrap,.vcard-checkin-btn{transition-property:none}
 
 /* NAV */
 .top-nav{display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:52px;background:var(--nav-bg);border-bottom:1px solid var(--border2);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);position:sticky;top:0;z-index:300}
@@ -1032,6 +1037,13 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   display: flex;
   flex-direction: column;
   overscroll-behavior: contain;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s ease;
+}
+.social-tab.tab-open {
+  opacity: 1;
+  pointer-events: auto;
 }
 .social-header {
   display: flex;
@@ -1104,6 +1116,41 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 .social-photo-wrap[onclick]:active { opacity: .92; }
 .social-caption    { padding: 10px 16px 14px; font-size: 14px; color: var(--text); line-height: 1.5; }
 
+/* ── Comments ── */
+.social-comments-section { padding: 0 16px 10px; }
+.social-comments-toggle {
+  background: none; border: none; font-size: 12px; font-weight: 600;
+  color: var(--muted); cursor: pointer; padding: 6px 0;
+  font-family: 'DM Sans', sans-serif;
+}
+.social-comments-toggle:active { opacity: .7; }
+.social-comments-list { padding: 4px 0 8px; }
+.social-comment {
+  font-size: 13px; line-height: 1.4; padding: 3px 0;
+}
+.social-comment-name {
+  font-weight: 700; color: var(--text); margin-right: 6px;
+}
+.social-comment-text { color: var(--text); }
+.social-comment-compose {
+  display: flex; gap: 8px; align-items: center; padding-top: 6px;
+  border-top: 1px solid var(--border2);
+}
+.social-comment-input {
+  flex: 1; border: 1px solid var(--border2); border-radius: 20px;
+  padding: 8px 14px; font-size: 13px; font-family: 'DM Sans', sans-serif;
+  background: var(--bg); color: var(--text); outline: none;
+}
+.social-comment-input:focus { border-color: var(--teal); }
+.social-comment-send {
+  background: var(--teal); color: #fff; border: none;
+  width: 32px; height: 32px; border-radius: 50%;
+  font-size: 14px; font-weight: 700; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.social-comment-send:active { opacity: .85; transform: scale(.95); }
+.social-card--row { background: var(--card); border-bottom: 1px solid var(--border); }
+
 /* ── Activity rows (check-in, review, favorite, going) ── */
 .social-row {
   display: flex;
@@ -1131,7 +1178,13 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   display: flex;
   flex-direction: column;
   overscroll-behavior: contain;
-  /* No opacity animation — just display:none/flex toggle like the feed */
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s ease;
+}
+.dm-tab.tab-open {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 /* Shared header */
@@ -1167,14 +1220,13 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 }
 
 /* ── Inbox thread list ──────────────────────────── */
-.dm-thread-list { padding: 8px 0; }
+.dm-thread-list { padding: 8px 12px; display: flex; flex-direction: column; gap: 6px; }
 
 /* Swipe-to-delete row */
-.dm-thread-row       { position:relative; overflow:hidden; border-bottom:1px solid var(--bg2); }
+.dm-thread-row       { position:relative; overflow:hidden; border-radius: 16px; }
 .dm-thread-swipe-wrap {
   display: flex;
   align-items: stretch;
-  /* wrap is wider than the row; delete button lives in the hidden right portion */
   width: calc(100% + 72px);
   transition: transform 0s;
   will-change: transform;
@@ -1183,16 +1235,18 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   display: flex;
   align-items: center;
   gap: 12px;
-  /* main content = full viewport width, clipped by row overflow:hidden */
-  flex: 0 0 calc(100vw);
+  flex: 0 0 calc(100vw - 24px);
   max-width: calc(100% - 72px);
-  padding: 14px 16px;
+  padding: 12px 14px;
   cursor: pointer;
   min-width: 0;
-  background: var(--bg);
-  transition: background .15s;
+  background: var(--card);
+  border-radius: 16px;
+  border: 1px solid var(--border2);
+  box-shadow: 0 1px 4px rgba(42,31,20,0.04);
+  transition: background-color .15s, transform .15s;
 }
-.dm-thread-main:active { background: var(--bg2); }
+.dm-thread-main:active { background: var(--bg2); transform: scale(.98); }
 .dm-swipe-delete {
   flex: 0 0 72px;
   background: #e53935;
@@ -1683,20 +1737,24 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
    Clean · Futuristic · Fun
    ═══════════════════════════════════════════════════════ */
 
-/* ── Global transitions ── */
+/* ── Element-specific transitions (transform + theme colors) ── */
 .card,.bottom-nav,.city-bar,.controls,
 .social-tab,.dm-tab,.profile-page,.sub-page,
 .social-card,.social-row,.dm-thread-main,
-.field,.filter-select,.pill,.going-btn {
-  transition: background .3s, border-color .3s, color .3s, box-shadow .3s;
+.field,.filter-select {
+  transition: background-color .35s ease, border-color .35s ease, color .35s ease, box-shadow .35s ease;
 }
-/* Sheet keeps its own transform transition for slide animation */
+.pill {
+  transition: background-color .35s ease, border-color .35s ease, color .35s ease, box-shadow .35s ease, transform .15s;
+}
+.going-btn {
+  transition: background-color .35s ease, border-color .35s ease, color .35s ease, transform .15s;
+}
 .sheet {
-  transition: transform .38s cubic-bezier(.32,1.1,.6,1), background .3s, border-color .3s;
+  transition: transform .38s cubic-bezier(.32,1.1,.6,1), background-color .35s ease, border-color .35s ease;
 }
-/* Overlay keeps its opacity transition */
 .overlay {
-  transition: opacity .3s cubic-bezier(.4,0,.2,1), background .3s;
+  transition: opacity .3s cubic-bezier(.4,0,.2,1), background-color .35s ease;
 }
 
 /* ── REDESIGNED VENUE CARD ── */
@@ -1788,6 +1846,9 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   background: rgba(255,107,74,0.45);
   flex-shrink: 0; margin-top: 5px;
 }
+.vcard-verified-row {
+  padding: 4px 14px 0;
+}
 .vcard-foot {
   display: flex; align-items: center; justify-content: space-between;
   padding: 8px 14px;
@@ -1809,8 +1870,33 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   font-size: 12px; font-weight: 600;
   color: #fff;
   font-family: 'DM Sans', sans-serif;
-  cursor: pointer; transition: all .15s;
+  cursor: pointer;
+  transition: transform .2s cubic-bezier(.2,1,.3,1), box-shadow .2s ease, background-color .15s;
   display: flex; align-items: center; justify-content: center; gap: 6px;
+  position: relative; overflow: hidden;
+}
+.vcard-checkin-btn:active {
+  transform: scale(.94);
+  box-shadow: 0 0 0 4px rgba(255,107,74,0.2);
+}
+@keyframes checkinPop {
+  0% { transform: scale(1); }
+  30% { transform: scale(.92); }
+  60% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+@keyframes checkinRipple {
+  0% { transform: scale(0); opacity: 0.4; }
+  100% { transform: scale(4); opacity: 0; }
+}
+.vcard-checkin-btn.checkin-anim {
+  animation: checkinPop .4s cubic-bezier(.2,1,.3,1);
+}
+.vcard-checkin-btn.checkin-anim::after {
+  content: ''; position: absolute;
+  width: 40px; height: 40px; border-radius: 50%;
+  background: rgba(255,255,255,0.35);
+  animation: checkinRipple .5s ease-out forwards;
 }
 .vcard-checkin-btn.hot {
   background: var(--coral-dim);
@@ -1943,7 +2029,21 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   font-size: 16px; font-weight: 800;
   cursor: pointer; letter-spacing: -.2px;
   box-shadow: 0 4px 20px var(--coral-glow);
-  transition: all .15s;
+  transition: transform .2s cubic-bezier(.2,1,.3,1), box-shadow .2s ease, background-color .15s;
+  position: relative; overflow: hidden;
+}
+.modal-checkin-cta:active {
+  transform: scale(.95);
+  box-shadow: 0 2px 12px var(--coral-glow), 0 0 0 5px rgba(255,107,74,0.15);
+}
+.modal-checkin-cta.checkin-anim {
+  animation: checkinPop .4s cubic-bezier(.2,1,.3,1);
+}
+.modal-checkin-cta.checkin-anim::after {
+  content: ''; position: absolute;
+  width: 50px; height: 50px; border-radius: 50%;
+  background: rgba(255,255,255,0.3);
+  animation: checkinRipple .5s ease-out forwards;
 }
 .modal-checkin-cta:active { opacity: .88; transform: scale(.98); }
 
@@ -2096,6 +2196,23 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   transition: transform .15s;
 }
 .pf-avatar:active { transform: scale(.94); }
+.pf-avatar-cam {
+  position: absolute; bottom: -2px; right: -2px;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--teal); font-size: 11px;
+  display: flex; align-items: center; justify-content: center;
+  border: 2px solid var(--card);
+  pointer-events: none;
+}
+.pf-hero-overlay {
+  position: absolute; inset: 0; z-index: 2;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity .2s;
+  background: rgba(0,0,0,0.3);
+}
+.pf-hero:hover .pf-hero-overlay,
+.pf-hero-overlay:active { opacity: 1; }
+.pf-hero-cam { font-size: 24px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); }
 .pf-hero-actions {
   position: absolute; top: 12px; right: 14px;
   display: flex; gap: 7px; z-index: 4;

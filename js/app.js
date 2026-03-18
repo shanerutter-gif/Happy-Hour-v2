@@ -69,13 +69,13 @@ const EVENT_TYPE_AMENITY = {};
 AMENITIES.forEach(a => { if (a.eventType) EVENT_TYPE_AMENITY[a.eventType] = a; });
 
 const state = {
-  sort: 'default',
+  sort: 'name',
   userLat: null,
   userLng: null,
   view: 'list',
   showFilter: 'all', // 'all' | 'happyhour' | 'events'
   filtersOpen: false, favFilterOn: false,
-  filters: { day: null, area: null, type: null, amenity: null, search: '' },
+  filters: { day: null, area: null, type: null, amenities: [], search: '' },
   city: null,
   venues: [], events: [], filtered: [],
   activeItemId: null, activeItemType: 'venue',
@@ -269,7 +269,7 @@ function bottomNavProfile(btn) {
 // ── SOCIAL TAB ─────────────────────────────────────────
 function openSocialTab() {
   if (!currentUser) { openAuth('signin'); return; }
-  document.getElementById('socialTab').style.display = 'flex';
+  document.getElementById('socialTab').classList.add('tab-open');
   loadSocialFeed();
   maybeShowSocialNudge();
 }
@@ -297,7 +297,7 @@ function maybeShowSocialNudge() {
   }, 400);
 }
 function closeSocialTab() {
-  document.getElementById('socialTab').style.display = 'none';
+  document.getElementById('socialTab').classList.remove('tab-open');
 }
 
 let _socialLoading = false;
@@ -351,6 +351,23 @@ function renderSocialItem(item) {
   const venueClick = venue
     ? `onclick="openModal('${item.venue_id}','${venue.event_type ? 'event' : 'venue'}')" style="cursor:pointer"` : '';
 
+  const postId = item.id || '';
+  const postType = item.type || '';
+  const commentSection = `
+    <div class="social-comments-section" id="comments-${postId}">
+      <button class="social-comments-toggle" onclick="toggleComments('${postId}','${postType}',this)">
+        💬 Comments
+      </button>
+      <div class="social-comments-body" style="display:none">
+        <div class="social-comments-list" id="clist-${postId}"></div>
+        ${currentUser ? `<div class="social-comment-compose">
+          <input class="social-comment-input" id="cinput-${postId}" type="text" placeholder="Add a comment..." maxlength="280"
+            onkeydown="if(event.key==='Enter')submitComment('${postId}','${postType}')">
+          <button class="social-comment-send" onclick="submitComment('${postId}','${postType}')">→</button>
+        </div>` : ''}
+      </div>
+    </div>`;
+
   // ── Photo post — full card with image ──
   if (item.type === 'photo') {
     return `<div class="social-card social-card--photo">
@@ -367,22 +384,26 @@ function renderSocialItem(item) {
           onerror="this.closest('.social-card').remove()">
       </div>
       ${item.caption ? `<div class="social-caption">${esc(item.caption)}</div>` : ''}
+      ${commentSection}
     </div>`;
   }
 
   // ── Check-in (no photo) ──
   if (item.type === 'check_in') {
-    return `<div class="social-row" ${venueClick ? venueClick.replace('onclick=', 'onclick=') : ''}>
-      <div class="social-avatar" ${profileClick}>${avatar}</div>
-      <div class="social-row-body">
-        <div class="social-row-text">
-          <span class="social-row-name" ${profileClick}>${esc(displayName)}</span>${followBadge}
-          checked in at <span class="social-venue-link" ${venueClick}>${esc(venueName)}</span>
+    return `<div class="social-card social-card--row">
+      <div class="social-row">
+        <div class="social-avatar" ${profileClick}>${avatar}</div>
+        <div class="social-row-body">
+          <div class="social-row-text">
+            <span class="social-row-name" ${profileClick}>${esc(displayName)}</span>${followBadge}
+            checked in at <span class="social-venue-link" ${venueClick}>${esc(venueName)}</span>
+          </div>
+          <div class="social-row-meta">${neighborhood ? neighborhood + ' · ' : ''}${timeAgo}</div>
+          ${item.meta?.note ? `<div class="social-row-note">"${esc(item.meta.note)}"</div>` : ''}
         </div>
-        <div class="social-row-meta">${neighborhood ? neighborhood + ' · ' : ''}${timeAgo}</div>
-        ${item.meta?.note ? `<div class="social-row-note">"${esc(item.meta.note)}"</div>` : ''}
+        <div class="social-row-icon">📍</div>
       </div>
-      <div class="social-row-icon">📍</div>
+      ${commentSection}
     </div>`;
   }
 
@@ -436,6 +457,47 @@ function renderSocialItem(item) {
 
   return '';
 }
+// ── SOCIAL COMMENTS ──
+async function toggleComments(postId, postType, btn) {
+  const body = btn.nextElementSibling;
+  if (!body) return;
+  const visible = body.style.display !== 'none';
+  body.style.display = visible ? 'none' : 'block';
+  if (!visible) {
+    const list = document.getElementById('clist-' + postId);
+    if (list && !list.dataset.loaded) {
+      list.innerHTML = '<div style="padding:8px;color:var(--muted);font-size:12px">Loading...</div>';
+      const comments = await fetchComments(postId, postType);
+      list.dataset.loaded = '1';
+      list.innerHTML = comments.length
+        ? comments.map(c => `<div class="social-comment">
+            <span class="social-comment-name">${esc(c.profile?.display_name || 'User')}</span>
+            <span class="social-comment-text">${esc(c.text)}</span>
+          </div>`).join('')
+        : '<div style="padding:8px 0;color:var(--muted);font-size:12px">No comments yet</div>';
+    }
+  }
+}
+async function submitComment(postId, postType) {
+  const input = document.getElementById('cinput-' + postId);
+  if (!input || !currentUser) return;
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  const result = await addComment(postId, postType, currentUser.id, text);
+  if (result) {
+    const list = document.getElementById('clist-' + postId);
+    const name = currentUser.user_metadata?.full_name || 'You';
+    const el = document.createElement('div');
+    el.className = 'social-comment';
+    el.innerHTML = `<span class="social-comment-name">${esc(name)}</span><span class="social-comment-text">${esc(text)}</span>`;
+    // Remove "No comments yet" placeholder if present
+    const placeholder = list?.querySelector('[style*="color:var(--muted)"]');
+    if (placeholder && placeholder.textContent.includes('No comments')) placeholder.remove();
+    list?.appendChild(el);
+  }
+}
+
 async function doSignOut() { await authSignOut(); showToast('Signed out'); }
 
 // ── HOME ───────────────────────────────────────────────
@@ -617,16 +679,16 @@ function buildTypeFilters() {
     tf.appendChild(opt);
   });
 
-  // Amenity select
+  // Amenity pills (multi-select)
   const af = document.getElementById('amenityFilters');
   if (af) {
-    const currentAmenity = state.filters.amenity;
-    af.innerHTML = '<option value="">All amenities</option>';
+    af.innerHTML = '';
     AMENITIES.forEach(a => {
-      const opt = document.createElement('option');
-      opt.value = a.key; opt.textContent = a.emoji + ' ' + a.label;
-      if (a.key === currentAmenity) opt.selected = true;
-      af.appendChild(opt);
+      const btn = document.createElement('button');
+      btn.className = 'pill' + (state.filters.amenities.includes(a.key) ? ' active' : '');
+      btn.textContent = a.emoji + ' ' + a.label;
+      btn.onclick = () => toggleAmenityFilter(a.key, btn);
+      af.appendChild(btn);
     });
   }
 }
@@ -635,13 +697,14 @@ function mkPill(label, onclick) {
   const b = document.createElement('button'); b.className = 'pill'; b.textContent = label; b.onclick = onclick; return b;
 }
 function clearAllFilters() {
-  state.filters = { day: null, area: null, type: null, search: '', amenity: null };
+  state.filters = { day: null, area: null, type: null, search: '', amenities: [] };
   state.favFilterOn = false;
   document.getElementById('searchBox').value = '';
-  ['dayFilters','areaFilters','typeFilters','amenityFilters'].forEach(id => {
+  ['dayFilters','areaFilters','typeFilters'].forEach(id => {
     const el = document.getElementById(id);
     if (el && el.tagName === 'SELECT') el.selectedIndex = 0;
   });
+  document.querySelectorAll('#amenityFilters .pill.active').forEach(b => b.classList.remove('active'));
   document.getElementById('chipsRow').innerHTML = '';
   document.getElementById('favFilterBtn')?.classList.remove('active');
   applyFilters(); updateDot(); toggleFilters();
@@ -658,6 +721,13 @@ function setFilter(key, val, btn) {
   else { btn.parentElement.querySelectorAll('.pill.active').forEach(b => b.classList.remove('active')); state.filters[key] = val; btn.classList.add('active'); }
   applyFilters(); updateChips(); updateDot();
 }
+function toggleAmenityFilter(key, btn) {
+  if(typeof haptic==='function')haptic('light');
+  const idx = state.filters.amenities.indexOf(key);
+  if (idx >= 0) { state.filters.amenities.splice(idx, 1); btn.classList.remove('active'); }
+  else { state.filters.amenities.push(key); btn.classList.add('active'); }
+  applyFilters(); updateChips(); updateDot();
+}
 function updateChips() {
   const row = document.getElementById('chipsRow'); row.innerHTML = '';
   const { day, area, type, search } = state.filters;
@@ -665,9 +735,15 @@ function updateChips() {
   if (area)   addChip(row, `Area: ${area}`,  () => clearFilter('area'));
   if (type)   addChip(row, `Type: ${type}`,  () => clearFilter('type'));
   if (search) addChip(row, `"${search}"`,    () => { state.filters.search = ''; document.getElementById('searchBox').value = ''; applyFilters(); updateChips(); updateDot(); });
-  if (state.filters.amenity) {
-    const a = AMENITIES.find(x => x.key === state.filters.amenity);
-    if (a) addChip(row, `${a.emoji} ${a.label}`, () => { state.filters.amenity = null; document.querySelectorAll('#amenityFilters .pill.active').forEach(b=>b.classList.remove('active')); applyFilters(); updateChips(); updateDot(); });
+  if (state.filters.amenities.length) {
+    state.filters.amenities.forEach(key => {
+      const a = AMENITIES.find(x => x.key === key);
+      if (a) addChip(row, `${a.emoji} ${a.label}`, () => {
+        state.filters.amenities = state.filters.amenities.filter(k => k !== key);
+        document.querySelectorAll('#amenityFilters .pill').forEach(b => { if (b.textContent.includes(a.label)) b.classList.remove('active'); });
+        applyFilters(); updateChips(); updateDot();
+      });
+    });
   }
   if (state.favFilterOn) addChip(row, '★ Saved', () => { state.favFilterOn = false; document.getElementById('favFilterBtn').classList.remove('active'); applyFilters(); updateChips(); });
 }
@@ -682,7 +758,7 @@ function clearFilter(key) {
   applyFilters(); updateChips(); updateDot();
 }
 function updateDot() {
-  const has = state.filters.day || state.filters.area || state.filters.type || state.favFilterOn;
+  const has = state.filters.day || state.filters.area || state.filters.type || state.filters.amenities.length || state.favFilterOn;
   document.getElementById('filterDot').classList.toggle('show', !!has);
   document.getElementById('filterToggle').classList.toggle('active', !!has);
 }
@@ -711,7 +787,7 @@ function applyFilters() {
   }
 
   state.filtered = pool.filter(v => {
-    const { day, area, type, amenity } = state.filters;
+    const { day, area, type, amenities } = state.filters;
     const isEvent = !!v.event_type;
 
     if (day && !(v.days || []).includes(day)) return false;
@@ -721,13 +797,14 @@ function applyFilters() {
       const haystack = [v.name, v.neighborhood, v.cuisine, v.event_type, ...(v.deals || [])].join(' ').toLowerCase();
       if (!haystack.includes(t)) return false;
     }
-    if (amenity) {
-      const amenityDef = AMENITIES.find(a => a.key === amenity);
-      if (isEvent) {
-        // Events only pass through if their event_type matches this amenity
-        if (!amenityDef?.eventType || v.event_type !== amenityDef.eventType) return false;
-      } else {
-        if (!v[amenity]) return false;
+    if (amenities && amenities.length) {
+      for (const amenity of amenities) {
+        const amenityDef = AMENITIES.find(a => a.key === amenity);
+        if (isEvent) {
+          if (!amenityDef?.eventType || v.event_type !== amenityDef.eventType) return false;
+        } else {
+          if (!v[amenity]) return false;
+        }
       }
     }
     if (search) {
@@ -748,11 +825,9 @@ function applyFilters() {
   } else if (state.sort === 'name') {
     state.filtered.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   } else {
-    // Default: featured first, then alphabetical
-    state.filtered.sort((a, b) => {
-      if (b.featured !== a.featured) return (b.featured ? 1 : 0) - (a.featured ? 1 : 0);
-      return (a.name || '').localeCompare(b.name || '');
-    });
+    // Featured: only show venues/events marked as featured
+    state.filtered = state.filtered.filter(v => v.featured);
+    state.filtered.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   }
 
   renderCards();
@@ -863,7 +938,7 @@ function venueCardHTML(v) {
         <img src="${photoUrl}" alt="${esc(v.name)}" loading="lazy"
           onerror="this.closest('.vcard-photo').style.background='linear-gradient(135deg,#2A1F14,#1A1208)';this.remove()">
         <div class="vcard-photo-grad"></div>
-        <div class="vcard-photo-name">${esc(v.name)}${v.owner_verified ? ' <span class="vcard-photo-verified">✓</span>' : ''}</div>
+        <div class="vcard-photo-name">${esc(v.name)}</div>
         ${distBadge ? `<div class="vcard-photo-dist">${distBadge}</div>` : ''}
         <button class="vcard-photo-fav${faved ? ' faved' : ''}"
           onclick="event.stopPropagation();doFavorite('${v.id}','venue',this);this.classList.toggle('faved');this.textContent=this.classList.contains('faved')?'★':'☆'">${faved ? '★' : '☆'}</button>
@@ -872,7 +947,6 @@ function venueCardHTML(v) {
         <div class="vcard-meta">
           ${todayHours ? `<span class="vcard-hours">${esc(todayHours)}</span>` : ''}
           ${v.neighborhood ? `<span class="vcard-hood">${esc(v.neighborhood)}</span>` : ''}
-          ${distBadge && todayHours ? `<span class="vcard-sep">·</span><span class="vcard-hood">${distBadge}</span>` : ''}
         </div>
         ${amenityTags ? `<div class="amenity-tags" style="margin-bottom:6px">${amenityTags}</div>` : ''}
         <div class="vcard-deals">
@@ -880,6 +954,7 @@ function venueCardHTML(v) {
           ${(v.deals||[]).length > 3 ? `<div class="vcard-deal" style="opacity:.5"><div class="vcard-deal-dot"></div>+${v.deals.length-3} more deals</div>` : ''}
         </div>
       </div>
+      ${v.owner_verified ? '<div class="vcard-verified-row"><span class="verified-badge verified-badge--card">✓ Verified</span></div>' : ''}
       <div class="vcard-foot">
         <span class="vcard-cuisine">${esc(v.cuisine || '')}</span>
         <div class="vcard-stars">${starHTML(avg,5,11)}<span style="margin-left:3px;font-size:10px;color:var(--muted)">${cached.length ? `(${cached.length})` : ''}</span></div>
@@ -896,7 +971,7 @@ function venueCardHTML(v) {
   return `<div class="vcard" data-id="${v.id}" onclick="openModal('${v.id}','venue')" role="button" tabindex="0">
     <div class="vcard-nophoto">
       <div class="vcard-nophoto-top">
-        <div class="vcard-nophoto-name">${esc(v.name)}${v.owner_verified ? ' <span class="verified-badge verified-badge--card">✓</span>' : ''}</div>
+        <div class="vcard-nophoto-name">${esc(v.name)}</div>
         <button class="vcard-nophoto-fav${faved ? ' faved' : ''}"
           onclick="event.stopPropagation();doFavorite('${v.id}','venue',this);this.classList.toggle('faved');this.textContent=this.classList.contains('faved')?'★':'☆'">${faved ? '★' : '☆'}</button>
       </div>
@@ -911,6 +986,7 @@ function venueCardHTML(v) {
         ${(v.deals||[]).length > 3 ? `<div class="vcard-deal" style="opacity:.5"><div class="vcard-deal-dot"></div>+${v.deals.length-3} more</div>` : ''}
       </div>
     </div>
+    ${v.owner_verified ? '<div class="vcard-verified-row"><span class="verified-badge verified-badge--card">✓ Verified</span></div>' : ''}
     <div class="vcard-foot">
       <span class="vcard-cuisine">${esc(v.cuisine || '')}</span>
       <div class="vcard-stars">${starHTML(avg,5,11)}<span style="margin-left:3px;font-size:10px;color:var(--muted)">${cached.length ? `(${cached.length})` : ''}</span></div>
@@ -1409,15 +1485,21 @@ async function renderProfile(user) {
   const currentStreak = computeCurrentStreak(checkIns);
   const AVATARS = ['🍺','🍹','🍷','🥂','🍸','🎉','🌮','🔥','🎸','🏄','🌊','🎭'];
 
+  const avatarUrl = profile?.avatar_url || '';
+  const headerUrl = profile?.header_url || '';
+
   document.getElementById('profileContent').innerHTML = `
-    <div class="pf-hero">
-      <div class="pf-hero-burst"></div>
-      <div class="pf-hero-grid"></div>
-      <div class="pf-ring pf-ring-1"></div>
-      <div class="pf-ring pf-ring-2"></div>
-      <div class="pf-ring pf-ring-3"></div>
+    <div class="pf-hero" id="myBannerHero" ${headerUrl ? `style="background:url('${esc(headerUrl)}') center/cover no-repeat"` : ''}>
+      ${!headerUrl ? `<div class="pf-hero-burst"></div><div class="pf-hero-grid"></div>
+      <div class="pf-ring pf-ring-1"></div><div class="pf-ring pf-ring-2"></div><div class="pf-ring pf-ring-3"></div>` : ''}
+      <div class="pf-hero-overlay" onclick="pickHeaderPhoto()" title="Change header photo" style="cursor:pointer">
+        <span class="pf-hero-cam">📷</span>
+      </div>
       <div class="pf-avatar-zone">
-        <div class="pf-avatar" id="myAvatar" onclick="toggleAvatarPicker()" title="Change avatar">${avatar}</div>
+        <div class="pf-avatar" id="myAvatar" onclick="pickProfilePhoto()" title="Change profile photo" style="cursor:pointer">
+          ${avatarUrl ? `<img src="${esc(avatarUrl)}" alt="Profile" style="width:100%;height:100%;border-radius:50%;object-fit:cover">` : avatar}
+        </div>
+        <div class="pf-avatar-cam">📷</div>
         <div class="avatar-picker" id="avatarPicker" style="display:none">
           ${AVATARS.map(e => `<button class="avatar-opt" onclick="pickAvatar('${e}',this)">${e}</button>`).join('')}
         </div>
@@ -1430,6 +1512,8 @@ async function renderProfile(user) {
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         </button>
       </div>
+      <input type="file" id="headerPhotoInput" accept="image/*" style="display:none" onchange="handleHeaderPhoto(this)">
+      <input type="file" id="profilePhotoInput" accept="image/*" style="display:none" onchange="handleProfilePhoto(this)">
     </div>
 
     <div class="pf-body">
@@ -1596,26 +1680,6 @@ function openProfileSettings() {
       </div>
 
       <div class="p-section">
-        <div class="p-section-title">Banner Color</div>
-        <div class="banner-color-grid" id="bannerColorGrid">
-          ${BANNER_COLORS.map(c => `
-            <button class="banner-color-swatch" style="background:${c.color}" title="${c.label}"
-              onclick="pickBannerColor('${c.color}',this)">
-              ${c.label === 'Coral' ? '✓' : ''}
-            </button>`).join('')}
-        </div>
-      </div>
-
-      <div class="p-section">
-        <div class="p-section-title">Weekly Digest Email</div>
-        <label class="toggle-row">
-          <input type="checkbox" id="digestCb" onchange="saveDigest(this.checked)">
-          <span class="t-track"><span class="t-thumb"></span></span>
-          <span class="t-text">Email me new happy hours & events weekly</span>
-        </label>
-      </div>
-
-      <div class="p-section">
         <div class="p-section-title">Privacy</div>
         <label class="toggle-row">
           <input type="checkbox" id="publicCb" checked onchange="savePrivacy(this.checked)">
@@ -1756,8 +1820,41 @@ async function pickAvatar(emoji) {
   if(typeof haptic==='function')haptic('light');
   document.getElementById('myAvatar').textContent = emoji;
   document.getElementById('avatarPicker').style.display = 'none';
-  await updateProfile(currentUser.id, { avatar_emoji: emoji });
+  await updateProfile(currentUser.id, { avatar_emoji: emoji, avatar_url: null });
   showToast('Avatar updated!');
+}
+function pickProfilePhoto() {
+  document.getElementById('profilePhotoInput')?.click();
+}
+function pickHeaderPhoto() {
+  document.getElementById('headerPhotoInput')?.click();
+}
+async function handleProfilePhoto(input) {
+  const file = input.files?.[0];
+  if (!file || !currentUser) return;
+  showToast('Uploading photo...');
+  const url = await uploadProfilePhoto(file, currentUser.id, 'avatar');
+  if (url) {
+    document.getElementById('myAvatar').innerHTML = `<img src="${url}" alt="Profile" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`;
+    showToast('Profile photo updated!');
+  } else {
+    showToast('Upload failed — try again');
+  }
+  input.value = '';
+}
+async function handleHeaderPhoto(input) {
+  const file = input.files?.[0];
+  if (!file || !currentUser) return;
+  showToast('Uploading header...');
+  const url = await uploadProfilePhoto(file, currentUser.id, 'header');
+  if (url) {
+    const hero = document.getElementById('myBannerHero');
+    if (hero) hero.style.background = `url('${url}') center/cover no-repeat`;
+    showToast('Header photo updated!');
+  } else {
+    showToast('Upload failed — try again');
+  }
+  input.value = '';
 }
 async function saveName() { const n = document.getElementById('pName').value.trim(); if (!n) return; if(typeof haptic==='function')haptic('medium'); await updateProfile(currentUser.id, { display_name: n }); showToast('Name saved'); }
 async function saveBio() { const b = document.getElementById('pBio').value.trim(); if(typeof haptic==='function')haptic('medium'); await updateProfile(currentUser.id, { bio: b }); showToast('Bio saved'); }
@@ -1910,18 +2007,25 @@ function initMap() {
   const map = L.map('map', {
     center: cityCenter,
     zoom: 12,
-    zoomSnap: 0.25,
+    zoomSnap: 0.5,
     zoomDelta: 0.5,
     wheelPxPerZoomLevel: 120,
     inertia: true,
-    inertiaDeceleration: 2800,
-    inertiaMaxSpeed: 1200,
-    easeLinearity: 0.25,
+    inertiaDeceleration: 3400,
+    inertiaMaxSpeed: 1500,
+    easeLinearity: 0.2,
+    preferCanvas: true,
+    fadeAnimation: true,
+    zoomAnimation: true,
+    markerZoomAnimation: true,
   });
   L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
     attribution: '© OpenStreetMap © CARTO',
     subdomains: 'abcd',
     maxZoom: 19,
+    updateWhenZooming: false,
+    updateWhenIdle: true,
+    keepBuffer: 4,
   }).addTo(map);
   state.map = map;
 }
@@ -1938,7 +2042,10 @@ function getCityCenter(slug) {
   return centers[slug] || [39.5, -98.35];
 }
 function updateMapMarkers() {
-  Object.values(state.markers).forEach(m => m.remove()); state.markers = {};
+  // Use a layer group for efficient batch add/remove
+  if (state._markerLayer) { state._markerLayer.clearLayers(); }
+  else { state._markerLayer = L.layerGroup().addTo(state.map); }
+  state.markers = {};
   state.filtered.forEach(v => {
     if (!v.lat || !v.lng) return;
     const isEvent = !!v.event_type;
@@ -1947,8 +2054,9 @@ function updateMapMarkers() {
     const label = v.name.length > 16 ? v.name.slice(0, 15) + '\u2026' : v.name;
     const iconHtml = `<div class="map-pin-wrap"><div class="map-pin-dot" style="background:${bg};box-shadow:0 0 0 3px ${bg}22"></div><div class="map-pin-label" style="border-color:${bg}33;color:${bg}">${label}</div></div>`;
     const icon = L.divIcon({ className: '', html: iconHtml, iconSize: [10, 10], iconAnchor: [5, 5], popupAnchor: [0, -14] });
-    const marker = L.marker([v.lat, v.lng], { icon }).addTo(state.map).bindPopup(popupHTML(v), { maxWidth: 260 });
+    const marker = L.marker([v.lat, v.lng], { icon }).bindPopup(popupHTML(v), { maxWidth: 260 });
     marker.on('click', () => hlMapCard(v.id));
+    state._markerLayer.addLayer(marker);
     state.markers[v.id] = marker;
   });
 }
@@ -2187,7 +2295,15 @@ async function doGoingTonight(venueId, btn) {
   }
   const count = state.goingCounts[venueId] || 0;
   const nowIn = state.goingByMe.has(venueId);
-  if (btn) { btn.classList.toggle('going-active', nowIn); btn.innerHTML = checkInBtnLabel(count, nowIn); }
+  if (btn) {
+    btn.classList.toggle('going-active', nowIn);
+    btn.innerHTML = checkInBtnLabel(count, nowIn);
+    // Trigger pop + ripple animation
+    btn.classList.remove('checkin-anim');
+    void btn.offsetWidth; // force reflow
+    btn.classList.add('checkin-anim');
+    setTimeout(() => btn.classList.remove('checkin-anim'), 500);
+  }
   const badge = document.querySelector(`.card[data-id="${venueId}"] .fire-badge`);
   if (badge) {
     if (count >= 2) { badge.textContent = `🔥 ${count} here tonight`; badge.style.display = 'inline-flex'; }
@@ -2967,10 +3083,10 @@ let dmState = {
 };
 
 function openDmTab() {
-  document.getElementById('dmTab').style.display = 'flex';
+  document.getElementById('dmTab').classList.add('tab-open');
 }
 function closeDmTab() {
-  document.getElementById('dmTab').style.display = 'none';
+  document.getElementById('dmTab').classList.remove('tab-open');
   if (dmState.subscription) { dmState.subscription.unsubscribe(); dmState.subscription = null; }
 }
 function openDmPage()  { openDmTab(); }
