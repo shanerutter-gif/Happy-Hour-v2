@@ -7,21 +7,34 @@ const DAYS    = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const TODAY   = DAYS[new Date().getDay()];
 
 // Parse just today's hours from the full hours string
-// e.g. "Mon 4–10pm, Thu 4–11pm, Fri 11am–2am" → "4–11pm" on Thu
+// Handles both "Mon–Thu 5–9pm" and "11am – 10pm Mon–Thu" formats
+// Separators: ", " or " · "
 function getTodayHours(v) {
   if (!v.hours) return '';
   const dayOrder = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
   const todayIdx = dayOrder.indexOf(TODAY);
   if (todayIdx === -1) return v.hours;
 
-  // Split by ", " but be careful of ranges like "Mon–Thu"
-  const segments = v.hours.split(/,\s*/);
+  // Split by " · " or ", "
+  const segments = v.hours.split(/\s·\s|,\s*/);
 
   for (const seg of segments) {
-    // Match patterns like "Mon–Thu 5–9pm" or "Fri 11am–2am" or "Mon–Sun 4pm–2am"
-    const m = seg.match(/^([A-Z][a-z]+)(?:–([A-Z][a-z]+))?\s+(.+)$/);
-    if (!m) continue;
-    const startDay = m[1], endDay = m[2], time = m[3];
+    const trimmed = seg.trim();
+    let startDay, endDay, time;
+
+    // Try "Days Time" format: "Mon–Thu 5–9pm"
+    const m1 = trimmed.match(/^([A-Z][a-z]+)(?:–([A-Z][a-z]+))?\s+(.+)$/);
+    // Try "Time Days" format: "11am – 10pm Mon–Thu"
+    const m2 = trimmed.match(/^(.+?)\s+([A-Z][a-z]+)(?:–([A-Z][a-z]+))?$/);
+
+    if (m1) {
+      startDay = m1[1]; endDay = m1[2]; time = m1[3];
+    } else if (m2) {
+      time = m2[1]; startDay = m2[2]; endDay = m2[3];
+    } else {
+      continue;
+    }
+
     const startIdx = dayOrder.indexOf(startDay);
     const endIdx   = endDay ? dayOrder.indexOf(endDay) : startIdx;
     if (startIdx === -1) continue;
@@ -1940,7 +1953,7 @@ function updateMapMarkers() {
   });
 }
 function popupHTML(v) {
-  return `<div class="popup-body"><div class="popup-name">${esc(v.name)}</div><div class="popup-hood">${esc(v.neighborhood||'')}</div><div class="popup-when">${esc(v.hours||'')}</div>${(v.deals||[]).slice(0,2).map(d=>`<div class="popup-deal">${esc(d)}</div>`).join('')}<div class="popup-actions"><button class="popup-btn" onclick="openModal('${v.id}','${v.event_type?'event':'venue'}')">Details</button><button class="popup-share" onclick="shareItem('${v.id}','${v.event_type?'event':'venue'}')">Share</button></div></div>`;
+  return `<div class="popup-body"><div class="popup-name">${esc(v.name)}</div><div class="popup-hood">${esc(v.neighborhood||'')}</div><div class="popup-when">${esc(getTodayHours(v))}</div>${(v.deals||[]).slice(0,2).map(d=>`<div class="popup-deal">${esc(d)}</div>`).join('')}<div class="popup-actions"><button class="popup-btn" onclick="openModal('${v.id}','${v.event_type?'event':'venue'}')">Details</button><button class="popup-share" onclick="shareItem('${v.id}','${v.event_type?'event':'venue'}')">Share</button></div></div>`;
 }
 function flyTo(id) {
   const all = [...state.venues, ...state.events];
@@ -1956,7 +1969,7 @@ function hlMapCard(id) {
   if (c) c.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 function buildMapSidebar() {
-  document.getElementById('mapCards').innerHTML = state.filtered.map(v => `<div class="map-card" data-id="${v.id}" onclick="flyTo('${v.id}')"><div class="map-card-name">${esc(v.name)}</div><div class="map-card-hood">${esc(v.neighborhood||'')}</div><div class="map-card-when">${esc(v.hours||'')}</div></div>`).join('');
+  document.getElementById('mapCards').innerHTML = state.filtered.map(v => `<div class="map-card" data-id="${v.id}" onclick="flyTo('${v.id}')"><div class="map-card-name">${esc(v.name)}</div><div class="map-card-hood">${esc(v.neighborhood||'')}</div><div class="map-card-when">${esc(getTodayHours(v))}</div></div>`).join('');
 }
 
 // ── OVERLAY HELPERS ────────────────────────────────────
