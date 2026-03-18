@@ -285,6 +285,8 @@ main{min-height:60vh}
 .sheet--wide{max-width:740px}
 
 .sheet-handle{width:40px;height:4px;background:rgba(42,31,20,0.18);border-radius:2px;margin:0 auto 16px;cursor:grab}
+#venueSheet{padding:10px 0 calc(72px + env(safe-area-inset-bottom, 0px))}
+#venueSheet .sheet-handle{margin:0 auto 8px}
 .sheet-close{position:sticky;top:0;float:right;margin:0 0 -32px;z-index:20;background:var(--bg2);border:1px solid var(--border2);color:var(--muted);width:32px;height:32px;border-radius:6px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center}
 .sheet-close:active{background:var(--card2)}
 .s-tag{display:inline-block;font-family:'DM Sans',sans-serif;font-size:9px;text-transform:uppercase;letter-spacing:1px;padding:3px 9px;border-radius:4px;margin-bottom:8px}
@@ -1837,10 +1839,11 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 
 /* ── REDESIGNED MODAL ── */
 .modal-hero-wrap {
-  position: relative; margin: 10px 12px 0;
-  height: 192px; border-radius: 16px;
+  position: relative; margin: 0;
+  height: 220px; border-radius: 0;
   overflow: hidden;
   background: linear-gradient(135deg, #2A1F14, #1A1208);
+  cursor: pointer;
 }
 .modal-hero-wrap img {
   width: 100%; height: 100%; object-fit: cover; display: block;
@@ -1872,7 +1875,7 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 }
 .modal-hero-fav.faved { color: var(--teal); background: rgba(255,107,74,0.2); }
 
-.modal-body-inner { padding: 14px 16px 0; }
+.modal-body-inner { padding: 14px 20px 0; }
 .modal-loc-row {
   display: flex; align-items: center; gap: 6px;
   margin-bottom: 14px; flex-wrap: wrap;

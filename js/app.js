@@ -1028,14 +1028,14 @@ function renderModal(v, type, reviews) {
 
   document.getElementById('modalContent').innerHTML = `
     ${photo ? `
-    <div class="modal-hero-wrap">
+    <div class="modal-hero-wrap" onclick="openPhotoLightbox('${esc(photo)}','${esc(v.name)}')">
       <img src="${esc(photo)}" alt="${esc(v.name)}" loading="lazy" onerror="this.closest('.modal-hero-wrap').style.background='linear-gradient(135deg,#2A1F14,#1A1208)';this.remove()">
       <div class="modal-hero-grad"></div>
       <div class="modal-hero-tag">${isVenue ? '🍺 Happy Hour' : esc(v.event_type || 'Event')}</div>
       <div class="modal-hero-name">${esc(v.name)}${v.owner_verified ? ' ✓' : ''}</div>
       <button class="modal-hero-fav${faved ? ' faved' : ''}" onclick="doFavorite('${v.id}','${type}',this)">${faved ? '★' : '☆'}</button>
     </div>` : `
-    <div style="padding:16px 16px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
+    <div style="padding:16px 20px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
       <div>
         <div class="s-tag ${isVenue ? 'hh' : 'ev'}">${isVenue ? '🍺 Happy Hour' : esc(v.event_type || 'Event')}</div>
         <div class="s-name">${esc(v.name)}${v.owner_verified ? ' <span class="verified-badge verified-badge--modal">✓ Verified</span>' : ''}</div>
@@ -2005,7 +2005,7 @@ function attachSwipeDismiss(sheet, overlayId) {
   }
 
   let startY = 0, currentY = 0, dragging = false;
-  const DISMISS_THRESHOLD = 80; // px needed to dismiss
+  const DISMISS_THRESHOLD = 100; // px needed to dismiss
 
   sheet._swipeHandler = (e) => {
     // Only start drag if at the very top of the sheet scroll
@@ -2014,19 +2014,20 @@ function attachSwipeDismiss(sheet, overlayId) {
     currentY = startY;
     dragging = true;
     sheet.style.transition = 'none';
+    sheet.style.willChange = 'transform';
   };
 
   sheet._swipeMoveHandler = (e) => {
     if (!dragging) return;
     currentY = e.touches[0].clientY;
     const dy = currentY - startY;
-    if (dy < 0) { sheet.style.transform = ''; return; } // no upward drag
-    // Resist a little — rubber band feel
-    const resistance = dy / (1 + dy * 0.003);
-    sheet.style.transform = `translateY(${resistance}px)`;
-    // Fade the overlay backdrop as you drag
+    if (dy < 0) { sheet.style.transform = 'translateY(0)'; return; }
+    sheet.style.transform = `translateY(${dy}px)`;
     const overlay = document.getElementById(overlayId);
-    if (overlay) overlay.style.background = `rgba(26,18,8,${Math.max(0, 0.75 - (dy / 300))})`;
+    if (overlay) {
+      const progress = Math.min(dy / 400, 1);
+      overlay.style.opacity = 1 - progress * 0.6;
+    }
     e.preventDefault();
   };
 
@@ -2034,22 +2035,38 @@ function attachSwipeDismiss(sheet, overlayId) {
     if (!dragging) return;
     dragging = false;
     const dy = currentY - startY;
-    sheet.style.transition = '';
+    sheet.style.willChange = '';
 
     if (dy > DISMISS_THRESHOLD) {
-      // Animate out then close
-      sheet.style.transform = `translateY(100%)`;
+      // Smooth slide out
+      sheet.style.transition = 'transform .28s cubic-bezier(.4,0,1,1), opacity .28s ease-out';
+      sheet.style.transform = 'translateY(100%)';
       sheet.style.opacity = '0';
+      const overlay = document.getElementById(overlayId);
+      if (overlay) {
+        overlay.style.transition = 'opacity .28s ease-out';
+        overlay.style.opacity = '0';
+      }
       setTimeout(() => {
+        sheet.style.transition = '';
         sheet.style.transform = '';
-        sheet.style.opacity  = '';
+        sheet.style.opacity = '';
+        if (overlay) { overlay.style.transition = ''; overlay.style.opacity = ''; }
         closeOverlay(overlayId);
-      }, 260);
+      }, 300);
     } else {
-      // Snap back
+      // Snap back smoothly
+      sheet.style.transition = 'transform .25s cubic-bezier(.2,.8,.4,1)';
       sheet.style.transform = '';
       const overlay = document.getElementById(overlayId);
-      if (overlay) overlay.style.background = '';
+      if (overlay) {
+        overlay.style.transition = 'opacity .25s ease';
+        overlay.style.opacity = '';
+      }
+      setTimeout(() => {
+        sheet.style.transition = '';
+        if (overlay) overlay.style.transition = '';
+      }, 260);
     }
   };
 
