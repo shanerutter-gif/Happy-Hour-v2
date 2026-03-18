@@ -1038,10 +1038,10 @@ function renderModal(v, type, reviews) {
       </div>
 
       <div class="modal-actions-grid">
-        <a class="modal-action primary" href="${getVenueWebsiteUrl(v)}" target="_blank" rel="noopener">
+        <div class="modal-action primary" onclick="openVenueWebsite('${v.id}')">
           <span class="modal-action-icon">🌐</span>
           <span class="modal-action-label">Website</span>
-        </a>
+        </div>
         <div class="modal-action" onclick="goToMap('${v.id}')">
           <span class="modal-action-icon">🗺️</span>
           <span class="modal-action-label">Map</span>
@@ -1159,13 +1159,20 @@ async function submitReview(itemId, type) {
 }
 function closeModal(e) { if (e && e.target !== document.getElementById('modalOverlay')) return; closeOverlay('modalOverlay'); }
 
-function getVenueWebsiteUrl(v) {
+function openVenueWebsite(id) {
+  const all = [...state.venues, ...state.events];
+  const v = all.find(x => String(x.id) === String(id));
+  let url;
   if (v && v.url && v.url !== '#' && v.url.trim() !== '') {
-    return v.url;
+    url = v.url;
+  } else {
+    const name = v ? v.name : '';
+    const city = state.city?.name || 'San Diego';
+    url = 'https://www.google.com/search?q=' + encodeURIComponent(name + ' ' + city);
   }
-  const name = v ? v.name : '';
-  const city = state.city?.name || 'San Diego';
-  return 'https://www.google.com/search?q=' + encodeURIComponent(name + ' ' + city);
+  // Use location.href so WKWebView's decidePolicyFor handler intercepts
+  // and opens external URLs in Safari (window.open is silently blocked)
+  window.location.href = url;
 }
 
 // ── EDIT REVIEW ────────────────────────────────────────
