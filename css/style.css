@@ -1896,6 +1896,7 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   border-radius: 12px;
   background: var(--bg2); border: 1.5px solid var(--border2);
   cursor: pointer; transition: all .15s;
+  text-decoration: none; color: inherit;
 }
 .modal-action:active { transform: scale(.95); opacity: .85; }
 .modal-action.primary {
