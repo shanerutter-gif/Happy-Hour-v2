@@ -2003,6 +2003,7 @@ function goToMap(id) { closeOverlay('modalOverlay'); if (state.view !== 'map') t
 // ── MAP ────────────────────────────────────────────────
 function initMap() {
   if (state.map) { state.map.remove(); state.map = null; }
+  state._markerLayer = null;
   const cityCenter = getCityCenter(state.city?.slug);
   const map = L.map('map', {
     center: cityCenter,
@@ -2014,7 +2015,6 @@ function initMap() {
     inertiaDeceleration: 3400,
     inertiaMaxSpeed: 1500,
     easeLinearity: 0.2,
-    preferCanvas: true,
     fadeAnimation: true,
     zoomAnimation: true,
     markerZoomAnimation: true,
