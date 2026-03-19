@@ -72,7 +72,7 @@ async function requestNativePush() {
       console.log('[Push] Received:', notification);
       // Show in-app toast instead of system notification when app is open
       if (typeof showToast === 'function') {
-        showToast('🍺 ' + (notification.title || 'New from Spotd'));
+        showToast(notification.title || 'New from Spotd');
       }
     });
 
@@ -151,7 +151,7 @@ function showPushPromptBanner() {
     animation: slideUp 300ms cubic-bezier(0.34,1.56,0.64,1) both;
   `;
   banner.innerHTML = `
-    <div style="font-size:24px">🍺</div>
+    <div style="display:flex;align-items:center"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#F5EFE6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 11h1a3 3 0 0 1 0 6h-1"/><path d="M9 12v6"/><path d="M13 12v6"/><path d="M14 7.5c-1 0-1.44.5-3 .5s-2-.5-3-.5-1.72.5-2.5.5a2.5 2.5 0 0 1 0-5c.78 0 1.57.5 2.5.5S9.44 3 11 3s2 .5 3 .5 1.72-.5 2.5-.5a2.5 2.5 0 0 1 0 5c-.78 0-1.5-.5-2.5-.5z"/><path d="M5 8v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V8"/></svg></div>
     <div style="flex:1;min-width:0">
       <div style="font-weight:700;font-size:14px;margin-bottom:2px">Get tonight's happy hours</div>
       <div style="font-size:12px;opacity:.6">4pm alerts when spots near you open up</div>
@@ -166,7 +166,7 @@ async function acceptPushBanner() {
   dismissPushBanner();
   const granted = await requestWebPush();
   if (granted) {
-    showToast('🔔 You\'ll get tonight\'s happy hour alerts!');
+    showToast('You\'ll get tonight\'s happy hour alerts!');
     await subscribeWebPush();
   } else {
     showToast('Enable notifications in browser settings to get alerts');

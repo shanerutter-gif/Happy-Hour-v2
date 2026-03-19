@@ -55,14 +55,14 @@ function getTodayHours(v) {
 const EVENT_TYPES = ['Trivia','Live Music','Karaoke','Bingo','Game Night','Comedy'];
 const HH_TYPES    = ['Bar','Brewery','Seafood','Mexican','Italian','Asian','BBQ','Wine Bar','Steakhouse','Beach Bar'];
 const AMENITIES   = [
-  { key: 'has_happy_hour',  label: 'Happy Hour',  emoji: '🍺', eventType: null },
-  { key: 'has_sports_tv',   label: 'Sports TV',   emoji: '📺', eventType: null },
-  { key: 'is_dog_friendly', label: 'Dog Friendly', emoji: '🐶', eventType: null },
-  { key: 'has_live_music',  label: 'Live Music',   emoji: '🎵', eventType: 'Live Music' },
-  { key: 'has_karaoke',     label: 'Karaoke',      emoji: '🎤', eventType: 'Karaoke' },
-  { key: 'has_trivia',      label: 'Trivia',       emoji: '🧠', eventType: 'Trivia' },
-  { key: 'has_bingo',       label: 'Bingo',        emoji: '🎯', eventType: 'Bingo' },
-  { key: 'has_comedy',      label: 'Comedy',       emoji: '🎭', eventType: 'Comedy' },
+  { key: 'has_happy_hour',  label: 'Happy Hour',  icon: 'beer', eventType: null },
+  { key: 'has_sports_tv',   label: 'Sports TV',   icon: 'tv', eventType: null },
+  { key: 'is_dog_friendly', label: 'Dog Friendly', icon: 'dog', eventType: null },
+  { key: 'has_live_music',  label: 'Live Music',   icon: 'music', eventType: 'Live Music' },
+  { key: 'has_karaoke',     label: 'Karaoke',      icon: 'mic', eventType: 'Karaoke' },
+  { key: 'has_trivia',      label: 'Trivia',       icon: 'brain', eventType: 'Trivia' },
+  { key: 'has_bingo',       label: 'Bingo',        icon: 'target', eventType: 'Bingo' },
+  { key: 'has_comedy',      label: 'Comedy',       icon: 'masks', eventType: 'Comedy' },
 ];
 // Map event_type string → amenity config
 const EVENT_TYPE_AMENITY = {};
@@ -221,7 +221,7 @@ function toggleTheme() {
   root.setAttribute('data-theme', next);
   localStorage.setItem('spotd-theme', next);
   const btn = document.getElementById('themeToggleBtn');
-  if (btn) btn.textContent = next === 'dark' ? '☀️' : '🌙';
+  if (btn) btn.innerHTML = next === 'dark' ? icn('sun',14) : icn('moon',14);
 }
 
 function _navHideAll(keep) {
@@ -286,10 +286,10 @@ function maybeShowSocialNudge() {
     overlay.style.cssText = 'position:fixed;inset:0;z-index:600;background:rgba(42,31,20,0.55);display:flex;align-items:center;justify-content:center;padding:24px;backdrop-filter:blur(3px);animation:fadeInOverlay .2s ease';
     overlay.innerHTML = `
       <div style="background:var(--card);border-radius:20px;padding:28px 24px;max-width:320px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(42,31,20,0.18);animation:scaleInModal .22s ease">
-        <div style="font-size:32px;margin-bottom:10px">📸</div>
+        <div style="font-size:32px;margin-bottom:10px">${icn('camera',32)}</div>
         <div style="font-family:'Cabinet Grotesk',sans-serif;font-size:19px;font-weight:900;margin-bottom:8px;color:var(--text)">Share your night out</div>
         <div style="font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:20px">Check in at a spot and add a photo — it shows up in this feed for everyone in the city.</div>
-        <button onclick="document.getElementById('socialNudgeOverlay').remove()" style="width:100%;padding:13px;background:var(--coral);color:#fff;border:none;border-radius:12px;font-family:'Cabinet Grotesk',sans-serif;font-size:15px;font-weight:700;cursor:pointer">Got it 👊</button>
+        <button onclick="document.getElementById('socialNudgeOverlay').remove()" style="width:100%;padding:13px;background:var(--coral);color:#fff;border:none;border-radius:12px;font-family:'Cabinet Grotesk',sans-serif;font-size:15px;font-weight:700;cursor:pointer">Got it</button>
         ${seen < 2 ? `<div style="font-size:11px;color:var(--muted);margin-top:8px">${2 - seen} reminder${2 - seen !== 1 ? 's' : ''} left</div>` : ''}
       </div>`;
     overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
@@ -317,7 +317,7 @@ async function loadSocialFeed() {
     if (!items.length) {
       container.innerHTML = `
         <div class="social-empty">
-          <div class="social-empty-icon">📸</div>
+          <div class="social-empty-icon">${icn('camera',32)}</div>
           <div class="social-empty-title">Nothing here yet</div>
           <div class="social-empty-sub">Be the first to check in and share a photo tonight</div>
         </div>`;
@@ -340,7 +340,7 @@ function renderSocialItem(item) {
   const neighborhood = venue?.neighborhood || item.neighborhood || '';
   const profile = item.profile || {};
   const displayName = profile.display_name || 'Someone';
-  const avatar = profile.avatar_emoji || '🍺';
+  const avatarHtml = initialsAvatar(displayName);
   const isMe = item.user_id === currentUser?.id;
   const timeAgo = fmtDate(item.created_at);
   const followBadge = item.isFollowing && !isMe
@@ -358,10 +358,10 @@ function renderSocialItem(item) {
   const commentSection = `
     <div class="social-actions-bar" id="actions-${postId}">
       <button class="social-like-btn${isLiked ? ' liked' : ''}" id="like-${postId}" onclick="doToggleLike('${postId}','${postType}',this)">
-        ${isLiked ? '❤️' : '🤍'} <span class="like-count">${likeCount || ''}</span>
+        ${isLiked ? ICN.heartFill : ICN.heart} <span class="like-count">${likeCount || ''}</span>
       </button>
       <button class="social-comments-toggle" onclick="toggleComments('${postId}','${postType}',this)">
-        💬 Comments
+        ${ICN.comment} Comments
       </button>
     </div>
     <div class="social-comments-section" id="comments-${postId}" style="display:none">
@@ -379,7 +379,7 @@ function renderSocialItem(item) {
   if (item.type === 'photo') {
     return `<div class="social-card social-card--photo">
       <div class="social-card-header">
-        <div class="social-avatar" ${profileClick}>${avatar}</div>
+        <div class="social-avatar" ${profileClick}>${avatarHtml}</div>
         <div class="social-card-meta">
           ${followBadge ? `<div class="social-follow-badge-row">${followBadge}</div>` : ''}
           <div class="social-card-name" ${profileClick}>${esc(displayName)}</div>
@@ -400,7 +400,7 @@ function renderSocialItem(item) {
   if (item.type === 'check_in') {
     return `<div class="social-card social-card--row">
       <div class="social-row">
-        <div class="social-avatar" ${profileClick}>${avatar}</div>
+        <div class="social-avatar" ${profileClick}>${avatarHtml}</div>
         <div class="social-row-body">
           ${followBadge ? `<div class="social-follow-badge-row">${followBadge}</div>` : ''}
           <div class="social-row-text">
@@ -410,7 +410,7 @@ function renderSocialItem(item) {
           <div class="social-row-meta">${neighborhood ? neighborhood + ' · ' : ''}${timeAgo}</div>
           ${item.meta?.note ? `<div class="social-row-note">"${esc(item.meta.note)}"</div>` : ''}
         </div>
-        <div class="social-row-icon">📍</div>
+        <div class="social-row-icon">${ICN.pin}</div>
       </div>
       ${commentSection}
     </div>`;
@@ -420,7 +420,7 @@ function renderSocialItem(item) {
   if (item.type === 'review') {
     const stars = item.meta?.rating ? '★'.repeat(item.meta.rating) + '☆'.repeat(5 - item.meta.rating) : '';
     return `<div class="social-row" ${venueClick}>
-      <div class="social-avatar" ${profileClick}>${avatar}</div>
+      <div class="social-avatar" ${profileClick}>${avatarHtml}</div>
       <div class="social-row-body">
         ${followBadge ? `<div class="social-follow-badge-row">${followBadge}</div>` : ''}
         <div class="social-row-text">
@@ -431,14 +431,14 @@ function renderSocialItem(item) {
         ${item.meta?.text ? `<div class="social-row-note">"${esc(item.meta.text)}"</div>` : ''}
         <div class="social-row-meta">${neighborhood ? neighborhood + ' · ' : ''}${timeAgo}</div>
       </div>
-      <div class="social-row-icon">⭐</div>
+      <div class="social-row-icon">${ICN.star}</div>
     </div>`;
   }
 
   // ── Favorite ──
   if (item.type === 'favorite') {
     return `<div class="social-row" ${venueClick}>
-      <div class="social-avatar" ${profileClick}>${avatar}</div>
+      <div class="social-avatar" ${profileClick}>${avatarHtml}</div>
       <div class="social-row-body">
         ${followBadge ? `<div class="social-follow-badge-row">${followBadge}</div>` : ''}
         <div class="social-row-text">
@@ -447,14 +447,14 @@ function renderSocialItem(item) {
         </div>
         <div class="social-row-meta">${neighborhood ? neighborhood + ' · ' : ''}${timeAgo}</div>
       </div>
-      <div class="social-row-icon">🔖</div>
+      <div class="social-row-icon">${ICN.bookmark}</div>
     </div>`;
   }
 
   // ── Going tonight ──
   if (item.type === 'going_tonight') {
     return `<div class="social-row" ${venueClick}>
-      <div class="social-avatar" ${profileClick}>${avatar}</div>
+      <div class="social-avatar" ${profileClick}>${avatarHtml}</div>
       <div class="social-row-body">
         ${followBadge ? `<div class="social-follow-badge-row">${followBadge}</div>` : ''}
         <div class="social-row-text">
@@ -463,7 +463,7 @@ function renderSocialItem(item) {
         </div>
         <div class="social-row-meta">${neighborhood ? neighborhood + ' · ' : ''}${timeAgo}</div>
       </div>
-      <div class="social-row-icon">🔥</div>
+      <div class="social-row-icon">${ICN.fire}</div>
     </div>`;
   }
 
@@ -518,11 +518,11 @@ async function doToggleLike(postId, postType, btn) {
   const currentCount = parseInt(countEl?.textContent || '0', 10) || 0;
   if (result.liked) {
     btn.classList.add('liked');
-    btn.innerHTML = `❤️ <span class="like-count">${currentCount + 1}</span>`;
+    btn.innerHTML = `${ICN.heartFill} <span class="like-count">${currentCount + 1}</span>`;
   } else {
     btn.classList.remove('liked');
     const newCount = Math.max(0, currentCount - 1);
-    btn.innerHTML = `🤍 <span class="like-count">${newCount || ''}</span>`;
+    btn.innerHTML = `${ICN.heart} <span class="like-count">${newCount || ''}</span>`;
   }
 }
 
@@ -661,18 +661,18 @@ async function enterCity(slug, name, stateCode) {
   if (state.userLat !== null) {
     applyFilters();
   } else if (navigator.geolocation) {
-    if (nearBtn) { nearBtn.textContent = '📍 Locating…'; nearBtn.disabled = true; }
+    if (nearBtn) { nearBtn.innerHTML = `${ICN.pin} Locating…`; nearBtn.disabled = true; }
     navigator.geolocation.getCurrentPosition(
       pos => {
         state.userLat = pos.coords.latitude;
         state.userLng = pos.coords.longitude;
-        if (nearBtn) { nearBtn.textContent = '📍 Nearest'; nearBtn.disabled = false; }
+        if (nearBtn) { nearBtn.innerHTML = `${ICN.pin} Nearest`; nearBtn.disabled = false; }
         applyFilters();
       },
       () => {
         // Permission denied — fall back to default sort silently
         state.sort = 'default';
-        if (nearBtn) { nearBtn.textContent = '📍 Nearest'; nearBtn.disabled = false; nearBtn.classList.remove('active'); }
+        if (nearBtn) { nearBtn.innerHTML = `${ICN.pin} Nearest`; nearBtn.disabled = false; nearBtn.classList.remove('active'); }
         document.getElementById('sort-default')?.classList.add('active');
         applyFilters();
       },
@@ -797,7 +797,7 @@ function updateChips() {
   if (state.filters.amenities.length) {
     state.filters.amenities.forEach(key => {
       const a = AMENITIES.find(x => x.key === key);
-      if (a) addChip(row, `${a.emoji} ${a.label}`, () => {
+      if (a) addChip(row, `${icn(a.icon,12)} ${a.label}`, () => {
         state.filters.amenities = state.filters.amenities.filter(k => k !== key);
         document.querySelectorAll('#amenityFilters .pill').forEach(b => { if (b.textContent.includes(a.label)) b.classList.remove('active'); });
         applyFilters(); updateChips(); updateDot();
@@ -921,20 +921,20 @@ function setSort(val, btn) {
     if (state.userLat !== null) {
       applyFilters();
     } else {
-      btn.textContent = '📍 Locating…';
+      btn.innerHTML = `${ICN.pin} Locating…`;
       btn.disabled = true;
       navigator.geolocation.getCurrentPosition(
         pos => {
           state.userLat = pos.coords.latitude;
           state.userLng = pos.coords.longitude;
-          btn.textContent = '📍 Nearest';
+          btn.innerHTML = `${ICN.pin} Nearest`;
           btn.disabled = false;
           applyFilters();
         },
         err => {
           showToast('Location access denied — enable in browser settings');
           state.sort = 'default';
-          btn.textContent = '📍 Nearest';
+          btn.innerHTML = `${ICN.pin} Nearest`;
           btn.disabled = false;
           document.getElementById('sort-default')?.classList.add('active');
           btn.classList.remove('active');
@@ -989,7 +989,7 @@ function venueCardHTML(v) {
   const isMeIn = state.goingByMe.has(v.id);
   const ciLabel = checkInBtnLabel(checkInCount, isMeIn);
   const amenityTags = AMENITIES.filter(a => v[a.key]).map(a =>
-    `<span class="amenity-tag amenity-tag--${a.key}">${a.emoji} ${a.label}</span>`).join('');
+    `<span class="amenity-tag amenity-tag--${a.key}">${icn(a.icon,12)} ${a.label}</span>`).join('');
 
   if (hasPhoto) {
     return `<div class="vcard" data-id="${v.id}" onclick="openModal('${v.id}','venue')" role="button" tabindex="0">
@@ -1166,13 +1166,13 @@ function renderModal(v, type, reviews) {
     <div class="modal-hero-wrap" onclick="openPhotoLightbox('${esc(photo)}','${esc(v.name)}')">
       <img src="${esc(photo)}" alt="${esc(v.name)}" loading="lazy" onerror="this.closest('.modal-hero-wrap').style.background='linear-gradient(135deg,#2A1F14,#1A1208)';this.remove()">
       <div class="modal-hero-grad"></div>
-      <div class="modal-hero-tag">${isVenue ? '🍺 Happy Hour' : esc(v.event_type || 'Event')}</div>
+      <div class="modal-hero-tag">${isVenue ? icn('beer',12) + ' Happy Hour' : esc(v.event_type || 'Event')}</div>
       <div class="modal-hero-name">${esc(v.name)}${v.owner_verified ? ' ✓' : ''}</div>
       <button class="modal-hero-fav${faved ? ' faved' : ''}" onclick="doFavorite('${v.id}','${type}',this)">${faved ? '★' : '☆'}</button>
     </div>` : `
     <div style="padding:16px 20px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
       <div>
-        <div class="s-tag ${isVenue ? 'hh' : 'ev'}">${isVenue ? '🍺 Happy Hour' : esc(v.event_type || 'Event')}</div>
+        <div class="s-tag ${isVenue ? 'hh' : 'ev'}">${isVenue ? icn('beer',12) + ' Happy Hour' : esc(v.event_type || 'Event')}</div>
         <div class="s-name">${esc(v.name)}${v.owner_verified ? ' <span class="verified-badge verified-badge--modal">✓ Verified</span>' : ''}</div>
       </div>
       <button class="heart-btn heart-btn--lg${faved ? ' faved' : ''}" onclick="doFavorite('${v.id}','${type}',this)" style="margin-top:4px;flex-shrink:0">${faved ? '★' : '☆'}</button>
@@ -1182,32 +1182,32 @@ function renderModal(v, type, reviews) {
       <div class="modal-loc-row">
         <span class="modal-hood">${esc(v.neighborhood || '')}</span>
         ${v.neighborhood && v.address ? '<span class="modal-sep">·</span>' : ''}
-        <span class="modal-addr">📍 ${esc(v.address || '')}</span>
+        <span class="modal-addr">${ICN.pin} ${esc(v.address || '')}</span>
       </div>
 
       <div class="modal-actions-grid">
         <div class="modal-action primary" onclick="openVenueWebsite('${v.id}')">
-          <span class="modal-action-icon">🌐</span>
+          <span class="modal-action-icon">${icn('globe',20)}</span>
           <span class="modal-action-label">Website</span>
         </div>
         <div class="modal-action" onclick="goToMap('${v.id}')">
-          <span class="modal-action-icon">🗺️</span>
+          <span class="modal-action-icon">${icn('map',20)}</span>
           <span class="modal-action-label">Map</span>
         </div>
         <div class="modal-action" onclick="shareItem('${v.id}','${type}')">
-          <span class="modal-action-icon">↗️</span>
+          <span class="modal-action-icon">${icn('share',20)}</span>
           <span class="modal-action-label">Share</span>
         </div>
         ${currentUser ? `<div class="modal-action" onclick="dmOpenVenueSharePicker('${v.id}')">
-          <span class="modal-action-icon">💬</span>
+          <span class="modal-action-icon">${icn('comment',20)}</span>
           <span class="modal-action-label">Send</span>
         </div>` : `<div class="modal-action" onclick="openAuth('signin')">
-          <span class="modal-action-icon">🔔</span>
+          <span class="modal-action-icon">${icn('bell',20)}</span>
           <span class="modal-action-label">Alerts</span>
         </div>`}
       </div>
 
-      ${isVenue && currentUser ? `<button id="venue-follow-btn-${v.id}" class="going-btn going-btn--lg" style="width:100%;margin-bottom:14px" onclick="toggleVenueFollow('${v.id}','${esc(v.name)}',this)"><span class="s-btn-icon">🔔</span> Deal Alerts</button>` : ''}
+      ${isVenue && currentUser ? `<button id="venue-follow-btn-${v.id}" class="going-btn going-btn--lg" style="width:100%;margin-bottom:14px" onclick="toggleVenueFollow('${v.id}','${esc(v.name)}',this)"><span class="s-btn-icon">${ICN.bell}</span> Deal Alerts</button>` : ''}
 
       <div class="s-div"></div>
       <div class="modal-section-label">Schedule</div>
@@ -1215,7 +1215,7 @@ function renderModal(v, type, reviews) {
       <div class="s-days">${DAYS.map(d => `<span class="day-pill${(v.days || []).includes(d) ? (d === TODAY ? ' today' : ' on') : ''}">${d}</span>`).join('')}</div>
 
       ${isVenue ? `
-        ${(() => { const tags = AMENITIES.filter(a => v[a.key]).map(a => `<span class="amenity-tag amenity-tag--${a.key}">${a.emoji} ${a.label}</span>`).join(''); return tags ? `<div class="amenity-tags amenity-tags--modal" style="margin-top:10px">${tags}</div>` : ''; })()}
+        ${(() => { const tags = AMENITIES.filter(a => v[a.key]).map(a => `<span class="amenity-tag amenity-tag--${a.key}">${icn(a.icon,12)} ${a.label}</span>`).join(''); return tags ? `<div class="amenity-tags amenity-tags--modal" style="margin-top:10px">${tags}</div>` : ''; })()}
         <div class="s-div"></div>
         <div class="modal-section-label">Deals &amp; Specials</div>
         ${(v.deals || []).map(d => `<div class="modal-deal-item"><div class="modal-deal-arrow">→</div>${esc(d)}</div>`).join('')}
@@ -1239,7 +1239,7 @@ function renderModal(v, type, reviews) {
         })()}
         <div class="s-div"></div>
         <button class="modal-checkin-cta" onclick="doGoingTonight('${v.id}', this)">${checkInBtnLabel(checkInCount, isMeIn)}</button>
-        ${checkInCount >= 2 ? `<div class="s-going-count">🔥 ${checkInCount} people checked in tonight</div>` : ''}
+        ${checkInCount >= 2 ? `<div class="s-going-count">${ICN.fire} ${checkInCount} people checked in tonight</div>` : ''}
       ` : `
         <div class="s-div"></div>
         <div class="modal-section-label">About</div>
@@ -1298,7 +1298,7 @@ async function submitReview(itemId, type) {
   const text      = document.getElementById(`rtext-${itemId}`)?.value.trim();
   const guestName = document.getElementById(`rname-${itemId}`)?.value.trim() || 'Anonymous';
   const { error } = await postReview({ itemId, itemType: type, rating, text, guestName });
-  if (error) { showToast('❌ ' + error.message); return; }
+  if (error) { showToast('Error: ' + error.message); return; }
   const p = document.getElementById(`sp-${itemId}`);
   p.dataset.val = '0'; p.querySelectorAll('.sp').forEach(b => b.classList.remove('lit'));
   const te = document.getElementById(`rtext-${itemId}`); if (te) te.value = '';
@@ -1343,7 +1343,7 @@ async function saveEditReview(reviewId, itemId, type) {
   const text   = document.getElementById('etext').value.trim();
   if (!rating) { showToast('Pick a rating'); return; }
   const { error } = await updateReview(reviewId, { rating, text });
-  if (error) { showToast('❌ ' + error.message); return; }
+  if (error) { showToast('Error: ' + error.message); return; }
   delete state.reviewCache[`${type}-${itemId}`];
   closeOverlay('editOverlay');
   showToast('Review updated');
@@ -1352,7 +1352,7 @@ async function saveEditReview(reviewId, itemId, type) {
 async function doDeleteReview(reviewId, itemId, type) {
   if (!confirm('Delete this review?')) return;
   const error = await deleteReview(reviewId);
-  if (error) { showToast('❌ ' + error.message); return; }
+  if (error) { showToast('Error: ' + error.message); return; }
   delete state.reviewCache[`${type}-${itemId}`];
   showToast('Review deleted');
   if (state.activeItemId === itemId) refreshReviews(itemId, type);
@@ -1425,7 +1425,7 @@ async function doAuth(mode) {
     closeOverlay('authOverlay');
     showToast(mode === 'signup' ? 'Account created!' : 'Welcome back!');
   } catch(err) {
-    showToast('❌ ' + (err.message || 'Something went wrong'));
+    showToast('Error: ' + (err.message || 'Something went wrong'));
     btn.disabled = false; btn.textContent = mode === 'signin' ? 'Sign In' : 'Create Account';
   }
 }
@@ -1439,12 +1439,12 @@ async function doForgot() {
     redirectTo: window.location.origin + '/?reset=1'
   });
   if (error) {
-    showToast('❌ ' + error.message);
+    showToast('Error: ' + error.message);
     if (btn) { btn.disabled = false; btn.textContent = 'Forgot password?'; }
     return;
   }
   closeOverlay('authOverlay');
-  showToast('📧 Check your email for a reset link!');
+  showToast('Check your email for a reset link!');
 }
 
 function openResetPassword() {
@@ -1473,27 +1473,27 @@ async function doResetPassword() {
   btn.disabled = true; btn.textContent = 'Saving…';
   const { error } = await db.auth.updateUser({ password: p1 });
   if (error) {
-    showToast('❌ ' + error.message);
+    showToast('Error: ' + error.message);
     btn.disabled = false; btn.textContent = 'Update Password';
     return;
   }
   closeOverlay('authOverlay');
   // Clean URL
   window.history.replaceState({}, document.title, window.location.pathname);
-  showToast("✅ Password updated! You're signed in.");
+  showToast("Password updated! You're signed in.");
 }
 
 // ── PROFILE ────────────────────────────────────────────
 // ── PROFILE ─────────────────────────────────────────────
 const BADGE_DEFS = {
-  first_checkin:  { emoji: '📍', label: 'First Check-in',        desc: 'Checked in for the first time' },
-  regular:        { emoji: '🏅', label: 'Regular',               desc: 'Checked into the same spot 3+ times' },
-  explorer:       { emoji: '🧭', label: 'Neighborhood Explorer', desc: 'Visited 5+ neighborhoods' },
-  critic:         { emoji: '⭐', label: 'Critic',                desc: 'Left 10+ reviews' },
-  social:         { emoji: '🤝', label: 'Social Butterfly',      desc: 'Following 5+ people' },
-  streak_4:       { emoji: '🔥', label: '4-Week Streak',         desc: 'Checked in 4 weeks in a row' },
-  streak_8:       { emoji: '🔥🔥', label: '8-Week Streak',       desc: 'Checked in 8 weeks in a row' },
-  top_reviewer:   { emoji: '✍️', label: 'Top Reviewer',         desc: 'Left 25+ reviews' },
+  first_checkin:  { icon: 'pin',       label: 'First Check-in',        desc: 'Checked in for the first time' },
+  regular:        { icon: 'medal',     label: 'Regular',               desc: 'Checked into the same spot 3+ times' },
+  explorer:       { icon: 'compass',   label: 'Neighborhood Explorer', desc: 'Visited 5+ neighborhoods' },
+  critic:         { icon: 'star',      label: 'Critic',                desc: 'Left 10+ reviews' },
+  social:         { icon: 'handshake', label: 'Social Butterfly',      desc: 'Following 5+ people' },
+  streak_4:       { icon: 'fire',      label: '4-Week Streak',         desc: 'Checked in 4 weeks in a row' },
+  streak_8:       { icon: 'fire',      label: '8-Week Streak',         desc: 'Checked in 8 weeks in a row' },
+  top_reviewer:   { icon: 'pen',       label: 'Top Reviewer',         desc: 'Left 25+ reviews' },
 };
 
 async function openProfile() {
@@ -1539,10 +1539,8 @@ async function renderProfile(user) {
   const favIds       = new Set(favItems.map(f => String(f.item_id)));
   const favSpots     = allItems.filter(v => favIds.has(String(v.id)));
   const displayName  = profile?.display_name || user.user_metadata?.full_name || 'You';
-  const avatar       = profile?.avatar_emoji || '🍺';
   const totalVenues  = new Set(checkIns.map(c => c.venue_id)).size;
   const currentStreak = computeCurrentStreak(checkIns);
-  const AVATARS = ['🍺','🍹','🍷','🥂','🍸','🎉','🌮','🔥','🎸','🏄','🌊','🎭'];
 
   const avatarUrl = profile?.avatar_url || '';
   const headerUrl = profile?.header_url || '';
@@ -1552,20 +1550,17 @@ async function renderProfile(user) {
       ${!headerUrl ? `<div class="pf-hero-burst"></div><div class="pf-hero-grid"></div>
       <div class="pf-ring pf-ring-1"></div><div class="pf-ring pf-ring-2"></div><div class="pf-ring pf-ring-3"></div>` : ''}
       <div class="pf-hero-overlay" onclick="pickHeaderPhoto()" title="Change header photo" style="cursor:pointer">
-        <span class="pf-hero-cam">📷</span>
+        <span class="pf-hero-cam">${icn('camera',16)}</span>
       </div>
       <div class="pf-avatar-zone">
         <div class="pf-avatar" id="myAvatar" onclick="pickProfilePhoto()" title="Change profile photo" style="cursor:pointer">
-          ${avatarUrl ? `<img src="${esc(avatarUrl)}" alt="Profile" style="width:100%;height:100%;border-radius:50%;object-fit:cover">` : avatar}
+          ${avatarUrl ? `<img src="${esc(avatarUrl)}" alt="Profile" style="width:100%;height:100%;border-radius:50%;object-fit:cover">` : initialsAvatar(displayName, 'initials-avatar--lg')}
         </div>
-        <div class="pf-avatar-cam">📷</div>
-        <div class="avatar-picker" id="avatarPicker" style="display:none">
-          ${AVATARS.map(e => `<button class="avatar-opt" onclick="pickAvatar('${e}',this)">${e}</button>`).join('')}
-        </div>
+        <div class="pf-avatar-cam">${icn('camera',12)}</div>
       </div>
       <div class="pf-hero-actions">
         <button class="pf-hero-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle dark/light mode">
-          ${document.documentElement.getAttribute('data-theme') === 'dark' ? '☀️' : '🌙'}
+          ${document.documentElement.getAttribute('data-theme') === 'dark' ? icn('sun',14) : icn('moon',14)}
         </button>
         <button class="pf-hero-btn" onclick="shareSpotd()" title="Share">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
@@ -1585,7 +1580,7 @@ async function renderProfile(user) {
         : `<div class="pf-bio--empty" onclick="openProfileSettings()">+ add a bio</div>`}
       ${badges.length ? `<div class="pf-badges">${badges.map(b => {
         const def = BADGE_DEFS[b.badge_key] || {};
-        return `<span class="pf-badge" onclick="showBadgeInfo('${b.badge_key}')">${def.emoji||'🏅'} ${def.label||b.badge_key}</span>`;
+        return `<span class="pf-badge" onclick="showBadgeInfo('${b.badge_key}')">${icn(def.icon||'medal',16)} ${def.label||b.badge_key}</span>`;
       }).join('')}</div>` : ''}
     </div>
 
@@ -1631,7 +1626,7 @@ async function renderProfile(user) {
               <div class="pf-row-meta">${c.neighborhood||''} · ${fmtDate(c.created_at||c.date)}</div>
             </div>
           </div>`;
-        }).join('') : '<div class="pf-empty">No check-ins yet — go explore! 🗺️</div>'}
+        }).join('') : '<div class="pf-empty">No check-ins yet — go explore!</div>'}
       </div>
 
       <div id="my-tab-reviews" style="display:none">
@@ -1811,7 +1806,7 @@ async function submitFeedback() {
     });
     document.getElementById('pFeedbackType').value = '';
     document.getElementById('pFeedbackText').value = '';
-    showToast('✓ Feedback sent — thank you!');
+    showToast('Feedback sent — thank you!');
   } catch(e) {
     showToast('❌ Could not send feedback');
   }
@@ -1840,10 +1835,10 @@ function showBadgeInfo(badgeKey) {
   overlay.innerHTML = `
     <div style="background:var(--card);border-radius:20px;padding:28px 24px;max-width:300px;width:90%;text-align:center;position:relative;">
       <button onclick="dismissOverlay(this.closest('.overlay'))" style="position:absolute;top:12px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);">✕</button>
-      <div style="font-size:48px;margin-bottom:12px;">${def.emoji || '🏅'}</div>
+      <div style="margin-bottom:12px;">${icn(def.icon||'medal',48)}</div>
       <div style="font-size:18px;font-weight:800;margin-bottom:8px;">${def.label || badgeKey}</div>
       <div style="font-size:14px;color:var(--muted);line-height:1.5;">${def.desc || 'Badge earned on Spotd'}</div>
-      <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);font-size:12px;color:var(--muted);">🏆 You've earned this badge!</div>
+      <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);font-size:12px;color:var(--muted);">${icn('trophy',14)} You've earned this badge!</div>
     </div>`;
   document.body.appendChild(overlay);
 }
@@ -1866,7 +1861,7 @@ async function showFollowersList() {
   content.innerHTML = (profiles || []).map(p => `
     <div style="display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--border);cursor:pointer;"
       onclick="closeSubPage('followersPage');openPublicProfile('${p.id}')">
-      <div style="width:42px;height:42px;border-radius:50%;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">${p.avatar_emoji || '🍺'}</div>
+      <div style="width:42px;height:42px;border-radius:50%;background:var(--bg2);display:flex;align-items:center;justify-content:center;flex-shrink:0;">${initialsAvatar(p.display_name)}</div>
       <div style="flex:1;min-width:0;">
         <div style="font-weight:700;font-size:14px;">${esc(p.display_name || 'Spotd User')}</div>
         ${p.username ? `<div style="font-size:12px;color:var(--muted);">@${esc(p.username)}</div>` : ''}
@@ -1874,17 +1869,8 @@ async function showFollowersList() {
       <div style="color:var(--muted);font-size:18px;">›</div>
     </div>`).join('') || '<div style="text-align:center;padding:32px;color:var(--muted)">No followers yet</div>';
 }
-function toggleAvatarPicker() {
-  const p = document.getElementById('avatarPicker');
-  p.style.display = p.style.display === 'none' ? 'flex' : 'none';
-}
-async function pickAvatar(emoji) {
-  if(typeof haptic==='function')haptic('light');
-  document.getElementById('myAvatar').textContent = emoji;
-  document.getElementById('avatarPicker').style.display = 'none';
-  await updateProfile(currentUser.id, { avatar_emoji: emoji, avatar_url: null });
-  showToast('Avatar updated!');
-}
+function toggleAvatarPicker() {}
+async function pickAvatar() {}
 function pickProfilePhoto() {
   document.getElementById('profilePhotoInput')?.click();
 }
@@ -1941,7 +1927,7 @@ async function toggleHoodFromBar(hood, btn) {
   const added = await toggleNeighborhoodFollow(currentUser.id, hood);
   btn.classList.toggle('following', added);
   btn.textContent = (added ? '✓ ' : '') + hood;
-  showToast(added ? `Following ${hood} 🏘️` : `Unfollowed ${hood}`);
+  showToast(added ? `Following ${hood}` : `Unfollowed ${hood}`);
 }
 
 async function toggleHood(hood, btn) { if (!currentUser) return;
@@ -1978,7 +1964,7 @@ async function loadPeopleResults(query) {
   } else {
     // Show following list
     if (followingSet.size === 0) {
-      el.innerHTML = `<div class="pub-empty" style="padding-top:32px">Search above to find friends 👆</div>`;
+      el.innerHTML = `<div class="pub-empty" style="padding-top:32px">Search above to find friends</div>`;
       return;
     }
     el.innerHTML = `<div class="people-section-label">Following (${followingSet.size})</div><div style="text-align:center;padding:12px;color:var(--muted);font-size:13px">Loading…</div>`;
@@ -1993,7 +1979,7 @@ function peopleRowHTML(p, followingSet) {
   const isF = followingSet.has(p.id);
   const name = p.display_name || 'Spotd User';
   return `<div class="people-row">
-    <div class="feed-avatar" onclick="closeSubPage('findPeoplePage');openPublicProfile('${p.id}')" style="cursor:pointer">${p.avatar_emoji || '🍺'}</div>
+    <div class="feed-avatar" onclick="closeSubPage('findPeoplePage');openPublicProfile('${p.id}')" style="cursor:pointer">${initialsAvatar(p.display_name || 'Spotd User')}</div>
     <div class="people-info" onclick="closeSubPage('findPeoplePage');openPublicProfile('${p.id}')" style="cursor:pointer;flex:1;min-width:0">
       <div class="people-name">${esc(name)}</div>
       ${p.bio ? `<div class="people-bio">${esc(p.bio)}</div>` : ''}
@@ -2031,7 +2017,7 @@ async function toggleFollowFromSearch(userId, btn) {
     state._following?.add(userId);
     btn.classList.add('following');
     btn.textContent = '✓ Following';
-    showToast('Following! 🎉');
+    showToast('Following!');
     await checkAndAwardBadges(currentUser.id);
   }
   refreshFollowStats();
@@ -2044,8 +2030,8 @@ function shareItem(id, type) {
   const items = type === 'venue' ? state.venues : state.events;
   const v = items.find(x => String(x.id) === String(id)); if (!v) return;
   const msg = type === 'venue'
-    ? `Happy Hour at ${v.name}\n📍 ${v.neighborhood} — ${v.address}\n🕐 ${v.hours}\n${(v.deals||[]).slice(0,2).join(' · ')}\n\nSpotd — spotd.app`
-    : `${v.event_type} at ${v.venue_name || v.name}\n📍 ${v.neighborhood} — ${v.address}\n🕐 ${v.hours}\n\nSpotd — spotd.app`;
+    ? `Happy Hour at ${v.name}\n${v.neighborhood} — ${v.address}\n${v.hours}\n${(v.deals||[]).slice(0,2).join(' · ')}\n\nSpotd — spotd.app`
+    : `${v.event_type} at ${v.venue_name || v.name}\n${v.neighborhood} — ${v.address}\n${v.hours}\n\nSpotd — spotd.app`;
   if (navigator.share) { navigator.share({ title: v.name, text: msg }).catch(() => {}); }
   else { window.open(`sms:?body=${encodeURIComponent(msg)}`, '_blank'); }
 }
@@ -2276,7 +2262,7 @@ function starHTML(rating, max=5, size=13) { return Array.from({length:max},(_,i)
 function fmtDate(iso)      { return new Date(iso).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }
 function showToast(msg)    { document.querySelectorAll('.toast').forEach(t=>t.remove()); const t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),2600); }
 function shareSpotd() {
-  const text = 'Discover the best spots near you 🍺';
+  const text = 'Discover the best spots near you';
   const url  = 'https://spotd.biz';
   if (navigator.share) {
     navigator.share({ title: 'Spotd', text, url }).catch(() => {});
@@ -2365,7 +2351,7 @@ async function doGoingTonight(venueId, btn) {
     showToast('Check-in removed');
   } else {
     if (state.todayCheckInCount >= CHECK_IN_DAILY_LIMIT) {
-      showToast(`You've hit the ${CHECK_IN_DAILY_LIMIT} check-in limit for today 🙌`);
+      showToast(`You've hit the ${CHECK_IN_DAILY_LIMIT} check-in limit for today`);
       return;
     }
     // Update UI immediately — don't wait for DB
@@ -2373,7 +2359,7 @@ async function doGoingTonight(venueId, btn) {
     state.todayCheckInCount++;
     state.goingCounts[venueId] = (state.goingCounts[venueId] || 0) + 1;
     if (typeof haptic === 'function') if(typeof haptic==='function')haptic('medium');
-    showToast('📍 Checked in!');
+    showToast('Checked in!');
     // Fire DB write and streak check in background
     addCheckIn({ userId: currentUser.id, venueId, citySlug: state.city.slug, date: today })
       .then(() => checkStreakAfterCheckIn())
@@ -2393,16 +2379,16 @@ async function doGoingTonight(venueId, btn) {
   }
   const badge = document.querySelector(`.card[data-id="${venueId}"] .fire-badge`);
   if (badge) {
-    if (count >= 2) { badge.textContent = `🔥 ${count} here tonight`; badge.style.display = 'inline-flex'; }
+    if (count >= 2) { badge.innerHTML = `${ICN.fire} ${count} here tonight`; badge.style.display = 'inline-flex'; }
     else badge.style.display = 'none';
   }
   refreshCheckInCounters();
 }
 
 function checkInBtnLabel(count, isIn) {
-  if (isIn) return count > 1 ? `📍 You + ${count - 1} here` : "📍 You're here!";
-  if (state.todayCheckInCount >= CHECK_IN_DAILY_LIMIT) return '🙌 Limit reached for today';
-  return count > 0 ? `🔥 ${count} here — join?` : '📍 Check In';
+  if (isIn) return count > 1 ? `${ICN.pin} You + ${count - 1} here` : `${ICN.pin} You're here!`;
+  if (state.todayCheckInCount >= CHECK_IN_DAILY_LIMIT) return `${icn('hand',14)} Limit reached for today`;
+  return count > 0 ? `${ICN.fire} ${count} here — join?` : `${ICN.pin} Check In`;
 }
 
 function refreshCheckInCounters() {
@@ -2420,7 +2406,7 @@ function refreshCheckInCounters() {
 function goingFireBadge(venueId) {
   const count = state.goingCounts[venueId] || 0;
   if (count < 2) return '';
-  return `<span class="fire-badge">🔥 ${count} here tonight</span>`;
+  return `<span class="fire-badge">${ICN.fire} ${count} here tonight</span>`;
 }
 
 // ── PUBLIC PROFILE ──────────────────────────────────────
@@ -2452,12 +2438,11 @@ async function renderPublicProfile(userId) {
   // Fall back to name from their reviews if no display_name set
   const reviewerName = reviews.length ? (reviews[0].name || null) : null;
   const displayName = profile.display_name || reviewerName || 'Spotd User';
-  const avatar = profile.avatar_emoji || '🍺';
   const totalVenues = new Set(checkIns.map(c => c.venue_id)).size;
 
   document.getElementById('pubProfileContent').innerHTML = `
     <div class="pub-profile-header">
-      <div class="pub-avatar">${avatar}</div>
+      <div class="pub-avatar">${initialsAvatar(displayName, 'initials-avatar--lg')}</div>
       <div class="pub-profile-info">
         <div class="pub-name">${esc(displayName)}</div>
         ${profile.username ? `<div class="pub-username">@${esc(profile.username)}</div>` : ''}
@@ -2471,7 +2456,7 @@ async function renderPublicProfile(userId) {
     </div>
     ${badges.length ? `<div class="pub-badges">${badges.map(b => {
       const def = BADGE_DEFS[b.badge_key] || {};
-      return `<span class="badge-chip" title="${def.desc || b.badge_key}">${def.emoji || '🏅'} ${def.label || b.badge_key}</span>`;
+      return `<span class="badge-chip" title="${def.desc || b.badge_key}">${icn(def.icon||'medal',16)} ${def.label || b.badge_key}</span>`;
     }).join('')}</div>` : ''}
     ${currentUser && currentUser.id !== userId ? `
     <div class="pub-action-row">
@@ -2480,19 +2465,19 @@ async function renderPublicProfile(userId) {
         ${amIFollowing ? '✓ Following' : '+ Follow'}
       </button>
       <button class="pub-dm-btn" onclick="dmOpenFromProfile('${userId}', '${esc(displayName)}')">
-        💬 Message
+        ${ICN.comment} Message
       </button>
     </div>` : ''}
     <div class="pub-tabs">
-      <button class="pub-tab active" onclick="switchPubTab('checkins', this)">📍 Check-ins</button>
-      <button class="pub-tab" onclick="switchPubTab('reviews', this)">⭐ Reviews</button>
+      <button class="pub-tab active" onclick="switchPubTab('checkins', this)">${ICN.pin} Check-ins</button>
+      <button class="pub-tab" onclick="switchPubTab('reviews', this)">${ICN.star} Reviews</button>
       <button class="pub-tab" onclick="switchPubTab('favorites', this)">♥ Saved</button>
     </div>
     <div id="pub-tab-checkins" class="pub-tab-content active">
       ${recentCheckIns.length ? recentCheckIns.map(c => {
         const v = allItems.find(x => String(x.id) === String(c.venue_id));
         return `<div class="pub-activity-row" onclick="${v ? `closeOverlay('pubProfileOverlay');openModal('${c.venue_id}','venue')` : ''}">
-          <div class="pub-activity-icon">📍</div>
+          <div class="pub-activity-icon">${ICN.pin}</div>
           <div class="pub-activity-body">
             <div class="pub-activity-title">${v ? esc(v.name) : esc(c.venue_name || 'A spot')}</div>
             <div class="pub-activity-meta">${c.neighborhood || ''} · ${fmtDate(c.created_at || c.date)}</div>
@@ -2505,7 +2490,7 @@ async function renderPublicProfile(userId) {
       ${reviews.length ? reviews.map(r => {
         const item = allItems.find(x => String(x.id) === String(r.venue_id || r.event_id));
         return `<div class="pub-activity-row" onclick="${item ? `closeOverlay('pubProfileOverlay');openModal('${r.venue_id||r.event_id}','${r.venue_id?'venue':'event'}')` : ''}">
-          <div class="pub-activity-icon">⭐</div>
+          <div class="pub-activity-icon">${ICN.star}</div>
           <div class="pub-activity-body">
             <div class="pub-activity-title">${item ? esc(item.name) : 'A spot'}</div>
             <div class="pub-activity-meta">${starHTML(r.rating,5,11)} · ${fmtDate(r.created_at)}</div>
@@ -2547,7 +2532,7 @@ async function toggleFollowUser(userId, btn) {
     state._following?.add(userId);
     btn.classList.add('following');
     btn.textContent = '✓ Following';
-    showToast('Following! 🎉');
+    showToast('Following!');
     await checkAndAwardBadges(currentUser.id);
   }
   refreshFollowStats();
@@ -2583,10 +2568,10 @@ async function loadFeedTab(tab) {
     if (!following.length) {
       document.getElementById('feedRows').innerHTML = `
         <div class="pub-empty" style="padding:40px 16px">
-          <div style="font-size:32px;margin-bottom:12px">👋</div>
+          <div style="margin-bottom:12px">${icn('wave',32)}</div>
           <div style="font-weight:600;margin-bottom:8px">No activity yet</div>
           <div style="color:var(--muted);font-size:13px">Follow people to see their check-ins & reviews here</div>
-          <button class="profile-action-btn" style="margin-top:16px;max-width:180px" onclick="closeSubPage('feedPage');openFindPeople()">🔍 Find People</button>
+          <button class="profile-action-btn" style="margin-top:16px;max-width:180px" onclick="closeSubPage('feedPage');openFindPeople()">${ICN.search} Find People</button>
         </div>`;
       return;
     }
@@ -2598,7 +2583,7 @@ async function loadFeedTab(tab) {
     }
   } else {
     activities = await fetchUserActivity(currentUser.id, 40);
-    profileMap[currentUser.id] = { display_name: 'You', avatar_emoji: '🍺' };
+    profileMap[currentUser.id] = { display_name: 'You' };
   }
 
   if (!activities.length) {
@@ -2610,7 +2595,7 @@ async function loadFeedTab(tab) {
     if (a.activity_type === 'check_in') return 'checked in at <strong>' + esc(a.venue_name||'a spot') + '</strong>';
     if (a.activity_type === 'review') return 'reviewed <strong>' + esc(a.venue_name||'a spot') + '</strong>';
     if (a.activity_type === 'favorite') return 'saved <strong>' + esc(a.venue_name||'a spot') + '</strong>';
-    if (a.activity_type === 'badge') { const def = BADGE_DEFS[a.meta?.badge_key]||{}; return 'earned ' + (def.emoji||'🏅') + ' <strong>' + (def.label||'a badge') + '</strong>'; }
+    if (a.activity_type === 'badge') { const def = BADGE_DEFS[a.meta?.badge_key]||{}; return 'earned ' + icn(def.icon||'medal',14) + ' <strong>' + (def.label||'a badge') + '</strong>'; }
     return 'was active';
   };
 
@@ -2618,17 +2603,17 @@ async function loadFeedTab(tab) {
     const p = profileMap[a.user_id] || {};
     const isMe = a.user_id === currentUser.id;
     const name = isMe ? 'You' : (p.display_name || 'Someone');
-    const avatar = p.avatar_emoji || '🍺';
+    const feedAvatarHtml = initialsAvatar(name);
     const venue = a.venue_id ? allItems.find(x => String(x.id) === String(a.venue_id)) : null;
     const clickable = !!venue;
     const venueClick = clickable ? ' onclick="closeSubPage(\'feedPage\');openModal(\''+a.venue_id+'\',\'venue\')"' : '';
     const avatarClick = !isMe ? ' onclick="event.stopPropagation();closeSubPage(\'feedPage\');openPublicProfile(\''+a.user_id+'\')"' : '';
     const nameClick   = !isMe ? ' onclick="event.stopPropagation();closeSubPage(\'feedPage\');openPublicProfile(\''+a.user_id+'\')"' : '';
     return '<div class="feed-row' + (clickable ? ' feed-row--link' : '') + '"' + venueClick + '>'
-      + '<div class="feed-avatar' + (!isMe ? ' feed-avatar--link' : '') + '"' + avatarClick + '>' + avatar + '</div>'
+      + '<div class="feed-avatar' + (!isMe ? ' feed-avatar--link' : '') + '"' + avatarClick + '>' + feedAvatarHtml + '</div>'
       + '<div class="feed-body">'
       + '<div class="feed-text"><span class="feed-name' + (!isMe ? ' feed-name--link' : '') + '"' + nameClick + '>' + esc(name) + '</span> ' + activityLabel(a) + '</div>'
-      + '<div class="feed-meta">' + (a.neighborhood ? '📍 ' + esc(a.neighborhood) + ' · ' : '') + fmtDate(a.created_at) + '</div>'
+      + '<div class="feed-meta">' + (a.neighborhood ? ICN.pin + ' ' + esc(a.neighborhood) + ' · ' : '') + fmtDate(a.created_at) + '</div>'
       + (a.meta?.note ? '<div class="pub-activity-note">"' + esc(a.meta.note) + '"</div>' : '')
       + '</div></div>';
   }).join('');
@@ -2675,16 +2660,16 @@ async function openLeaderboard() {
     const monthName = today.toLocaleString('default', { month: 'long' });
 
     document.getElementById('leaderboardContent').innerHTML =
-      '<div class="s-name" style="font-size:20px;margin-bottom:4px">🏆 Leaderboard</div>'
+      '<div class="s-name" style="font-size:20px;margin-bottom:4px">' + icn('trophy',20) + ' Leaderboard</div>'
       + '<div style="color:var(--muted);font-size:13px;margin-bottom:20px">' + monthName + ' · Most check-ins in ' + (state.city?.name || 'your city') + '</div>'
-      + (!ranked.length ? '<div class="pub-empty">No check-ins yet this month — be first! 🚀</div>'
+      + (!ranked.length ? '<div class="pub-empty">No check-ins yet this month — be first!</div>'
       : ranked.map((u, i) => {
           const p = profileMap[u.uid] || {};
           const isMe = u.uid === currentUser?.id;
           const lbClick = !isMe ? ' onclick="closeSubPage(\'leaderboardPage\');openPublicProfile(\''+u.uid+'\')" style="cursor:pointer"' : '';
           return '<div class="leaderboard-row"' + lbClick + '>'
             + '<div class="lb-rank">' + (medals[i] || '#' + (i+1)) + '</div>'
-            + '<div class="lb-avatar">' + (p.avatar_emoji || '🍺') + '</div>'
+            + '<div class="lb-avatar">' + initialsAvatar(isMe ? 'You' : (p.display_name || 'Spotd User')) + '</div>'
             + '<div class="lb-info"><div class="lb-name">' + (isMe ? 'You' : esc(p.display_name || 'Spotd User')) + '</div>'
             + '<div class="lb-meta">' + u.venues + ' venue' + (u.venues !== 1 ? 's' : '') + '</div></div>'
             + '<div class="lb-count">' + u.count + ' <span style="font-size:11px;font-weight:500;opacity:.6">check-ins</span></div>'
@@ -2769,13 +2754,13 @@ async function submitVenueRequest() {
     msg.style.background = 'rgba(200,80,60,0.08)';
     msg.style.border = '1px solid rgba(200,80,60,0.2)';
     msg.style.color = 'rgba(200,80,60,0.85)';
-    msg.textContent = '❌ Something went wrong. Please try again.';
+    msg.textContent = 'Something went wrong. Please try again.';
     return;
   }
 
   document.getElementById('requestContent').innerHTML = `
     <div style="text-align:center;padding:32px 16px">
-      <div style="font-size:48px;margin-bottom:16px">🙌</div>
+      <div style="margin-bottom:16px">${icn('party',48)}</div>
       <div class="s-name" style="font-size:22px;margin-bottom:8px">Request sent!</div>
       <p style="font-size:14px;color:var(--muted);line-height:1.6">Thanks for the tip. We'll review <strong style="color:var(--text)">${esc(name)}</strong> and add it to Spotd if it's a great fit.</p>
       <button class="btn-sec" style="margin:24px auto 0;display:flex" onclick="closeOverlay('requestOverlay')">Close</button>
@@ -2835,7 +2820,7 @@ async function checkStreakAfterCheckIn() {
 
 function showStreakCelebration(streak) {
   // Only celebrate on milestones to avoid being annoying every single week
-  const milestones = { 2:'2 weeks in a row', 3:'3-week streak', 4:'4-week streak 🏆', 8:'8-week streak 🏆🏆' };
+  const milestones = { 2:'2 weeks in a row', 3:'3-week streak', 4:'4-week streak', 8:'8-week streak' };
   const label = milestones[streak] || (streak % 4 === 0 ? `${streak}-week streak!` : null);
   if (!label) return;
 
@@ -2843,7 +2828,7 @@ function showStreakCelebration(streak) {
   document.querySelectorAll('.streak-banner').forEach(b => b.remove());
   const banner = document.createElement('div');
   banner.className = 'streak-banner';
-  banner.textContent = `🔥 ${label} — you're on a roll!`;
+  banner.innerHTML = `${ICN.fire} ${label} — you're on a roll!`;
   document.body.appendChild(banner);
   setTimeout(() => banner.remove(), 3800);
 }
@@ -2856,13 +2841,13 @@ async function toggleVenueFollow(venueId, venueName, btn) {
   if (currently) {
     await unfollowVenue(currentUser.id, venueId);
     btn.classList.remove('following');
-    btn.innerHTML = '<span class="s-btn-icon">🔔</span>';
+    btn.innerHTML = '<span class="s-btn-icon">' + ICN.bell + '</span>';
     showToast(`Unfollowed ${venueName}`);
   } else {
     await followVenue(currentUser.id, venueId);
     btn.classList.add('following');
-    btn.innerHTML = '<span class="s-btn-icon">🔔</span>';
-    showToast(`🔔 Following ${venueName} — you'll be notified of new deals`);
+    btn.innerHTML = '<span class="s-btn-icon">' + ICN.bell + '</span>';
+    showToast(`Following ${venueName} — you'll be notified of new deals`);
   }
   btn.disabled = false;
 }
@@ -2907,7 +2892,7 @@ async function openTagFriends(venueId, venueName, followingIds) {
     grid.innerHTML = profiles.map(p => `
       <button class="tag-friend-chip" id="tag-chip-${p.id}"
         onclick="tagFriend('${p.id}','${esc(p.display_name || '')}','${venueId}','${esc(venueName)}',this)">
-        <span class="tag-friend-chip-avatar">${p.avatar_emoji || '🍺'}</span>
+        <span class="tag-friend-chip-avatar">${initialsAvatar(p.display_name || 'Friend')}</span>
         <span class="tag-friend-chip-name">${esc(p.display_name || 'Friend')}</span>
       </button>`).join('');
   } catch(e) {
@@ -2922,7 +2907,7 @@ async function tagFriend(toUserId, toName, venueId, venueName, chip) {
   chip.classList.add('tagged');
   chip.style.pointerEvents = 'none';
   await tagFriendAtCheckIn(currentUser.id, toUserId, venueId, venueName);
-  showToast(`Tagged ${toName} at ${venueName} 👋`);
+  showToast(`Tagged ${toName} at ${venueName}`);
   // Close overlay after a brief moment so user sees the chip light up
   setTimeout(() => closeOverlay('tagFriendsOverlay'), 900);
 }
@@ -2938,7 +2923,7 @@ function renderCheckinPhotos(photos, venueId) {
   return `
     <div class="s-div"></div>
     <div class="ugc-photos-section">
-      <div class="ugc-photos-label">📸 From the crowd <span style="font-weight:400;font-size:10px">${photos.length} photo${photos.length !== 1 ? 's' : ''}</span></div>
+      <div class="ugc-photos-label">${ICN.camera} From the crowd <span style="font-weight:400;font-size:10px">${photos.length} photo${photos.length !== 1 ? 's' : ''}</span></div>
       <div class="ugc-photos-strip">
         ${photos.map(p => `
           <div class="ugc-photo-thumb" onclick="openPhotoLightbox('${esc(p.photo_url)}','${esc(p.profile?.display_name || 'Photo')}')">
@@ -3030,13 +3015,13 @@ function openPhotoCheckinPrompt(venueId, venueName) {
   // Web fallback: standard file input for browser testing
   const uploadZone = isNative ? `
     <div class="photo-upload-area" id="photoUploadArea">
-      <div class="photo-upload-icon">📷</div>
+      <div class="photo-upload-icon">${icn('camera',32)}</div>
       <div class="photo-source-btns">
         <button class="photo-source-btn" onclick="window._capacitorTakePhoto().catch(e=>{ if(e.message!=='User cancelled photos app') showToast('Camera unavailable'); })">
-          📷 Take Photo
+          ${ICN.camera} Take Photo
         </button>
         <button class="photo-source-btn" onclick="window._capacitorChoosePhoto().catch(e=>{ if(e.message!=='User cancelled photos app') showToast('Could not open library'); })">
-          🖼️ Choose from Library
+          ${ICN.image} Choose from Library
         </button>
       </div>
     </div>` : `
@@ -3047,14 +3032,14 @@ function openPhotoCheckinPrompt(venueId, venueName) {
       <input type="file" accept="image/*" id="photoFileInput"
         style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;z-index:2"
         onchange="handlePhotoDropOrChange(event,'${venueId}','${esc(venueName)}')">
-      <div class="photo-upload-icon" style="position:relative;z-index:1;pointer-events:none">📷</div>
+      <div class="photo-upload-icon" style="position:relative;z-index:1;pointer-events:none">${icn('camera',32)}</div>
       <div class="photo-upload-hint" style="position:relative;z-index:1;pointer-events:none">
         Tap to add a photo
       </div>
     </div>`;
 
   el.innerHTML = `
-    <div class="photo-prompt-title">Add a photo? 📸</div>
+    <div class="photo-prompt-title">Add a photo? ${icn('camera',16)}</div>
     <div class="photo-prompt-sub">Show others what's happening at ${esc(venueName)} right now.</div>
     ${uploadZone}
     <div class="photo-preview-wrap" id="photoPreviewWrap">
@@ -3118,7 +3103,7 @@ async function submitPhotoCheckin(venueId, venueName) {
   });
 
   window._pendingCheckinPhoto = null;
-  showToast('📸 Photo shared!');
+  showToast('Photo shared!');
   closeOverlay('photoCheckinOverlay');
 
   const ugcEl = document.getElementById(`ugc-photos-${venueId}`);
@@ -3218,7 +3203,7 @@ async function openDmInbox() {
 }
 
 const DM_EMPTY_HTML = `<div class="dm-empty-state">
-  <div class="dm-empty-icon">💬</div>
+  <div class="dm-empty-icon">${icn('comment',32)}</div>
   <div class="dm-empty-title">No messages yet</div>
   <div class="dm-empty-sub">Chat with fellow Spotd users<br>about your favorite spots</div>
   <button class="dm-invite-btn" onclick="shareSpotd()">
@@ -3301,14 +3286,14 @@ async function dmLoadInbox() {
           const myFirst    = (currentUser?.user_metadata?.full_name || 'You').split(' ')[0];
           const otherNames = others.map(id => (pMap[id]?.display_name || 'User').split(' ')[0]);
           name   = c.name || [myFirst, ...otherNames].join(', ') || 'Group';
-          avatar = '👥';
+          avatar = icn('users',20);
         } else {
           const p = pMap[others[0]] || {};
           name    = p.display_name || 'Spotd User';
-          avatar  = p.avatar_emoji || '🍺';
+          avatar  = initialsAvatar(name);
         }
 
-        const preview  = last ? (last.msg_type === 'venue_share' ? '📍 Shared a venue' : (last.body || '').slice(0, 45)) : 'Say hello!';
+        const preview  = last ? (last.msg_type === 'venue_share' ? 'Shared a venue' : (last.body || '').slice(0, 45)) : 'Say hello!';
         const time     = last ? fmtDate(last.created_at) : '';
         const safeName = (name || '').replace(/'/g, '&#39;');
 
@@ -3395,7 +3380,7 @@ async function dmOpenConvo(convoId, name, isGroup, knownMembers) {
     const renderMembers = (profs) => {
       const sorted = (profs || []).sort((a, b) => a.id === currentUser.id ? -1 : b.id === currentUser.id ? 1 : 0);
       bar.innerHTML = `<div class="dm-members-pills">${sorted.map(p =>
-        `<div class="dm-member-pill">${p.avatar_emoji||'🍺'} ${esc((p.display_name||'User').split(' ')[0])}${p.id===currentUser.id?' (you)':''}</div>`
+        `<div class="dm-member-pill">${initialsAvatar((p.display_name||'User').split(' ')[0])} ${esc((p.display_name||'User').split(' ')[0])}${p.id===currentUser.id?' (you)':''}</div>`
       ).join('')}</div>`;
     };
     if (knownMembers?.length) {
@@ -3446,7 +3431,7 @@ async function dmLoadConvo() {
   const vMap = {};
   (venues || []).forEach(v => { vMap[v.id] = v; });
 
-  if (!msgs.length) { el.innerHTML = '<div class="dm-empty">Say hi! 👋</div>'; return; }
+  if (!msgs.length) { el.innerHTML = '<div class="dm-empty">Say hi!</div>'; return; }
   el.innerHTML = msgs.map(m => dmRenderMsg(m, pMap, vMap)).join('');
   dmScrollToBottom();
 
@@ -3465,10 +3450,10 @@ function dmRenderMsg(m, pMap, vMap) {
     const v = vMap?.[m.venue_id] || {};
     return `<div class="dm-msg ${cls}">${groupLabel}
       <div class="dm-venue-card" onclick="openModal('${m.venue_id}','venue')">
-        <div class="dm-venue-icon">📍</div>
+        <div class="dm-venue-icon">${ICN.pin}</div>
         <div class="dm-venue-info">
           <div class="dm-venue-name">${esc(v.name || 'Venue')}</div>
-          <div class="dm-venue-meta">${esc(v.neighborhood || '')}${v.google_rating ? ` · ⭐ ${v.google_rating}` : ''}</div>
+          <div class="dm-venue-meta">${esc(v.neighborhood || '')}${v.google_rating ? ' · ' + ICN.star + ' ' + v.google_rating : ''}</div>
         </div>
         <div class="dm-venue-arrow">›</div>
       </div>${time}</div>`;
@@ -3495,7 +3480,7 @@ async function dmSend() {
 async function dmSendVenue(venueId, convoId) {
   const { error } = await db.from('messages').insert({ conversation_id: convoId, sender_id: currentUser.id, venue_id: venueId, msg_type: 'venue_share' });
   if (error) { showToast('Failed to share venue'); return; }
-  showToast('Venue shared! 📍');
+  showToast('Venue shared!');
   closeOverlay('modalOverlay');
   document.getElementById('dmSharePickerOverlay')?.remove();
 }
@@ -3525,13 +3510,13 @@ function dmShowPicker(users, isGroup) {
     </div>
     ${isGroup
       ? `<div class="dm-group-name-wrap"><input class="dm-picker-search" id="dmGroupName" placeholder="Group name (optional)…"></div>`
-      : `<div class="dm-picker-toggle" onclick="dmShowPicker(window._dmPickerUsers,true)">👥 Create Group Instead</div>`
+      : `<div class="dm-picker-toggle" onclick="dmShowPicker(window._dmPickerUsers,true)">${ICN.users} Create Group Instead</div>`
     }
     <div id="dmPickerList">
       ${users.length
         ? users.map(u => `
           <div class="dm-picker-row" id="dpick-${u.id}" onclick="dmPickerToggle('${u.id}',${isGroup})">
-            <div class="dm-thread-avatar" style="width:36px;height:36px;font-size:20px">${u.avatar_emoji||'🍺'}</div>
+            <div class="dm-thread-avatar" style="width:36px;height:36px">${initialsAvatar(u.display_name||'User')}</div>
             <div style="flex:1">${esc(u.display_name||'User')}</div>
             <div class="dm-pick-check" id="dcheck-${u.id}">○</div>
           </div>`).join('')
@@ -3636,7 +3621,7 @@ async function dmOpenVenueSharePicker(venueId) {
       const others = convoPartsMap[c.id] || [];
       const myFirst = (currentUser?.user_metadata?.full_name || 'You').split(' ')[0];
       const name   = c.is_group ? (c.name || [myFirst,...others.map(id=>(pMap[id]?.display_name||'User').split(' ')[0])].join(', ')) : (pMap[others[0]]?.display_name || 'Spotd User');
-      const avatar = c.is_group ? '👥' : (pMap[others[0]]?.avatar_emoji || '🍺');
+      const avatar = c.is_group ? icn('users',20) : initialsAvatar(name);
       return `<div class="dm-thread-row" style="border-bottom:1px solid var(--bg2);" onclick="dmSendVenue('${venueId}','${c.id}');document.getElementById('dmSharePickerOverlay').remove()">
         <div class="dm-thread-main"><div class="dm-thread-avatar">${avatar}</div><div class="dm-thread-info"><div class="dm-thread-name">${esc(name)}</div></div></div>
         <div style="color:var(--coral);font-weight:700;font-size:13px;flex-shrink:0;padding-right:16px">Send</div>
