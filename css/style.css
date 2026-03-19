@@ -940,12 +940,14 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   padding: env(safe-area-inset-top, 0px) 0 80px;
   opacity: 0;
   pointer-events: none;
-  transition: opacity .22s ease;
+  transform: translateY(12px);
+  transition: opacity .28s cubic-bezier(.4,0,.2,1), transform .28s cubic-bezier(.4,0,.2,1);
 }
 .profile-page--open {
   opacity: 1;
   pointer-events: auto;
   z-index: 499;
+  transform: translateY(0);
 }
 
 /* ══════════════════════════════════════════════
@@ -1039,11 +1041,13 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   overscroll-behavior: contain;
   opacity: 0;
   pointer-events: none;
-  transition: opacity .2s ease;
+  transform: translateY(12px);
+  transition: opacity .28s cubic-bezier(.4,0,.2,1), transform .28s cubic-bezier(.4,0,.2,1);
 }
 .social-tab.tab-open {
   opacity: 1;
   pointer-events: auto;
+  transform: translateY(0);
 }
 .social-header {
   display: flex;
@@ -1105,10 +1109,13 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 .social-venue-link   { color: var(--coral); font-weight: 600; }
 .social-venue-link[onclick] { cursor: pointer; }
 .social-venue-link[onclick]:active { opacity: .7; }
+.social-follow-badge-row {
+  margin-bottom: 3px;
+}
 .social-follow-badge {
   font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
   background: rgba(255,107,74,0.1); color: var(--coral);
-  padding: 2px 7px; border-radius: 20px;
+  padding: 2px 7px; border-radius: 20px; display: inline-block;
 }
 .social-photo-wrap { width: 100%; overflow: hidden; background: var(--bg2); }
 .social-photo      { width: 100%; display: block; max-height: 400px; object-fit: cover; }
@@ -1116,14 +1123,36 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 .social-photo-wrap[onclick]:active { opacity: .92; }
 .social-caption    { padding: 10px 16px 14px; font-size: 14px; color: var(--text); line-height: 1.5; }
 
+/* ── Actions bar (like + comment) ── */
+.social-actions-bar {
+  display: flex; gap: 8px; padding: 4px 16px 10px; align-items: center;
+}
+.social-like-btn {
+  background: var(--card); border: 1.5px solid var(--border2);
+  color: var(--muted); font-size: 12px; font-weight: 700;
+  padding: 8px 16px; border-radius: 50px; cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  display: flex; align-items: center; gap: 5px;
+  transition: all .15s;
+}
+.social-like-btn:active { transform: scale(.95); }
+.social-like-btn.liked {
+  background: rgba(255,59,48,0.08); border-color: rgba(255,59,48,0.25);
+  color: #FF3B30;
+}
+.like-count { font-size: 12px; }
+
 /* ── Comments ── */
 .social-comments-section { padding: 0 16px 10px; }
 .social-comments-toggle {
-  background: none; border: none; font-size: 12px; font-weight: 600;
-  color: var(--muted); cursor: pointer; padding: 6px 0;
+  background: var(--coral); color: #fff; border: none;
+  font-size: 12px; font-weight: 700; cursor: pointer;
+  padding: 8px 18px; border-radius: 50px;
   font-family: 'DM Sans', sans-serif;
+  transition: opacity .15s, transform .1s;
+  letter-spacing: .1px;
 }
-.social-comments-toggle:active { opacity: .7; }
+.social-comments-toggle:active { opacity: .85; transform: scale(.96); }
 .social-comments-list { padding: 4px 0 8px; }
 .social-comment {
   font-size: 13px; line-height: 1.4; padding: 3px 0;
@@ -1180,11 +1209,13 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   overscroll-behavior: contain;
   opacity: 0;
   pointer-events: none;
-  transition: opacity .2s ease;
+  transform: translateY(12px);
+  transition: opacity .28s cubic-bezier(.4,0,.2,1), transform .28s cubic-bezier(.4,0,.2,1);
 }
 .dm-tab.tab-open {
   opacity: 1;
   pointer-events: auto;
+  transform: translateY(0);
 }
 
 /* Shared header */
@@ -2205,14 +2236,14 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   pointer-events: none;
 }
 .pf-hero-overlay {
-  position: absolute; inset: 0; z-index: 2;
+  position: absolute; bottom: 10px; left: 14px; z-index: 2;
   display: flex; align-items: center; justify-content: center;
-  opacity: 0; transition: opacity .2s;
-  background: rgba(0,0,0,0.3);
+  width: 32px; height: 32px; border-radius: 50%;
+  background: rgba(0,0,0,0.45); backdrop-filter: blur(4px);
+  cursor: pointer; transition: background .2s, transform .15s;
 }
-.pf-hero:hover .pf-hero-overlay,
-.pf-hero-overlay:active { opacity: 1; }
-.pf-hero-cam { font-size: 24px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); }
+.pf-hero-overlay:active { transform: scale(.9); background: rgba(0,0,0,0.6); }
+.pf-hero-cam { font-size: 15px; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3)); }
 .pf-hero-actions {
   position: absolute; top: 12px; right: 14px;
   display: flex; gap: 7px; z-index: 4;
