@@ -238,6 +238,7 @@ function _navHideAll(keep) {
 }
 
 function bottomNavFeed(btn) {
+  if(typeof haptic==='function')haptic('light');
   document.querySelectorAll('.bottom-nav-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   _navHideAll();
@@ -245,6 +246,7 @@ function bottomNavFeed(btn) {
 }
 
 function bottomNavSocial(btn) {
+  if(typeof haptic==='function')haptic('light');
   document.querySelectorAll('.bottom-nav-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   _navHideAll('social');
@@ -252,6 +254,7 @@ function bottomNavSocial(btn) {
 }
 
 function bottomNavMessages(btn) {
+  if(typeof haptic==='function')haptic('light');
   document.querySelectorAll('.bottom-nav-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   _navHideAll('dm');
@@ -259,6 +262,7 @@ function bottomNavMessages(btn) {
 }
 
 function bottomNavProfile(btn) {
+  if(typeof haptic==='function')haptic('light');
   document.querySelectorAll('.bottom-nav-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   _navHideAll('profile');
@@ -495,6 +499,7 @@ async function submitComment(postId, postType) {
   if (!input || !currentUser) return;
   const text = input.value.trim();
   if (!text) return;
+  if(typeof haptic==='function')haptic('medium');
   input.value = '';
   const result = await addComment(postId, postType, currentUser.id, text);
   if (result) {
@@ -512,6 +517,7 @@ async function submitComment(postId, postType) {
 
 async function doToggleLike(postId, postType, btn) {
   if (!currentUser) { openAuth('signin'); return; }
+  if(typeof haptic==='function')haptic('light');
   const result = await toggleLike(postId, postType, currentUser.id);
   if (!result) return;
   const countEl = btn.querySelector('.like-count');
@@ -1099,6 +1105,7 @@ function toggleFavFilter() {
 
 // ── MODAL ──────────────────────────────────────────────
 async function openModal(id, type = 'venue') {
+  if(typeof haptic==='function')haptic('light');
   state.activeItemId   = id;
   state.activeItemType = type;
   const items = type === 'venue' ? state.venues : state.events;
@@ -1404,6 +1411,7 @@ async function doAuth(mode) {
   const email    = (document.getElementById('aEmail')?.value || '').trim();
   const password =  document.getElementById('aPass')?.value  || '';
   if (!email || !password) { showToast('Please fill in all fields'); btn.disabled = false; btn.textContent = mode === 'signin' ? 'Sign In' : 'Create Account'; return; }
+  if(typeof haptic==='function')haptic('medium');
   try {
     const result = mode === 'signup'
       ? await authSignUp(email, password, (document.getElementById('aName')?.value || '').trim())
@@ -2004,6 +2012,7 @@ function refreshFollowStats() {
 
 async function toggleFollowFromSearch(userId, btn) {
   if (!currentUser) return;
+  if(typeof haptic==='function')haptic('light');
   const isNowFollowing = btn.classList.contains('following');
   if (isNowFollowing) {
     await unfollowUser(currentUser.id, userId);
@@ -2026,6 +2035,7 @@ async function toggleFollowFromSearch(userId, btn) {
 
 // ── SHARE ──────────────────────────────────────────────
 function shareItem(id, type) {
+  if(typeof haptic==='function')haptic('light');
   const items = type === 'venue' ? state.venues : state.events;
   const v = items.find(x => String(x.id) === String(id)); if (!v) return;
   const msg = type === 'venue'
@@ -2261,6 +2271,7 @@ function starHTML(rating, max=5, size=13) { return Array.from({length:max},(_,i)
 function fmtDate(iso)      { return new Date(iso).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }
 function showToast(msg)    { document.querySelectorAll('.toast').forEach(t=>t.remove()); const t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),2600); }
 function shareSpotd() {
+  if(typeof haptic==='function')haptic('light');
   const text = 'Discover the best spots near you';
   const url  = 'https://spotd.biz';
   if (navigator.share) {
@@ -2347,6 +2358,7 @@ async function doGoingTonight(venueId, btn) {
     state.goingByMe.delete(venueId);
     state.todayCheckInCount = Math.max(0, state.todayCheckInCount - 1);
     state.goingCounts[venueId] = Math.max(0, (state.goingCounts[venueId] || 1) - 1);
+    if(typeof haptic==='function')haptic('light');
     showToast('Check-in removed');
   } else {
     if (state.todayCheckInCount >= CHECK_IN_DAILY_LIMIT) {
@@ -2357,7 +2369,7 @@ async function doGoingTonight(venueId, btn) {
     state.goingByMe.add(venueId);
     state.todayCheckInCount++;
     state.goingCounts[venueId] = (state.goingCounts[venueId] || 0) + 1;
-    if (typeof haptic === 'function') if(typeof haptic==='function')haptic('medium');
+    if(typeof haptic==='function')haptic('medium');
     showToast('Checked in!');
     // Fire DB write and streak check in background
     addCheckIn({ userId: currentUser.id, venueId, citySlug: state.city.slug, date: today })
@@ -2564,6 +2576,7 @@ function switchPubTab(tab, btn) {
 
 async function toggleFollowUser(userId, btn) {
   if (!currentUser) { openAuth('signin'); return; }
+  if(typeof haptic==='function')haptic('light');
   const isFollowing = btn.classList.contains('following');
   if (isFollowing) {
     await unfollowUser(currentUser.id, userId);
@@ -3509,6 +3522,7 @@ async function dmSend() {
   const input = document.getElementById('dmInput');
   const body  = input.value.trim();
   if (!body || !dmState.activeConvoId) return;
+  if(typeof haptic==='function')haptic('medium');
   input.value = '';
   const el  = document.getElementById('dmMessages');
   const tmp = document.createElement('div');
@@ -3524,6 +3538,7 @@ async function dmSend() {
 async function dmSendVenue(venueId, convoId) {
   const { error } = await db.from('messages').insert({ conversation_id: convoId, sender_id: currentUser.id, venue_id: venueId, msg_type: 'venue_share' });
   if (error) { showToast('Failed to share venue'); return; }
+  if(typeof haptic==='function')haptic('medium');
   showToast('Venue shared!');
   closeOverlay('modalOverlay');
   document.getElementById('dmSharePickerOverlay')?.remove();
