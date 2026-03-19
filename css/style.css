@@ -107,6 +107,9 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
 .city-card.coming{opacity:.38;cursor:default;pointer-events:none}
 .city-card.coming::after{content:'Soon';position:absolute;top:10px;right:10px;font-family:'DM Sans',sans-serif;font-size:8px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);border:1px solid var(--border2);border-radius:4px;padding:2px 6px}
 .home-coming{font-family:'DM Sans',sans-serif;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:rgba(42,31,20,0.18);text-align:center}
+.app-store-badge{margin-bottom:32px;opacity:.85;transition:opacity .2s}
+.app-store-badge:hover{opacity:1}
+.app-store-badge svg{display:block;border-radius:10px}
 
 /* CITY BAR */
 .city-bar{display:flex;align-items:center;gap:8px;padding:10px 20px;background:var(--nav-bg);border-bottom:1px solid var(--border2);flex-wrap:wrap;position:sticky;top:0;z-index:250;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
