@@ -416,14 +416,14 @@ async function fetchPublicProfile(userId) {
     if (error) {
       console.warn('fetchPublicProfile error:', error.message);
       // Return a minimal stub so profile page still renders
-      return { id: userId, display_name: null, bio: null, avatar_emoji: '🍺', is_public: true };
+      return { id: userId, display_name: null, bio: null, avatar_emoji: null, is_public: true };
     }
     // If no profile row exists yet, return a stub (user exists but never set up profile)
-    if (!data) return { id: userId, display_name: null, bio: null, avatar_emoji: '🍺', is_public: true };
+    if (!data) return { id: userId, display_name: null, bio: null, avatar_emoji: null, is_public: true };
     // Respect privacy — is_public defaults to true if column doesn't exist yet
     if (data.is_public === false) return null;
     return data;
-  } catch(e) { return { id: userId, display_name: null, bio: null, avatar_emoji: '🍺', is_public: true }; }
+  } catch(e) { return { id: userId, display_name: null, bio: null, avatar_emoji: null, is_public: true }; }
 }
 async function searchProfiles(query) {
   try {
