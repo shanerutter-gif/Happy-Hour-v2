@@ -688,6 +688,42 @@ async function addComment(postId, postType, userId, text) {
   } catch(e) { console.error('addComment:', e); return null; }
 }
 
+// ── SOCIAL LIKES ──────────────────────────────────────
+async function fetchLikes(postId, postType) {
+  try {
+    const { data, count } = await db.from('social_likes')
+      .select('id, user_id', { count: 'exact' })
+      .eq('post_id', postId)
+      .eq('post_type', postType);
+    return { count: count || (data?.length || 0), likes: data || [] };
+  } catch(e) { console.error('fetchLikes:', e); return { count: 0, likes: [] }; }
+}
+
+async function toggleLike(postId, postType, userId) {
+  try {
+    const session = getSession();
+    const client = session?.access_token
+      ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+          global: { headers: { Authorization: `Bearer ${session.access_token}` } }
+        })
+      : db;
+    // Check if already liked
+    const { data: existing } = await client.from('social_likes')
+      .select('id')
+      .eq('post_id', postId)
+      .eq('post_type', postType)
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (existing) {
+      await client.from('social_likes').delete().eq('id', existing.id);
+      return { liked: false };
+    } else {
+      await client.from('social_likes').insert({ post_id: postId, post_type: postType, user_id: userId });
+      return { liked: true };
+    }
+  } catch(e) { console.error('toggleLike:', e); return null; }
+}
+
 // ── SOCIAL FEED ────────────────────────────────────────
 // Fetches a city-wide social feed merging photos, check-ins,
 // reviews, and going-tonight activity. Following-first ordering

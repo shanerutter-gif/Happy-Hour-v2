@@ -164,16 +164,7 @@ function renderNav(user) {
     link.textContent = 'For Business';
     cityBar.appendChild(link);
   }
-  if (cityBar && !document.getElementById('themeToggleBtn')) {
-    const btn = document.createElement('button');
-    btn.id = 'themeToggleBtn';
-    btn.className = 'theme-toggle-btn';
-    btn.setAttribute('aria-label', 'Toggle dark/light mode');
-    btn.onclick = toggleTheme;
-    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-    btn.textContent = isDark ? '☀️' : '🌙';
-    cityBar.appendChild(btn);
-  }
+  // Theme toggle moved to profile page
   renderBottomNav(user);
 }
 
@@ -353,12 +344,19 @@ function renderSocialItem(item) {
 
   const postId = item.id || '';
   const postType = item.type || '';
+  const likeCount = item._likeCount || 0;
+  const isLiked = item._liked || false;
   const commentSection = `
-    <div class="social-comments-section" id="comments-${postId}">
+    <div class="social-actions-bar" id="actions-${postId}">
+      <button class="social-like-btn${isLiked ? ' liked' : ''}" id="like-${postId}" onclick="doToggleLike('${postId}','${postType}',this)">
+        ${isLiked ? '❤️' : '🤍'} <span class="like-count">${likeCount || ''}</span>
+      </button>
       <button class="social-comments-toggle" onclick="toggleComments('${postId}','${postType}',this)">
         💬 Comments
       </button>
-      <div class="social-comments-body" style="display:none">
+    </div>
+    <div class="social-comments-section" id="comments-${postId}" style="display:none">
+      <div class="social-comments-body">
         <div class="social-comments-list" id="clist-${postId}"></div>
         ${currentUser ? `<div class="social-comment-compose">
           <input class="social-comment-input" id="cinput-${postId}" type="text" placeholder="Add a comment..." maxlength="280"
@@ -374,7 +372,8 @@ function renderSocialItem(item) {
       <div class="social-card-header">
         <div class="social-avatar" ${profileClick}>${avatar}</div>
         <div class="social-card-meta">
-          <div class="social-card-name" ${profileClick}>${esc(displayName)}${followBadge}</div>
+          ${followBadge ? `<div class="social-follow-badge-row">${followBadge}</div>` : ''}
+          <div class="social-card-name" ${profileClick}>${esc(displayName)}</div>
           <div class="social-card-action">checked in at <span class="social-venue-link" ${venueClick}>${esc(venueName)}</span></div>
           <div class="social-card-time">${neighborhood ? neighborhood + ' · ' : ''}${timeAgo}</div>
         </div>
@@ -394,8 +393,9 @@ function renderSocialItem(item) {
       <div class="social-row">
         <div class="social-avatar" ${profileClick}>${avatar}</div>
         <div class="social-row-body">
+          ${followBadge ? `<div class="social-follow-badge-row">${followBadge}</div>` : ''}
           <div class="social-row-text">
-            <span class="social-row-name" ${profileClick}>${esc(displayName)}</span>${followBadge}
+            <span class="social-row-name" ${profileClick}>${esc(displayName)}</span>
             checked in at <span class="social-venue-link" ${venueClick}>${esc(venueName)}</span>
           </div>
           <div class="social-row-meta">${neighborhood ? neighborhood + ' · ' : ''}${timeAgo}</div>
@@ -413,8 +413,9 @@ function renderSocialItem(item) {
     return `<div class="social-row" ${venueClick}>
       <div class="social-avatar" ${profileClick}>${avatar}</div>
       <div class="social-row-body">
+        ${followBadge ? `<div class="social-follow-badge-row">${followBadge}</div>` : ''}
         <div class="social-row-text">
-          <span class="social-row-name" ${profileClick}>${esc(displayName)}</span>${followBadge}
+          <span class="social-row-name" ${profileClick}>${esc(displayName)}</span>
           reviewed <span class="social-venue-link" ${venueClick}>${esc(venueName)}</span>
         </div>
         ${stars ? `<div class="social-row-stars">${stars}</div>` : ''}
@@ -430,8 +431,9 @@ function renderSocialItem(item) {
     return `<div class="social-row" ${venueClick}>
       <div class="social-avatar" ${profileClick}>${avatar}</div>
       <div class="social-row-body">
+        ${followBadge ? `<div class="social-follow-badge-row">${followBadge}</div>` : ''}
         <div class="social-row-text">
-          <span class="social-row-name" ${profileClick}>${esc(displayName)}</span>${followBadge}
+          <span class="social-row-name" ${profileClick}>${esc(displayName)}</span>
           saved <span class="social-venue-link" ${venueClick}>${esc(venueName)}</span>
         </div>
         <div class="social-row-meta">${neighborhood ? neighborhood + ' · ' : ''}${timeAgo}</div>
@@ -445,8 +447,9 @@ function renderSocialItem(item) {
     return `<div class="social-row" ${venueClick}>
       <div class="social-avatar" ${profileClick}>${avatar}</div>
       <div class="social-row-body">
+        ${followBadge ? `<div class="social-follow-badge-row">${followBadge}</div>` : ''}
         <div class="social-row-text">
-          <span class="social-row-name" ${profileClick}>${esc(displayName)}</span>${followBadge}
+          <span class="social-row-name" ${profileClick}>${esc(displayName)}</span>
           is going to <span class="social-venue-link" ${venueClick}>${esc(venueName)}</span> tonight
         </div>
         <div class="social-row-meta">${neighborhood ? neighborhood + ' · ' : ''}${timeAgo}</div>
@@ -459,10 +462,10 @@ function renderSocialItem(item) {
 }
 // ── SOCIAL COMMENTS ──
 async function toggleComments(postId, postType, btn) {
-  const body = btn.nextElementSibling;
-  if (!body) return;
-  const visible = body.style.display !== 'none';
-  body.style.display = visible ? 'none' : 'block';
+  const section = document.getElementById('comments-' + postId);
+  if (!section) return;
+  const visible = section.style.display !== 'none';
+  section.style.display = visible ? 'none' : 'block';
   if (!visible) {
     const list = document.getElementById('clist-' + postId);
     if (list && !list.dataset.loaded) {
@@ -495,6 +498,22 @@ async function submitComment(postId, postType) {
     const placeholder = list?.querySelector('[style*="color:var(--muted)"]');
     if (placeholder && placeholder.textContent.includes('No comments')) placeholder.remove();
     list?.appendChild(el);
+  }
+}
+
+async function doToggleLike(postId, postType, btn) {
+  if (!currentUser) { openAuth('signin'); return; }
+  const result = await toggleLike(postId, postType, currentUser.id);
+  if (!result) return;
+  const countEl = btn.querySelector('.like-count');
+  const currentCount = parseInt(countEl?.textContent || '0', 10) || 0;
+  if (result.liked) {
+    btn.classList.add('liked');
+    btn.innerHTML = `❤️ <span class="like-count">${currentCount + 1}</span>`;
+  } else {
+    btn.classList.remove('liked');
+    const newCount = Math.max(0, currentCount - 1);
+    btn.innerHTML = `🤍 <span class="like-count">${newCount || ''}</span>`;
   }
 }
 
@@ -532,7 +551,7 @@ function showHome() {
   state.venues = []; state.events = []; state.filtered = [];
   document.title = 'Spotd — Happy Hours & Events Near You';
   // Reset filters
-  state.filters = { day: null, area: null, type: null, search: '' };
+  state.filters = { day: null, area: null, type: null, search: '', amenities: [] };
   state.favFilterOn = false;
   if (state.map) { state.map.remove(); state.map = null; state.markers = {}; }
   renderNav(currentUser);
@@ -556,7 +575,7 @@ async function enterCity(slug, name, stateCode) {
   // Reset
   state.showFilter = 'all';
   state.filters.amenity = null;
-  state.filters = { day: null, area: null, type: null, search: '' };
+  state.filters = { day: null, area: null, type: null, search: '', amenities: [] };
   state.favFilterOn = false;
   state.filtered = [];
   document.getElementById('searchBox').value = '';
@@ -1505,6 +1524,9 @@ async function renderProfile(user) {
         </div>
       </div>
       <div class="pf-hero-actions">
+        <button class="pf-hero-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle dark/light mode">
+          ${document.documentElement.getAttribute('data-theme') === 'dark' ? '☀️' : '🌙'}
+        </button>
         <button class="pf-hero-btn" onclick="shareSpotd()" title="Share">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
         </button>
@@ -1996,7 +2018,18 @@ function toggleView() {
   document.getElementById('mapView').classList.toggle('active',  state.view === 'map');
   document.getElementById('viewIcon').textContent = state.view === 'map' ? 'List' : 'Map';
   document.getElementById('viewToggle').classList.toggle('map-active', state.view === 'map');
-  if (state.view === 'map') setTimeout(() => { state.map.invalidateSize(); updateMapMarkers(); buildMapSidebar(); }, 100);
+  if (state.view === 'map') {
+    if (!state.map || !state._mapReady) initMap();
+    setTimeout(() => {
+      if (state.map) {
+        state.map.invalidateSize();
+        updateMapMarkers();
+        buildMapSidebar();
+        // Double invalidate to handle slow DOM reflow
+        setTimeout(() => state.map && state.map.invalidateSize(), 300);
+      }
+    }, 100);
+  }
 }
 function goToMap(id) { closeOverlay('modalOverlay'); if (state.view !== 'map') toggleView(); setTimeout(() => flyTo(id), 350); }
 
@@ -2004,30 +2037,44 @@ function goToMap(id) { closeOverlay('modalOverlay'); if (state.view !== 'map') t
 function initMap() {
   if (state.map) { state.map.remove(); state.map = null; }
   state._markerLayer = null;
+  state._mapReady = false;
   const cityCenter = getCityCenter(state.city?.slug);
-  const map = L.map('map', {
-    center: cityCenter,
-    zoom: 12,
-    zoomSnap: 0.5,
-    zoomDelta: 0.5,
-    wheelPxPerZoomLevel: 120,
-    inertia: true,
-    inertiaDeceleration: 3400,
-    inertiaMaxSpeed: 1500,
-    easeLinearity: 0.2,
-    fadeAnimation: true,
-    zoomAnimation: true,
-    markerZoomAnimation: true,
-  });
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-    attribution: '© OpenStreetMap © CARTO',
-    subdomains: 'abcd',
-    maxZoom: 19,
-    updateWhenZooming: false,
-    updateWhenIdle: true,
-    keepBuffer: 4,
-  }).addTo(map);
-  state.map = map;
+  try {
+    const mapEl = document.getElementById('map');
+    if (!mapEl) return;
+    // Reset the container in case Leaflet left stale state
+    mapEl.innerHTML = '';
+    mapEl.style.height = '';
+    const map = L.map('map', {
+      center: cityCenter,
+      zoom: 12,
+      preferCanvas: true,
+      zoomSnap: 0.5,
+      zoomDelta: 0.5,
+      wheelPxPerZoomLevel: 120,
+      inertia: true,
+      inertiaDeceleration: 3400,
+      inertiaMaxSpeed: 1500,
+      easeLinearity: 0.2,
+      fadeAnimation: true,
+      zoomAnimation: true,
+      markerZoomAnimation: true,
+    });
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      attribution: '© OpenStreetMap © CARTO',
+      subdomains: 'abcd',
+      maxZoom: 19,
+      updateWhenZooming: false,
+      updateWhenIdle: true,
+      keepBuffer: 4,
+    }).addTo(map);
+    state.map = map;
+    state._mapReady = true;
+  } catch(e) {
+    console.warn('initMap failed, will retry on map open:', e);
+    state.map = null;
+    state._mapReady = false;
+  }
 }
 function getCityCenter(slug) {
   const centers = {
