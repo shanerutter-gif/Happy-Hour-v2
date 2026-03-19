@@ -900,13 +900,11 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
   padding: env(safe-area-inset-top, 0px) 0 100px;
-  opacity: 0;
+  visibility: hidden;
   pointer-events: none;
-  transition: opacity .18s ease;
-  will-change: opacity;
 }
 .profile-page--open {
-  opacity: 1;
+  visibility: visible;
   pointer-events: auto;
   z-index: 499;
 }
@@ -1000,13 +998,11 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   display: flex;
   flex-direction: column;
   overscroll-behavior: contain;
-  opacity: 0;
+  visibility: hidden;
   pointer-events: none;
-  transition: opacity .18s ease;
-  will-change: opacity;
 }
 .social-tab.tab-open {
-  opacity: 1;
+  visibility: visible;
   pointer-events: auto;
 }
 .social-header {
@@ -1167,13 +1163,11 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   display: flex;
   flex-direction: column;
   overscroll-behavior: contain;
-  opacity: 0;
+  visibility: hidden;
   pointer-events: none;
-  transition: opacity .18s ease;
-  will-change: opacity;
 }
 .dm-tab.tab-open {
-  opacity: 1;
+  visibility: visible;
   pointer-events: auto;
 }
 
