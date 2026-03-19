@@ -103,19 +103,26 @@ async function loadSiteCopy() {
   } catch(e) {}
 }
 
+const CITIES = [
+  { slug:'san-diego',    name:'San Diego',     state_code:'CA', venue_count:85, active:true  },
+  { slug:'los-angeles',  name:'Los Angeles',   state_code:'CA', venue_count:0,  active:false },
+  { slug:'new-york',     name:'New York',      state_code:'NY', venue_count:0,  active:false },
+  { slug:'chicago',      name:'Chicago',       state_code:'IL', venue_count:0,  active:false },
+  { slug:'austin',       name:'Austin',        state_code:'TX', venue_count:0,  active:false },
+  { slug:'miami',        name:'Miami',         state_code:'FL', venue_count:0,  active:false },
+  { slug:'orange-county',name:'Orange County', state_code:'CA', venue_count:0,  active:false },
+];
+
 document.addEventListener('DOMContentLoaded', () => {
   loadSiteCopy();
   renderCityGrid();
-  // Re-render nav in case auth session was restored before DOM was ready
   renderNav(currentUser);
   const ffg = document.getElementById('favFilterGroup');
   if (ffg) ffg.style.display = currentUser ? '' : 'none';
 
   // Detect password reset redirect from Supabase email link
-  // Supabase appends #access_token=...&type=recovery to the URL
   const hash = window.location.hash;
   if (hash && hash.includes('type=recovery')) {
-    // Parse tokens from hash and sign the user in so updateUser() works
     const params = new URLSearchParams(hash.replace('#', ''));
     const accessToken = params.get('access_token');
     const refreshToken = params.get('refresh_token');
@@ -125,8 +132,15 @@ document.addEventListener('DOMContentLoaded', () => {
           window.history.replaceState({}, document.title, window.location.pathname);
           openResetPassword();
         })
-        .catch(() => openResetPassword()); // show form anyway, updateUser will validate
+        .catch(() => openResetPassword());
     }
+  }
+
+  // Auto-enter last city (or default San Diego) if user is signed in
+  if (currentUser) {
+    const lastSlug = localStorage.getItem('spotd-last-city') || 'san-diego';
+    const city = CITIES.find(c => c.slug === lastSlug && c.active) || CITIES[0];
+    enterCity(city.slug, city.name, city.state_code);
   }
 });
 
@@ -140,31 +154,20 @@ function onAuthChange(user) {
   if (state.city) renderCards();
   // Refresh unread badge whenever auth state changes
   if (user) dmRefreshBadge();
-  // If user just signed in and had a pending city, enter it now
+  // If user just signed in, enter pending city or auto-enter last city
   if (user && window._pendingCity) {
     const { slug, name, stateCode } = window._pendingCity;
     window._pendingCity = null;
     enterCity(slug, name, stateCode);
+  } else if (user && !state.city) {
+    const lastSlug = localStorage.getItem('spotd-last-city') || 'san-diego';
+    const city = CITIES.find(c => c.slug === lastSlug && c.active) || CITIES[0];
+    enterCity(city.slug, city.name, city.state_code);
   }
 }
 
 // ── NAV ────────────────────────────────────────────────
 function renderNav(user) {
-  // No top nav — render home CTA buttons
-  const cta = document.getElementById('homeCta');
-  // homeCta reserved for future CTAs
-  // Add For Business to city bar if not already there
-  const cityBar = document.getElementById('cityBar');
-  if (cityBar && !document.getElementById('city-bar-biz-link')) {
-    const link = document.createElement('a');
-    link.id = 'city-bar-biz-link';
-    link.href = '/business-landing.html';
-    link.className = 'nav-business';
-    link.style.cssText = 'margin-left:auto;padding:0 4px;white-space:nowrap;';
-    link.textContent = 'For Business';
-    cityBar.appendChild(link);
-  }
-  // Theme toggle moved to profile page
   renderBottomNav(user);
 }
 
@@ -528,18 +531,7 @@ async function doSignOut() { await authSignOut(); showToast('Signed out'); }
 // ── HOME ───────────────────────────────────────────────
 function renderCityGrid() {
   const grid = document.getElementById('cityGrid');
-
-  const cities = [
-    { slug:'san-diego',    name:'San Diego',     state_code:'CA', venue_count:85, active:true  },
-    { slug:'los-angeles',  name:'Los Angeles',   state_code:'CA', venue_count:0,  active:false },
-    { slug:'new-york',     name:'New York',      state_code:'NY', venue_count:0,  active:false },
-    { slug:'chicago',      name:'Chicago',       state_code:'IL', venue_count:0,  active:false },
-    { slug:'austin',       name:'Austin',        state_code:'TX', venue_count:0,  active:false },
-    { slug:'miami',        name:'Miami',         state_code:'FL', venue_count:0,  active:false },
-    { slug:'orange-county',name:'Orange County', state_code:'CA', venue_count:0,  active:false },
-  ];
-
-  grid.innerHTML = cities.map(c => {
+  grid.innerHTML = CITIES.map(c => {
     const onclick = c.active ? `onclick="enterCity('${c.slug}','${c.name}','${c.state_code}')"` : '';
     const countBadge = c.active && c.venue_count ? `<div class="city-card-count">${c.venue_count}+ spots</div>` : '';
     return `<div class="city-card${c.active ? '' : ' coming'}" ${onclick}>
@@ -548,6 +540,47 @@ function renderCityGrid() {
       ${countBadge}
     </div>`;
   }).join('');
+}
+
+// ── CITY DROPDOWN ──────────────────────────────────────
+function toggleCityDropdown() {
+  const dd = document.getElementById('cityDropdown');
+  const pill = document.getElementById('cityPill');
+  const isOpen = dd.classList.contains('open');
+  if (isOpen) {
+    dd.classList.remove('open');
+    pill.classList.remove('open');
+    return;
+  }
+  dd.innerHTML = CITIES.map(c => {
+    const isCurrent = state.city?.slug === c.slug;
+    const disabled = !c.active;
+    return `<button class="city-dropdown-item${isCurrent ? ' current' : ''}${disabled ? ' disabled' : ''}"
+      ${c.active ? `onclick="selectCity('${c.slug}','${c.name}','${c.state_code}')"` : ''}>
+      <span class="city-dropdown-name">${c.name}, ${c.state_code}</span>
+      ${isCurrent ? '<span class="city-dropdown-check">✓</span>' : ''}
+      ${disabled ? '<span class="city-dropdown-soon">Soon</span>' : ''}
+    </button>`;
+  }).join('');
+  dd.classList.add('open');
+  pill.classList.add('open');
+  // Close on outside click
+  setTimeout(() => {
+    document.addEventListener('click', function _close(e) {
+      if (!e.target.closest('.city-selector-wrap')) {
+        dd.classList.remove('open');
+        pill.classList.remove('open');
+        document.removeEventListener('click', _close);
+      }
+    });
+  }, 0);
+}
+
+function selectCity(slug, name, stateCode) {
+  document.getElementById('cityDropdown').classList.remove('open');
+  document.getElementById('cityPill').classList.remove('open');
+  if (state.city?.slug === slug) return;
+  enterCity(slug, name, stateCode);
 }
 
 function showHome() {
@@ -572,6 +605,7 @@ async function enterCity(slug, name, stateCode) {
     return;
   }
   state.city = { slug, name, stateCode };
+  localStorage.setItem('spotd-last-city', slug);
   document.getElementById('homePage').style.display = 'none';
   document.getElementById('appPage').style.display  = 'block';
   document.getElementById('cityBarName').textContent = `${name}, ${stateCode}`;

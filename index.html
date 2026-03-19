@@ -255,7 +255,13 @@
         onerror="this.style.display='none';this.nextElementSibling.style.display='inline'">
       <span class="city-back-logo-fallback" style="display:none">Spotd</span>
     </button>
-    <div class="city-bar-name" id="cityBarName"></div>
+    <div class="city-selector-wrap">
+      <button class="city-pill" id="cityPill" onclick="toggleCityDropdown()">
+        <span id="cityBarName"></span>
+        <svg class="city-pill-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="city-dropdown" id="cityDropdown"></div>
+    </div>
   </div>
 
   <div class="controls" id="controls">
