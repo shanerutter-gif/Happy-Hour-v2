@@ -20,6 +20,54 @@ let _accessToken  = null;
 
 // initAuth — called explicitly from the END of app.js so that
 // onAuthChange is guaranteed to be defined before it fires.
+let _refreshTimer = null;
+
+async function _refreshAndPersist(refreshToken) {
+  const { data, error } = await db.auth.refreshSession({
+    refresh_token: refreshToken,
+  });
+  if (error || !data?.session) return null;
+  const s = data.session;
+  currentUser  = s.user;
+  _accessToken = s.access_token;
+  localStorage.setItem(_storageKey, JSON.stringify({
+    access_token:  s.access_token,
+    refresh_token: s.refresh_token,
+    expires_at:    s.expires_at,
+    expires_in:    s.expires_in,
+    token_type:    'bearer',
+    user:          s.user,
+  }));
+  await db.auth.setSession({
+    access_token:  s.access_token,
+    refresh_token: s.refresh_token,
+  });
+  _scheduleTokenRefresh(s.expires_in);
+  return s;
+}
+
+function _scheduleTokenRefresh(expiresInSec) {
+  if (_refreshTimer) clearTimeout(_refreshTimer);
+  if (!expiresInSec || expiresInSec < 30) return;
+  // Refresh 2 minutes before expiry (or at half-life if < 5 min)
+  const refreshIn = Math.max((expiresInSec - 120), expiresInSec / 2) * 1000;
+  _refreshTimer = setTimeout(async () => {
+    try {
+      const raw = localStorage.getItem(_storageKey);
+      if (!raw) return;
+      const stored = JSON.parse(raw);
+      if (!stored?.refresh_token) return;
+      const s = await _refreshAndPersist(stored.refresh_token);
+      if (!s) {
+        // Refresh failed — sign out cleanly
+        localStorage.removeItem(_storageKey);
+        currentUser = null; _accessToken = null; userFavorites = new Set();
+        if (typeof onAuthChange === 'function') onAuthChange(null);
+      }
+    } catch(e) { console.warn('[tokenRefresh] error', e); }
+  }, refreshIn);
+}
+
 async function initAuth() {
   try {
     const raw = localStorage.getItem(_storageKey);
@@ -37,32 +85,15 @@ async function initAuth() {
         access_token:  stored.access_token,
         refresh_token: stored.refresh_token || '',
       });
+      _scheduleTokenRefresh(stored.expires_at - now);
     } else if (stored.refresh_token) {
       // Token expired — try to refresh silently
-      const { data, error } = await db.auth.refreshSession({
-        refresh_token: stored.refresh_token,
-      });
-      if (error || !data?.session) {
-        // Refresh failed — clear stale session
+      const s = await _refreshAndPersist(stored.refresh_token);
+      if (!s) {
         localStorage.removeItem(_storageKey);
+        if (typeof onAuthChange === 'function') onAuthChange(null);
         return;
       }
-      const s = data.session;
-      currentUser  = s.user;
-      _accessToken = s.access_token;
-      // Persist the fresh tokens
-      localStorage.setItem(_storageKey, JSON.stringify({
-        access_token:  s.access_token,
-        refresh_token: s.refresh_token,
-        expires_at:    s.expires_at,
-        expires_in:    s.expires_in,
-        token_type:    'bearer',
-        user:          s.user,
-      }));
-      await db.auth.setSession({
-        access_token:  s.access_token,
-        refresh_token: s.refresh_token,
-      });
     } else {
       // No refresh token — clear and bail
       localStorage.removeItem(_storageKey);
@@ -75,6 +106,27 @@ async function initAuth() {
     console.warn('[initAuth] error', e);
   }
 }
+
+// Re-validate session when app returns from background (iOS/Android)
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState !== 'visible') return;
+  if (!currentUser) return;
+  try {
+    const raw = localStorage.getItem(_storageKey);
+    if (!raw) return;
+    const stored = JSON.parse(raw);
+    const now = Math.floor(Date.now() / 1000);
+    // If token expired or will expire within 60s, refresh now
+    if (stored.expires_at && stored.expires_at - now < 60 && stored.refresh_token) {
+      const s = await _refreshAndPersist(stored.refresh_token);
+      if (!s) {
+        localStorage.removeItem(_storageKey);
+        currentUser = null; _accessToken = null; userFavorites = new Set();
+        if (typeof onAuthChange === 'function') onAuthChange(null);
+      }
+    }
+  } catch(e) { console.warn('[visibilitychange] refresh error', e); }
+});
 
 function getSession() {
   return _accessToken ? { user: currentUser, access_token: _accessToken } : null;
@@ -110,6 +162,7 @@ async function authSignIn(email, password) {
       access_token:  data.access_token,
       refresh_token: data.refresh_token || '',
     });
+    if (data.expires_in) _scheduleTokenRefresh(data.expires_in);
     await loadFavorites();
     if (typeof onAuthChange === 'function') onAuthChange(currentUser);
     return { data, error: null };
