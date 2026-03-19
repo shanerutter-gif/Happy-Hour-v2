@@ -51,7 +51,7 @@ async function requestWebPush() {
 // Native (Capacitor) push permission
 async function requestNativePush() {
   try {
-    const { PushNotifications } = await import('@capacitor/push-notifications');
+    const { PushNotifications } = window.Capacitor.Plugins;
 
     let permStatus = await PushNotifications.checkPermissions();
     if (permStatus.receive === 'prompt') {
@@ -70,7 +70,6 @@ async function requestNativePush() {
     // Handle foreground notifications
     PushNotifications.addListener('pushNotificationReceived', notification => {
       console.log('[Push] Received:', notification);
-      // Show in-app toast instead of system notification when app is open
       if (typeof showToast === 'function') {
         showToast(notification.title || 'New from Spotd');
       }
@@ -181,7 +180,7 @@ function dismissPushBanner() {
 // ── WEB PUSH SUBSCRIPTION ─────────────────────────────
 // Requires a VAPID key pair — generate at: https://vapidkeys.com
 // Add your public key to the env var NEXT_PUBLIC_VAPID_PUBLIC_KEY
-const VAPID_PUBLIC_KEY = 'YOUR_VAPID_PUBLIC_KEY_HERE'; // replace this
+const VAPID_PUBLIC_KEY = 'BMkbnu3qwis5D-0GOq1boIfSjvfis991VIeFerO6go9bH0M3AMpbSHmYHXqnlfVVBpC_fU8YMn3skSdQId6ZKtc';
 
 async function subscribeWebPush() {
   if (isNative() || !('serviceWorker' in navigator)) return;

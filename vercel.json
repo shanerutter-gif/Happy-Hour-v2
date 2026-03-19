@@ -4,6 +4,7 @@
     { "src": "/api/auth",                  "dest": "/api/auth.js" },
     { "src": "/api/stripe-checkout",       "dest": "/api/stripe-checkout.js" },
     { "src": "/api/stripe-billing-portal", "dest": "/api/stripe-billing-portal.js" },
-    { "src": "/api/stripe-webhook",        "dest": "/api/stripe-webhook.js" }
+    { "src": "/api/stripe-webhook",        "dest": "/api/stripe-webhook.js" },
+    { "src": "/api/send-push",              "dest": "/api/send-push.js" }
   ]
 }

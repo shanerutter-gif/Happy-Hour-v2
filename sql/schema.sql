@@ -14,6 +14,8 @@ drop policy if exists "Users see own favorites"        on public.favorites;
 drop policy if exists "Users manage own favorites"     on public.favorites;
 drop policy if exists "Users see own follows"          on public.neighborhood_follows;
 drop policy if exists "Users manage own follows"       on public.neighborhood_follows;
+drop policy if exists "Users see own tokens"           on public.push_tokens;
+drop policy if exists "Users manage own tokens"        on public.push_tokens;
 drop policy if exists "Venues are public"              on public.venues;
 drop policy if exists "Events are public"              on public.events;
 drop policy if exists "Cities are public"              on public.cities;
@@ -28,6 +30,7 @@ drop function if exists public.handle_new_user();
 drop function if exists public.set_updated_at();
 
 -- Drop tables
+drop table if exists public.push_tokens;
 drop table if exists public.neighborhood_follows;
 drop table if exists public.favorites;
 drop table if exists public.reviews;
@@ -152,6 +155,18 @@ create table public.neighborhood_follows (
   unique(user_id, neighborhood)
 );
 
+-- ── PUSH TOKENS ─────────────────────────────────────
+create table public.push_tokens (
+  id          uuid default uuid_generate_v4() primary key,
+  user_id     uuid references auth.users(id) on delete cascade not null,
+  token       text not null,
+  platform    text not null default 'web',  -- 'web', 'ios', 'android'
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now(),
+  unique(user_id, platform)
+);
+create index push_tokens_user_idx on public.push_tokens(user_id);
+
 -- ── ROW LEVEL SECURITY ────────────────────────────────
 alter table public.profiles             enable row level security;
 alter table public.venues               enable row level security;
@@ -160,6 +175,7 @@ alter table public.cities               enable row level security;
 alter table public.reviews              enable row level security;
 alter table public.favorites            enable row level security;
 alter table public.neighborhood_follows enable row level security;
+alter table public.push_tokens             enable row level security;
 
 create policy "Cities are public"              on public.cities   for select using (true);
 create policy "Venues are public"              on public.venues   for select using (true);
@@ -175,6 +191,8 @@ create policy "Users see own favorites"        on public.favorites for select us
 create policy "Users manage own favorites"     on public.favorites for all   using (auth.uid() = user_id);
 create policy "Users see own follows"          on public.neighborhood_follows for select using (auth.uid() = user_id);
 create policy "Users manage own follows"       on public.neighborhood_follows for all    using (auth.uid() = user_id);
+create policy "Users see own tokens"           on public.push_tokens for select using (auth.uid() = user_id);
+create policy "Users manage own tokens"        on public.push_tokens for all   using (auth.uid() = user_id);
 
 -- ── TRIGGERS ──────────────────────────────────────────
 create or replace function public.handle_new_user()
