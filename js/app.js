@@ -234,7 +234,7 @@ function _navHideAll(keep) {
   closeSubPage('leaderboardPage');
   closeOverlay('modalOverlay');
   closeOverlay('authOverlay');
-  closeOverlay('pubProfileOverlay');
+  closeSubPage('pubProfilePage');
 }
 
 function bottomNavFeed(btn) {
@@ -2412,18 +2412,21 @@ function goingFireBadge(venueId) {
 async function openPublicProfile(userId) {
   if (userId === currentUser?.id) { openProfile(); return; }
   document.getElementById('pubProfileContent').innerHTML = `<div style="text-align:center;padding:40px;color:var(--muted)">Loading…</div>`;
-  openOverlay('pubProfileOverlay');
+  document.getElementById('pubProfileTitle').textContent = 'Profile';
+  openSubPage('pubProfilePage');
   await renderPublicProfile(userId);
 }
 
 async function renderPublicProfile(userId) {
-  const [profile, reviews, checkIns, badges, favItems, amIFollowing] = await Promise.all([
+  const [profile, reviews, checkIns, badges, favItems, amIFollowing, following, followers] = await Promise.all([
     fetchPublicProfile(userId),
     fetchMyReviews(userId),
     fetchAllCheckIns(userId),
     getUserBadges(userId),
     getFavoriteItems(userId),
     currentUser ? isFollowing(currentUser.id, userId) : Promise.resolve(false),
+    getFollowing(userId),
+    getFollowers(userId),
   ]);
 
   if (!profile) {
@@ -2433,88 +2436,130 @@ async function renderPublicProfile(userId) {
 
   const allItems = [...state.venues, ...state.events];
   const favSpots = allItems.filter(v => new Set(favItems.map(f=>String(f.item_id))).has(String(v.id)));
-  const recentCheckIns = checkIns.slice(0, 20);
-  // Fall back to name from their reviews if no display_name set
+  const recentCheckIns = checkIns.slice(0, 30);
   const reviewerName = reviews.length ? (reviews[0].name || null) : null;
   const displayName = profile.display_name || reviewerName || 'Spotd User';
-  const totalVenues = new Set(checkIns.map(c => c.venue_id)).size;
+
+  // Update header title
+  document.getElementById('pubProfileTitle').textContent = displayName;
+
+  const avatarUrl = profile.avatar_url || '';
+  const headerUrl = profile.header_url || '';
 
   document.getElementById('pubProfileContent').innerHTML = `
-    <div class="pub-profile-header">
-      <div class="pub-avatar">${initialsAvatar(displayName, 'initials-avatar--lg')}</div>
-      <div class="pub-profile-info">
-        <div class="pub-name">${esc(displayName)}</div>
-        ${profile.username ? `<div class="pub-username">@${esc(profile.username)}</div>` : ''}
-        ${profile.bio ? `<div class="pub-bio">${esc(profile.bio)}</div>` : ''}
-        <div class="pub-stats">
-          <div class="pub-stat"><span>${checkIns.length}</span>Check-ins</div>
-          <div class="pub-stat"><span>${reviews.length}</span>Reviews</div>
-          <div class="pub-stat"><span>${totalVenues}</span>Venues</div>
+    <div class="pf-hero" ${headerUrl ? `style="background:url('${esc(headerUrl)}') center/cover no-repeat"` : ''}>
+      ${!headerUrl ? `<div class="pf-hero-burst"></div><div class="pf-hero-grid"></div>
+      <div class="pf-ring pf-ring-1"></div><div class="pf-ring pf-ring-2"></div><div class="pf-ring pf-ring-3"></div>` : ''}
+      <div class="pf-hero-overlay"></div>
+      <div class="pf-avatar-zone">
+        <div class="pf-avatar">
+          ${avatarUrl ? `<img src="${esc(avatarUrl)}" alt="Profile" style="width:100%;height:100%;border-radius:50%;object-fit:cover">` : initialsAvatar(displayName, 'initials-avatar--lg')}
         </div>
       </div>
     </div>
-    ${badges.length ? `<div class="pub-badges">${badges.map(b => {
-      const def = BADGE_DEFS[b.badge_key] || {};
-      return `<span class="badge-chip" title="${def.desc || b.badge_key}">${icn(def.icon||'medal',16)} ${def.label || b.badge_key}</span>`;
-    }).join('')}</div>` : ''}
+
+    <div class="pf-body">
+      <div class="pf-name">${esc(displayName)}</div>
+      ${profile.username ? `<div style="text-align:center;font-size:13px;color:var(--muted);margin-top:-4px;margin-bottom:4px">@${esc(profile.username)}</div>` : ''}
+      ${profile.bio ? `<div class="pf-bio">${esc(profile.bio)}</div>` : ''}
+      ${badges.length ? `<div class="pf-badges">${badges.map(b => {
+        const def = BADGE_DEFS[b.badge_key] || {};
+        return `<span class="pf-badge">${icn(def.icon||'medal',16)} ${def.label||b.badge_key}</span>`;
+      }).join('')}</div>` : ''}
+    </div>
+
+    <div class="pf-stat-grid">
+      <div class="pf-stat-card">
+        <div class="pf-snum">${checkIns.length}</div>
+        <div class="pf-slbl">Check-ins</div>
+        <div class="pf-sbar"><div class="pf-sbar-fill" style="width:${Math.min(100,checkIns.length*2)}%"></div></div>
+      </div>
+      <div class="pf-stat-card">
+        <div class="pf-snum">${reviews.length}</div>
+        <div class="pf-slbl">Reviews</div>
+        <div class="pf-sbar"><div class="pf-sbar-fill" style="width:${Math.min(100,reviews.length*4)}%"></div></div>
+      </div>
+      <div class="pf-stat-card">
+        <div class="pf-snum">${following.length}</div>
+        <div class="pf-slbl">Following</div>
+        <div class="pf-sbar"><div class="pf-sbar-fill" style="width:${Math.min(100,following.length*5)}%"></div></div>
+      </div>
+      <div class="pf-stat-card">
+        <div class="pf-snum">${followers.length}</div>
+        <div class="pf-slbl">Followers</div>
+        <div class="pf-sbar"><div class="pf-sbar-fill" style="width:${Math.min(100,followers.length*5)}%"></div></div>
+      </div>
+    </div>
+
     ${currentUser && currentUser.id !== userId ? `
-    <div class="pub-action-row">
+    <div style="display:flex;gap:10px;padding:0 16px 16px">
       <button class="pub-follow-btn ${amIFollowing ? 'following' : ''}" id="pub-follow-btn"
-        onclick="toggleFollowUser('${userId}', this)">
+        onclick="toggleFollowUser('${userId}', this)" style="flex:1">
         ${amIFollowing ? '✓ Following' : '+ Follow'}
       </button>
-      <button class="pub-dm-btn" onclick="dmOpenFromProfile('${userId}', '${esc(displayName)}')">
+      <button class="pub-follow-btn" onclick="dmOpenFromProfile('${userId}', '${esc(displayName)}')" style="flex:1;background:transparent;color:var(--coral);border:1.5px solid var(--coral)">
         ${ICN.comment} Message
       </button>
     </div>` : ''}
-    <div class="pub-tabs">
-      <button class="pub-tab active" onclick="switchPubTab('checkins', this)">${ICN.pin} Check-ins</button>
-      <button class="pub-tab" onclick="switchPubTab('reviews', this)">${ICN.star} Reviews</button>
-      <button class="pub-tab" onclick="switchPubTab('favorites', this)">♥ Saved</button>
+
+    <div class="pf-tabs" id="pub-pf-tabs">
+      <button class="pf-tab on" onclick="switchPubTab('checkins', this)">Check-ins</button>
+      <button class="pf-tab" onclick="switchPubTab('reviews', this)">Reviews</button>
+      <button class="pf-tab" onclick="switchPubTab('favorites', this)">Saved</button>
     </div>
-    <div id="pub-tab-checkins" class="pub-tab-content active">
-      ${recentCheckIns.length ? recentCheckIns.map(c => {
-        const v = allItems.find(x => String(x.id) === String(c.venue_id));
-        return `<div class="pub-activity-row" onclick="${v ? `closeOverlay('pubProfileOverlay');openModal('${c.venue_id}','venue')` : ''}">
-          <div class="pub-activity-icon">${ICN.pin}</div>
-          <div class="pub-activity-body">
-            <div class="pub-activity-title">${v ? esc(v.name) : esc(c.venue_name || 'A spot')}</div>
-            <div class="pub-activity-meta">${c.neighborhood || ''} · ${fmtDate(c.created_at || c.date)}</div>
-            ${c.note ? `<div class="pub-activity-note">"${esc(c.note)}"</div>` : ''}
-          </div>
-        </div>`;
-      }).join('') : '<div class="pub-empty">No check-ins yet</div>'}
-    </div>
-    <div id="pub-tab-reviews" class="pub-tab-content" style="display:none">
-      ${reviews.length ? reviews.map(r => {
-        const item = allItems.find(x => String(x.id) === String(r.venue_id || r.event_id));
-        return `<div class="pub-activity-row" onclick="${item ? `closeOverlay('pubProfileOverlay');openModal('${r.venue_id||r.event_id}','${r.venue_id?'venue':'event'}')` : ''}">
-          <div class="pub-activity-icon">${ICN.star}</div>
-          <div class="pub-activity-body">
-            <div class="pub-activity-title">${item ? esc(item.name) : 'A spot'}</div>
-            <div class="pub-activity-meta">${starHTML(r.rating,5,11)} · ${fmtDate(r.created_at)}</div>
-            ${r.text ? `<div class="pub-activity-note">"${esc(r.text)}"</div>` : ''}
-          </div>
-        </div>`;
-      }).join('') : '<div class="pub-empty">No reviews yet</div>'}
-    </div>
-    <div id="pub-tab-favorites" class="pub-tab-content" style="display:none">
-      ${favSpots.length ? favSpots.map(v => `
-        <div class="pub-activity-row" onclick="closeOverlay('pubProfileOverlay');openModal('${v.id}','${v.event_type?'event':'venue'}')">
-          <div class="pub-activity-icon">♥</div>
-          <div class="pub-activity-body">
-            <div class="pub-activity-title">${esc(v.name)}</div>
-            <div class="pub-activity-meta">${esc(v.neighborhood||'')} · ${esc(v.hours||'')}</div>
-          </div>
-        </div>`).join('') : '<div class="pub-empty">No saved spots</div>'}
+
+    <div class="pf-content">
+      <div id="pub-tab-checkins">
+        ${recentCheckIns.length ? recentCheckIns.map(c => {
+          const v = allItems.find(x => String(x.id) === String(c.venue_id));
+          return `<div class="pf-row"${v ? ` onclick="closeSubPage('pubProfilePage');openModal('${c.venue_id}','venue')"` : ''}>
+            <div class="pf-row-dot"></div>
+            <div class="pf-row-body">
+              <div class="pf-row-name">${v ? esc(v.name) : esc(c.venue_name || 'A spot')}</div>
+              <div class="pf-row-meta">${c.neighborhood || ''} · ${fmtDate(c.created_at || c.date)}</div>
+              ${c.note ? `<div class="pf-row-note">"${esc(c.note)}"</div>` : ''}
+            </div>
+          </div>`;
+        }).join('') : '<div class="pf-empty">No check-ins yet</div>'}
+      </div>
+      <div id="pub-tab-reviews" style="display:none">
+        ${reviews.length ? reviews.map(r => {
+          const item = allItems.find(x => String(x.id) === String(r.venue_id || r.event_id));
+          return `<div class="pf-row"${item ? ` onclick="closeSubPage('pubProfilePage');openModal('${r.venue_id||r.event_id}','${r.venue_id?'venue':'event'}')"` : ''}>
+            <div class="pf-row-dot"></div>
+            <div class="pf-row-body">
+              <div class="pf-row-name">${item ? esc(item.name) : 'A spot'}</div>
+              <div class="pf-row-meta">${starHTML(r.rating,5,11)} · ${fmtDate(r.created_at)}</div>
+              ${r.text ? `<div class="pf-row-note">"${esc(r.text)}"</div>` : ''}
+            </div>
+          </div>`;
+        }).join('') : '<div class="pf-empty">No reviews yet</div>'}
+      </div>
+      <div id="pub-tab-favorites" style="display:none">
+        ${favSpots.length ? favSpots.map(v => `
+          <div class="pf-row" onclick="closeSubPage('pubProfilePage');openModal('${v.id}','${v.event_type?'event':'venue'}')">
+            <div class="pf-row-dot"></div>
+            <div class="pf-row-body">
+              <div class="pf-row-name">${esc(v.name)}</div>
+              <div class="pf-row-meta">${esc(v.neighborhood||'')} · ${esc(v.hours||'')}</div>
+            </div>
+          </div>`).join('') : '<div class="pf-empty">No saved spots</div>'}
+      </div>
     </div>`;
 }
 
 function switchPubTab(tab, btn) {
-  document.querySelectorAll('.pub-tab-content').forEach(el => el.style.display = 'none');
-  document.querySelectorAll('.pub-tab').forEach(b => b.classList.remove('active'));
+  if(typeof haptic==='function')haptic('light');
+  const tabs = document.getElementById('pub-pf-tabs');
+  if (!tabs) return;
+  // Hide all tab content within the pub profile
+  ['checkins','reviews','favorites'].forEach(t => {
+    const el = document.getElementById('pub-tab-' + t);
+    if (el) el.style.display = 'none';
+  });
   document.getElementById('pub-tab-' + tab).style.display = 'block';
-  btn.classList.add('active');
+  tabs.querySelectorAll('.pf-tab').forEach(b => b.classList.remove('on'));
+  if (btn) btn.classList.add('on');
 }
 
 async function toggleFollowUser(userId, btn) {
@@ -3362,7 +3407,7 @@ async function dmDeleteConvo(convoId) {
 
 async function dmOpenConvo(convoId, name, isGroup, knownMembers) {
   if (!currentUser) { openAuth('signin'); return; }
-  closeOverlay('pubProfileOverlay');
+  closeSubPage('pubProfilePage');
 
   const alreadyOpen       = dmState.activeConvoId === convoId;
   dmState.activeConvoId   = convoId;
@@ -3578,7 +3623,7 @@ async function dmCreateConvo(isGroup) {
 
 async function dmOpenFromProfile(userId, displayName) {
   if (!currentUser) { openAuth('signin'); return; }
-  closeOverlay('pubProfileOverlay');
+  closeSubPage('pubProfilePage');
   const { data: myParts } = await db.from('conversation_participants').select('conversation_id').eq('user_id', currentUser.id);
   if (myParts?.length) {
     const myIds = myParts.map(r => r.conversation_id);
