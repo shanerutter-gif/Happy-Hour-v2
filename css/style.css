@@ -4,6 +4,9 @@
    Font: Cabinet Grotesk (display) · DM Sans (body)
    ═══════════════════════════════════════════════════════ */
 
+/* ── PREVENT ZOOM (iOS) ── */
+html { touch-action: manipulation; }
+
 /* ── ICON SYSTEM ── */
 .icn { display: inline-block; vertical-align: middle; flex-shrink: 0; }
 .icn-fire { color: var(--teal, #FF6B4A); }
