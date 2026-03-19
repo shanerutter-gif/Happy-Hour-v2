@@ -36,6 +36,7 @@ input, textarea, select { font-size: 16px; }
 :root,[data-theme="light"]{
   --bg:#F7F1EA; --bg2:#EEE6DA; --card:#FFFFFF; --card2:#FAF5EE;
   --teal:#FF6B4A; --teal-dk:#E5543A; --teal-lt:#FF8566;
+  --coral:#FF6B4A;
   --ink:#1A1208; --text:#2A1F14; --muted:rgba(42,31,20,0.45);
   --border:rgba(255,107,74,0.18); --border2:var(--border2);
   --tap:44px; --r:14px;
@@ -51,6 +52,7 @@ input, textarea, select { font-size: 16px; }
 [data-theme="dark"]{
   --bg:#0E0B09; --bg2:#161210; --card:#1C1710; --card2:#24200F;
   --teal:#FF6B4A; --teal-dk:#E5543A; --teal-lt:#FF8566;
+  --coral:#FF6B4A;
   --ink:#F5EFE6; --text:#EDE5D8; --muted:rgba(245,239,230,0.45);
   --border:rgba(255,107,74,0.18); --border2:rgba(255,255,255,0.08);
   --tap:44px; --r:14px;
