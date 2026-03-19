@@ -745,7 +745,7 @@ function buildTypeFilters() {
     AMENITIES.forEach(a => {
       const btn = document.createElement('button');
       btn.className = 'pill' + (state.filters.amenities.includes(a.key) ? ' active' : '');
-      btn.textContent = a.emoji + ' ' + a.label;
+      btn.innerHTML = icn(a.icon, 12) + ' ' + a.label;
       btn.onclick = () => toggleAmenityFilter(a.key, btn);
       af.appendChild(btn);
     });
@@ -1207,7 +1207,6 @@ function renderModal(v, type, reviews) {
         </div>`}
       </div>
 
-      ${isVenue && currentUser ? `<button id="venue-follow-btn-${v.id}" class="going-btn going-btn--lg" style="width:100%;margin-bottom:14px" onclick="toggleVenueFollow('${v.id}','${esc(v.name)}',this)"><span class="s-btn-icon">${ICN.bell}</span> Deal Alerts</button>` : ''}
 
       <div class="s-div"></div>
       <div class="modal-section-label">Schedule</div>
