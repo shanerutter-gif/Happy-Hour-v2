@@ -1486,7 +1486,7 @@ function closeSubPage(id) {
   const page = document.getElementById(id);
   if (!page) return;
   page.classList.remove('sub-page--open');
-  setTimeout(() => { page.style.display = 'none'; }, 250);
+  setTimeout(() => { page.style.display = 'none'; }, 300);
 }
 
 async function renderProfile(user) {
