@@ -175,6 +175,12 @@ function renderBottomNav(user) {
     if (bar) bar.style.display = 'none';
     return;
   }
+  // Build initials for profile avatar
+  const fullName = user.user_metadata?.full_name || '';
+  const initials = fullName
+    ? fullName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
+    : '?';
+
   let bar = document.getElementById('bottomNav');
   if (!bar) {
     bar = document.createElement('nav');
@@ -182,25 +188,25 @@ function renderBottomNav(user) {
     bar.className = 'bottom-nav';
     bar.innerHTML = `
       <button class="bottom-nav-btn active" id="bnFeed" onclick="bottomNavFeed(this)">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><rect x="7" y="7" width="10" height="10" rx="1"/></svg>
         <span>Feed</span>
       </button>
       <button class="bottom-nav-btn" id="bnSocial" onclick="bottomNavSocial(this)">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        <span>Social</span>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-1a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v1"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-1a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span>People</span>
       </button>
       <button class="bottom-nav-btn" id="bnMessages" onclick="bottomNavMessages(this)">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
         <span>Messages<span class="bn-badge" id="bnMsgBadge" style="display:none"></span></span>
       </button>
       <button class="bottom-nav-btn" id="bnProfile" onclick="bottomNavProfile(this)">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
-        <span id="bnProfileLabel">${(user.user_metadata?.full_name || 'Profile').split(' ')[0]}</span>
+        <div class="bn-avatar" id="bnAvatarCircle">${initials}</div>
+        <span id="bnProfileLabel">Profile</span>
       </button>`;
     document.body.appendChild(bar);
   } else {
-    const lbl = document.getElementById('bnProfileLabel');
-    if (lbl) lbl.textContent = (user.user_metadata?.full_name || 'Profile').split(' ')[0];
+    const avatar = document.getElementById('bnAvatarCircle');
+    if (avatar) avatar.textContent = initials;
   }
   bar.style.display = 'flex';
 }
