@@ -1162,14 +1162,14 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 
 /* ── Actions bar (like + comment) ── */
 .social-actions-bar {
-  display: flex; gap: 8px; padding: 4px 16px 10px; align-items: center;
+  display: flex; gap: 8px; padding: 8px 16px 12px; align-items: center;
 }
 .social-like-btn {
   background: var(--card); border: 1.5px solid var(--border2);
-  color: var(--muted); font-size: 12px; font-weight: 700;
+  color: var(--muted); font-size: 13px; font-weight: 700;
   padding: 8px 16px; border-radius: 50px; cursor: pointer;
   font-family: 'DM Sans', sans-serif;
-  display: flex; align-items: center; gap: 5px;
+  display: inline-flex; align-items: center; gap: 5px;
   transition: all .15s;
 }
 .social-like-btn:active { transform: scale(.95); }
@@ -1183,9 +1183,10 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 .social-comments-section { padding: 0 16px 10px; }
 .social-comments-toggle {
   background: var(--coral); color: #fff; border: none;
-  font-size: 12px; font-weight: 700; cursor: pointer;
+  font-size: 13px; font-weight: 700; cursor: pointer;
   padding: 8px 18px; border-radius: 50px;
   font-family: 'DM Sans', sans-serif;
+  display: inline-flex; align-items: center; gap: 5px;
   transition: opacity .15s, transform .1s;
   letter-spacing: .1px;
 }
