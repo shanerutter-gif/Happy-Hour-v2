@@ -114,9 +114,9 @@ async function savePushToken(token) {
 async function haptic(style = 'light') {
   if (!isNative()) return;
   try {
-    const { Haptics, ImpactStyle } = await import('@capacitor/haptics');
-    const map = { light: ImpactStyle.Light, medium: ImpactStyle.Medium, heavy: ImpactStyle.Heavy };
-    await Haptics.impact({ style: map[style] || ImpactStyle.Light });
+    const { Haptics } = window.Capacitor.Plugins;
+    const map = { light: 'LIGHT', medium: 'MEDIUM', heavy: 'HEAVY' };
+    await Haptics.impact({ style: map[style] || 'LIGHT' });
   } catch(e) {}
 }
 
