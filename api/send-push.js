@@ -148,41 +148,146 @@ async function createApnsJwt(keyBase64, keyId, teamId) {
     ['sign']
   );
 
-  const sig = await crypto.subtle.sign(
-    { name: 'ECDSA', hash: 'SHA-256' },
-    key,
-    new TextEncoder().encode(unsigned)
+  // crypto.subtle.sign returns raw r||s (64 bytes), NOT DER
+  const sig = new Uint8Array(
+    await crypto.subtle.sign(
+      { name: 'ECDSA', hash: 'SHA-256' },
+      key,
+      new TextEncoder().encode(unsigned)
+    )
   );
-
-  const rawSig = derToRaw(new Uint8Array(sig));
-  const sigB64 = bytesToBase64Url(rawSig);
+  const sigB64 = bytesToBase64Url(sig);
   return `${unsigned}.${sigB64}`;
 }
 
-// ── Web Push via raw fetch (no npm dependency needed in edge runtime) ──
-async function sendWebPush(subscriptionJson, payload, privateKeyBase64) {
+// ── Web Push via raw fetch (RFC 8291 + RFC 8188 encryption) ──
+async function sendWebPush(subscriptionJson, payloadStr, privateKeyBase64) {
   const subscription = JSON.parse(subscriptionJson);
   const endpoint = subscription.endpoint;
+  const p256dhKey = base64UrlToBytes(subscription.keys.p256dh);
+  const authSecret = base64UrlToBytes(subscription.keys.auth);
 
-  // Import the VAPID private key for signing
-  const privateKeyBytes = base64UrlToBytes(privateKeyBase64);
+  // Import VAPID private key and create JWT
+  const vapidKeyBytes = base64UrlToBytes(privateKeyBase64);
+  const jwt = await createVapidJwt(endpoint, vapidKeyBytes);
 
-  // Create JWT for VAPID authentication
-  const jwt = await createVapidJwt(endpoint, privateKeyBytes);
+  // Encrypt payload per RFC 8291 (aes128gcm)
+  const encrypted = await encryptPayload(payloadStr, p256dhKey, authSecret);
 
   const res = await fetch(endpoint, {
     method: 'POST',
     headers: {
-      'Content-Type':     'application/json',
       'Authorization':    `vapid t=${jwt}, k=${VAPID_PUBLIC_KEY}`,
+      'Content-Encoding': 'aes128gcm',
+      'Content-Type':     'application/octet-stream',
       'TTL':              '86400',
     },
-    body: payload,
+    body: encrypted,
   });
 
   if (!res.ok) {
     throw new Error(`Push failed: ${res.status} ${await res.text()}`);
   }
+}
+
+async function encryptPayload(payloadStr, uaPublicBytes, authSecret) {
+  const payload = new TextEncoder().encode(payloadStr);
+
+  // Generate ephemeral ECDH key pair
+  const localKey = await crypto.subtle.generateKey(
+    { name: 'ECDH', namedCurve: 'P-256' },
+    true,
+    ['deriveBits']
+  );
+  const localPubRaw = new Uint8Array(
+    await crypto.subtle.exportKey('raw', localKey.publicKey)
+  );
+
+  // Import the subscriber's public key
+  const uaPublicKey = await crypto.subtle.importKey(
+    'raw', uaPublicBytes, { name: 'ECDH', namedCurve: 'P-256' }, false, []
+  );
+
+  // ECDH shared secret
+  const sharedSecret = new Uint8Array(
+    await crypto.subtle.deriveBits(
+      { name: 'ECDH', public: uaPublicKey },
+      localKey.privateKey,
+      256
+    )
+  );
+
+  // HKDF to derive the IKM from shared secret + auth secret (RFC 8291 §3.3)
+  const ikmInfo = concatBytes(
+    new TextEncoder().encode('WebPush: info\0'),
+    uaPublicBytes,
+    localPubRaw
+  );
+  const ikm = await hkdf(authSecret, sharedSecret, ikmInfo, 32);
+
+  // Salt (random 16 bytes)
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+
+  // Derive content encryption key and nonce (RFC 8188)
+  const cekInfo = new TextEncoder().encode('Content-Encoding: aes128gcm\0');
+  const nonceInfo = new TextEncoder().encode('Content-Encoding: nonce\0');
+  const cek = await hkdf(salt, ikm, cekInfo, 16);
+  const nonce = await hkdf(salt, ikm, nonceInfo, 12);
+
+  // Pad payload: add delimiter byte 0x02 then zero padding
+  const padded = new Uint8Array(payload.length + 1);
+  padded.set(payload);
+  padded[payload.length] = 2; // delimiter
+
+  // AES-128-GCM encrypt
+  const key = await crypto.subtle.importKey(
+    'raw', cek, { name: 'AES-GCM' }, false, ['encrypt']
+  );
+  const ciphertext = new Uint8Array(
+    await crypto.subtle.encrypt(
+      { name: 'AES-GCM', iv: nonce }, key, padded
+    )
+  );
+
+  // Build aes128gcm header: salt(16) + rs(4) + idlen(1) + keyid(65) + ciphertext
+  const rs = 4096;
+  const header = new Uint8Array(16 + 4 + 1 + 65);
+  header.set(salt, 0);
+  new DataView(header.buffer).setUint32(16, rs);
+  header[20] = 65; // length of localPubRaw
+  header.set(localPubRaw, 21);
+
+  return concatBytes(header, ciphertext);
+}
+
+async function hkdf(salt, ikm, info, length) {
+  const key = await crypto.subtle.importKey(
+    'raw', ikm, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+  );
+  const prk = new Uint8Array(
+    await crypto.subtle.sign('HMAC',
+      await crypto.subtle.importKey(
+        'raw', salt, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+      ),
+      ikm
+    )
+  );
+  const prkKey = await crypto.subtle.importKey(
+    'raw', prk, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+  );
+  const infoWithCounter = concatBytes(info, new Uint8Array([1]));
+  const okm = new Uint8Array(
+    await crypto.subtle.sign('HMAC', prkKey, infoWithCounter)
+  );
+  return okm.slice(0, length);
+}
+
+function concatBytes(...arrays) {
+  const total = arrays.reduce((sum, a) => sum + a.length, 0);
+  const result = new Uint8Array(total);
+  let offset = 0;
+  for (const a of arrays) { result.set(a, offset); offset += a.length; }
+  return result;
 }
 
 async function createVapidJwt(endpoint, privateKeyBytes) {
@@ -196,7 +301,7 @@ async function createVapidJwt(endpoint, privateKeyBytes) {
   const claimsB64  = btoa(JSON.stringify(claims)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
   const unsigned   = `${headerB64}.${claimsB64}`;
 
-  // Import the EC private key
+  // Import raw 32-byte EC private key via PKCS8 wrapper
   const key = await crypto.subtle.importKey(
     'pkcs8',
     ecPrivateKeyToPkcs8(privateKeyBytes),
@@ -205,55 +310,36 @@ async function createVapidJwt(endpoint, privateKeyBytes) {
     ['sign']
   );
 
-  const sig = await crypto.subtle.sign(
-    { name: 'ECDSA', hash: 'SHA-256' },
-    key,
-    new TextEncoder().encode(unsigned)
+  // crypto.subtle.sign returns raw r||s (64 bytes), NOT DER
+  const sig = new Uint8Array(
+    await crypto.subtle.sign(
+      { name: 'ECDSA', hash: 'SHA-256' },
+      key,
+      new TextEncoder().encode(unsigned)
+    )
   );
-
-  // Convert DER signature to raw r||s
-  const rawSig = derToRaw(new Uint8Array(sig));
-  const sigB64 = bytesToBase64Url(rawSig);
+  const sigB64 = bytesToBase64Url(sig);
 
   return `${unsigned}.${sigB64}`;
 }
 
-// Convert a 32-byte raw EC private key to PKCS8 DER format (without public key)
+// Convert a 32-byte raw EC private key to PKCS8 DER format
 function ecPrivateKeyToPkcs8(rawKey) {
   const header = new Uint8Array([
     0x30, 0x41,       // SEQUENCE (65 bytes)
     0x02, 0x01, 0x00, // INTEGER 0 (version)
-    0x30, 0x13,       // SEQUENCE (19 bytes - AlgorithmIdentifier)
-    0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01, // OID ecPublicKey
-    0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07, // OID P-256
+    0x30, 0x13,       // SEQUENCE (19 bytes)
+    0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01,
+    0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07,
     0x04, 0x27,       // OCTET STRING (39 bytes)
-    0x30, 0x25,       // SEQUENCE (37 bytes - ECPrivateKey)
-    0x02, 0x01, 0x01, // INTEGER 1 (version)
-    0x04, 0x20        // OCTET STRING (32 bytes - private key data follows)
+    0x30, 0x25,       // SEQUENCE (37 bytes)
+    0x02, 0x01, 0x01, // INTEGER 1
+    0x04, 0x20        // OCTET STRING (32 bytes)
   ]);
   const result = new Uint8Array(header.length + rawKey.length);
   result.set(header);
   result.set(rawKey, header.length);
   return result.buffer;
-}
-
-function derToRaw(der) {
-  // DER encoded ECDSA signature to raw 64-byte r||s
-  // Simple parser for the common case
-  const raw = new Uint8Array(64);
-  let offset = 2; // skip 0x30 + length
-  // r
-  offset++; // 0x02
-  let rLen = der[offset++];
-  const rStart = rLen === 33 ? offset + 1 : offset;
-  raw.set(der.slice(rStart, rStart + 32), 0);
-  offset += rLen;
-  // s
-  offset++; // 0x02
-  let sLen = der[offset++];
-  const sStart = sLen === 33 ? offset + 1 : offset;
-  raw.set(der.slice(sStart, sStart + 32), 32);
-  return raw;
 }
 
 function base64UrlToBytes(b64url) {
