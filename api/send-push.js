@@ -18,11 +18,15 @@ export default async function handler(req) {
     return json({ error: 'Unauthorized' }, 401);
   }
 
-  const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
-  const supabaseUrl     = process.env.SUPABASE_URL;
-  const supabaseKey     = process.env.SUPABASE_SERVICE_KEY;
+  const vapidPrivateKey  = process.env.VAPID_PRIVATE_KEY;
+  const supabaseUrl      = process.env.SUPABASE_URL;
+  const supabaseKey      = process.env.SUPABASE_SERVICE_KEY;
+  const apnsKeyBase64    = process.env.APNS_KEY_BASE64;    // .p8 key contents, base64-encoded
+  const apnsKeyId        = process.env.APNS_KEY_ID;        // 10-char key ID from Apple
+  const apnsTeamId       = process.env.APNS_TEAM_ID;       // Apple Developer Team ID
+  const apnsBundleId     = process.env.APNS_BUNDLE_ID || 'biz.spotd.app';
 
-  if (!vapidPrivateKey || !supabaseUrl || !supabaseKey) {
+  if (!supabaseUrl || !supabaseKey) {
     return json({ error: 'Missing env vars' }, 500);
   }
 
@@ -62,12 +66,18 @@ export default async function handler(req) {
   for (const { token, platform } of tokens) {
     try {
       if (platform === 'web') {
+        if (!vapidPrivateKey) { errors.push({ platform, error: 'VAPID_PRIVATE_KEY not set' }); continue; }
         await sendWebPush(token, payload, vapidPrivateKey);
         sent++;
-      } else if (platform === 'ios') {
-        // iOS APNs — requires APNs auth key configured separately
-        // For now, log and skip; APNs integration can be added later
-        errors.push({ platform, error: 'APNs not yet configured' });
+      } else if (platform === 'ios' || platform === 'native') {
+        if (!apnsKeyBase64 || !apnsKeyId || !apnsTeamId) {
+          errors.push({ platform, error: 'APNs env vars not configured' });
+          continue;
+        }
+        await sendApnsPush(token, { title, body: msgBody, url: url || '/', tag: tag || 'spotd' }, {
+          keyBase64: apnsKeyBase64, keyId: apnsKeyId, teamId: apnsTeamId, bundleId: apnsBundleId,
+        });
+        sent++;
       }
     } catch (e) {
       errors.push({ platform, error: e.message });
@@ -75,6 +85,78 @@ export default async function handler(req) {
   }
 
   return json({ sent, total: tokens.length, errors: errors.length ? errors : undefined });
+}
+
+// ── APNs Push (iOS) via HTTP/2-compatible fetch ──
+async function sendApnsPush(deviceToken, { title, body, url, tag }, { keyBase64, keyId, teamId, bundleId }) {
+  const jwt = await createApnsJwt(keyBase64, keyId, teamId);
+  const apnsPayload = JSON.stringify({
+    aps: {
+      alert: { title, body },
+      sound: 'default',
+      badge: 1,
+      'mutable-content': 1,
+    },
+    url: url || '/',
+    tag: tag || 'spotd',
+  });
+
+  // Use production APNs endpoint
+  const endpoint = `https://api.push.apple.com/3/device/${deviceToken}`;
+  const res = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'authorization': `bearer ${jwt}`,
+      'apns-topic': bundleId,
+      'apns-push-type': 'alert',
+      'apns-priority': '10',
+      'apns-expiration': '0',
+      'content-type': 'application/json',
+    },
+    body: apnsPayload,
+  });
+
+  if (!res.ok) {
+    const errBody = await res.text().catch(() => '');
+    throw new Error(`APNs failed: ${res.status} ${errBody}`);
+  }
+}
+
+async function createApnsJwt(keyBase64, keyId, teamId) {
+  // Decode the .p8 key (PEM-encoded ES256 private key, base64-wrapped)
+  const keyPem = atob(keyBase64);
+  const pemBody = keyPem
+    .replace(/-----BEGIN PRIVATE KEY-----/g, '')
+    .replace(/-----END PRIVATE KEY-----/g, '')
+    .replace(/\s/g, '');
+  const keyBytes = base64UrlToBytes(
+    pemBody.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
+  );
+
+  const header = { alg: 'ES256', kid: keyId };
+  const claims = { iss: teamId, iat: Math.floor(Date.now() / 1000) };
+
+  const headerB64 = btoa(JSON.stringify(header)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+  const claimsB64 = btoa(JSON.stringify(claims)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+  const unsigned = `${headerB64}.${claimsB64}`;
+
+  const key = await crypto.subtle.importKey(
+    'pkcs8',
+    keyBytes.buffer,
+    { name: 'ECDSA', namedCurve: 'P-256' },
+    false,
+    ['sign']
+  );
+
+  const sig = await crypto.subtle.sign(
+    { name: 'ECDSA', hash: 'SHA-256' },
+    key,
+    new TextEncoder().encode(unsigned)
+  );
+
+  const rawSig = derToRaw(new Uint8Array(sig));
+  const sigB64 = bytesToBase64Url(rawSig);
+  return `${unsigned}.${sigB64}`;
 }
 
 // ── Web Push via raw fetch (no npm dependency needed in edge runtime) ──

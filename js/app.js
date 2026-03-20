@@ -159,6 +159,8 @@ function onAuthChange(user) {
   if (state.city) renderCards();
   // Refresh unread badge whenever auth state changes
   if (user) dmRefreshBadge();
+  // Register for native push notifications after sign-in
+  if (user && typeof requestPushPermission === 'function') requestPushPermission();
   // If user just signed in, enter pending city or auto-enter last city
   if (user && window._pendingCity) {
     const { slug, name, stateCode } = window._pendingCity;
