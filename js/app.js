@@ -159,8 +159,7 @@ function onAuthChange(user) {
   if (state.city) renderCards();
   // Refresh unread badge whenever auth state changes
   if (user) dmRefreshBadge();
-  // Register for native push notifications after sign-in
-  if (user && typeof requestPushPermission === 'function') requestPushPermission();
+  // Push prompt is now shown via the soft modal after check-in/save flow
   // If user just signed in, enter pending city or auto-enter last city
   if (user && window._pendingCity) {
     const { slug, name, stateCode } = window._pendingCity;
@@ -2395,7 +2394,7 @@ async function doGoingTonight(venueId, btn) {
     showToast('Checked in!');
     // Fire DB write and streak check in background
     addCheckIn({ userId: currentUser.id, venueId, citySlug: state.city.slug, date: today })
-      .then(() => { checkStreakAfterCheckIn(); if(typeof promptPushIfAppropriate==='function') promptPushIfAppropriate(); })
+      .then(() => { checkStreakAfterCheckIn(); })
       .catch(() => {});
     setTimeout(() => maybeOpenPhotoCheckin(venueId), 600);
   }
@@ -2933,12 +2932,19 @@ async function toggleVenueFollow(venueId, venueName, btn) {
 
 // ── TAG A FRIEND ────────────────────────────────────────
 async function maybeOpenTagFriends(venueId) {
-  if (!currentUser) return;
+  if (!currentUser) { _tryPushPromptAfterCheckin(); return; }
   // Only show if user follows at least one person
   const followingIds = await getFollowing(currentUser.id);
-  if (!followingIds.length) return;
+  if (!followingIds.length) { _tryPushPromptAfterCheckin(); return; }
   const venue = state.venues.find(x => String(x.id) === String(venueId));
   openTagFriends(venueId, venue?.name || 'this spot', followingIds);
+}
+
+// Show the push opt-in after the entire check-in flow (photo → tag) finishes
+function _tryPushPromptAfterCheckin() {
+  if (typeof promptPushIfAppropriate === 'function') {
+    setTimeout(() => promptPushIfAppropriate(), 500);
+  }
 }
 
 async function openTagFriends(venueId, venueName, followingIds) {
@@ -2950,7 +2956,7 @@ async function openTagFriends(venueId, venueName, followingIds) {
     <div class="tag-friends-grid" id="tagFriendsGrid">
       <div style="color:var(--muted);font-size:13px">Loading friends…</div>
     </div>
-    <button class="tag-skip-btn" onclick="closeOverlay('tagFriendsOverlay')">Skip</button>`;
+    <button class="tag-skip-btn" onclick="closeOverlay('tagFriendsOverlay'); _tryPushPromptAfterCheckin()">Skip</button>`;
 
   openOverlay('tagFriendsOverlay');
 
@@ -2988,7 +2994,7 @@ async function tagFriend(toUserId, toName, venueId, venueName, chip) {
   await tagFriendAtCheckIn(currentUser.id, toUserId, venueId, venueName);
   showToast(`Tagged ${toName} at ${venueName}`);
   // Close overlay after a brief moment so user sees the chip light up
-  setTimeout(() => closeOverlay('tagFriendsOverlay'), 900);
+  setTimeout(() => { closeOverlay('tagFriendsOverlay'); _tryPushPromptAfterCheckin(); }, 900);
 }
 
 // ══════════════════════════════════════════════
