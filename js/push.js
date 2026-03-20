@@ -59,6 +59,8 @@ async function requestNativePush() {
       };
       window.onNativePushResult = (granted) => {
         console.log('[Push] Permission granted:', granted);
+        localStorage.setItem('nativePushAsked', '1');
+        if (granted) localStorage.setItem('nativePushGranted', '1');
         resolve(granted);
       };
       // Ask native side to show the iOS push permission dialog
@@ -103,10 +105,15 @@ async function haptic(style = 'light') {
 // NOT on first app open — that tanks acceptance rates
 async function promptPushIfAppropriate() {
   if (typeof window === 'undefined') return;
-  if (isNative()) return; // Capacitor handles its own timing
 
-  if (!('Notification' in window)) return;
-  if (Notification.permission !== 'default') return;
+  // On native: eligible unless we already asked (iOS has no JS permission API)
+  // On web: need Notification API in 'default' (not-yet-asked) state
+  if (isNative()) {
+    if (localStorage.getItem('nativePushAsked')) return;
+  } else {
+    if (!('Notification' in window)) return;
+    if (Notification.permission !== 'default') return;
+  }
 
   // Only prompt after user has shown intent (checked in or saved 1+ spot)
   const checkIns = await fetchAllCheckIns(currentUser?.id);
@@ -182,10 +189,10 @@ function showPushPromptBanner() {
 
 async function acceptPushBanner() {
   dismissPushBanner();
-  const granted = await requestWebPush();
+  const granted = await requestPushPermission();
   if (granted) {
     showToast('You\'ll get tonight\'s happy hour alerts!');
-    await subscribeWebPush();
+    if (!isNative()) await subscribeWebPush();
   } else {
     showToast('Enable notifications in browser settings to get alerts');
   }
