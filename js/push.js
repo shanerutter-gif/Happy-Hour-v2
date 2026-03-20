@@ -2,11 +2,11 @@
    SPOTD — PUSH NOTIFICATIONS
    Works in both contexts:
      • Web browser (via Service Worker + Web Push API)
-     • Capacitor iOS/Android (via @capacitor/push-notifications)
+     • iOS native wrapper (via WKWebView JS bridge)
    ═══════════════════════════════════════════════════════ */
 
 // ── DETECT CONTEXT ─────────────────────────────────────
-const isNative = () => typeof window !== 'undefined' && window.Capacitor?.isNativePlatform?.();
+const isNative = () => typeof window !== 'undefined' && !!window.spotdNative;
 
 // ── REGISTER SERVICE WORKER (web only) ─────────────────
 async function registerServiceWorker() {
@@ -48,44 +48,22 @@ async function requestWebPush() {
   return result === 'granted';
 }
 
-// Native (Capacitor) push permission
+// Native (iOS WKWebView bridge) push permission
 async function requestNativePush() {
   try {
-    const { PushNotifications } = window.Capacitor.Plugins;
-
-    let permStatus = await PushNotifications.checkPermissions();
-    if (permStatus.receive === 'prompt') {
-      permStatus = await PushNotifications.requestPermissions();
-    }
-    if (permStatus.receive !== 'granted') return false;
-
-    await PushNotifications.register();
-
-    // Listen for the device token (send this to your server/Supabase)
-    PushNotifications.addListener('registration', token => {
-      console.log('[Push] Device token:', token.value);
-      savePushToken(token.value);
+    // Set up token callback before requesting permission
+    return new Promise((resolve) => {
+      window.onNativePushToken = (token) => {
+        console.log('[Push] Device token:', token);
+        savePushToken(token, 'ios');
+      };
+      window.onNativePushResult = (granted) => {
+        console.log('[Push] Permission granted:', granted);
+        resolve(granted);
+      };
+      // Ask native side to show the iOS push permission dialog
+      window.webkit.messageHandlers.spotdPush.postMessage('requestPermission');
     });
-
-    // Handle foreground notifications
-    PushNotifications.addListener('pushNotificationReceived', notification => {
-      console.log('[Push] Received:', notification);
-      if (typeof showToast === 'function') {
-        showToast(notification.title || 'New from Spotd');
-      }
-    });
-
-    // Handle notification tap
-    PushNotifications.addListener('pushNotificationActionPerformed', action => {
-      const url = action.notification.data?.url;
-      if (url) window.location.href = url;
-    });
-
-    PushNotifications.addListener('registrationError', err => {
-      console.error('[Push] Registration error:', err);
-    });
-
-    return true;
   } catch(e) {
     console.warn('[Push] Native push error:', e);
     return false;
@@ -94,16 +72,17 @@ async function requestNativePush() {
 
 // ── SAVE PUSH TOKEN TO SUPABASE ────────────────────────
 // Store the device token so your server can send targeted notifications
-async function savePushToken(token) {
+async function savePushToken(token, platformOverride) {
   if (!currentUser || !token) return;
   try {
+    const platform = platformOverride || (isNative() ? 'ios' : 'web');
     await db.from('push_tokens').upsert({
       user_id: currentUser.id,
       token,
-      platform: isNative() ? (window.Capacitor?.getPlatform?.() || 'native') : 'web',
+      platform,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id, platform' });
-    console.log('[Push] Token saved');
+    console.log('[Push] Token saved (' + platform + ')');
   } catch(e) {
     console.warn('[Push] Token save failed:', e);
   }
