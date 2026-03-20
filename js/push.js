@@ -123,25 +123,61 @@ async function promptPushIfAppropriate() {
 
 function showPushPromptBanner() {
   if (document.getElementById('pushBanner')) return;
-  const banner = document.createElement('div');
-  banner.id = 'pushBanner';
-  banner.style.cssText = `
-    position:fixed; bottom:80px; left:16px; right:16px; z-index:500;
-    background:#2A1F14; color:#F5EFE6; border-radius:14px;
-    padding:14px 16px; display:flex; align-items:center; gap:12px;
-    box-shadow:0 8px 24px rgba(42,31,20,0.25);
-    animation: slideUp 300ms cubic-bezier(0.34,1.56,0.64,1) both;
+
+  // Backdrop overlay
+  const overlay = document.createElement('div');
+  overlay.id = 'pushBanner';
+  overlay.style.cssText = `
+    position:fixed; inset:0; z-index:9999;
+    background:rgba(42,31,20,0.5); backdrop-filter:blur(4px);
+    display:flex; align-items:center; justify-content:center;
+    animation: pushFadeIn 250ms ease both;
+    padding:24px;
   `;
-  banner.innerHTML = `
-    <div style="display:flex;align-items:center"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#F5EFE6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 11h1a3 3 0 0 1 0 6h-1"/><path d="M9 12v6"/><path d="M13 12v6"/><path d="M14 7.5c-1 0-1.44.5-3 .5s-2-.5-3-.5-1.72.5-2.5.5a2.5 2.5 0 0 1 0-5c.78 0 1.57.5 2.5.5S9.44 3 11 3s2 .5 3 .5 1.72-.5 2.5-.5a2.5 2.5 0 0 1 0 5c-.78 0-1.5-.5-2.5-.5z"/><path d="M5 8v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V8"/></svg></div>
-    <div style="flex:1;min-width:0">
-      <div style="font-weight:700;font-size:14px;margin-bottom:2px">Get tonight's happy hours</div>
-      <div style="font-size:12px;opacity:.6">4pm alerts when spots near you open up</div>
+
+  // Modal card
+  overlay.innerHTML = `
+    <style>
+      @keyframes pushFadeIn { from { opacity:0 } to { opacity:1 } }
+      @keyframes pushScaleIn { from { opacity:0; transform:scale(0.9) } to { opacity:1; transform:scale(1) } }
+    </style>
+    <div style="
+      background:#2A1F14; color:#F5EFE6; border-radius:20px;
+      padding:32px 28px; max-width:340px; width:100%;
+      box-shadow:0 16px 48px rgba(42,31,20,0.4);
+      animation: pushScaleIn 300ms cubic-bezier(0.34,1.56,0.64,1) both;
+      text-align:center; position:relative;
+    ">
+      <button onclick="dismissPushBanner()" style="
+        position:absolute; top:12px; right:14px;
+        background:none; border:none; color:rgba(245,239,230,0.4);
+        font-size:22px; cursor:pointer; padding:4px; line-height:1;
+      ">✕</button>
+      <div style="margin-bottom:16px">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#FF6B4A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17 11h1a3 3 0 0 1 0 6h-1"/><path d="M9 12v6"/><path d="M13 12v6"/>
+          <path d="M14 7.5c-1 0-1.44.5-3 .5s-2-.5-3-.5-1.72.5-2.5.5a2.5 2.5 0 0 1 0-5c.78 0 1.57.5 2.5.5S9.44 3 11 3s2 .5 3 .5 1.72-.5 2.5-.5a2.5 2.5 0 0 1 0 5c-.78 0-1.5-.5-2.5-.5z"/>
+          <path d="M5 8v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V8"/>
+        </svg>
+      </div>
+      <div style="font-weight:800; font-size:20px; margin-bottom:8px;">
+        Never miss happy hour
+      </div>
+      <div style="font-size:15px; opacity:.65; margin-bottom:24px; line-height:1.4;">
+        Get a heads-up at 4pm when spots near you kick off their deals.
+      </div>
+      <button onclick="acceptPushBanner()" style="
+        background:#FF6B4A; color:#fff; border:none; border-radius:12px;
+        padding:14px 0; font-weight:700; font-size:16px;
+        cursor:pointer; font-family:inherit; width:100%;
+      ">Turn on notifications</button>
+      <div onclick="dismissPushBanner()" style="
+        margin-top:14px; font-size:13px; opacity:.4; cursor:pointer;
+      ">Maybe later</div>
     </div>
-    <button onclick="acceptPushBanner()" style="background:#FF6B4A;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;white-space:nowrap">Turn on</button>
-    <button onclick="dismissPushBanner()" style="background:none;border:none;color:rgba(245,239,230,0.4);font-size:18px;cursor:pointer;padding:4px;line-height:1">✕</button>
   `;
-  document.body.appendChild(banner);
+
+  document.body.appendChild(overlay);
 }
 
 async function acceptPushBanner() {
