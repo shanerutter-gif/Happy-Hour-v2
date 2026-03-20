@@ -2355,8 +2355,14 @@
       document.getElementById('push-url').value = '';
       updatePushPreview();
 
-      status.textContent = `Sent to ${sent}/${total} devices`;
-      status.style.color = 'var(--success)';
+      const errMsgs = (result.errors || []).map(e => e.error).filter(Boolean);
+      if (errMsgs.length) {
+        status.textContent = `Sent ${sent}/${total} — Errors: ${errMsgs.join(', ')}`;
+        status.style.color = sent > 0 ? 'orange' : 'var(--error)';
+      } else {
+        status.textContent = `Sent to ${sent}/${total} devices`;
+        status.style.color = 'var(--success)';
+      }
       showToast(`Push sent to ${sent} device${sent !== 1 ? 's' : ''}`);
       renderPushHistory();
     } catch(e) {
