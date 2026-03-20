@@ -310,6 +310,33 @@
       .pipeline-arrow { display:none; }
     }
 
+    /* ── Push Notifications ── */
+    .push-compose { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:24px; margin-bottom:24px; }
+    .push-compose-title { font-family:'Cabinet Grotesk',sans-serif; font-size:16px; font-weight:800; margin-bottom:16px; }
+    .push-field { margin-bottom:14px; }
+    .push-field label { display:block; font-family:'DM Sans',sans-serif; font-size:9px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); margin-bottom:5px; }
+    .push-input { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:11px 13px; color:var(--text); font-family:'DM Sans',sans-serif; font-size:14px; outline:none; transition:border-color .2s; box-sizing:border-box; }
+    .push-input:focus { border-color:rgba(255,107,74,0.45); background:#fff; }
+    .push-textarea { resize:vertical; min-height:80px; }
+    .push-audience-row { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+    .push-audience-btn { padding:8px 16px; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; border:1px solid var(--border); background:var(--bg); color:var(--muted); font-family:'DM Sans',sans-serif; transition:all .15s; }
+    .push-audience-btn.sel { background:rgba(255,107,74,0.12); color:var(--coral); border-color:rgba(255,107,74,0.35); }
+    .push-send-btn { padding:13px 28px; background:var(--coral); color:#fff; border:none; border-radius:10px; font-family:'Cabinet Grotesk',sans-serif; font-size:15px; font-weight:700; cursor:pointer; transition:background .2s; }
+    .push-send-btn:hover { background:var(--coral2); }
+    .push-send-btn:disabled { opacity:.5; cursor:not-allowed; }
+    .push-preview { background:var(--text); color:#F5EFE6; border-radius:14px; padding:14px 16px; margin-bottom:20px; display:flex; align-items:flex-start; gap:12px; }
+    .push-preview-icon { width:36px; height:36px; border-radius:8px; background:var(--coral); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:18px; }
+    .push-preview-title { font-weight:700; font-size:14px; margin-bottom:2px; }
+    .push-preview-body { font-size:12px; opacity:.7; }
+    .push-preview-app { font-size:10px; opacity:.4; margin-bottom:4px; text-transform:uppercase; letter-spacing:.5px; }
+    .push-history-item { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px 20px; margin-bottom:8px; display:flex; align-items:center; gap:16px; }
+    .push-history-info { flex:1; min-width:0; }
+    .push-history-title { font-family:'Cabinet Grotesk',sans-serif; font-weight:700; font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .push-history-meta { font-size:12px; color:var(--muted); margin-top:2px; }
+    .push-history-stat { font-family:'Cabinet Grotesk',sans-serif; font-size:18px; font-weight:900; color:var(--coral); flex-shrink:0; text-align:right; }
+    .push-history-stat-label { font-size:9px; color:var(--muted); text-align:right; text-transform:uppercase; letter-spacing:.5px; }
+    .push-token-kpi { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:12px; margin-bottom:24px; }
+
     /* ── Board page — full bleed iframe ── */
     #page-board { padding: 0 !important; margin: -32px -40px !important; }
     #page-board.active { display: flex !important; flex-direction: column; height: calc(100vh - 56px); }
@@ -396,6 +423,8 @@
     <button class="drawer-item" onclick="showPage('venues-top');closeMobileMenu()" id="mob-nav-venues-top">🏆 Top Venues</button>
     <button class="drawer-item" onclick="showPage('cities');closeMobileMenu()" id="mob-nav-cities">🗺️ City Breakdown</button>
     <button class="drawer-item" onclick="showPage('pipeline');closeMobileMenu()" id="mob-nav-pipeline">💰 Revenue Pipeline</button>
+    <div class="drawer-section-label">Engage</div>
+    <button class="drawer-item" onclick="showPage('push');closeMobileMenu()" id="mob-nav-push">🔔 Push Notifications</button>
     <div class="drawer-section-label">Tools</div>
     <button class="drawer-item" onclick="showPage('cms');closeMobileMenu()" id="mob-nav-cms">✏️ Site Copy</button>
     <button class="drawer-item" onclick="showPage('board');closeMobileMenu()" id="mob-nav-board">🗂️ Project Board</button>
@@ -434,6 +463,10 @@
       </div>
       <div class="sidebar-item" onclick="showPage('pipeline')" id="nav-pipeline">
         Revenue Pipeline
+      </div>
+      <div class="sidebar-label" style="margin-top:20px;margin-bottom:8px">Engage</div>
+      <div class="sidebar-item" onclick="showPage('push')" id="nav-push">
+        🔔 Push Notifications
       </div>
       <div class="sidebar-label" style="margin-top:20px;margin-bottom:8px">Tools</div>
       <div class="sidebar-item" onclick="showPage('cms')" id="nav-cms">
@@ -667,6 +700,85 @@
               <tbody id="pipeline-tbody"><tr><td colspan="6" class="table-empty">Loading…</td></tr></tbody>
             </table>
           </div>
+        </div>
+      </div>
+
+      <!-- PUSH NOTIFICATIONS PAGE -->
+      <div class="page" id="page-push">
+        <div class="page-title">Push Notifications</div>
+        <div class="page-sub">Send push notifications to your users. Compose a message, pick your audience, and send.</div>
+
+        <!-- Token KPIs -->
+        <div class="push-token-kpi" id="push-kpis">
+          <div class="kpi-card">
+            <div class="kpi-label">Total Devices</div>
+            <div class="kpi-value" id="push-kpi-total">—</div>
+            <div class="kpi-sub">Registered tokens</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Web</div>
+            <div class="kpi-value" id="push-kpi-web">—</div>
+            <div class="kpi-sub">Browser push</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">iOS</div>
+            <div class="kpi-value" id="push-kpi-ios">—</div>
+            <div class="kpi-sub">Apple devices</div>
+          </div>
+        </div>
+
+        <!-- Compose -->
+        <div class="push-compose">
+          <div class="push-compose-title">Compose Notification</div>
+
+          <div class="push-field">
+            <label>Audience</label>
+            <div class="push-audience-row">
+              <button class="push-audience-btn sel" onclick="selectPushAudience('all', this)">All Users</button>
+              <button class="push-audience-btn" onclick="selectPushAudience('web', this)">Web Only</button>
+              <button class="push-audience-btn" onclick="selectPushAudience('ios', this)">iOS Only</button>
+            </div>
+          </div>
+
+          <div class="push-field">
+            <label>Title</label>
+            <input class="push-input" id="push-title" type="text" placeholder="e.g. Happy Hour starts now!" oninput="updatePushPreview()">
+          </div>
+
+          <div class="push-field">
+            <label>Message</label>
+            <textarea class="push-input push-textarea" id="push-body" placeholder="e.g. Check out tonight's best deals near you" oninput="updatePushPreview()"></textarea>
+          </div>
+
+          <div class="push-field">
+            <label>Link URL <span style="font-size:9px;color:var(--muted);text-transform:none;letter-spacing:0">(optional — where tapping opens)</span></label>
+            <input class="push-input" id="push-url" type="text" placeholder="e.g. /explore or https://spotd.biz/deals">
+          </div>
+
+          <!-- Live preview -->
+          <label style="display:block;font-family:'DM Sans',sans-serif;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Preview</label>
+          <div class="push-preview" id="push-preview">
+            <div class="push-preview-icon">🔔</div>
+            <div style="flex:1;min-width:0">
+              <div class="push-preview-app">SPOTD</div>
+              <div class="push-preview-title" id="push-preview-title">Notification title</div>
+              <div class="push-preview-body" id="push-preview-body">Message body will appear here</div>
+            </div>
+            <div style="font-size:10px;opacity:.3;flex-shrink:0">now</div>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:14px">
+            <button class="push-send-btn" id="push-send-btn" onclick="sendPushNotification()">Send Push Notification</button>
+            <span id="push-send-status" style="font-size:13px;color:var(--muted)"></span>
+          </div>
+        </div>
+
+        <!-- Send history -->
+        <div class="section-header">
+          <div class="section-title">Recent Sends</div>
+        </div>
+        <div id="push-history-list">
+          <div class="empty-state"><div class="empty-icon">📭</div><h3>No sends yet</h3><p>Compose and send your first notification above.</p></div>
         </div>
       </div>
 
@@ -1370,7 +1482,7 @@
   const PAGE_TITLES = {
     requests: 'Venue Requests', venues: 'All Venues', users: 'User Analytics',
     churn: 'Churned Users', 'venues-top': 'Top Venues', cities: 'City Breakdown',
-    pipeline: 'Revenue Pipeline', cms: 'Site Copy', board: 'Project Board', demo: 'Demo Data'
+    pipeline: 'Revenue Pipeline', push: 'Push Notifications', cms: 'Site Copy', board: 'Project Board', demo: 'Demo Data'
   };
 
   function showPage(page) {
@@ -1388,6 +1500,7 @@
     if (page === 'cities')     loadCities();
     if (page === 'churn')      loadChurn();
     if (page === 'pipeline')   loadPipeline();
+    if (page === 'push')       loadPushPage();
     if (page === 'cms')        loadCms();
     if (page === 'board') {
       // Lazy-load the iframe on first visit
@@ -2130,6 +2243,150 @@
     setTimeout(() => t.classList.remove('show'), 2500);
   }
 
+  // ── PUSH NOTIFICATIONS ───────────────────────────────
+  let pushAudience = 'all';
+  let pushHistory = JSON.parse(localStorage.getItem('spotd-push-history') || '[]');
+  window.__PUSH_API_KEY = localStorage.getItem('spotd-push-api-key') || '';
+
+  function selectPushAudience(audience, btn) {
+    pushAudience = audience;
+    document.querySelectorAll('.push-audience-btn').forEach(b => b.classList.remove('sel'));
+    btn.classList.add('sel');
+  }
+
+  function updatePushPreview() {
+    const title = document.getElementById('push-title').value || 'Notification title';
+    const body = document.getElementById('push-body').value || 'Message body will appear here';
+    document.getElementById('push-preview-title').textContent = title;
+    document.getElementById('push-preview-body').textContent = body;
+  }
+
+  async function loadPushPage() {
+    // Load token stats
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/push_tokens?select=platform`, { headers: svcHeaders() });
+      const tokens = await res.json();
+      if (Array.isArray(tokens)) {
+        document.getElementById('push-kpi-total').textContent = tokens.length;
+        document.getElementById('push-kpi-web').textContent = tokens.filter(t => t.platform === 'web').length;
+        document.getElementById('push-kpi-ios').textContent = tokens.filter(t => t.platform === 'ios' || t.platform === 'native').length;
+      }
+    } catch(e) {
+      console.warn('Failed to load push tokens:', e);
+    }
+    renderPushHistory();
+  }
+
+  async function sendPushNotification() {
+    const title = document.getElementById('push-title').value.trim();
+    const body = document.getElementById('push-body').value.trim();
+    const url = document.getElementById('push-url').value.trim();
+    const btn = document.getElementById('push-send-btn');
+    const status = document.getElementById('push-send-status');
+
+    if (!title || !body) {
+      status.textContent = 'Title and message are required';
+      status.style.color = 'var(--error)';
+      return;
+    }
+
+    if (!window.__PUSH_API_KEY) {
+      const key = prompt('Enter your PUSH_API_KEY (from Vercel env vars):');
+      if (!key) return;
+      window.__PUSH_API_KEY = key;
+      localStorage.setItem('spotd-push-api-key', key);
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Sending…';
+    status.textContent = '';
+
+    try {
+      // Build the request — filter by platform if not "all"
+      let tokenQuery = `${SUPABASE_URL}/rest/v1/push_tokens?select=user_id`;
+      if (pushAudience !== 'all') {
+        const platformFilter = pushAudience === 'ios' ? 'platform=in.(ios,native)' : `platform=eq.${pushAudience}`;
+        tokenQuery += `&${platformFilter}`;
+      }
+
+      // Get user IDs for the audience
+      let user_ids = undefined;
+      if (pushAudience !== 'all') {
+        const tokRes = await fetch(tokenQuery, { headers: svcHeaders() });
+        const toks = await tokRes.json();
+        if (Array.isArray(toks) && toks.length) {
+          user_ids = [...new Set(toks.map(t => t.user_id))];
+        } else {
+          throw new Error('No devices found for this audience');
+        }
+      }
+
+      const payload = { title, body: body, url: url || '/', tag: 'admin-push' };
+      if (user_ids) payload.user_ids = user_ids;
+
+      const res = await fetch('/api/send-push', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${window.__PUSH_API_KEY || 'PUSH_API_KEY_NOT_SET'}`
+        },
+        body: JSON.stringify(payload)
+      });
+      const result = await res.json();
+
+      if (!res.ok) throw new Error(result.error || `HTTP ${res.status}`);
+
+      const sent = result.sent || 0;
+      const total = result.total || 0;
+
+      // Save to history
+      pushHistory.unshift({
+        title, body, url, audience: pushAudience,
+        sent, total,
+        errors: result.errors?.length || 0,
+        time: new Date().toISOString()
+      });
+      if (pushHistory.length > 50) pushHistory = pushHistory.slice(0, 50);
+      localStorage.setItem('spotd-push-history', JSON.stringify(pushHistory));
+
+      // Reset form
+      document.getElementById('push-title').value = '';
+      document.getElementById('push-body').value = '';
+      document.getElementById('push-url').value = '';
+      updatePushPreview();
+
+      status.textContent = `Sent to ${sent}/${total} devices`;
+      status.style.color = 'var(--success)';
+      showToast(`Push sent to ${sent} device${sent !== 1 ? 's' : ''}`);
+      renderPushHistory();
+    } catch(e) {
+      status.textContent = e.message;
+      status.style.color = 'var(--error)';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Send Push Notification';
+    }
+  }
+
+  function renderPushHistory() {
+    const el = document.getElementById('push-history-list');
+    if (!pushHistory.length) {
+      el.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><h3>No sends yet</h3><p>Compose and send your first notification above.</p></div>';
+      return;
+    }
+    el.innerHTML = pushHistory.map(h => `
+      <div class="push-history-item">
+        <div class="push-history-info">
+          <div class="push-history-title">${esc(h.title)}</div>
+          <div class="push-history-meta">${esc(h.body).slice(0, 80)}${h.body.length > 80 ? '…' : ''} · ${h.audience} · ${formatDate(h.time)}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div class="push-history-stat">${h.sent}</div>
+          <div class="push-history-stat-label">of ${h.total} sent</div>
+        </div>
+      </div>
+    `).join('');
+  }
 
 
 </script>
