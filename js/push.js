@@ -129,10 +129,14 @@ async function promptPushIfAppropriate() {
   if (!('Notification' in window)) return;
   if (Notification.permission !== 'default') return;
 
-  // Only prompt after user has shown intent (checked in or saved 2+ spots)
+  // Only prompt after user has shown intent (checked in or saved 1+ spot)
   const checkIns = await fetchAllCheckIns(currentUser?.id);
   const favs     = await getFavoriteItems(currentUser?.id);
-  if ((checkIns?.length || 0) + (favs?.length || 0) < 2) return;
+  if ((checkIns?.length || 0) + (favs?.length || 0) < 1) return;
+
+  // Don't re-show if dismissed in the last 7 days
+  const dismissed = localStorage.getItem('pushBannerDismissed');
+  if (dismissed && Date.now() - Number(dismissed) < 7 * 24 * 60 * 60 * 1000) return;
 
   // Show a soft in-app prompt first (much better than cold browser prompt)
   showPushPromptBanner();
