@@ -1096,6 +1096,7 @@ async function doFavorite(itemId, itemType, btn) {
   const added = await toggleFavorite(itemId, itemType);
   btn.textContent = added ? '★' : '☆'; btn.classList.toggle('faved', added);
   showToast(added ? 'Saved ★' : 'Removed');
+  if(added && typeof promptPushIfAppropriate==='function') promptPushIfAppropriate();
 }
 function openFavView() {
   if (!currentUser) { openAuth('signin'); return; }
@@ -2394,7 +2395,7 @@ async function doGoingTonight(venueId, btn) {
     showToast('Checked in!');
     // Fire DB write and streak check in background
     addCheckIn({ userId: currentUser.id, venueId, citySlug: state.city.slug, date: today })
-      .then(() => checkStreakAfterCheckIn())
+      .then(() => { checkStreakAfterCheckIn(); if(typeof promptPushIfAppropriate==='function') promptPushIfAppropriate(); })
       .catch(() => {});
     setTimeout(() => maybeOpenPhotoCheckin(venueId), 600);
   }
