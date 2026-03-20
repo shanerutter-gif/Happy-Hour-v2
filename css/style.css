@@ -452,6 +452,12 @@ textarea.field{border-radius:8px;resize:vertical;min-height:80px}
 .auth-forgot:hover{color:var(--teal)}
 .auth-switch{font-size:13px;color:var(--muted);margin-top:16px;text-align:center}
 .auth-switch-btn{background:none;border:none;color:var(--teal-lt);font-size:13px;cursor:pointer;text-decoration:underline;padding:0}
+.auth-divider{display:flex;align-items:center;gap:12px;margin:16px 0}
+.auth-divider::before,.auth-divider::after{content:'';flex:1;height:1px;background:var(--border2)}
+.auth-divider span{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
+.btn-google{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:12px;border-radius:var(--r);border:1px solid var(--border2);background:var(--card);font-family:'DM Sans',sans-serif;font-weight:600;font-size:14px;color:var(--ink);cursor:pointer;min-height:var(--tap);transition:all .15s}
+.btn-google:active{opacity:.85;transform:scale(.98)}
+.btn-google svg{flex-shrink:0}
 
 /* PROFILE */
 .profile-email{font-family:'DM Sans',sans-serif;font-size:10px;color:var(--muted);margin-bottom:20px}

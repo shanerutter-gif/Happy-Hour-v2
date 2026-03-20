@@ -197,6 +197,79 @@ async function authSignOut() {
   if (typeof onAuthChange === 'function') onAuthChange(null);
 }
 
+// ── GOOGLE SSO ────────────────────────────────────────
+async function authSignInWithGoogle() {
+  try {
+    const { data, error } = await db.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin + '/?auth_callback=1',
+      }
+    });
+    if (error) throw error;
+    // Supabase redirects the browser to Google — no return value needed
+    return { data, error: null };
+  } catch(e) {
+    return { error: { message: e.message } };
+  }
+}
+
+// Handle the OAuth redirect callback (called from DOMContentLoaded)
+async function handleOAuthCallback() {
+  const hash = window.location.hash;
+  const search = window.location.search;
+
+  // Supabase returns tokens in the URL hash after OAuth redirect
+  if (!hash || !hash.includes('access_token')) return false;
+
+  try {
+    const params = new URLSearchParams(hash.replace('#', ''));
+    const accessToken  = params.get('access_token');
+    const refreshToken = params.get('refresh_token');
+    const expiresIn    = parseInt(params.get('expires_in') || '3600', 10);
+    const expiresAt    = Math.floor(Date.now() / 1000) + expiresIn;
+
+    if (!accessToken) return false;
+
+    // Set the session in Supabase client
+    const { data, error } = await db.auth.setSession({
+      access_token:  accessToken,
+      refresh_token: refreshToken || '',
+    });
+
+    if (error) throw error;
+
+    const user = data?.session?.user || data?.user;
+    if (!user) return false;
+
+    // Persist session
+    localStorage.setItem(_storageKey, JSON.stringify({
+      access_token:  accessToken,
+      refresh_token: refreshToken,
+      expires_at:    expiresAt,
+      expires_in:    expiresIn,
+      token_type:    'bearer',
+      user:          user,
+    }));
+
+    currentUser  = user;
+    _accessToken = accessToken;
+    _scheduleTokenRefresh(expiresIn);
+    await loadFavorites();
+
+    // Clean URL
+    window.history.replaceState({}, document.title, window.location.pathname);
+
+    if (typeof onAuthChange === 'function') onAuthChange(currentUser);
+    if (typeof showToast === 'function') showToast('Welcome, ' + (user.user_metadata?.full_name || user.email?.split('@')[0] || '') + '!');
+
+    return true;
+  } catch(e) {
+    console.warn('[OAuth callback] error:', e);
+    return false;
+  }
+}
+
 // ── PROFILE ────────────────────────────────────────────
 async function getProfile(userId) {
   const { data } = await db.from('profiles').select('*').eq('id', userId).maybeSingle();
