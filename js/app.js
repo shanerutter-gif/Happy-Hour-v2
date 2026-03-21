@@ -434,68 +434,76 @@ function renderSocialItem(item) {
 
   // ── Review ──
   if (item.type === 'review') {
-    const stars = item.meta?.rating ? '★'.repeat(item.meta.rating) + '☆'.repeat(5 - item.meta.rating) : '';
-    return `<div class="social-row" ${venueClick}>
-      <div class="social-avatar" ${profileClick}>${avatarHtml}</div>
-      <div class="social-row-body">
-        ${followBadge ? `<div class="social-follow-badge-row">${followBadge}</div>` : ''}
-        <div class="social-row-text">
-          <span class="social-row-name" ${profileClick}>${esc(displayName)}</span>
-          reviewed <span class="social-venue-link" ${venueClick}>${esc(venueName)}</span>
+    const stars = item.meta?.rating ? '●'.repeat(item.meta.rating) + '○'.repeat(5 - item.meta.rating) : '';
+    return `<div class="social-card social-card--row">
+      <div class="social-row" ${venueClick}>
+        <div class="social-avatar" ${profileClick}>${avatarHtml}</div>
+        <div class="social-row-body">
+          ${followBadge ? `<div class="social-follow-badge-row">${followBadge}</div>` : ''}
+          <div class="social-row-text">
+            <span class="social-row-name" ${profileClick}>${esc(displayName)}</span>
+            reviewed <span class="social-venue-link" ${venueClick}>${esc(venueName)}</span>
+          </div>
+          ${stars ? `<div class="social-row-stars">${stars}</div>` : ''}
+          ${item.meta?.text ? `<div class="social-row-note">"${esc(item.meta.text)}"</div>` : ''}
+          <div class="social-row-meta">${neighborhood ? neighborhood + ' · ' : ''}${timeAgo}</div>
         </div>
-        ${stars ? `<div class="social-row-stars">${stars}</div>` : ''}
-        ${item.meta?.text ? `<div class="social-row-note">"${esc(item.meta.text)}"</div>` : ''}
-        <div class="social-row-meta">${neighborhood ? neighborhood + ' · ' : ''}${timeAgo}</div>
       </div>
-      <div class="social-row-icon">${ICN.star}</div>
+      ${commentSection}
     </div>`;
   }
 
   // ── Favorite ──
   if (item.type === 'favorite') {
-    return `<div class="social-row" ${venueClick}>
-      <div class="social-avatar" ${profileClick}>${avatarHtml}</div>
-      <div class="social-row-body">
-        ${followBadge ? `<div class="social-follow-badge-row">${followBadge}</div>` : ''}
-        <div class="social-row-text">
-          <span class="social-row-name" ${profileClick}>${esc(displayName)}</span>
-          saved <span class="social-venue-link" ${venueClick}>${esc(venueName)}</span>
+    return `<div class="social-card social-card--row">
+      <div class="social-row" ${venueClick}>
+        <div class="social-avatar" ${profileClick}>${avatarHtml}</div>
+        <div class="social-row-body">
+          ${followBadge ? `<div class="social-follow-badge-row">${followBadge}</div>` : ''}
+          <div class="social-row-text">
+            <span class="social-row-name" ${profileClick}>${esc(displayName)}</span>
+            saved <span class="social-venue-link" ${venueClick}>${esc(venueName)}</span>
+          </div>
+          <div class="social-row-meta">${neighborhood ? neighborhood + ' · ' : ''}${timeAgo}</div>
         </div>
-        <div class="social-row-meta">${neighborhood ? neighborhood + ' · ' : ''}${timeAgo}</div>
       </div>
-      <div class="social-row-icon">${ICN.bookmark}</div>
+      ${commentSection}
     </div>`;
   }
 
   // ── Going tonight ──
   if (item.type === 'going_tonight') {
-    return `<div class="social-row" ${venueClick}>
-      <div class="social-avatar" ${profileClick}>${avatarHtml}</div>
-      <div class="social-row-body">
-        ${followBadge ? `<div class="social-follow-badge-row">${followBadge}</div>` : ''}
-        <div class="social-row-text">
-          <span class="social-row-name" ${profileClick}>${esc(displayName)}</span>
-          is going to <span class="social-venue-link" ${venueClick}>${esc(venueName)}</span> tonight
+    return `<div class="social-card social-card--row">
+      <div class="social-row" ${venueClick}>
+        <div class="social-avatar" ${profileClick}>${avatarHtml}</div>
+        <div class="social-row-body">
+          ${followBadge ? `<div class="social-follow-badge-row">${followBadge}</div>` : ''}
+          <div class="social-row-text">
+            <span class="social-row-name" ${profileClick}>${esc(displayName)}</span>
+            is going to <span class="social-venue-link" ${venueClick}>${esc(venueName)}</span> tonight
+          </div>
+          <div class="social-row-meta">${neighborhood ? neighborhood + ' · ' : ''}${timeAgo}</div>
         </div>
-        <div class="social-row-meta">${neighborhood ? neighborhood + ' · ' : ''}${timeAgo}</div>
       </div>
-      <div class="social-row-icon">${ICN.fire}</div>
+      ${commentSection}
     </div>`;
   }
 
   // ── Tagged at (friend tag) ──
   if (item.type === 'tagged_at') {
-    return `<div class="social-row" ${venueClick}>
-      <div class="social-avatar" ${profileClick}>${avatarHtml}</div>
-      <div class="social-row-body">
-        ${followBadge ? `<div class="social-follow-badge-row">${followBadge}</div>` : ''}
-        <div class="social-row-text">
-          <span class="social-row-name" ${profileClick}>${esc(displayName)}</span>
-          was tagged at <span class="social-venue-link" ${venueClick}>${esc(venueName)}</span>
+    return `<div class="social-card social-card--row">
+      <div class="social-row" ${venueClick}>
+        <div class="social-avatar" ${profileClick}>${avatarHtml}</div>
+        <div class="social-row-body">
+          ${followBadge ? `<div class="social-follow-badge-row">${followBadge}</div>` : ''}
+          <div class="social-row-text">
+            <span class="social-row-name" ${profileClick}>${esc(displayName)}</span>
+            was tagged at <span class="social-venue-link" ${venueClick}>${esc(venueName)}</span>
+          </div>
+          <div class="social-row-meta">${neighborhood ? neighborhood + ' · ' : ''}${timeAgo}</div>
         </div>
-        <div class="social-row-meta">${neighborhood ? neighborhood + ' · ' : ''}${timeAgo}</div>
       </div>
-      <div class="social-row-icon">${ICN.users}</div>
+      ${commentSection}
     </div>`;
   }
 
