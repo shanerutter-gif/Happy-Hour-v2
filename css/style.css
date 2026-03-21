@@ -1130,10 +1130,7 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
-  padding: 8px 12px calc(96px + env(safe-area-inset-bottom, 0px));
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  padding: 12px 12px calc(96px + env(safe-area-inset-bottom, 0px));
 }
 
 /* Loading */
@@ -1155,8 +1152,10 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   border-radius: 16px;
   box-shadow: 0 2px 12px rgba(0,0,0,0.06), 0 0 0 1px var(--border);
   overflow: hidden;
+  margin-bottom: 12px;
   animation: socialCardIn .35s ease both;
 }
+.social-card:last-child { margin-bottom: 0; }
 @keyframes socialCardIn {
   from { opacity: 0; transform: translateY(12px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -1263,8 +1262,10 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   background: var(--card);
   border-radius: 16px;
   box-shadow: 0 2px 12px rgba(0,0,0,0.06), 0 0 0 1px var(--border);
+  margin-bottom: 12px;
   animation: socialCardIn .35s ease both;
 }
+.social-row:last-child { margin-bottom: 0; }
 .social-row[onclick] { cursor: pointer; transition: transform .15s ease, box-shadow .15s ease; }
 .social-row[onclick]:active { transform: scale(.98); box-shadow: 0 1px 6px rgba(0,0,0,0.08); }
 .social-row-body   { flex: 1; min-width: 0; }
