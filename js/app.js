@@ -1654,7 +1654,7 @@ async function renderProfile(user) {
       <button class="pf-idea-close" onclick="dismissIdeaBanner()" title="Dismiss">&times;</button>
       <div class="pf-idea-text" onclick="openFeatureRequestForm()">
         <span style="font-size:15px">💡</span>
-        <span>Have an idea for a feature? <strong>Let us know!</strong> We value our users' input.</span>
+        <span>Have an idea for a feature? <strong>Let us know!</strong> We value our users' input. Or email <strong>support@spotd.biz</strong></span>
       </div>
     </div>` : ''}
 
@@ -1833,6 +1833,9 @@ function openProfileSettings() {
           </select>
           <textarea class="field" id="pFeedbackText" placeholder="Tell us what's wrong or what you'd like to see…" style="min-height:80px;resize:none;font-size:14px"></textarea>
           <button class="btn-save-sm" style="width:100%;padding:12px" onclick="submitFeedback()">Send Feedback</button>
+        </div>
+        <div style="margin-top:10px;font-size:13px;color:var(--muted);text-align:center">
+          Or email us directly at <a href="mailto:support@spotd.biz" style="color:var(--coral);font-weight:600;text-decoration:none">support@spotd.biz</a>
         </div>
       </div>
 
