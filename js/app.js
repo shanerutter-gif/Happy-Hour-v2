@@ -104,7 +104,7 @@ async function loadSiteCopy() {
 }
 
 const CITIES = [
-  { slug:'san-diego',    name:'San Diego',     state_code:'CA', venue_count:85, active:true  },
+  { slug:'san-diego',    name:'San Diego',     state_code:'CA', venue_count:400, active:true  },
   { slug:'los-angeles',  name:'Los Angeles',   state_code:'CA', venue_count:0,  active:false },
   { slug:'new-york',     name:'New York',      state_code:'NY', venue_count:0,  active:false },
   { slug:'chicago',      name:'Chicago',       state_code:'IL', venue_count:0,  active:false },
@@ -119,6 +119,8 @@ document.addEventListener('DOMContentLoaded', () => {
   renderNav(currentUser);
   const ffg = document.getElementById('favFilterGroup');
   if (ffg) ffg.style.display = currentUser ? '' : 'none';
+  const homeAuth = document.getElementById('homeAuthRow');
+  if (homeAuth) homeAuth.style.display = currentUser ? 'none' : '';
 
   // Handle OAuth callback (Google SSO redirect)
   if (typeof handleOAuthCallback === 'function') {
@@ -1639,6 +1641,15 @@ async function renderProfile(user) {
       }).join('')}</div>` : ''}
     </div>
 
+    ${!localStorage.getItem('spotd-idea-banner-dismissed') ? `
+    <div class="pf-idea-banner" id="ideaBanner">
+      <button class="pf-idea-close" onclick="dismissIdeaBanner()" title="Dismiss">&times;</button>
+      <div class="pf-idea-text" onclick="openFeatureRequestForm()">
+        <span style="font-size:15px">💡</span>
+        <span>Have an idea for a feature? <strong>Let us know!</strong> We value our users' input.</span>
+      </div>
+    </div>` : ''}
+
     <div class="pf-stat-grid">
       <div class="pf-stat-card" onclick="openActivityFeed()" style="cursor:pointer">
         <div class="pf-snum">${checkIns.length}</div>
@@ -1866,6 +1877,45 @@ async function submitFeedback() {
     showToast('❌ Could not send feedback');
   }
   if (btn) { btn.disabled = false; btn.textContent = 'Send Feedback'; }
+}
+
+function dismissIdeaBanner() {
+  localStorage.setItem('spotd-idea-banner-dismissed', '1');
+  document.getElementById('ideaBanner')?.remove();
+}
+
+function openFeatureRequestForm() {
+  const overlay = document.getElementById('authOverlay');
+  document.getElementById('authContent').innerHTML = `
+    <div class="auth-title">Share your idea</div>
+    <p class="auth-sub">We'd love to hear what features you'd like to see in Spotd.</p>
+    <div class="field-group"><div class="field-label">Your idea</div>
+      <textarea class="field" id="featureText" placeholder="I wish Spotd could…" style="min-height:100px;resize:none;font-size:14px"></textarea>
+    </div>
+    <button class="btn-primary" id="featureSubmitBtn" onclick="submitFeatureRequest()" style="width:100%;padding:14px;margin-top:8px">Submit</button>
+  `;
+  openOverlay('authOverlay');
+}
+
+async function submitFeatureRequest() {
+  const text = (document.getElementById('featureText')?.value || '').trim();
+  if (!text) { showToast('Please describe your idea'); return; }
+  const btn = document.getElementById('featureSubmitBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
+  try {
+    await db.from('feedback').insert({
+      user_id: currentUser?.id || null,
+      type: 'feature_request',
+      text,
+      url: window.location.href,
+      created_at: new Date().toISOString(),
+    });
+    closeOverlay('authOverlay');
+    showToast('Thanks for your idea!');
+  } catch(e) {
+    showToast('Could not send — try again');
+  }
+  if (btn) { btn.disabled = false; btn.textContent = 'Submit'; }
 }
 
 async function pickBannerColor(color, btn) {

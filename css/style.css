@@ -112,6 +112,12 @@ body.theme-transitioning{transition:background .35s ease,color .35s ease}
 .app-store-badge:hover{opacity:1}
 .app-store-badge svg{display:block;border-radius:10px}
 
+.home-auth-row{display:flex;gap:10px;justify-content:center;margin-bottom:24px}
+.home-auth-btn{font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;padding:10px 24px;border-radius:50px;border:1.5px solid var(--border2);background:var(--card);color:var(--text);cursor:pointer;transition:all .15s}
+.home-auth-btn:hover{background:var(--card2);border-color:var(--coral)}
+.home-auth-btn--accent{background:var(--coral);color:#fff;border-color:var(--coral)}
+.home-auth-btn--accent:hover{background:#e55a30;border-color:#e55a30}
+
 /* CITY BAR */
 .city-bar{display:flex;align-items:center;gap:8px;padding:10px 20px;background:var(--nav-bg);border-bottom:1px solid var(--border2);flex-wrap:wrap;position:sticky;top:0;z-index:250;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
 .city-back{background:none;border:1px solid var(--border2);border-radius:6px;color:var(--muted);background:transparent;font-size:12px;padding:6px 12px;cursor:pointer;font-family:'DM Sans',sans-serif;min-height:34px;transition:all .15s;white-space:nowrap}
@@ -2359,6 +2365,27 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   color: var(--teal); cursor: pointer; transition: all .15s;
 }
 .pf-badge:active { transform: scale(.95); }
+
+.pf-idea-banner {
+  margin: 0 18px 12px;
+  padding: 12px 14px;
+  background: linear-gradient(135deg, var(--coral-dim), rgba(255,107,74,0.08));
+  border: 1px solid rgba(255,107,74,0.2);
+  border-radius: 12px;
+  position: relative;
+  cursor: pointer;
+}
+.pf-idea-text {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; line-height: 1.4; color: var(--text);
+}
+.pf-idea-close {
+  position: absolute; top: 6px; right: 8px;
+  background: none; border: none; font-size: 18px;
+  color: var(--muted); cursor: pointer; padding: 2px 6px;
+  line-height: 1;
+}
+.pf-idea-close:hover { color: var(--text); }
 
 .pf-stat-grid {
   display: grid; grid-template-columns: 1fr 1fr;

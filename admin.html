@@ -465,6 +465,10 @@
         Revenue Pipeline
       </div>
       <div class="sidebar-label" style="margin-top:20px;margin-bottom:8px">Engage</div>
+      <div class="sidebar-item" onclick="showPage('feedback')" id="nav-feedback">
+        📬 User Feedback
+        <span class="sidebar-count zero" id="sidebar-feedback-count">—</span>
+      </div>
       <div class="sidebar-item" onclick="showPage('push')" id="nav-push">
         🔔 Push Notifications
       </div>
@@ -823,6 +827,24 @@
         </div>
       </div>
 
+      <!-- FEEDBACK PAGE -->
+      <div class="page" id="page-feedback">
+        <div class="page-title">📬 User Feedback</div>
+        <div class="page-sub">Feedback and feature requests submitted by users.</div>
+
+        <div class="status-tabs" id="feedback-tabs">
+          <button class="status-tab active" onclick="filterFeedback('all', this)">All</button>
+          <button class="status-tab" onclick="filterFeedback('wrong_data', this)">Wrong Data</button>
+          <button class="status-tab" onclick="filterFeedback('missing_venue', this)">Missing Venue</button>
+          <button class="status-tab" onclick="filterFeedback('hours_wrong', this)">Wrong Hours</button>
+          <button class="status-tab" onclick="filterFeedback('bug', this)">Bugs</button>
+          <button class="status-tab" onclick="filterFeedback('suggestion', this)">Suggestions</button>
+          <button class="status-tab" onclick="filterFeedback('feature_request', this)">Feature Requests</button>
+        </div>
+
+        <div id="feedback-list"></div>
+      </div>
+
       <div class="page" id="page-demo">
         <div class="page-title">🎭 Demo Data Generator</div>
         <div class="page-sub">Seed fake users, reviews, and check-ins for demos. All generated data is tagged and can be fully removed.</div>
@@ -1016,6 +1038,7 @@
     document.getElementById('admin-user').textContent = _adminUser?.email || '';
     document.getElementById('btn-logout').style.display = 'block';
     loadRequests();
+    loadFeedbackCount();
   }
 
   // ── DATA ─────────────────────────────────────────────
@@ -1482,7 +1505,7 @@
   const PAGE_TITLES = {
     requests: 'Venue Requests', venues: 'All Venues', users: 'User Analytics',
     churn: 'Churned Users', 'venues-top': 'Top Venues', cities: 'City Breakdown',
-    pipeline: 'Revenue Pipeline', push: 'Push Notifications', cms: 'Site Copy', board: 'Project Board', demo: 'Demo Data'
+    pipeline: 'Revenue Pipeline', feedback: 'User Feedback', push: 'Push Notifications', cms: 'Site Copy', board: 'Project Board', demo: 'Demo Data'
   };
 
   function showPage(page) {
@@ -1500,6 +1523,7 @@
     if (page === 'cities')     loadCities();
     if (page === 'churn')      loadChurn();
     if (page === 'pipeline')   loadPipeline();
+    if (page === 'feedback')   loadFeedback();
     if (page === 'push')       loadPushPage();
     if (page === 'cms')        loadCms();
     if (page === 'board') {
@@ -1510,6 +1534,60 @@
         iframe.dataset.loaded = '1';
       }
     }
+  }
+
+  // ── FEEDBACK ──────────────────────────────────────────
+  let allFeedback = [];
+  let feedbackFilter = 'all';
+
+  async function loadFeedbackCount() {
+    try {
+      const { count, error } = await db.from('feedback').select('*', { count: 'exact', head: true });
+      if (!error) {
+        const el = document.getElementById('sidebar-feedback-count');
+        if (el) { el.textContent = count || 0; el.classList.toggle('zero', !count); }
+      }
+    } catch(e) {}
+  }
+
+  async function loadFeedback() {
+    try {
+      const { data, error } = await db.from('feedback').select('*').order('created_at', { ascending: false });
+      if (error) throw error;
+      allFeedback = data || [];
+      const count = allFeedback.length;
+      const el = document.getElementById('sidebar-feedback-count');
+      if (el) { el.textContent = count; el.classList.toggle('zero', count === 0); }
+      renderFeedbackList();
+    } catch(e) { console.error('loadFeedback error', e); }
+  }
+
+  function filterFeedback(type, btn) {
+    feedbackFilter = type;
+    document.querySelectorAll('#feedback-tabs .status-tab').forEach(t => t.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    renderFeedbackList();
+  }
+
+  function renderFeedbackList() {
+    const list = document.getElementById('feedback-list');
+    const filtered = feedbackFilter === 'all' ? allFeedback : allFeedback.filter(f => f.type === feedbackFilter);
+    if (!filtered.length) {
+      list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">No feedback yet</div>';
+      return;
+    }
+    const typeLabels = { wrong_data:'Wrong Data', missing_venue:'Missing Venue', hours_wrong:'Wrong Hours', bug:'Bug', suggestion:'Suggestion', feature_request:'Feature Request', other:'Other' };
+    const typeColors = { wrong_data:'#e67e22', missing_venue:'#3498db', hours_wrong:'#e74c3c', bug:'#e74c3c', suggestion:'#2ecc71', feature_request:'#9b59b6', other:'#95a5a6' };
+    list.innerHTML = filtered.map(f => `
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <span style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:50px;background:${typeColors[f.type]||'#95a5a6'}20;color:${typeColors[f.type]||'#95a5a6'}">${esc(typeLabels[f.type]||f.type||'Unknown')}</span>
+          <span style="font-size:11px;color:var(--muted)">${formatDate(f.created_at)}</span>
+        </div>
+        <div style="font-size:14px;line-height:1.5;color:var(--text)">${esc(f.text)}</div>
+        ${f.user_id ? `<div style="font-size:11px;color:var(--muted);margin-top:8px">User: ${esc(f.user_id).slice(0,8)}…</div>` : ''}
+      </div>
+    `).join('');
   }
 
   function toggleMobileMenu() {
@@ -2105,7 +2183,7 @@
       hero_title:    "Get found by locals looking to go out tonight",
       hero_sub:      "Spotd puts your happy hour in front of thousands of people actively searching for somewhere to go right now. Free to list. Takes 5 minutes.",
       cta_btn:       "List my venue free →",
-      stat1_num:     "85+",
+      stat1_num:     "400+",
       stat1_label:   "San Diego venues",
       stat2_num:     "6",
       stat2_label:   "Cities & growing",
