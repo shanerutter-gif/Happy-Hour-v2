@@ -1543,19 +1543,20 @@
 
   async function loadFeedbackCount() {
     try {
-      const { count, error } = await db.from('feedback').select('*', { count: 'exact', head: true });
-      if (!error) {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/feedback?select=id`, { headers: svcHeaders() });
+      const data = await r.json();
+      if (Array.isArray(data)) {
         const el = document.getElementById('sidebar-feedback-count');
-        if (el) { el.textContent = count || 0; el.classList.toggle('zero', !count); }
+        if (el) { el.textContent = data.length || 0; el.classList.toggle('zero', !data.length); }
       }
     } catch(e) {}
   }
 
   async function loadFeedback() {
     try {
-      const { data, error } = await db.from('feedback').select('*').order('created_at', { ascending: false });
-      if (error) throw error;
-      allFeedback = data || [];
+      const data = await sb.get('feedback', 'select=*');
+      if (!Array.isArray(data)) throw new Error(data.message || 'Failed to load feedback');
+      allFeedback = data;
       const count = allFeedback.length;
       const el = document.getElementById('sidebar-feedback-count');
       if (el) { el.textContent = count; el.classList.toggle('zero', count === 0); }
