@@ -224,10 +224,12 @@ function renderBottomNav(user) {
 function toggleTheme() {
   const root = document.documentElement;
   const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  document.body.classList.add('theme-transitioning');
   root.setAttribute('data-theme', next);
   localStorage.setItem('spotd-theme', next);
   const btn = document.getElementById('themeToggleBtn');
   if (btn) btn.innerHTML = next === 'dark' ? icn('sun',14) : icn('moon',14);
+  setTimeout(() => document.body.classList.remove('theme-transitioning'), 400);
 }
 
 function _navHideAll(keep) {
@@ -249,6 +251,8 @@ function bottomNavFeed(btn) {
   btn.classList.add('active');
   _navHideAll();
   if (!state.city) showHome();
+  // Scroll feed back to top
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function bottomNavSocial(btn) {
@@ -477,6 +481,22 @@ function renderSocialItem(item) {
     </div>`;
   }
 
+  // ── Tagged at (friend tag) ──
+  if (item.type === 'tagged_at') {
+    return `<div class="social-row" ${venueClick}>
+      <div class="social-avatar" ${profileClick}>${avatarHtml}</div>
+      <div class="social-row-body">
+        ${followBadge ? `<div class="social-follow-badge-row">${followBadge}</div>` : ''}
+        <div class="social-row-text">
+          <span class="social-row-name" ${profileClick}>${esc(displayName)}</span>
+          was tagged at <span class="social-venue-link" ${venueClick}>${esc(venueName)}</span>
+        </div>
+        <div class="social-row-meta">${neighborhood ? neighborhood + ' · ' : ''}${timeAgo}</div>
+      </div>
+      <div class="social-row-icon">${ICN.users}</div>
+    </div>`;
+  }
+
   return '';
 }
 // ── SOCIAL COMMENTS ──
@@ -682,18 +702,18 @@ async function enterCity(slug, name, stateCode) {
         applyFilters();
       },
       () => {
-        // Permission denied — fall back to default sort silently
-        state.sort = 'default';
+        // Permission denied — fall back to A-Z sort
+        state.sort = 'name';
         if (nearBtn) { nearBtn.innerHTML = `${ICN.pin} Nearest`; nearBtn.disabled = false; nearBtn.classList.remove('active'); }
-        document.getElementById('sort-default')?.classList.add('active');
+        document.getElementById('sort-name')?.classList.add('active');
         applyFilters();
       },
       { timeout: 6000 }
     );
   } else {
-    state.sort = 'default';
+    state.sort = 'name';
     if (nearBtn) nearBtn.classList.remove('active');
-    document.getElementById('sort-default')?.classList.add('active');
+    document.getElementById('sort-name')?.classList.add('active');
     applyFilters();
   }
 
@@ -967,7 +987,13 @@ function toggleFilters() {
 }
 
 // ── CARDS ──────────────────────────────────────────────
+let _renderCardsRaf = null;
 function renderCards() {
+  if (_renderCardsRaf) cancelAnimationFrame(_renderCardsRaf);
+  _renderCardsRaf = requestAnimationFrame(_renderCardsNow);
+}
+function _renderCardsNow() {
+  _renderCardsRaf = null;
   const grid = document.getElementById('cardsGrid');
   if (!grid) return;
   if (!state.filtered.length) {
@@ -985,7 +1011,8 @@ function renderCards() {
     </div>`;
     return;
   }
-  grid.innerHTML = state.filtered.map(v => v.event_type ? eventCardHTML(v) : venueCardHTML(v)).join('');
+  const html = state.filtered.map(v => v.event_type ? eventCardHTML(v) : venueCardHTML(v)).join('');
+  grid.innerHTML = html;
 }
 
 function venueCardHTML(v) {
@@ -2186,6 +2213,8 @@ function buildMapSidebar() {
 // ── OVERLAY HELPERS ────────────────────────────────────
 function openOverlay(id)  {
   const el = document.getElementById(id); if (!el) return;
+  // Force a layout before adding the class so the browser registers the starting state
+  void el.offsetHeight;
   el.classList.add('open');
   const profileOpen = document.getElementById('profilePage')?.classList.contains('profile-page--open');
   if (!profileOpen) document.body.style.overflow = 'hidden';
@@ -2196,7 +2225,10 @@ function openOverlay(id)  {
 function closeOverlay(id) {
   const el = document.getElementById(id); if (!el) return;
   el.classList.remove('open');
-  if (!document.querySelector('.overlay.open')) document.body.style.overflow = '';
+  // Delay body overflow restore until after the animation completes
+  setTimeout(() => {
+    if (!document.querySelector('.overlay.open')) document.body.style.overflow = '';
+  }, 350);
 }
 function dismissOverlay(el) {
   if (!el) return;
@@ -2402,6 +2434,8 @@ async function doGoingTonight(venueId, btn) {
   const nowIn = state.goingByMe.has(venueId);
   if (btn) {
     btn.classList.toggle('going-active', nowIn);
+    btn.classList.toggle('hot', nowIn || count >= 1);
+    if (!nowIn && count < 1) btn.classList.remove('hot');
     btn.innerHTML = checkInBtnLabel(count, nowIn);
     // Trigger pop + ripple animation
     btn.classList.remove('checkin-anim');
@@ -2424,13 +2458,15 @@ function checkInBtnLabel(count, isIn) {
 }
 
 function refreshCheckInCounters() {
-  document.querySelectorAll('.going-btn').forEach(btn => {
+  document.querySelectorAll('.going-btn, .vcard-checkin-btn, .modal-checkin-cta').forEach(btn => {
     const card = btn.closest('[data-id]');
     const vid = card?.dataset.id || btn.dataset.vid;
     if (!vid) return;
     const count = state.goingCounts[vid] || 0;
     const isIn = state.goingByMe.has(vid);
     btn.classList.toggle('going-active', isIn);
+    btn.classList.toggle('hot', isIn || count >= 1);
+    if (!isIn && count < 1) btn.classList.remove('hot');
     btn.innerHTML = checkInBtnLabel(count, isIn);
   });
 }
@@ -3135,9 +3171,61 @@ function openPhotoCheckinPrompt(venueId, venueName) {
       placeholder="Add a caption (optional)…" rows="2"></textarea>
     <button class="photo-submit-btn" id="photoSubmitBtn" disabled
       onclick="submitPhotoCheckin('${venueId}','${esc(venueName)}')">Share Photo</button>
-    <button class="photo-skip-btn" onclick="skipToTagFriends('${venueId}')">Skip →</button>`;
+    <div class="s-div" style="margin:16px 0"></div>
+    <div class="tag-prompt-title">Who'd you go with?</div>
+    <div class="tag-prompt-sub">Tag a friend at ${esc(venueName)} and they'll see it in their feed.</div>
+    <div class="tag-friends-grid" id="tagFriendsGridInline">
+      <div style="color:var(--muted);font-size:13px">Loading friends…</div>
+    </div>
+    <button class="photo-skip-btn" onclick="closeOverlay('photoCheckinOverlay'); _tryPushPromptAfterCheckin()">Done</button>`;
 
   openOverlay('photoCheckinOverlay');
+  // Load friends inline
+  _loadTagFriendsInline(venueId, venueName);
+}
+
+async function _loadTagFriendsInline(venueId, venueName) {
+  if (!currentUser) return;
+  try {
+    const followingIds = await getFollowing(currentUser.id);
+    if (!followingIds?.length) {
+      const grid = document.getElementById('tagFriendsGridInline');
+      if (grid) grid.innerHTML = `<div style="color:var(--muted);font-size:13px">Follow people to tag them here.</div>`;
+      return;
+    }
+    const { data: profiles } = await db.from('profiles')
+      .select('id, display_name, avatar_emoji')
+      .in('id', followingIds)
+      .not('display_name', 'is', null)
+      .limit(12);
+    const grid = document.getElementById('tagFriendsGridInline');
+    if (!grid) return;
+    if (!profiles?.length) {
+      grid.innerHTML = `<div style="color:var(--muted);font-size:13px">No friends to tag yet — follow people first.</div>`;
+      return;
+    }
+    grid.innerHTML = profiles.map(p => `
+      <button class="tag-friend-chip" id="tag-chip-${p.id}"
+        onclick="tagFriendInline('${p.id}','${esc(p.display_name || '')}','${venueId}','${esc(venueName)}',this)">
+        <span class="tag-friend-chip-avatar">${initialsAvatar(p.display_name || 'Friend')}</span>
+        <span class="tag-friend-chip-name">${esc(p.display_name || 'Friend')}</span>
+      </button>`).join('');
+  } catch(e) {
+    const grid = document.getElementById('tagFriendsGridInline');
+    if (grid) grid.innerHTML = `<div style="color:var(--muted);font-size:13px">Couldn't load friends right now.</div>`;
+  }
+}
+
+async function tagFriendInline(toUserId, toName, venueId, venueName, chip) {
+  if(typeof haptic==='function')haptic('light');
+  if (chip.classList.contains('tagged')) return;
+  chip.classList.add('tagged');
+  chip.style.pointerEvents = 'none';
+  await tagFriendAtCheckIn(currentUser.id, toUserId, venueId, venueName);
+  // Bump the local check-in count so UI reflects the tag immediately
+  state.goingCounts[venueId] = (state.goingCounts[venueId] || 0) + 1;
+  refreshCheckInCounters();
+  showToast(`Tagged ${toName} at ${venueName}`);
 }
 
 // Web fallback handler (file input / drag-drop)
@@ -3189,8 +3277,8 @@ async function submitPhotoCheckin(venueId, venueName) {
 
   window._pendingCheckinPhoto = null;
   showToast('Photo shared!');
-  closeOverlay('photoCheckinOverlay');
 
+  // Refresh UGC photos in background
   const ugcEl = document.getElementById(`ugc-photos-${venueId}`);
   if (ugcEl) {
     fetchCheckinPhotos(venueId).then(photos => {
@@ -3198,7 +3286,9 @@ async function submitPhotoCheckin(venueId, venueName) {
     });
   }
 
-  setTimeout(() => maybeOpenTagFriends(venueId), 600);
+  // Scroll to the tag friends section within the same modal
+  const tagSection = document.getElementById('tagFriendsGridInline');
+  if (tagSection) tagSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 async function doDeleteCheckinPhoto(photoId, storagePath, venueId, btn) {
@@ -3686,36 +3776,121 @@ async function dmOpenFromProfile(userId, displayName) {
 
 async function dmOpenVenueSharePicker(venueId) {
   if (!currentUser) { openAuth('signin'); return; }
+
+  // Load existing conversations
   const { data: myParts } = await db.from('conversation_participants').select('conversation_id').eq('user_id', currentUser.id);
-  if (!myParts?.length) { showToast('No conversations yet — start one first'); return; }
-  const convoIds = [...new Set(myParts.map(r => r.conversation_id))];
-  const { data: convos }   = await db.from('conversations').select('id, is_group, name, updated_at').in('id', convoIds).order('updated_at', { ascending: false });
-  const { data: allParts } = await db.rpc('get_conversation_participants', { convo_ids: convoIds });
-  const otherIds = [...new Set((allParts||[]).map(p=>p.user_id).filter(id=>id!==currentUser.id))];
-  const { data: profiles } = otherIds.length ? await db.from('profiles').select('id, display_name, avatar_emoji').in('id', otherIds) : { data: [] };
-  const pMap = {}; (profiles||[]).forEach(p => { pMap[p.id] = p; });
-  const convoPartsMap = {}; (allParts||[]).forEach(p => { if (!convoPartsMap[p.conversation_id]) convoPartsMap[p.conversation_id] = []; if (p.user_id !== currentUser.id) convoPartsMap[p.conversation_id].push(p.user_id); });
+  const convoIds = myParts?.length ? [...new Set(myParts.map(r => r.conversation_id))] : [];
+  let convos = [], allParts = [], profiles = [];
+  if (convoIds.length) {
+    const [r1, r2] = await Promise.all([
+      db.from('conversations').select('id, is_group, name, updated_at').in('id', convoIds).order('updated_at', { ascending: false }),
+      db.rpc('get_conversation_participants', { convo_ids: convoIds }),
+    ]);
+    convos = r1.data || []; allParts = r2.data || [];
+  }
+  const otherIds = [...new Set((allParts).map(p=>p.user_id).filter(id=>id!==currentUser.id))];
+  if (otherIds.length) { const { data } = await db.from('profiles').select('id, display_name, avatar_emoji').in('id', otherIds); profiles = data || []; }
+  const pMap = {}; profiles.forEach(p => { pMap[p.id] = p; });
+  const convoPartsMap = {}; allParts.forEach(p => { if (!convoPartsMap[p.conversation_id]) convoPartsMap[p.conversation_id] = []; if (p.user_id !== currentUser.id) convoPartsMap[p.conversation_id].push(p.user_id); });
   const seen = new Set();
-  const uniqueConvos = (convos||[]).filter(c => { if (seen.has(c.id)) return false; seen.add(c.id); return true; });
+  const uniqueConvos = convos.filter(c => { if (seen.has(c.id)) return false; seen.add(c.id); return true; });
+
+  // Build conversation rows HTML
+  const convoRowsHTML = uniqueConvos.map(c => {
+    const others = convoPartsMap[c.id] || [];
+    const myFirst = (currentUser?.user_metadata?.full_name || 'You').split(' ')[0];
+    const name   = c.is_group ? (c.name || [myFirst,...others.map(id=>(pMap[id]?.display_name||'User').split(' ')[0])].join(', ')) : (pMap[others[0]]?.display_name || 'Spotd User');
+    const avatar = c.is_group ? icn('users',20) : initialsAvatar(name);
+    return `<div class="dm-thread-row dm-share-row" data-name="${esc(name.toLowerCase())}" style="border-bottom:1px solid var(--bg2);" onclick="dmSendVenue('${venueId}','${c.id}');document.getElementById('dmSharePickerOverlay').remove()">
+      <div class="dm-thread-main"><div class="dm-thread-avatar">${avatar}</div><div class="dm-thread-info"><div class="dm-thread-name">${esc(name)}</div></div></div>
+      <div style="color:var(--coral);font-weight:700;font-size:13px;flex-shrink:0;padding-right:16px">Send</div>
+    </div>`;
+  }).join('');
+
   document.getElementById('dmSharePickerOverlay')?.remove();
   const overlay = document.createElement('div');
   overlay.id = 'dmSharePickerOverlay'; overlay.className = 'overlay open';
   overlay.onclick = e => { if (e.target === overlay) dismissOverlay(overlay); };
   overlay.innerHTML = `<div class="sheet" style="max-height:60vh;overflow-y:auto;">
-    <div style="font-weight:800;font-size:17px;margin-bottom:16px;padding-right:32px;">Send to…</div>
-    <button class="sheet-close" onclick="document.getElementById('dmSharePickerOverlay').remove()">✕</button>
-    ${uniqueConvos.map(c => {
-      const others = convoPartsMap[c.id] || [];
-      const myFirst = (currentUser?.user_metadata?.full_name || 'You').split(' ')[0];
-      const name   = c.is_group ? (c.name || [myFirst,...others.map(id=>(pMap[id]?.display_name||'User').split(' ')[0])].join(', ')) : (pMap[others[0]]?.display_name || 'Spotd User');
-      const avatar = c.is_group ? icn('users',20) : initialsAvatar(name);
-      return `<div class="dm-thread-row" style="border-bottom:1px solid var(--bg2);" onclick="dmSendVenue('${venueId}','${c.id}');document.getElementById('dmSharePickerOverlay').remove()">
-        <div class="dm-thread-main"><div class="dm-thread-avatar">${avatar}</div><div class="dm-thread-info"><div class="dm-thread-name">${esc(name)}</div></div></div>
-        <div style="color:var(--coral);font-weight:700;font-size:13px;flex-shrink:0;padding-right:16px">Send</div>
-      </div>`;
-    }).join('')}
+    <div class="sheet-handle"></div>
+    <div style="font-weight:800;font-size:17px;margin-bottom:12px;padding-right:32px;">Send to…</div>
+    <input type="text" id="dmShareSearch" class="search-box" placeholder="Search by name…"
+      style="margin-bottom:12px;width:100%;box-sizing:border-box;" autocomplete="off" autocorrect="off"
+      oninput="dmFilterSharePicker(this.value)">
+    <div id="dmShareSearchResults" style="display:none"></div>
+    <div id="dmShareConvoList">${convoRowsHTML || '<div style="color:var(--muted);font-size:13px;padding:12px 0">No conversations yet</div>'}</div>
   </div>`;
   document.body.appendChild(overlay);
+  // Auto-focus the search input
+  setTimeout(() => document.getElementById('dmShareSearch')?.focus(), 100);
+
+  // Store venueId for search result sends
+  window._dmShareVenueId = venueId;
+}
+
+let _dmSearchTimeout = null;
+function dmFilterSharePicker(query) {
+  const q = query.trim().toLowerCase();
+  const convoList = document.getElementById('dmShareConvoList');
+  const searchResults = document.getElementById('dmShareSearchResults');
+
+  // Filter existing conversations
+  if (convoList) {
+    convoList.querySelectorAll('.dm-share-row').forEach(row => {
+      const name = row.dataset.name || '';
+      row.style.display = name.includes(q) ? '' : 'none';
+    });
+  }
+
+  // Search for users by name if query is 2+ chars
+  if (q.length < 2) { if (searchResults) searchResults.style.display = 'none'; return; }
+
+  clearTimeout(_dmSearchTimeout);
+  _dmSearchTimeout = setTimeout(async () => {
+    try {
+      const { data: users } = await db.from('profiles')
+        .select('id, display_name')
+        .ilike('display_name', `%${q}%`)
+        .neq('id', currentUser.id)
+        .limit(8);
+      if (!searchResults || !users?.length) { if (searchResults) searchResults.style.display = 'none'; return; }
+      searchResults.style.display = 'block';
+      searchResults.innerHTML = `<div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:8px 0 6px">People</div>`
+        + users.map(u => `<div class="dm-thread-row" style="border-bottom:1px solid var(--bg2);cursor:pointer"
+          onclick="dmSendVenueToUser('${u.id}','${esc(u.display_name||'User')}')">
+          <div class="dm-thread-main"><div class="dm-thread-avatar">${initialsAvatar(u.display_name || 'User')}</div>
+          <div class="dm-thread-info"><div class="dm-thread-name">${esc(u.display_name || 'User')}</div></div></div>
+          <div style="color:var(--coral);font-weight:700;font-size:13px;flex-shrink:0;padding-right:16px">Send</div>
+        </div>`).join('');
+    } catch(e) {}
+  }, 300);
+}
+
+async function dmSendVenueToUser(userId, displayName) {
+  const venueId = window._dmShareVenueId;
+  if (!venueId) return;
+  document.getElementById('dmSharePickerOverlay')?.remove();
+  showToast('Sending…');
+  // Find or create conversation
+  const { data: myConvos } = await db.from('conversation_participants').select('conversation_id').eq('user_id', currentUser.id);
+  const { data: theirConvos } = await db.from('conversation_participants').select('conversation_id').eq('user_id', userId);
+  const mySet = new Set((myConvos||[]).map(r=>r.conversation_id));
+  const shared = (theirConvos||[]).find(r => mySet.has(r.conversation_id));
+
+  let convoId;
+  if (shared) {
+    convoId = shared.conversation_id;
+  } else {
+    const { data: convo, error } = await db.from('conversations').insert({ is_group: false, created_by: currentUser.id }).select().single();
+    if (error) { showToast('Failed to start conversation'); return; }
+    await db.from('conversation_participants').insert([
+      { conversation_id: convo.id, user_id: currentUser.id },
+      { conversation_id: convo.id, user_id: userId }
+    ]);
+    convoId = convo.id;
+  }
+  await dmSendVenue(venueId, convoId);
+  showToast(`Sent to ${displayName}`);
 }
 
 function dmSubscribe() {
@@ -3755,7 +3930,7 @@ async function dmRefreshBadge() {
     dmUpdateBadge(unread);
   } catch(e) {}
 }
-setInterval(() => { if (currentUser) dmRefreshBadge(); }, 60000);
+setInterval(() => { if (currentUser) dmRefreshBadge(); }, 120000);
 
 function dmUpdateBadge(count) {
   const badge = document.getElementById('bnMsgBadge');
