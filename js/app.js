@@ -3222,9 +3222,7 @@ async function tagFriendInline(toUserId, toName, venueId, venueName, chip) {
   chip.classList.add('tagged');
   chip.style.pointerEvents = 'none';
   await tagFriendAtCheckIn(currentUser.id, toUserId, venueId, venueName);
-  // Also add a check-in for the tagged friend
-  const today = new Date().toISOString().slice(0, 10);
-  addCheckIn({ userId: toUserId, venueId, citySlug: state.city?.slug || '', date: today }).catch(() => {});
+  // Bump the local check-in count so UI reflects the tag immediately
   state.goingCounts[venueId] = (state.goingCounts[venueId] || 0) + 1;
   refreshCheckInCounters();
   showToast(`Tagged ${toName} at ${venueName}`);

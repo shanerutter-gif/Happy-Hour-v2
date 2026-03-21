@@ -657,11 +657,18 @@ async function isFollowingVenue(userId, venueId) {
 // No new table needed — reuses existing activity_feed infrastructure.
 async function tagFriendAtCheckIn(fromUserId, toUserId, venueId, venueName) {
   try {
+    // Denormalize venue info for feed display
+    let neighborhood = null;
+    if (venueId) {
+      const { data } = await db.from('venues').select('neighborhood').eq('id', venueId).single();
+      neighborhood = data?.neighborhood || null;
+    }
     await db.from('activity_feed').insert({
       user_id:       toUserId,        // appears on the tagged user's feed
       activity_type: 'tagged_at',
       venue_id:      venueId,
       venue_name:    venueName,
+      neighborhood,
       meta:          { tagged_by: fromUserId }
     });
     return true;
