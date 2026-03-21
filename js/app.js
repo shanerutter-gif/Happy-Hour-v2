@@ -1863,17 +1863,21 @@ async function submitFeedback() {
               document.querySelector('[onclick="submitFeedback()"]');
   if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
   try {
-    await db.from('feedback').insert({
+    const { error } = await db.from('feedback').insert({
       user_id: currentUser?.id || null,
       type,
       text,
       url: window.location.href,
       created_at: new Date().toISOString(),
     });
-    document.getElementById('pFeedbackType').value = '';
-    document.getElementById('pFeedbackText').value = '';
-    showToast('Feedback sent — thank you!');
+    if (error) { console.error('Feedback insert error:', error); showToast('❌ Could not send feedback'); }
+    else {
+      document.getElementById('pFeedbackType').value = '';
+      document.getElementById('pFeedbackText').value = '';
+      showToast('Feedback sent — thank you!');
+    }
   } catch(e) {
+    console.error('Feedback exception:', e);
     showToast('❌ Could not send feedback');
   }
   if (btn) { btn.disabled = false; btn.textContent = 'Send Feedback'; }
@@ -1903,16 +1907,20 @@ async function submitFeatureRequest() {
   const btn = document.getElementById('featureSubmitBtn');
   if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
   try {
-    await db.from('feedback').insert({
+    const { error } = await db.from('feedback').insert({
       user_id: currentUser?.id || null,
       type: 'feature_request',
       text,
       url: window.location.href,
       created_at: new Date().toISOString(),
     });
-    closeOverlay('authOverlay');
-    showToast('Thanks for your idea!');
+    if (error) { console.error('Feature request insert error:', error); showToast('❌ Could not send — try again'); }
+    else {
+      closeOverlay('authOverlay');
+      showToast('Thanks for your idea!');
+    }
   } catch(e) {
+    console.error('Feature request exception:', e);
     showToast('Could not send — try again');
   }
   if (btn) { btn.disabled = false; btn.textContent = 'Submit'; }

@@ -1004,11 +1004,15 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   padding: env(safe-area-inset-top, 0px) 0 100px;
   visibility: hidden;
   pointer-events: none;
+  opacity: 0;
+  transition: opacity .15s ease, visibility 0s .15s;
 }
 .profile-page--open {
   visibility: visible;
   pointer-events: auto;
   z-index: 499;
+  opacity: 1;
+  transition: opacity .15s ease, visibility 0s 0s;
 }
 
 /* ══════════════════════════════════════════════
