@@ -871,7 +871,7 @@ async function fetchSocialFeed(citySlug, followingIds = [], limit = 60) {
       // 2. Activity feed (check-ins, reviews, favorites) city-wide via venue
       db.from('activity_feed')
         .select('id, user_id, activity_type, venue_id, venue_name, neighborhood, meta, created_at')
-        .in('activity_type', ['check_in', 'review', 'favorite'])
+        .in('activity_type', ['check_in', 'review', 'favorite', 'tagged_at'])
         .gte('created_at', sevenDaysAgo)
         .order('created_at', { ascending: false })
         .limit(limit),
