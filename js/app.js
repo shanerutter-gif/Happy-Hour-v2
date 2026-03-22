@@ -204,7 +204,7 @@ function renderBottomNav(user) {
       </button>
       <button class="bottom-nav-btn" id="bnSocial" onclick="bottomNavSocial(this)">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-1a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v1"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-1a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        <span>People</span>
+        <span>The Spots</span>
       </button>
       <button class="bottom-nav-btn" id="bnMessages" onclick="bottomNavMessages(this)">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
@@ -316,6 +316,82 @@ function closeSocialTab() {
   document.getElementById('socialTab').classList.remove('tab-open');
 }
 
+function openAddSpotForm() {
+  if (!currentUser) { openAuth('signin'); return; }
+  const overlay = document.createElement('div');
+  overlay.className = 'overlay open';
+  overlay.onclick = e => { if (e.target === overlay) dismissOverlay(overlay); };
+  overlay.innerHTML = `
+    <div class="sheet">
+      <button class="sheet-close" onclick="dismissOverlay(this.closest('.overlay'))">✕</button>
+      <div style="font-weight:800;font-size:17px;margin-bottom:20px;">Add a Spot</div>
+
+      <div class="p-section">
+        <div class="p-section-title">Venue Name</div>
+        <input class="field" id="addSpotName" type="text" placeholder="e.g. The Rooftop Bar" style="width:100%;box-sizing:border-box">
+      </div>
+
+      <div class="p-section">
+        <div class="p-section-title">Neighborhood <span style="font-weight:400;color:var(--muted)">(optional)</span></div>
+        <input class="field" id="addSpotHood" type="text" placeholder="e.g. Gaslamp, North Park" style="width:100%;box-sizing:border-box">
+      </div>
+
+      <div class="p-section">
+        <div class="p-section-title">Your Experience</div>
+        <textarea class="field" id="addSpotNote" placeholder="What was the vibe? Great drinks, cool music, good food…" style="width:100%;box-sizing:border-box;min-height:80px;resize:none"></textarea>
+      </div>
+
+      <div class="p-section">
+        <div class="p-section-title">Rating</div>
+        <div class="star-picker" id="addSpotStars" data-val="0">${[1,2,3,4,5].map(n => `<button class="sp" onclick="pickAddSpotStar(${n})">★</button>`).join('')}</div>
+      </div>
+
+      <button class="btn-save-sm" id="addSpotBtn" style="width:100%;padding:14px;margin-top:8px" onclick="submitSpotExperience()">Share with the feed</button>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+function pickAddSpotStar(n) {
+  const picker = document.getElementById('addSpotStars');
+  picker.dataset.val = n;
+  picker.querySelectorAll('.sp').forEach((b, i) => b.classList.toggle('lit', i < n));
+}
+
+async function submitSpotExperience() {
+  const name = (document.getElementById('addSpotName')?.value || '').trim();
+  const hood = (document.getElementById('addSpotHood')?.value || '').trim();
+  const note = (document.getElementById('addSpotNote')?.value || '').trim();
+  const rating = parseInt(document.getElementById('addSpotStars')?.dataset.val || '0');
+  if (!name) { showToast('Please enter a venue name'); return; }
+  if (!note) { showToast('Tell us about your experience'); return; }
+
+  const btn = document.getElementById('addSpotBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Posting…'; }
+
+  try {
+    const citySlug = state.city?.slug || 'san-diego';
+    const meta = { note, rating: rating || null, manual: true };
+
+    await db.from('activity_feed').insert({
+      user_id: currentUser.id,
+      activity_type: 'check_in',
+      venue_id: null,
+      venue_name: name,
+      neighborhood: hood || null,
+      meta,
+    });
+
+    dismissOverlay(document.querySelector('.overlay.open'));
+    showToast('Spot shared!');
+    _socialLoading = false;
+    loadSocialFeed();
+  } catch(e) {
+    console.error('submitSpotExperience error:', e);
+    showToast('Could not post — try again');
+  }
+  if (btn) { btn.disabled = false; btn.textContent = 'Share with the feed'; }
+}
+
 let _socialLoading = false;
 
 async function loadSocialFeed() {
@@ -425,6 +501,7 @@ function renderSocialItem(item) {
           </div>
           <div class="social-row-meta">${neighborhood ? neighborhood + ' · ' : ''}${timeAgo}</div>
           ${item.meta?.note ? `<div class="social-row-note">"${esc(item.meta.note)}"</div>` : ''}
+          ${item.meta?.rating ? `<div style="font-size:12px;color:var(--coral);margin-top:2px">${'★'.repeat(item.meta.rating)}${'☆'.repeat(5-item.meta.rating)}</div>` : ''}
         </div>
         <div class="social-row-icon">${ICN.pin}</div>
       </div>
