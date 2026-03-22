@@ -1123,7 +1123,7 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 }
 .social-header-title { font-family: 'Cabinet Grotesk', sans-serif; font-weight: 900; font-size: 22px; letter-spacing: -0.5px; }
 .header-logo-img { height: 26px; width: auto; display: block; object-fit: contain; }
-.pf-logo-bar { padding: 14px 18px 10px; padding-top: calc(14px + env(safe-area-inset-top, 0px)); background: var(--bg); }
+.pf-logo-bar { display: flex; align-items: center; padding: 14px 20px 12px; padding-top: calc(14px + env(safe-area-inset-top, 0px)); background: var(--bg); }
 .social-refresh-btn  { background: none; border: none; cursor: pointer; padding: 6px; color: var(--muted); display: flex; align-items: center; border-radius: 8px; }
 .social-refresh-btn:active { background: var(--bg2); }
 
@@ -1300,9 +1300,9 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 14px 16px;
+  padding: 14px 20px 12px;
   padding-top: calc(14px + env(safe-area-inset-top, 0px));
-  border-bottom: 1px solid var(--border);
+  border-bottom: none;
   flex-shrink: 0;
   background: var(--bg);
 }
@@ -2164,10 +2164,10 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 /* ── REDESIGNED SOCIAL FEED ── */
 .social-header {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 14px 18px 12px;
-  background: var(--nav-bg); border-bottom: 1px solid var(--border2);
+  padding: 14px 20px 12px;
+  padding-top: calc(14px + env(safe-area-inset-top, 0px));
+  background: var(--bg); border-bottom: none;
   position: sticky; top: 0; z-index: 10;
-  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
 }
 .social-header-title {
   font-family: 'Cabinet Grotesk', sans-serif;
@@ -2537,7 +2537,7 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 [data-theme="dark"] .social-card,.social-row { background: var(--card); }
 [data-theme="dark"] .social-row:active { background: var(--card2); }
 [data-theme="dark"] .dm-tab { background: var(--bg); }
-[data-theme="dark"] .dm-header { background: var(--nav-bg); border-color: var(--border2); }
+[data-theme="dark"] .dm-header { background: var(--bg); }
 [data-theme="dark"] .dm-thread-main { background: var(--card); }
 [data-theme="dark"] .dm-thread-main:active { background: var(--card2); }
 [data-theme="dark"] .dm-input { background: var(--bg2); color: var(--text); border-color: var(--border2); }
