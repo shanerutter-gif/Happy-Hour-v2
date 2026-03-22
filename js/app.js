@@ -346,9 +346,48 @@ function openAddSpotForm() {
         <div class="star-picker" id="addSpotStars" data-val="0">${[1,2,3,4,5].map(n => `<button class="sp" onclick="pickAddSpotStar(${n})">★</button>`).join('')}</div>
       </div>
 
+      <div class="p-section">
+        <div class="p-section-title">Photo <span style="font-weight:400;color:var(--muted)">(optional)</span></div>
+        <div class="add-spot-photo-area" id="addSpotPhotoArea" style="position:relative;border:2px dashed var(--border2);border-radius:12px;padding:24px;text-align:center;cursor:pointer">
+          <input type="file" accept="image/*" id="addSpotPhotoInput"
+            style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;z-index:2"
+            onchange="handleAddSpotPhoto(this)">
+          <div style="color:var(--muted);font-size:13px;pointer-events:none">${icn('camera',24)}<br>Tap to add a photo</div>
+        </div>
+        <div id="addSpotPhotoPreview" style="display:none;position:relative;margin-top:8px">
+          <img id="addSpotPreviewImg" src="" alt="Preview" style="width:100%;border-radius:10px;max-height:200px;object-fit:cover">
+          <button onclick="clearAddSpotPhoto()" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.5);color:#fff;border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:14px">✕</button>
+        </div>
+      </div>
+
       <button class="btn-save-sm" id="addSpotBtn" style="width:100%;padding:14px;margin-top:8px" onclick="submitSpotExperience()">Share with the feed</button>
     </div>`;
   document.body.appendChild(overlay);
+}
+
+function handleAddSpotPhoto(input) {
+  const file = input.files?.[0];
+  if (!file || !file.type.startsWith('image/')) { showToast('Please choose an image'); return; }
+  if (file.size > 10 * 1024 * 1024) { showToast('Photo must be under 10 MB'); return; }
+  window._pendingAddSpotPhoto = file;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const preview = document.getElementById('addSpotPhotoPreview');
+    const img = document.getElementById('addSpotPreviewImg');
+    const area = document.getElementById('addSpotPhotoArea');
+    if (img) img.src = e.target.result;
+    if (preview) preview.style.display = 'block';
+    if (area) area.style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearAddSpotPhoto() {
+  window._pendingAddSpotPhoto = null;
+  const preview = document.getElementById('addSpotPhotoPreview');
+  const area = document.getElementById('addSpotPhotoArea');
+  if (preview) preview.style.display = 'none';
+  if (area) area.style.display = '';
 }
 
 function pickAddSpotStar(n) {
@@ -372,6 +411,17 @@ async function submitSpotExperience() {
     const citySlug = state.city?.slug || 'san-diego';
     const meta = { note, rating: rating || null, manual: true };
 
+    // Upload photo if one was selected
+    const photoFile = window._pendingAddSpotPhoto;
+    if (photoFile) {
+      if (btn) btn.textContent = 'Uploading photo…';
+      const uploaded = await uploadCheckinPhoto(photoFile, currentUser.id);
+      if (uploaded) {
+        meta.photo_url = uploaded.url;
+        meta.photo_storage_path = uploaded.storagePath;
+      }
+    }
+
     await db.from('activity_feed').insert({
       user_id: currentUser.id,
       activity_type: 'check_in',
@@ -381,6 +431,7 @@ async function submitSpotExperience() {
       meta,
     });
 
+    window._pendingAddSpotPhoto = null;
     dismissOverlay(document.querySelector('.overlay.open'));
     showToast('Spot shared!');
     _socialLoading = false;
@@ -484,6 +535,28 @@ function renderSocialItem(item) {
           onerror="this.closest('.social-card').remove()">
       </div>
       ${item.caption ? `<div class="social-caption">${esc(item.caption)}</div>` : ''}
+      ${commentSection}
+    </div>`;
+  }
+
+  // ── Check-in with photo (from manual post) ──
+  if (item.type === 'check_in' && item.meta?.photo_url) {
+    return `<div class="social-card social-card--photo">
+      <div class="social-card-header">
+        <div class="social-avatar" ${profileClick}>${avatarHtml}</div>
+        <div class="social-card-meta">
+          ${followBadge ? `<div class="social-follow-badge-row">${followBadge}</div>` : ''}
+          <div class="social-card-name" ${profileClick}>${esc(displayName)}</div>
+          <div class="social-card-action">checked in at <span class="social-venue-link" ${venueClick}>${esc(venueName)}</span></div>
+          <div class="social-card-time">${neighborhood ? neighborhood + ' · ' : ''}${timeAgo}</div>
+        </div>
+      </div>
+      <div class="social-photo-wrap">
+        <img class="social-photo" src="${esc(item.meta.photo_url)}" alt="${esc(venueName)}" loading="lazy"
+          onerror="this.closest('.social-photo-wrap').remove()">
+      </div>
+      ${item.meta?.note ? `<div class="social-caption">${esc(item.meta.note)}</div>` : ''}
+      ${item.meta?.rating ? `<div style="font-size:12px;color:var(--coral);padding:0 16px 8px">${'★'.repeat(item.meta.rating)}${'☆'.repeat(5-item.meta.rating)}</div>` : ''}
       ${commentSection}
     </div>`;
   }
@@ -3499,12 +3572,14 @@ function dmShowScreen(name) {
   const newBtn  = document.getElementById('dmNewBtn');
   const title   = document.getElementById('dmTitle');
   if (name === 'inbox') {
-    backBtn.style.visibility = 'hidden';
+    backBtn.style.display    = 'none';
     newBtn.style.display     = '';
     title.innerHTML          = '<img src="/spotd_logo_v5.png" alt="Spotd" class="header-logo-img" onerror="this.style.display=\'none\'">';
+    title.style.textAlign    = 'left';
   } else {
-    backBtn.style.visibility = 'visible';
+    backBtn.style.display    = '';
     newBtn.style.display     = 'none';
+    title.style.textAlign    = 'center';
   }
 }
 
