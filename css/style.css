@@ -1122,6 +1122,8 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   background: var(--bg);
 }
 .social-header-title { font-family: 'Cabinet Grotesk', sans-serif; font-weight: 900; font-size: 22px; letter-spacing: -0.5px; }
+.header-logo-img { height: 26px; width: auto; display: block; object-fit: contain; }
+.pf-logo-bar { padding: 14px 18px 10px; padding-top: calc(14px + env(safe-area-inset-top, 0px)); background: var(--bg); }
 .social-refresh-btn  { background: none; border: none; cursor: pointer; padding: 6px; color: var(--muted); display: flex; align-items: center; border-radius: 8px; }
 .social-refresh-btn:active { background: var(--bg2); }
 
