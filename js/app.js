@@ -1688,6 +1688,7 @@ async function renderProfile(user) {
   const headerUrl = profile?.header_url || '';
 
   document.getElementById('profileContent').innerHTML = `
+    <div class="pf-logo-bar"><img src="/spotd_logo_v5.png" alt="Spotd" class="header-logo-img" onerror="this.style.display='none'"></div>
     <div class="pf-hero" id="myBannerHero" ${headerUrl ? `style="background:url('${esc(headerUrl)}') center/cover no-repeat"` : ''}>
       ${!headerUrl ? `<div class="pf-hero-burst"></div><div class="pf-hero-grid"></div>
       <div class="pf-ring pf-ring-1"></div><div class="pf-ring pf-ring-2"></div><div class="pf-ring pf-ring-3"></div>` : ''}
@@ -3500,7 +3501,7 @@ function dmShowScreen(name) {
   if (name === 'inbox') {
     backBtn.style.visibility = 'hidden';
     newBtn.style.display     = '';
-    title.textContent        = 'Messages';
+    title.innerHTML          = '<img src="/spotd_logo_v5.png" alt="Spotd" class="header-logo-img" onerror="this.style.display=\'none\'">';
   } else {
     backBtn.style.visibility = 'visible';
     newBtn.style.display     = 'none';
