@@ -831,6 +831,16 @@ async function enterCity(slug, name, stateCode) {
   state.venues = venues;
   state.events = events;
 
+  // Native iOS: cache venues for offline + index in Spotlight
+  if (window.spotdNative?.platform === 'ios') {
+    try {
+      const cachePayload = venues.map(v => ({ id: v.id, name: v.name, neighborhood: v.neighborhood, cuisine: v.cuisine, deals: v.deals, lat: v.lat, lng: v.lng, photo_url: v.photo_url }));
+      window.spotdCache?.set('venues', JSON.stringify(cachePayload));
+      window.spotdCache?.set('city', name);
+      window.spotdSpotlight?.indexVenues(JSON.stringify(cachePayload));
+    } catch(e) {}
+  }
+
   // Load checked in tonight counts
   loadGoingTonight(slug);
 
