@@ -789,13 +789,6 @@ function showHome() {
 }
 
 async function enterCity(slug, name, stateCode) {
-  // Gate: require sign-in before entering a city
-  if (!currentUser) {
-    openAuth('signin');
-    // After sign-in completes, re-enter the city
-    window._pendingCity = { slug, name, stateCode };
-    return;
-  }
   state.city = { slug, name, stateCode };
   localStorage.setItem('spotd-last-city', slug);
   document.getElementById('homePage').style.display = 'none';
@@ -1171,8 +1164,27 @@ function _renderCardsNow() {
     </div>`;
     return;
   }
-  const html = state.filtered.map(v => v.event_type ? eventCardHTML(v) : venueCardHTML(v)).join('');
-  grid.innerHTML = html;
+  // Guest preview: show 3 cards + sign-up wall
+  const GUEST_PREVIEW_LIMIT = 3;
+  const isGuest = !currentUser;
+  const items = isGuest ? state.filtered.slice(0, GUEST_PREVIEW_LIMIT) : state.filtered;
+  const html = items.map(v => v.event_type ? eventCardHTML(v) : venueCardHTML(v)).join('');
+
+  if (isGuest && state.filtered.length > GUEST_PREVIEW_LIMIT) {
+    const remaining = state.filtered.length - GUEST_PREVIEW_LIMIT;
+    grid.innerHTML = html + `<div class="guest-signup-wall">
+      <div class="guest-signup-wall-fade"></div>
+      <div class="guest-signup-wall-content">
+        <div class="guest-signup-wall-icon">${ICN.pin}</div>
+        <div class="guest-signup-wall-title">${remaining}+ more spots in ${esc(state.city.name)}</div>
+        <div class="guest-signup-wall-sub">Create a free account to see all happy hours, check in, save favorites, and more</div>
+        <button class="guest-signup-wall-btn" onclick="openAuth('signup')">Sign Up Free</button>
+        <button class="guest-signup-wall-link" onclick="openAuth('signin')">Already have an account? Sign In</button>
+      </div>
+    </div>`;
+  } else {
+    grid.innerHTML = html;
+  }
 }
 
 function venueCardHTML(v) {
@@ -1300,6 +1312,7 @@ function toggleFavFilter() {
 // ── MODAL ──────────────────────────────────────────────
 async function openModal(id, type = 'venue') {
   if(typeof haptic==='function')haptic('light');
+  if (!currentUser) { openAuth('signup'); return; }
   state.activeItemId   = id;
   state.activeItemType = type;
   const items = type === 'venue' ? state.venues : state.events;
