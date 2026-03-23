@@ -77,33 +77,40 @@ async function initAuth() {
 
     const now = Math.floor(Date.now() / 1000);
 
+    // Immediately restore user so the UI doesn't flash the home page
+    currentUser  = stored.user;
+    _accessToken = stored.access_token;
+
     if (stored.expires_at > now) {
-      // Token still valid — restore directly
-      currentUser  = stored.user;
-      _accessToken = stored.access_token;
+      // Token still valid — restore session
       await db.auth.setSession({
         access_token:  stored.access_token,
         refresh_token: stored.refresh_token || '',
       });
       _scheduleTokenRefresh(stored.expires_at - now);
     } else if (stored.refresh_token) {
-      // Token expired — try to refresh silently
-      const s = await _refreshAndPersist(stored.refresh_token);
-      if (!s) {
-        localStorage.removeItem(_storageKey);
-        if (typeof onAuthChange === 'function') onAuthChange(null);
-        return;
-      }
+      // Token expired — enter city immediately, refresh in background
+      _refreshAndPersist(stored.refresh_token).then(s => {
+        if (!s) {
+          localStorage.removeItem(_storageKey);
+          currentUser = null; _accessToken = null; userFavorites = new Set();
+          if (typeof onAuthChange === 'function') onAuthChange(null);
+        }
+      }).catch(() => {});
     } else {
       // No refresh token — clear and bail
       localStorage.removeItem(_storageKey);
+      currentUser = null; _accessToken = null;
       return;
     }
 
-    await loadFavorites();
+    // Load favorites in background — don't block city entry
+    loadFavorites().catch(() => {});
     if (typeof onAuthChange === 'function') onAuthChange(currentUser);
   } catch(e) {
     console.warn('[initAuth] error', e);
+    // If we had a user but hit an error, still try to enter
+    if (currentUser && typeof onAuthChange === 'function') onAuthChange(currentUser);
   }
 }
 
