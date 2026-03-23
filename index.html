@@ -251,6 +251,11 @@
 
   <footer class="btf-footer">
     <p>Spotd · Happy Hours &amp; Events · Always verify times directly with venues</p>
+    <div class="btf-footer-legal">
+      <a href="#" onclick="event.preventDefault();openLegalPage('privacy')" class="btf-footer-link">Privacy Policy</a>
+      <span class="btf-footer-sep">·</span>
+      <a href="#" onclick="event.preventDefault();openLegalPage('terms')" class="btf-footer-link">Terms of Service</a>
+    </div>
     <a href="mailto:support@spotd.biz" class="btf-footer-biz">Support: support@spotd.biz</a>
     <a href="/business-landing.html" class="btf-footer-biz">Own a venue? List it free →</a>
   </footer>
@@ -367,6 +372,16 @@
     <div class="sheet-handle"></div>
     <button class="sheet-close" onclick="closeAuth()">✕</button>
     <div id="authContent"></div>
+  </div>
+</div>
+
+<!-- LEGAL PAGE OVERLAY -->
+
+<div class="overlay" id="legalOverlay" onclick="closeLegal(event)">
+  <div class="sheet sheet--tall">
+    <div class="sheet-handle"></div>
+    <button class="sheet-close" onclick="closeLegal()">✕</button>
+    <div id="legalContent" style="overflow-y:auto;max-height:70vh;padding:0 4px 24px"></div>
   </div>
 </div>
 

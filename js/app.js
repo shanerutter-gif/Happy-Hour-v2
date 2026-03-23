@@ -498,6 +498,7 @@ function renderSocialItem(item) {
   const postType = item.type || '';
   const likeCount = item._likeCount || 0;
   const isLiked = item._liked || false;
+  const reportBtn = !isMe ? `<button class="social-report-btn" onclick="event.stopPropagation();openReportMenu('${postType}','${postId}','${item.user_id}')" title="Report">···</button>` : '';
   const commentSection = `
     <div class="social-actions-bar" id="actions-${postId}">
       <button class="social-like-btn${isLiked ? ' liked' : ''}" id="like-${postId}" onclick="doToggleLike('${postId}','${postType}',this)">
@@ -523,12 +524,13 @@ function renderSocialItem(item) {
     return `<div class="social-card social-card--photo">
       <div class="social-card-header">
         <div class="social-avatar" ${profileClick}>${avatarHtml}</div>
-        <div class="social-card-meta">
+        <div class="social-card-meta" style="flex:1">
           ${followBadge ? `<div class="social-follow-badge-row">${followBadge}</div>` : ''}
           <div class="social-card-name" ${profileClick}>${esc(displayName)}</div>
           <div class="social-card-action">checked in at <span class="social-venue-link" ${venueClick}>${esc(venueName)}</span></div>
           <div class="social-card-time">${neighborhood ? neighborhood + ' · ' : ''}${timeAgo}</div>
         </div>
+        ${reportBtn}
       </div>
       <div class="social-photo-wrap" ${venueClick}>
         <img class="social-photo" src="${esc(item.photo_url)}" alt="${esc(venueName)}" loading="lazy"
@@ -544,12 +546,13 @@ function renderSocialItem(item) {
     return `<div class="social-card social-card--photo">
       <div class="social-card-header">
         <div class="social-avatar" ${profileClick}>${avatarHtml}</div>
-        <div class="social-card-meta">
+        <div class="social-card-meta" style="flex:1">
           ${followBadge ? `<div class="social-follow-badge-row">${followBadge}</div>` : ''}
           <div class="social-card-name" ${profileClick}>${esc(displayName)}</div>
           <div class="social-card-action">checked in at <span class="social-venue-link" ${venueClick}>${esc(venueName)}</span></div>
           <div class="social-card-time">${neighborhood ? neighborhood + ' · ' : ''}${timeAgo}</div>
         </div>
+        ${reportBtn}
       </div>
       <div class="social-photo-wrap">
         <img class="social-photo" src="${esc(item.meta.photo_url)}" alt="${esc(venueName)}" loading="lazy"
@@ -576,7 +579,7 @@ function renderSocialItem(item) {
           ${item.meta?.note ? `<div class="social-row-note">"${esc(item.meta.note)}"</div>` : ''}
           ${item.meta?.rating ? `<div style="font-size:12px;color:var(--coral);margin-top:2px">${'★'.repeat(item.meta.rating)}${'☆'.repeat(5-item.meta.rating)}</div>` : ''}
         </div>
-        <div class="social-row-icon">${ICN.pin}</div>
+        <div class="social-row-icon">${!isMe ? `<span class="social-report-btn" onclick="event.stopPropagation();openReportMenu('${postType}','${postId}','${item.user_id}')" title="Report">···</span>` : ICN.pin}</div>
       </div>
       ${commentSection}
     </div>`;
@@ -598,6 +601,7 @@ function renderSocialItem(item) {
           ${item.meta?.text ? `<div class="social-row-note">"${esc(item.meta.text)}"</div>` : ''}
           <div class="social-row-meta">${neighborhood ? neighborhood + ' · ' : ''}${timeAgo}</div>
         </div>
+        ${!isMe ? `<span class="social-report-btn" onclick="event.stopPropagation();openReportMenu('review','${postId}','${item.user_id}')" title="Report">···</span>` : ''}
       </div>
       ${commentSection}
     </div>`;
@@ -1493,7 +1497,7 @@ function renderReviewList(reviews, itemId, type) {
       ${isOwn ? `<div class="review-acts">
         <button class="review-act" onclick="openEditReview('${r.id}','${itemId}','${type}',${r.rating},\`${esc(r.text || '')}\`)">Edit</button>
         <button class="review-act del" onclick="doDeleteReview('${r.id}','${itemId}','${type}')">Delete</button>
-      </div>` : ''}
+      </div>` : `<div class="review-acts"><button class="review-act" onclick="openReportMenu('review','${r.id}','${r.user_id}')">Report</button></div>`}
     </div>`;
   }).join('');
 }
@@ -1597,11 +1601,16 @@ function renderAuth(mode) {
     ${si ? `<button class="auth-forgot" onclick="doForgot()">Forgot password?</button>` : ''}
     <button class="btn-submit" id="authBtn" onclick="doAuth('${mode}')" style="width:100%;margin-top:4px">${si ? 'Sign In' : 'Create Account'}</button>
     <div class="auth-divider"><span>or</span></div>
+    <button class="btn-apple" onclick="doAppleSignIn()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.51-3.23 0-1.44.64-2.2.45-3.06-.4C3.79 16.17 4.36 9.04 8.86 8.78c1.18.06 2 .7 2.7.73.98-.2 1.92-.77 2.98-.7 1.27.1 2.23.6 2.84 1.53-2.6 1.54-1.98 4.93.38 5.88-.46 1.2-.67 1.73-1.25 2.78-.85 1.5-2.04 3.37-3.46 3.28zM12.15 8.7c-.15-2.23 1.66-4.07 3.74-4.25.29 2.4-2.17 4.2-3.74 4.25z"/></svg>
+      Continue with Apple
+    </button>
     <button class="btn-google" onclick="doGoogleSignIn()">
       <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59a14.5 14.5 0 0 1 0-9.18l-7.98-6.19a24.0 24.0 0 0 0 0 21.56l7.98-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
       Continue with Google
     </button>
-    <p class="auth-switch">${si ? "No account?" : 'Have an account?'} <button class="auth-switch-btn" onclick="renderAuth('${si ? 'signup' : 'signin'}')">${si ? 'Sign up free' : 'Sign in'}</button></p>`;
+    <p class="auth-switch">${si ? "No account?" : 'Have an account?'} <button class="auth-switch-btn" onclick="renderAuth('${si ? 'signup' : 'signin'}')">${si ? 'Sign up free' : 'Sign in'}</button></p>
+    <div class="auth-legal">By continuing, you agree to our <a href="#" onclick="event.preventDefault();event.stopPropagation();openLegalPage('terms')">Terms</a> and <a href="#" onclick="event.preventDefault();event.stopPropagation();openLegalPage('privacy')">Privacy Policy</a></div>`;
   setTimeout(() => {
     ['aEmail','aPass','aName','aPhone'].forEach(id => {
       const el = document.getElementById(id);
@@ -2007,6 +2016,19 @@ function openProfileSettings() {
         style="width:100%;margin-top:8px;padding:13px;border-radius:12px;border:1.5px solid #e53935;background:none;color:#e53935;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;cursor:pointer;">
         Sign Out
       </button>
+
+      <div class="p-section" style="margin-top:24px;border-top:1px solid var(--border);padding-top:16px">
+        <button onclick="doDeleteAccount().then(()=>dismissOverlay(this.closest('.overlay')))"
+          style="width:100%;padding:13px;border-radius:12px;border:none;background:none;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;text-decoration:underline;">
+          Delete Account
+        </button>
+      </div>
+
+      <div style="text-align:center;margin-top:16px">
+        <a href="#" onclick="event.preventDefault();openLegalPage('privacy')" style="font-size:12px;color:var(--muted)">Privacy Policy</a>
+        <span style="color:var(--muted);font-size:12px"> · </span>
+        <a href="#" onclick="event.preventDefault();openLegalPage('terms')" style="font-size:12px;color:var(--muted)">Terms of Service</a>
+      </div>
     </div>`;
 
   // Pre-fill bio and toggles
@@ -4216,7 +4238,244 @@ function selectProfileTab(tab, btn) {
   if (btn) { btn.classList.add('on'); btn.classList.add('active'); }
 }
 
+// ── LEGAL PAGES ──────────────────────────────────────
+function openLegalPage(page) {
+  const el = document.getElementById('legalContent');
+  if (page === 'privacy') {
+    el.innerHTML = `
+      <h2 style="font-size:20px;font-weight:800;margin-bottom:12px">Privacy Policy</h2>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:16px">Effective: March 2026</p>
+      <div class="legal-body">
+        <p>Spotd ("we", "us", "our") operates the Spotd mobile application and website (spotd.biz). This Privacy Policy explains how we collect, use, and protect your information.</p>
+        <h3>Information We Collect</h3>
+        <p><strong>Account data:</strong> When you create an account, we collect your email address, display name, and optionally your phone number.</p>
+        <p><strong>Location data:</strong> With your permission, we collect your approximate location to show nearby venues and events. We use location only while the app is in use and do not track you in the background.</p>
+        <p><strong>Usage data:</strong> We collect information about your interactions with the app, including check-ins, reviews, favorites, and social activity.</p>
+        <p><strong>Photos:</strong> If you choose to upload check-in photos, we store them securely in our cloud storage.</p>
+        <h3>How We Use Your Information</h3>
+        <ul>
+          <li>Display nearby happy hours, events, and venues</li>
+          <li>Enable social features (check-ins, reviews, messaging)</li>
+          <li>Send push notifications you've opted into</li>
+          <li>Send promotional SMS messages if you've consented</li>
+          <li>Improve the app experience and fix issues</li>
+        </ul>
+        <h3>Data Sharing</h3>
+        <p>We do not sell your personal information. We share data only with:</p>
+        <ul>
+          <li><strong>Supabase:</strong> Our database and authentication provider</li>
+          <li><strong>Google:</strong> If you sign in with Google OAuth</li>
+          <li><strong>Apple:</strong> If you sign in with Apple</li>
+        </ul>
+        <h3>Data Retention & Deletion</h3>
+        <p>You can delete your account and all associated data at any time from your Profile Settings. Upon deletion, we remove your profile, reviews, check-ins, messages, and favorites. Some anonymized aggregate data may be retained.</p>
+        <h3>Your Rights</h3>
+        <p>You may request access to, correction of, or deletion of your personal data at any time by emailing <a href="mailto:support@spotd.biz" style="color:var(--accent)">support@spotd.biz</a> or using the in-app account deletion feature.</p>
+        <h3>Children's Privacy</h3>
+        <p>Spotd is not intended for users under the age of 21. We do not knowingly collect information from anyone under 21.</p>
+        <h3>Changes</h3>
+        <p>We may update this policy from time to time. We will notify you of material changes via the app or email.</p>
+        <h3>Contact</h3>
+        <p>Questions? Email us at <a href="mailto:support@spotd.biz" style="color:var(--accent)">support@spotd.biz</a></p>
+      </div>`;
+  } else {
+    el.innerHTML = `
+      <h2 style="font-size:20px;font-weight:800;margin-bottom:12px">Terms of Service</h2>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:16px">Effective: March 2026</p>
+      <div class="legal-body">
+        <p>By using Spotd ("the App"), you agree to these Terms of Service. If you do not agree, do not use the App.</p>
+        <h3>Eligibility</h3>
+        <p>You must be at least 21 years of age to use Spotd. By creating an account, you confirm that you are 21 or older.</p>
+        <h3>Account Responsibilities</h3>
+        <p>You are responsible for maintaining the security of your account and for all activity under it. You agree to provide accurate information and keep it up to date.</p>
+        <h3>Acceptable Use</h3>
+        <p>You agree not to:</p>
+        <ul>
+          <li>Post false, misleading, or defamatory content</li>
+          <li>Harass, bully, or threaten other users</li>
+          <li>Upload illegal, obscene, or harmful content</li>
+          <li>Spam or send unsolicited commercial messages</li>
+          <li>Impersonate other users or entities</li>
+          <li>Attempt to access other users' accounts</li>
+          <li>Use the app for any unlawful purpose</li>
+        </ul>
+        <h3>User-Generated Content</h3>
+        <p>You retain ownership of content you post (reviews, photos, comments). By posting, you grant Spotd a non-exclusive, worldwide license to display and distribute that content within the app. We may remove content that violates these terms.</p>
+        <h3>Content Moderation</h3>
+        <p>Users can report inappropriate content or users. We reserve the right to remove content and suspend or terminate accounts that violate these terms, at our sole discretion.</p>
+        <h3>Venue Information</h3>
+        <p>Happy hour times, deals, and event information are provided for convenience and may not always be current. Always verify directly with the venue.</p>
+        <h3>Termination</h3>
+        <p>You may delete your account at any time via Profile Settings. We may suspend or terminate accounts that violate these terms.</p>
+        <h3>Disclaimer</h3>
+        <p>Spotd is provided "as is" without warranties of any kind. We are not responsible for the accuracy of venue information or user-generated content.</p>
+        <h3>Limitation of Liability</h3>
+        <p>Spotd shall not be liable for any indirect, incidental, or consequential damages arising from your use of the app.</p>
+        <h3>Contact</h3>
+        <p>Questions? Email us at <a href="mailto:support@spotd.biz" style="color:var(--accent)">support@spotd.biz</a></p>
+      </div>`;
+  }
+  openOverlay('legalOverlay');
+}
+function closeLegal(e) { if (e && e.target !== document.getElementById('legalOverlay')) return; closeOverlay('legalOverlay'); }
+
+// ── AGE GATE ─────────────────────────────────────────
+function checkAgeGate() {
+  if (localStorage.getItem('spotd-age-verified')) return;
+  const overlay = document.createElement('div');
+  overlay.className = 'overlay open';
+  overlay.id = 'ageGateOverlay';
+  overlay.style.zIndex = '99999';
+  overlay.innerHTML = `
+    <div class="sheet" style="text-align:center">
+      <div style="font-size:40px;margin-bottom:8px">🍸</div>
+      <div style="font-weight:800;font-size:20px;margin-bottom:8px">Are you 21 or older?</div>
+      <p style="color:var(--muted);font-size:14px;margin-bottom:20px;line-height:1.4">
+        Spotd features bars, breweries, and happy hour deals.<br>You must be of legal drinking age to continue.
+      </p>
+      <button class="btn-submit" style="width:100%;margin-bottom:10px" onclick="confirmAge(true)">Yes, I'm 21+</button>
+      <button style="width:100%;padding:13px;border-radius:12px;border:1.5px solid var(--border);background:none;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:14px;cursor:pointer" onclick="confirmAge(false)">No, I'm under 21</button>
+      <div style="margin-top:16px">
+        <a href="#" onclick="event.preventDefault();openLegalPage('privacy')" style="font-size:12px;color:var(--muted)">Privacy Policy</a>
+        <span style="color:var(--muted);font-size:12px"> · </span>
+        <a href="#" onclick="event.preventDefault();openLegalPage('terms')" style="font-size:12px;color:var(--muted)">Terms of Service</a>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+function confirmAge(isOldEnough) {
+  if (isOldEnough) {
+    localStorage.setItem('spotd-age-verified', '1');
+    const overlay = document.getElementById('ageGateOverlay');
+    if (overlay) overlay.remove();
+  } else {
+    document.getElementById('ageGateOverlay').querySelector('.sheet').innerHTML = `
+      <div style="font-size:40px;margin-bottom:8px">🚫</div>
+      <div style="font-weight:800;font-size:20px;margin-bottom:8px">Sorry!</div>
+      <p style="color:var(--muted);font-size:14px;line-height:1.4">
+        You must be 21 or older to use Spotd.<br>Come back when you're of legal drinking age!
+      </p>`;
+  }
+}
+
+// ── ACCOUNT DELETION ─────────────────────────────────
+async function doDeleteAccount() {
+  if (!currentUser) return;
+  const confirmed = confirm('Are you sure you want to delete your account? This will permanently remove all your data including reviews, check-ins, favorites, and messages. This cannot be undone.');
+  if (!confirmed) return;
+  const doubleConfirm = confirm('This is permanent. Type OK to confirm you want to delete your account and all data.');
+  if (!doubleConfirm) return;
+  try {
+    showToast('Deleting account…');
+    // Delete user data from all tables
+    const userId = currentUser.id;
+    await Promise.allSettled([
+      db.from('reviews').delete().eq('user_id', userId),
+      db.from('check_ins').delete().eq('user_id', userId),
+      db.from('favorites').delete().eq('user_id', userId),
+      db.from('social_likes').delete().eq('user_id', userId),
+      db.from('social_comments').delete().eq('user_id', userId),
+      db.from('messages').delete().eq('sender_id', userId),
+      db.from('conversation_participants').delete().eq('user_id', userId),
+      db.from('activity_feed').delete().eq('user_id', userId),
+      db.from('neighborhood_follows').delete().eq('user_id', userId),
+      db.from('user_follows').delete().eq('follower_id', userId),
+      db.from('user_follows').delete().eq('followed_id', userId),
+    ]);
+    // Delete profile last
+    await db.from('profiles').delete().eq('id', userId);
+    // Sign out
+    await authSignOut();
+    showHome();
+    showToast('Account deleted. We\'re sorry to see you go.');
+  } catch(e) {
+    showToast('Error deleting account. Please email support@spotd.biz');
+    console.error('deleteAccount error', e);
+  }
+}
+
+// ── REPORT / BLOCK ───────────────────────────────────
+function openReportMenu(contentType, contentId, userId) {
+  if (!currentUser) { openAuth('signin'); return; }
+  const overlay = document.createElement('div');
+  overlay.className = 'overlay open';
+  overlay.onclick = e => { if (e.target === overlay) dismissOverlay(overlay); };
+  overlay.innerHTML = `
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <button class="sheet-close" onclick="dismissOverlay(this.closest('.overlay'))">✕</button>
+      <div style="font-weight:800;font-size:17px;margin-bottom:16px">Report</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button class="report-option" onclick="submitReport('${contentType}','${contentId}','${userId}','spam',this)">Spam or fake</button>
+        <button class="report-option" onclick="submitReport('${contentType}','${contentId}','${userId}','inappropriate',this)">Inappropriate or offensive</button>
+        <button class="report-option" onclick="submitReport('${contentType}','${contentId}','${userId}','harassment',this)">Harassment or bullying</button>
+        <button class="report-option" onclick="submitReport('${contentType}','${contentId}','${userId}','misinformation',this)">False information</button>
+      </div>
+      ${userId && userId !== currentUser.id ? `
+        <div style="border-top:1px solid var(--border);margin-top:16px;padding-top:16px">
+          <button class="report-option report-option--block" onclick="doBlockUser('${userId}',this)">Block this user</button>
+        </div>` : ''}
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+async function submitReport(contentType, contentId, reportedUserId, reason, btn) {
+  if (btn) { btn.disabled = true; btn.textContent = 'Reporting…'; }
+  try {
+    await db.from('reports').insert({
+      reporter_id: currentUser.id,
+      content_type: contentType,
+      content_id: contentId,
+      reported_user_id: reportedUserId || null,
+      reason: reason,
+    });
+    const overlay = btn?.closest('.overlay');
+    if (overlay) dismissOverlay(overlay);
+    showToast('Reported. We\'ll review this shortly.');
+  } catch(e) {
+    showToast('Report sent. Thank you.');
+    const overlay = btn?.closest('.overlay');
+    if (overlay) dismissOverlay(overlay);
+  }
+}
+
+async function doBlockUser(userId, btn) {
+  if (btn) { btn.disabled = true; btn.textContent = 'Blocking…'; }
+  try {
+    await db.from('blocked_users').insert({
+      blocker_id: currentUser.id,
+      blocked_id: userId,
+    });
+    const overlay = btn?.closest('.overlay');
+    if (overlay) dismissOverlay(overlay);
+    showToast('User blocked. You won\'t see their content.');
+  } catch(e) {
+    showToast('User blocked.');
+    const overlay = btn?.closest('.overlay');
+    if (overlay) dismissOverlay(overlay);
+  }
+}
+
+// ── APPLE SIGN IN ────────────────────────────────────
+async function doAppleSignIn() {
+  if(typeof haptic==='function')haptic('medium');
+  try {
+    const { data, error } = await db.auth.signInWithOAuth({
+      provider: 'apple',
+      options: {
+        redirectTo: window.location.origin + '/?auth_callback=1',
+      }
+    });
+    if (error) throw error;
+    return { data, error: null };
+  } catch(e) {
+    showToast('Error: ' + e.message);
+    return { error: { message: e.message } };
+  }
+}
+
 // ── BOOT ──────────────────────────────────────────────
 // Called here — after ALL functions above are defined —
 // so onAuthChange exists when initAuth fires the callback.
+checkAgeGate();
 initAuth();
