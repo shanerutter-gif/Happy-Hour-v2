@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to Spotd</title>
+  <style>
+    body { margin: 0; padding: 0; background: #F5F0E6; font-family: -apple-system, 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #2A1F14; }
+    .wrapper { max-width: 520px; margin: 0 auto; padding: 40px 24px; }
+    .logo { font-size: 36px; font-weight: 900; color: #FF6B4A; letter-spacing: -1px; }
+    .hero { margin: 32px 0 24px; }
+    .hero h1 { font-size: 26px; font-weight: 800; line-height: 1.3; margin: 0 0 12px; }
+    .hero p { font-size: 16px; color: #6B5E52; line-height: 1.6; margin: 0; }
+    .card { background: #fff; border-radius: 16px; padding: 24px; margin: 24px 0; box-shadow: 0 1px 4px rgba(42,31,20,0.06); }
+    .step { display: flex; gap: 14px; margin-bottom: 20px; }
+    .step:last-child { margin-bottom: 0; }
+    .step-num { width: 28px; height: 28px; border-radius: 50%; background: rgba(255,107,74,0.12); color: #FF6B4A; font-weight: 800; font-size: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .step-text { font-size: 15px; line-height: 1.5; }
+    .step-text strong { color: #2A1F14; }
+    .cta { display: inline-block; background: #FF6B4A; color: #fff; padding: 14px 32px; border-radius: 12px; font-weight: 700; font-size: 16px; text-decoration: none; margin: 24px 0; }
+    .footer { margin-top: 40px; font-size: 12px; color: #A89E94; text-align: center; line-height: 1.6; }
+    .footer a { color: #A89E94; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="logo">Spotd</div>
+
+    <div class="hero">
+      <h1>Welcome to Spotd, {{firstName}}!</h1>
+      <p>You just joined the easiest way to find happy hours, deals, and events near you. Here's how to get the most out of it.</p>
+    </div>
+
+    <div class="card">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-text"><strong>Browse spots near you</strong> — swipe through the best happy hours in your city, filtered by neighborhood.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-text"><strong>Check in</strong> — tap the check-in button when you're at a spot. Earn badges and climb the leaderboard.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-text"><strong>Follow spots</strong> — get deal alerts so you never miss your favorite happy hours.</div>
+      </div>
+    </div>
+
+    <a href="https://spotd.biz" class="cta">Find your first spot</a>
+
+    <div class="footer">
+      <p>You're receiving this because you signed up for Spotd.</p>
+      <p><a href="{{{unsubscribeUrl}}}">Unsubscribe</a></p>
+    </div>
+  </div>
+</body>
+</html>

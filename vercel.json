@@ -2,6 +2,7 @@
   "version": 2,
   "routes": [
     { "src": "/api/auth",                  "dest": "/api/auth.js" },
+    { "src": "/api/loops-onboarding",      "dest": "/api/loops-onboarding.js" },
     { "src": "/api/stripe-checkout",       "dest": "/api/stripe-checkout.js" },
     { "src": "/api/stripe-billing-portal", "dest": "/api/stripe-billing-portal.js" },
     { "src": "/api/stripe-webhook",        "dest": "/api/stripe-webhook.js" },

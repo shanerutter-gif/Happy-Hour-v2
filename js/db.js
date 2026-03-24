@@ -139,6 +139,15 @@ function getSession() {
   return _accessToken ? { user: currentUser, access_token: _accessToken } : null;
 }
 
+// ── LOOPS ONBOARDING (fire-and-forget) ────────────────
+function triggerLoopsOnboarding(email, firstName, userId, source) {
+  fetch('/api/loops-onboarding', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, firstName, userId, source }),
+  }).catch(e => console.warn('[Loops] Onboarding trigger failed:', e.message));
+}
+
 // ── AUTH ───────────────────────────────────────────────
 async function authSignIn(email, password) {
   try {
@@ -188,6 +197,8 @@ async function authSignUp(email, password, displayName) {
     const data = await res.json();
     if (data.error_description) return { error: { message: data.error_description } };
     if (data.error)             return { error: { message: data.error } };
+    // Trigger onboarding email sequence (fire-and-forget)
+    triggerLoopsOnboarding(email, displayName, data.user?.id, 'email-signup');
     if (data.access_token) return authSignIn(email, password);
     return { data, error: null };
   } catch (e) {
@@ -263,6 +274,11 @@ async function handleOAuthCallback() {
     _accessToken = accessToken;
     _scheduleTokenRefresh(expiresIn);
     await loadFavorites();
+
+    // Trigger onboarding for new OAuth signups (Loops dedupes existing contacts)
+    if (user.email) {
+      triggerLoopsOnboarding(user.email, user.user_metadata?.full_name, user.id, 'google-oauth');
+    }
 
     // Clean URL
     window.history.replaceState({}, document.title, window.location.pathname);
