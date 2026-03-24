@@ -309,7 +309,7 @@ function maybeShowSocialNudge() {
         ${seen < 2 ? `<div style="font-size:11px;color:var(--muted);margin-top:8px">${2 - seen} reminder${2 - seen !== 1 ? 's' : ''} left</div>` : ''}
       </div>`;
     overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
-    document.body.appendChild(overlay);
+    presentOverlay(overlay);
   }, 400);
 }
 function closeSocialTab() {
@@ -319,7 +319,7 @@ function closeSocialTab() {
 function openAddSpotForm() {
   if (!currentUser) { openAuth('signin'); return; }
   const overlay = document.createElement('div');
-  overlay.className = 'overlay open';
+  overlay.className = 'overlay';
   overlay.onclick = e => { if (e.target === overlay) dismissOverlay(overlay); };
   overlay.innerHTML = `
     <div class="sheet">
@@ -362,7 +362,7 @@ function openAddSpotForm() {
 
       <button class="btn-save-sm" id="addSpotBtn" style="width:100%;padding:14px;margin-top:8px" onclick="submitSpotExperience()">Share with the feed</button>
     </div>`;
-  document.body.appendChild(overlay);
+  presentOverlay(overlay);
 }
 
 function handleAddSpotPhoto(input) {
@@ -1755,7 +1755,24 @@ function closeProfile() {
   const page = document.getElementById('profilePage');
   if (!page) return;
   page.classList.remove('profile-page--open');
+  closeProfileMenu();
 }
+
+function toggleProfileMenu(e) {
+  e.stopPropagation();
+  const dd = document.getElementById('pfDropdown');
+  if (!dd) return;
+  const isOpen = dd.classList.contains('pf-dropdown--open');
+  if (isOpen) { closeProfileMenu(); return; }
+  dd.classList.add('pf-dropdown--open');
+  // Close on any outside click
+  setTimeout(() => document.addEventListener('click', _closeMenuOnClick, { once: true }), 0);
+}
+function closeProfileMenu() {
+  document.getElementById('pfDropdown')?.classList.remove('pf-dropdown--open');
+  document.removeEventListener('click', _closeMenuOnClick);
+}
+function _closeMenuOnClick() { closeProfileMenu(); }
 
 function openSubPage(id) {
   const page = document.getElementById(id);
@@ -1797,25 +1814,39 @@ async function renderProfile(user) {
     <div class="pf-hero" id="myBannerHero" ${headerUrl ? `style="background:url('${esc(headerUrl)}') center/cover no-repeat"` : ''}>
       ${!headerUrl ? `<div class="pf-hero-burst"></div><div class="pf-hero-grid"></div>
       <div class="pf-ring pf-ring-1"></div><div class="pf-ring pf-ring-2"></div><div class="pf-ring pf-ring-3"></div>` : ''}
-      <div class="pf-hero-overlay" onclick="pickHeaderPhoto()" title="Change header photo" style="cursor:pointer">
-        <span class="pf-hero-cam">${icn('camera',16)}</span>
-      </div>
       <div class="pf-avatar-zone">
-        <div class="pf-avatar" id="myAvatar" onclick="pickProfilePhoto()" title="Change profile photo" style="cursor:pointer">
+        <div class="pf-avatar" id="myAvatar">
           ${avatarUrl ? `<img src="${esc(avatarUrl)}" alt="Profile" style="width:100%;height:100%;border-radius:50%;object-fit:cover">` : initialsAvatar(displayName, 'initials-avatar--lg')}
         </div>
-        <div class="pf-avatar-cam">${icn('camera',12)}</div>
       </div>
       <div class="pf-hero-actions">
-        <button class="pf-hero-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle dark/light mode">
-          ${document.documentElement.getAttribute('data-theme') === 'dark' ? icn('sun',14) : icn('moon',14)}
+        <button class="pf-hamburger-btn" onclick="toggleProfileMenu(event)" title="Menu" id="pfMenuBtn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
         </button>
-        <button class="pf-hero-btn" onclick="shareSpotd()" title="Share">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-        </button>
-        <button class="pf-hero-btn" onclick="openProfileSettings()" title="Settings">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-        </button>
+        <div class="pf-dropdown" id="pfDropdown">
+          <button class="pf-dropdown-item" id="themeToggleBtn" onclick="toggleTheme();closeProfileMenu()">
+            ${document.documentElement.getAttribute('data-theme') === 'dark' ? icn('sun',16) : icn('moon',16)}
+            <span>${document.documentElement.getAttribute('data-theme') === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+          </button>
+          <button class="pf-dropdown-item" onclick="shareSpotd();closeProfileMenu()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+            <span>Share Spotd</span>
+          </button>
+          <div class="pf-dropdown-sep"></div>
+          <button class="pf-dropdown-item" onclick="pickProfilePhoto();closeProfileMenu()">
+            ${icn('camera',16)}
+            <span>Change Profile Photo</span>
+          </button>
+          <button class="pf-dropdown-item" onclick="pickHeaderPhoto();closeProfileMenu()">
+            ${icn('camera',16)}
+            <span>Change Header Photo</span>
+          </button>
+          <div class="pf-dropdown-sep"></div>
+          <button class="pf-dropdown-item" onclick="openProfileSettings();closeProfileMenu()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            <span>Settings</span>
+          </button>
+        </div>
       </div>
       <input type="file" id="headerPhotoInput" accept="image/*" style="display:none" onchange="handleHeaderPhoto(this)">
       <input type="file" id="profilePhotoInput" accept="image/*" style="display:none" onchange="handleProfilePhoto(this)">
@@ -1967,7 +1998,7 @@ function openProfileSettings() {
   ];
 
   const overlay = document.createElement('div');
-  overlay.className = 'overlay open';
+  overlay.className = 'overlay';
   overlay.onclick = e => { if (e.target === overlay) dismissOverlay(overlay); };
 
   const currentColor = document.getElementById('myBanner')?.style.getPropertyValue('--banner-color') || '#FF6B4A';
@@ -2042,7 +2073,7 @@ function openProfileSettings() {
     </div>`;
 
   // Pre-fill bio and toggles
-  document.body.appendChild(overlay);
+  presentOverlay(overlay);
   // Load current profile values
   if (currentUser) {
     fetchProfile(currentUser.id).then(p => {
@@ -2149,7 +2180,7 @@ async function pickBannerColor(color, btn) {
 function showBadgeInfo(badgeKey) {
   const def = BADGE_DEFS[badgeKey] || {};
   const overlay = document.createElement('div');
-  overlay.className = 'overlay open';
+  overlay.className = 'overlay';
   overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;';
   overlay.onclick = e => { if (e.target === overlay) dismissOverlay(overlay); };
   overlay.innerHTML = `
@@ -2160,7 +2191,7 @@ function showBadgeInfo(badgeKey) {
       <div style="font-size:14px;color:var(--muted);line-height:1.5;">${def.desc || 'Badge earned on Spotd'}</div>
       <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);font-size:12px;color:var(--muted);">${icn('trophy',14)} You've earned this badge!</div>
     </div>`;
-  document.body.appendChild(overlay);
+  presentOverlay(overlay);
 }
 
 async function showFollowersList() {
@@ -2476,16 +2507,34 @@ function buildMapSidebar() {
 }
 
 // ── OVERLAY HELPERS ────────────────────────────────────
+// Animate a dynamically created overlay into view (prevents flicker)
+function presentOverlay(overlay) {
+  overlay.classList.remove('open');
+  document.body.appendChild(overlay);
+  void overlay.offsetHeight; // force layout so starting state registers
+  requestAnimationFrame(() => overlay.classList.add('open'));
+}
 function openOverlay(id)  {
   const el = document.getElementById(id); if (!el) return;
-  // Force a layout before adding the class so the browser registers the starting state
-  void el.offsetHeight;
-  el.classList.add('open');
-  const profileOpen = document.getElementById('profilePage')?.classList.contains('profile-page--open');
-  if (!profileOpen) document.body.style.overflow = 'hidden';
-  // Attach swipe-down-to-dismiss to the sheet inside this overlay
+  // Ensure the sheet starts at translateY(100%) before animating in
   const sheet = el.querySelector('.sheet');
-  if (sheet) attachSwipeDismiss(sheet, id);
+  if (sheet) {
+    sheet.style.transition = 'none';
+    sheet.style.transform = 'translateY(100%)';
+  }
+  // Force layout so the browser registers the starting state
+  void el.offsetHeight;
+  // Re-enable transitions and open
+  if (sheet) {
+    sheet.style.transition = '';
+    sheet.style.transform = '';
+  }
+  requestAnimationFrame(() => {
+    el.classList.add('open');
+    const profileOpen = document.getElementById('profilePage')?.classList.contains('profile-page--open');
+    if (!profileOpen) document.body.style.overflow = 'hidden';
+    if (sheet) attachSwipeDismiss(sheet, id);
+  });
 }
 function closeOverlay(id) {
   const el = document.getElementById(id); if (!el) return;
@@ -4076,7 +4125,7 @@ async function dmOpenVenueSharePicker(venueId) {
 
   document.getElementById('dmSharePickerOverlay')?.remove();
   const overlay = document.createElement('div');
-  overlay.id = 'dmSharePickerOverlay'; overlay.className = 'overlay open';
+  overlay.id = 'dmSharePickerOverlay'; overlay.className = 'overlay';
   overlay.onclick = e => { if (e.target === overlay) dismissOverlay(overlay); };
   overlay.innerHTML = `<div class="sheet" style="max-height:60vh;overflow-y:auto;">
     <div class="sheet-handle"></div>
@@ -4087,7 +4136,7 @@ async function dmOpenVenueSharePicker(venueId) {
     <div id="dmShareSearchResults" style="display:none"></div>
     <div id="dmShareConvoList">${convoRowsHTML || '<div style="color:var(--muted);font-size:13px;padding:12px 0">No conversations yet</div>'}</div>
   </div>`;
-  document.body.appendChild(overlay);
+  presentOverlay(overlay);
   // Auto-focus the search input
   setTimeout(() => document.getElementById('dmShareSearch')?.focus(), 100);
 
@@ -4333,7 +4382,7 @@ function closeLegal(e) { if (e && e.target !== document.getElementById('legalOve
 function checkAgeGate() {
   if (localStorage.getItem('spotd-age-verified')) return;
   const overlay = document.createElement('div');
-  overlay.className = 'overlay open';
+  overlay.className = 'overlay';
   overlay.id = 'ageGateOverlay';
   overlay.style.zIndex = '99999';
   overlay.innerHTML = `
@@ -4351,7 +4400,7 @@ function checkAgeGate() {
         <a href="#" onclick="event.preventDefault();openLegalPage('terms')" style="font-size:12px;color:var(--muted)">Terms of Service</a>
       </div>
     </div>`;
-  document.body.appendChild(overlay);
+  presentOverlay(overlay);
 }
 function confirmAge(isOldEnough) {
   if (isOldEnough) {
@@ -4408,7 +4457,7 @@ async function doDeleteAccount() {
 function openReportMenu(contentType, contentId, userId) {
   if (!currentUser) { openAuth('signin'); return; }
   const overlay = document.createElement('div');
-  overlay.className = 'overlay open';
+  overlay.className = 'overlay';
   overlay.onclick = e => { if (e.target === overlay) dismissOverlay(overlay); };
   overlay.innerHTML = `
     <div class="sheet">
@@ -4426,7 +4475,7 @@ function openReportMenu(contentType, contentId, userId) {
           <button class="report-option report-option--block" onclick="doBlockUser('${userId}',this)">Block this user</button>
         </div>` : ''}
     </div>`;
-  document.body.appendChild(overlay);
+  presentOverlay(overlay);
 }
 
 async function submitReport(contentType, contentId, reportedUserId, reason, btn) {
