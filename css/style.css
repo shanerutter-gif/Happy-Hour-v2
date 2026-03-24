@@ -2356,9 +2356,12 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 }
 .pf-hero-overlay:active { transform: scale(.9); background: rgba(0,0,0,0.6); }
 .pf-hero-cam { font-size: 15px; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3)); }
+.pf-hero-wrap {
+  position: relative;
+}
 .pf-hero-actions {
   position: absolute; top: 12px; right: 14px;
-  z-index: 4;
+  z-index: 10;
 }
 .pf-hamburger-btn {
   width: 34px; height: 34px; border-radius: 50%;

@@ -1811,13 +1811,17 @@ async function renderProfile(user) {
 
   document.getElementById('profileContent').innerHTML = `
     <div class="pf-logo-bar"><img src="/spotd_logo_v5.png" alt="Spotd" class="header-logo-img" onerror="this.style.display='none'"></div>
-    <div class="pf-hero" id="myBannerHero" ${headerUrl ? `style="background:url('${esc(headerUrl)}') center/cover no-repeat"` : ''}>
-      ${!headerUrl ? `<div class="pf-hero-burst"></div><div class="pf-hero-grid"></div>
-      <div class="pf-ring pf-ring-1"></div><div class="pf-ring pf-ring-2"></div><div class="pf-ring pf-ring-3"></div>` : ''}
-      <div class="pf-avatar-zone">
-        <div class="pf-avatar" id="myAvatar">
-          ${avatarUrl ? `<img src="${esc(avatarUrl)}" alt="Profile" style="width:100%;height:100%;border-radius:50%;object-fit:cover">` : initialsAvatar(displayName, 'initials-avatar--lg')}
+    <div class="pf-hero-wrap">
+      <div class="pf-hero" id="myBannerHero" ${headerUrl ? `style="background:url('${esc(headerUrl)}') center/cover no-repeat"` : ''}>
+        ${!headerUrl ? `<div class="pf-hero-burst"></div><div class="pf-hero-grid"></div>
+        <div class="pf-ring pf-ring-1"></div><div class="pf-ring pf-ring-2"></div><div class="pf-ring pf-ring-3"></div>` : ''}
+        <div class="pf-avatar-zone">
+          <div class="pf-avatar" id="myAvatar">
+            ${avatarUrl ? `<img src="${esc(avatarUrl)}" alt="Profile" style="width:100%;height:100%;border-radius:50%;object-fit:cover">` : initialsAvatar(displayName, 'initials-avatar--lg')}
+          </div>
         </div>
+        <input type="file" id="headerPhotoInput" accept="image/*" style="display:none" onchange="handleHeaderPhoto(this)">
+        <input type="file" id="profilePhotoInput" accept="image/*" style="display:none" onchange="handleProfilePhoto(this)">
       </div>
       <div class="pf-hero-actions">
         <button class="pf-hamburger-btn" onclick="toggleProfileMenu(event)" title="Menu" id="pfMenuBtn">
@@ -1848,8 +1852,6 @@ async function renderProfile(user) {
           </button>
         </div>
       </div>
-      <input type="file" id="headerPhotoInput" accept="image/*" style="display:none" onchange="handleHeaderPhoto(this)">
-      <input type="file" id="profilePhotoInput" accept="image/*" style="display:none" onchange="handleProfilePhoto(this)">
     </div>
 
     <div class="pf-body">
