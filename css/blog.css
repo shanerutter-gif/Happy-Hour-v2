@@ -1,0 +1,418 @@
+/* ═══════════════════════════════════════════════════════
+   SPOTD BLOG — Styles
+   Matches main brand: warm cream, coral, Cabinet Grotesk + DM Sans
+   ═══════════════════════════════════════════════════════ */
+
+/* ── BLOG NAV ── */
+.blog-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  height: 56px;
+  background: var(--nav-bg);
+  border-bottom: 1px solid var(--border2);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  position: sticky;
+  top: 0;
+  z-index: 300;
+  max-width: 100%;
+}
+.blog-nav .nav-brand {
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-size: 20px;
+  font-weight: 900;
+  color: var(--teal);
+  text-decoration: none;
+  letter-spacing: -0.5px;
+  display: flex;
+  align-items: center;
+}
+.blog-nav .nav-logo-img {
+  height: 32px;
+  width: auto;
+}
+.blog-nav-links {
+  display: flex;
+  gap: 6px;
+}
+.blog-nav-link {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+  text-decoration: none;
+  padding: 6px 12px;
+  border-radius: 8px;
+  transition: color 0.15s, background 0.15s;
+}
+.blog-nav-link:hover {
+  color: var(--text);
+  background: var(--coral-dim);
+}
+.blog-nav-link--active {
+  color: var(--teal);
+  font-weight: 600;
+}
+
+/* ── BLOG HERO ── */
+.blog-hero {
+  background: var(--bg);
+  padding: 48px 20px 40px;
+  text-align: center;
+}
+.blog-hero-inner {
+  max-width: 640px;
+  margin: 0 auto;
+}
+.blog-eyebrow {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 10px;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--teal);
+  opacity: 0.8;
+  margin-bottom: 10px;
+}
+.blog-hero-title {
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-weight: 900;
+  font-size: clamp(32px, 7vw, 56px);
+  line-height: 0.95;
+  letter-spacing: -2px;
+  color: var(--ink);
+  margin-bottom: 12px;
+}
+.blog-hero-sub {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  color: var(--muted);
+  font-weight: 300;
+  line-height: 1.5;
+  max-width: 440px;
+  margin: 0 auto;
+}
+
+/* ── BLOG GRID ── */
+.blog-main {
+  max-width: 840px;
+  margin: 0 auto;
+  padding: 0 20px 48px;
+}
+.blog-grid {
+  display: grid;
+  gap: 16px;
+}
+
+/* ── BLOG CARD ── */
+.blog-card {
+  display: flex;
+  gap: 16px;
+  background: var(--card);
+  border-radius: var(--r);
+  padding: 20px;
+  text-decoration: none;
+  color: inherit;
+  border: 1px solid var(--border2);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.blog-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+.blog-card-emoji {
+  font-size: 32px;
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--coral-dim);
+  border-radius: 12px;
+}
+.blog-card-body {
+  flex: 1;
+  min-width: 0;
+}
+.blog-card-tag {
+  display: inline-block;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--teal);
+  background: var(--coral-dim);
+  padding: 2px 8px;
+  border-radius: 100px;
+  margin-bottom: 6px;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+.blog-card-title {
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-weight: 800;
+  font-size: 18px;
+  line-height: 1.2;
+  letter-spacing: -0.5px;
+  color: var(--ink);
+  margin-bottom: 6px;
+}
+.blog-card-excerpt {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+.blog-card-meta {
+  display: flex;
+  gap: 12px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  color: var(--muted);
+  opacity: 0.7;
+}
+.blog-card--small {
+  padding: 16px;
+}
+.blog-card--small .blog-card-title {
+  font-size: 15px;
+}
+
+/* ── BLOG CTA SECTION ── */
+.blog-cta {
+  background: var(--bg2);
+  padding: 48px 20px;
+  text-align: center;
+}
+.blog-cta-inner {
+  max-width: 480px;
+  margin: 0 auto;
+}
+.blog-cta-title {
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-weight: 900;
+  font-size: 28px;
+  letter-spacing: -1px;
+  color: var(--ink);
+  margin-bottom: 8px;
+}
+.blog-cta-sub {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.5;
+  margin-bottom: 20px;
+}
+.blog-cta-btn {
+  display: inline-block;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--teal);
+  padding: 12px 28px;
+  border-radius: 100px;
+  text-decoration: none;
+  transition: background 0.15s, transform 0.1s;
+}
+.blog-cta-btn:hover {
+  background: var(--teal-dk);
+}
+.blog-cta-btn:active {
+  transform: scale(0.97);
+}
+
+/* ── BLOG FOOTER ── */
+.blog-footer {
+  background: var(--bg);
+  border-top: 1px solid var(--border2);
+  padding: 32px 20px;
+  text-align: center;
+}
+.blog-footer-inner {
+  max-width: 640px;
+  margin: 0 auto;
+}
+.blog-footer-brand {
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-weight: 900;
+  font-size: 18px;
+  color: var(--teal);
+  margin-bottom: 4px;
+}
+.blog-footer-copy {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+.blog-footer-links {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+}
+.blog-footer-links a {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  color: var(--muted);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+.blog-footer-links a:hover {
+  color: var(--teal);
+}
+
+/* ── ARTICLE PAGE ── */
+.blog-article {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+.blog-article-header {
+  padding: 32px 0 24px;
+  border-bottom: 1px solid var(--border2);
+  margin-bottom: 32px;
+}
+.blog-back {
+  display: inline-block;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  color: var(--muted);
+  text-decoration: none;
+  margin-bottom: 16px;
+  transition: color 0.15s;
+}
+.blog-back:hover {
+  color: var(--teal);
+}
+.blog-article-title {
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-weight: 900;
+  font-size: clamp(28px, 6vw, 42px);
+  line-height: 1.05;
+  letter-spacing: -1.5px;
+  color: var(--ink);
+  margin: 12px 0 10px;
+}
+.blog-article-subtitle {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 16px;
+  color: var(--muted);
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+.blog-article-meta {
+  display: flex;
+  gap: 16px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  color: var(--muted);
+  opacity: 0.7;
+}
+
+/* ── ARTICLE BODY ── */
+.blog-article-body {
+  padding-bottom: 48px;
+}
+.blog-article-body p {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--text);
+  margin-bottom: 20px;
+}
+.blog-article-body h2 {
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-weight: 800;
+  font-size: 24px;
+  letter-spacing: -0.5px;
+  color: var(--ink);
+  margin: 36px 0 12px;
+}
+.blog-article-body h3 {
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: -0.3px;
+  color: var(--ink);
+  margin: 24px 0 8px;
+}
+.blog-article-body ul {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--text);
+  margin: 0 0 20px 20px;
+}
+.blog-article-body li {
+  margin-bottom: 8px;
+}
+.blog-article-body a {
+  color: var(--teal);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.blog-article-body a:hover {
+  color: var(--teal-dk);
+}
+.blog-article-body strong {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+/* ── INLINE CTA ── */
+.blog-cta-inline {
+  text-align: center;
+  padding: 32px 0;
+  margin: 16px 0;
+  border-top: 1px solid var(--border2);
+}
+
+/* ── RELATED ARTICLES ── */
+.blog-related {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 20px 48px;
+}
+.blog-related-title {
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-weight: 800;
+  font-size: 20px;
+  letter-spacing: -0.5px;
+  color: var(--ink);
+  margin-bottom: 16px;
+}
+.blog-related-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 600px) {
+  .blog-card {
+    flex-direction: column;
+    gap: 12px;
+  }
+  .blog-card-emoji {
+    width: 40px;
+    height: 40px;
+    font-size: 24px;
+  }
+  .blog-related-grid {
+    grid-template-columns: 1fr;
+  }
+  .blog-nav-links {
+    gap: 2px;
+  }
+  .blog-nav-link {
+    font-size: 12px;
+    padding: 6px 8px;
+  }
+  .blog-article-meta {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}

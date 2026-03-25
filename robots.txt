@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+Allow: /blog
+Allow: /blog/
+
+Disallow: /api/
+Disallow: /admin.html
+Disallow: /business-portal.html
+
+Sitemap: https://spotd.biz/sitemap.xml
