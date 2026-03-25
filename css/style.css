@@ -2644,7 +2644,7 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 }
 .guest-signup-wall-icon svg {
   width: 40px; height: 40px;
-  color: var(--accent);
+  color: var(--coral);
 }
 .guest-signup-wall-title {
   font-size: 20px;
@@ -2661,7 +2661,7 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 }
 .guest-signup-wall-btn {
   display: inline-block;
-  background: var(--accent);
+  background: var(--coral);
   color: #fff;
   border: none;
   border-radius: 14px;
@@ -2681,7 +2681,7 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   display: block;
   background: none;
   border: none;
-  color: var(--accent);
+  color: var(--coral);
   font-size: 13px;
   cursor: pointer;
   text-decoration: underline;
@@ -2717,7 +2717,7 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   margin-top: 8px;
   line-height: 1.4;
 }
-.auth-legal a { color: var(--accent); text-decoration: underline; }
+.auth-legal a { color: var(--coral); text-decoration: underline; }
 
 /* ── Legal page ── */
 .sheet--tall { max-height: 85vh; }
@@ -2726,7 +2726,7 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 .legal-body p { margin: 0 0 10px; }
 .legal-body ul { margin: 0 0 10px; padding-left: 20px; }
 .legal-body li { margin-bottom: 4px; }
-.legal-body a { color: var(--accent); }
+.legal-body a { color: var(--coral); }
 
 /* ── Footer legal links ── */
 .btf-footer-legal { margin: 8px 0; }
