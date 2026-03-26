@@ -66,6 +66,7 @@ function obInit() {
 
 function obComplete() {
   localStorage.setItem(OB_KEY, '1');
+  localStorage.removeItem('spotd-ob-pending');
   _obDismiss();
 }
 
