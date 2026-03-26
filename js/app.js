@@ -117,6 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
   loadSiteCopy();
   renderCityGrid();
   renderNav(currentUser);
+  if (typeof obInit === 'function') obInit();
   const ffg = document.getElementById('favFilterGroup');
   if (ffg) ffg.style.display = currentUser ? '' : 'none';
   const homeAuth = document.getElementById('homeAuthRow');
@@ -152,6 +153,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function onAuthChange(user) {
+  if (user && typeof obComplete === 'function') obComplete();
   // Guard: DOM may not be ready if called during session restore
   if (!document.getElementById('navRight')) return;
   renderNav(user);
