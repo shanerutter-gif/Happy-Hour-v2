@@ -223,7 +223,7 @@ async function authSignInWithGoogle() {
       const { data, error } = await db.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: window.location.origin + '/?auth_callback=1',
+          redirectTo: 'spotd://auth-callback',
           skipBrowserRedirect: true,
         }
       });
