@@ -114,20 +114,21 @@
 
 .suggestion-chip {
   display: flex; align-items: center; gap: 6px;
-  padding: 8px 14px; border-radius: 12px;
-  background: var(--card); border: 1.5px solid var(--border2);
+  padding: 8px 14px; border-radius: var(--r);
+  background: var(--card); border: 1px solid var(--border2);
   font-family: 'DM Sans', sans-serif; font-size: 13px;
   font-weight: 500; color: var(--text);
   cursor: pointer; white-space: nowrap; flex-shrink: 0;
-  transition: all .18s ease;
-  box-shadow: 0 1px 4px rgba(42,31,20,0.04);
+  transition: all var(--transition, .2s ease);
+  box-shadow: var(--shadow, 0 1px 2px rgba(42,31,20,0.04));
 }
 .suggestion-chip:active { transform: scale(.96); }
-.suggestion-chip:hover { border-color: var(--coral); }
+.suggestion-chip:hover { border-color: var(--coral); box-shadow: var(--ring, 0 0 0 2px rgba(255,107,74,0.15)); }
 .suggestion-chip .sg-emoji { font-size: 16px; line-height: 1; }
 .suggestion-chip--active {
   background: var(--coral); border-color: var(--coral);
   color: #fff; font-weight: 600;
+  box-shadow: 0 0 0 2px rgba(255,107,74,0.18);
 }
 
 /* ── Amenity Grid (in filter panel) ─────────────── */
@@ -137,14 +138,16 @@
 }
 .amenity-card {
   display: flex; align-items: center; gap: 10px;
-  padding: 10px 12px; border-radius: 12px;
-  background: var(--card); border: 1.5px solid var(--border2);
+  padding: 10px 12px; border-radius: var(--r, 12px);
+  background: var(--card); border: 1px solid var(--border2);
   cursor: pointer; min-height: 46px;
-  transition: all .18s ease;
+  transition: all var(--transition, .2s ease);
+  box-shadow: var(--shadow, 0 1px 2px rgba(42,31,20,0.04));
 }
 .amenity-card:active { transform: scale(.96); }
 .amenity-card.active {
-  background: rgba(255,107,74,.1); border-color: var(--coral);
+  background: var(--coral-dim, rgba(255,107,74,.1)); border-color: var(--coral);
+  box-shadow: var(--ring, 0 0 0 2px rgba(255,107,74,0.15));
 }
 .amenity-card .am-emoji { font-size: 20px; line-height: 1; flex-shrink: 0; }
 .amenity-card .am-label {
