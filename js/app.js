@@ -153,7 +153,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function onAuthChange(user) {
   // Guard: DOM may not be ready if called during session restore
-  if (!document.getElementById('navRight')) return;
+  if (!document.body) return;
   renderNav(user);
   const ffg = document.getElementById('favFilterGroup');
   if (ffg) ffg.style.display = user ? '' : 'none';
