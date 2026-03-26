@@ -218,6 +218,19 @@ async function authSignOut() {
 // ── GOOGLE SSO ────────────────────────────────────────
 async function authSignInWithGoogle() {
   try {
+    // On native iOS, use skipBrowserRedirect so we can route through ASWebAuthenticationSession
+    if (window.spotdNative?.openOAuth) {
+      const { data, error } = await db.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin + '/?auth_callback=1',
+          skipBrowserRedirect: true,
+        }
+      });
+      if (error) throw error;
+      if (data?.url) window.spotdNative.openOAuth(data.url);
+      return { data, error: null };
+    }
     const { data, error } = await db.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -225,7 +238,6 @@ async function authSignInWithGoogle() {
       }
     });
     if (error) throw error;
-    // Supabase redirects the browser to Google — no return value needed
     return { data, error: null };
   } catch(e) {
     return { error: { message: e.message } };
