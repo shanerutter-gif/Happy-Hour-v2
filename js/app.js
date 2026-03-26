@@ -55,15 +55,28 @@ function getTodayHours(v) {
 const EVENT_TYPES = ['Trivia','Live Music','Karaoke','Bingo','Game Night','Comedy'];
 const HH_TYPES    = ['Bar','Brewery','Seafood','Mexican','Italian','Asian','BBQ','Wine Bar','Steakhouse','Beach Bar'];
 const AMENITIES   = [
-  { key: 'has_happy_hour',  label: 'Happy Hour',  icon: 'beer', eventType: null },
-  { key: 'has_sports_tv',   label: 'Sports TV',   icon: 'tv', eventType: null },
-  { key: 'is_dog_friendly', label: 'Dog Friendly', icon: 'dog', eventType: null },
-  { key: 'has_live_music',  label: 'Live Music',   icon: 'music', eventType: 'Live Music' },
-  { key: 'has_karaoke',     label: 'Karaoke',      icon: 'mic', eventType: 'Karaoke' },
-  { key: 'has_trivia',      label: 'Trivia',       icon: 'brain', eventType: 'Trivia' },
-  { key: 'has_bingo',       label: 'Bingo',        icon: 'target', eventType: 'Bingo' },
-  { key: 'has_comedy',      label: 'Comedy',       icon: 'masks', eventType: 'Comedy' },
+  { key: 'has_happy_hour',  label: 'Happy Hour',  icon: 'beer', eventType: null, emoji: '🍺' },
+  { key: 'has_sports_tv',   label: 'Sports TV',   icon: 'tv', eventType: null, emoji: '📺' },
+  { key: 'is_dog_friendly', label: 'Dog Friendly', icon: 'dog', eventType: null, emoji: '🐕' },
+  { key: 'has_live_music',  label: 'Live Music',   icon: 'music', eventType: 'Live Music', emoji: '🎵' },
+  { key: 'has_karaoke',     label: 'Karaoke',      icon: 'mic', eventType: 'Karaoke', emoji: '🎤' },
+  { key: 'has_trivia',      label: 'Trivia',       icon: 'brain', eventType: 'Trivia', emoji: '🧠' },
+  { key: 'has_bingo',       label: 'Bingo',        icon: 'target', eventType: 'Bingo', emoji: '🎯' },
+  { key: 'has_comedy',      label: 'Comedy',       icon: 'masks', eventType: 'Comedy', emoji: '😂' },
 ];
+
+// Smart suggestions — fun prefixed queries that combine amenity filters + search
+const SUGGESTIONS = [
+  { id: 'pup',     emoji: '🐕', label: 'Drinks with the pup?', amenities: ['is_dog_friendly','has_happy_hour'], search: '' },
+  { id: 'game',    emoji: '🏈', label: 'Catch the game',        amenities: ['has_sports_tv'], search: '' },
+  { id: 'sing',    emoji: '🎤', label: 'Sing your heart out',   amenities: ['has_karaoke'], search: '' },
+  { id: 'live',    emoji: '🎵', label: 'Live vibes tonight',    amenities: ['has_live_music'], search: '' },
+  { id: 'trivia',  emoji: '🧠', label: 'Test your brain',       amenities: ['has_trivia'], search: '' },
+  { id: 'comedy',  emoji: '😂', label: 'Make me laugh',         amenities: ['has_comedy'], search: '' },
+  { id: 'cheap',   emoji: '💰', label: '$5 deals & under',      amenities: ['has_happy_hour'], search: '$5' },
+  { id: 'rooftop', emoji: '🌅', label: 'Rooftop sunset vibes',  amenities: [], search: 'rooftop' },
+];
+let _activeSuggestion = null;
 // Map event_type string → amenity config
 const EVENT_TYPE_AMENITY = {};
 AMENITIES.forEach(a => { if (a.eventType) EVENT_TYPE_AMENITY[a.eventType] = a; });
@@ -849,8 +862,9 @@ async function enterCity(slug, name, stateCode) {
   // Bulk-load review averages so cards show ratings immediately
   loadReviewAverages(slug);
 
-  // Build filter pills
+  // Build filter pills + suggestions
   buildFilterPills();
+  renderSuggestions();
 
   // Auto-enable nearest sort with geolocation
   state.sort = 'distance';
@@ -939,14 +953,14 @@ function buildTypeFilters() {
     tf.appendChild(opt);
   });
 
-  // Amenity pills (multi-select)
+  // Amenity cards (2-col grid, emoji + label)
   const af = document.getElementById('amenityFilters');
   if (af) {
     af.innerHTML = '';
     AMENITIES.forEach(a => {
       const btn = document.createElement('button');
-      btn.className = 'pill' + (state.filters.amenities.includes(a.key) ? ' active' : '');
-      btn.innerHTML = icn(a.icon, 12) + ' ' + a.label;
+      btn.className = 'amenity-card' + (state.filters.amenities.includes(a.key) ? ' active' : '');
+      btn.innerHTML = `<span class="am-emoji">${a.emoji}</span><span class="am-label">${a.label}</span>`;
       btn.onclick = () => toggleAmenityFilter(a.key, btn);
       af.appendChild(btn);
     });
@@ -959,15 +973,16 @@ function mkPill(label, onclick) {
 function clearAllFilters() {
   state.filters = { day: null, area: null, type: null, search: '', amenities: [] };
   state.favFilterOn = false;
+  _activeSuggestion = null;
   document.getElementById('searchBox').value = '';
   ['dayFilters','areaFilters','typeFilters'].forEach(id => {
     const el = document.getElementById(id);
     if (el && el.tagName === 'SELECT') el.selectedIndex = 0;
   });
-  document.querySelectorAll('#amenityFilters .pill.active').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('#amenityFilters .amenity-card.active').forEach(b => b.classList.remove('active'));
   document.getElementById('chipsRow').innerHTML = '';
   document.getElementById('favFilterBtn')?.classList.remove('active');
-  applyFilters(); updateDot(); toggleFilters();
+  applyFilters(); updateDot(); toggleFilters(); renderSuggestions();
 }
 
 function setFilterFromSelect(key, selectEl) {
@@ -983,10 +998,11 @@ function setFilter(key, val, btn) {
 }
 function toggleAmenityFilter(key, btn) {
   if(typeof haptic==='function')haptic('light');
+  _activeSuggestion = null;
   const idx = state.filters.amenities.indexOf(key);
   if (idx >= 0) { state.filters.amenities.splice(idx, 1); btn.classList.remove('active'); }
   else { state.filters.amenities.push(key); btn.classList.add('active'); }
-  applyFilters(); updateChips(); updateDot();
+  applyFilters(); updateChips(); updateDot(); renderSuggestions();
 }
 function updateChips() {
   const row = document.getElementById('chipsRow'); row.innerHTML = '';
@@ -998,10 +1014,11 @@ function updateChips() {
   if (state.filters.amenities.length) {
     state.filters.amenities.forEach(key => {
       const a = AMENITIES.find(x => x.key === key);
-      if (a) addChip(row, `${icn(a.icon,12)} ${a.label}`, () => {
+      if (a) addChip(row, `${a.emoji} ${a.label}`, () => {
         state.filters.amenities = state.filters.amenities.filter(k => k !== key);
-        document.querySelectorAll('#amenityFilters .pill').forEach(b => { if (b.textContent.includes(a.label)) b.classList.remove('active'); });
-        applyFilters(); updateChips(); updateDot();
+        _activeSuggestion = null;
+        document.querySelectorAll('#amenityFilters .amenity-card').forEach(b => { if (b.textContent.includes(a.label)) b.classList.remove('active'); });
+        applyFilters(); updateChips(); updateDot(); renderSuggestions();
       });
     });
   }
@@ -1022,9 +1039,51 @@ function updateDot() {
   document.getElementById('filterDot').classList.toggle('show', !!has);
   document.getElementById('filterToggle').classList.toggle('active', !!has);
 }
+// ── SMART SUGGESTIONS ────────────────────────────────
+function renderSuggestions() {
+  const row = document.getElementById('suggestionsRow');
+  if (!row) return;
+  row.innerHTML = SUGGESTIONS.map(s => `
+    <button class="suggestion-chip${_activeSuggestion === s.id ? ' suggestion-chip--active' : ''}"
+            onclick="applySuggestion('${s.id}')">
+      <span class="sg-emoji">${s.emoji}</span>${s.label}
+    </button>
+  `).join('');
+}
+
+function applySuggestion(id) {
+  if(typeof haptic==='function')haptic('medium');
+  const s = SUGGESTIONS.find(x => x.id === id);
+  if (!s) return;
+
+  // Toggle off if already active
+  if (_activeSuggestion === id) {
+    _activeSuggestion = null;
+    state.filters.amenities = [];
+    state.filters.search = '';
+    document.getElementById('searchBox').value = '';
+    document.querySelectorAll('#amenityFilters .amenity-card.active').forEach(b => b.classList.remove('active'));
+    applyFilters(); updateChips(); updateDot(); renderSuggestions();
+    return;
+  }
+
+  _activeSuggestion = id;
+  // Clear existing then apply suggestion's filters
+  state.filters.amenities = [...s.amenities];
+  state.filters.search = s.search;
+  document.getElementById('searchBox').value = s.search;
+  // Sync amenity card active states
+  document.querySelectorAll('#amenityFilters .amenity-card').forEach(btn => {
+    const key = AMENITIES.find(a => btn.textContent.includes(a.label))?.key;
+    btn.classList.toggle('active', key && s.amenities.includes(key));
+  });
+  applyFilters(); updateChips(); updateDot(); renderSuggestions();
+}
+
 let _searchTimer = null;
 function debounceSearch() {
   clearTimeout(_searchTimer);
+  _activeSuggestion = null; renderSuggestions();
   _searchTimer = setTimeout(() => { applyFilters(); updateChips(); updateDot(); }, 250);
 }
 function applyFilters() {

@@ -102,6 +102,57 @@
 }
 .card-going { padding: 4px 16px 12px; }
 .s-going-count { text-align: center; font-size: 12px; color: #C87000; margin-top: 8px; font-weight: 600; }
+
+/* ── Smart Suggestions Row ──────────────────────── */
+.suggestions-row {
+  display: flex; gap: 8px; overflow-x: auto;
+  padding: 0 20px 12px; -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.suggestions-row::-webkit-scrollbar { display: none; }
+.suggestions-row:empty { padding-bottom: 0; }
+
+.suggestion-chip {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 14px; border-radius: 12px;
+  background: var(--card); border: 1.5px solid var(--border2);
+  font-family: 'DM Sans', sans-serif; font-size: 13px;
+  font-weight: 500; color: var(--text);
+  cursor: pointer; white-space: nowrap; flex-shrink: 0;
+  transition: all .18s ease;
+  box-shadow: 0 1px 4px rgba(42,31,20,0.04);
+}
+.suggestion-chip:active { transform: scale(.96); }
+.suggestion-chip:hover { border-color: var(--coral); }
+.suggestion-chip .sg-emoji { font-size: 16px; line-height: 1; }
+.suggestion-chip--active {
+  background: var(--coral); border-color: var(--coral);
+  color: #fff; font-weight: 600;
+}
+
+/* ── Amenity Grid (in filter panel) ─────────────── */
+.amenity-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+.amenity-card {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: 12px;
+  background: var(--card); border: 1.5px solid var(--border2);
+  cursor: pointer; min-height: 46px;
+  transition: all .18s ease;
+}
+.amenity-card:active { transform: scale(.96); }
+.amenity-card.active {
+  background: rgba(255,107,74,.1); border-color: var(--coral);
+}
+.amenity-card .am-emoji { font-size: 20px; line-height: 1; flex-shrink: 0; }
+.amenity-card .am-label {
+  font-family: 'DM Sans', sans-serif; font-size: 13px;
+  font-weight: 600; color: var(--text); line-height: 1.2;
+}
+.amenity-card.active .am-label { color: var(--coral); }
+.amenity-card .am-icn { display: none; }
 </style>
 </head>
 <body>
@@ -342,6 +393,7 @@
       <button class="view-toggle" id="viewToggle" onclick="toggleView()"><span id="viewIcon">Map</span></button>
     </div>
     <div class="chips-row" id="chipsRow"></div>
+    <div class="suggestions-row" id="suggestionsRow"></div>
     <div class="filter-panel" id="filterPanel">
       <div class="fp-inner">
         <div class="fp-header">
@@ -376,7 +428,7 @@
         </div>
         <div class="filter-group">
           <div class="fg-label">Amenities</div>
-          <div class="filter-scroll" id="amenityFilters"></div>
+          <div class="amenity-grid" id="amenityFilters"></div>
         </div>
         <div class="filter-group" id="favFilterGroup" style="display:none">
           <div class="fg-label">My List</div>
