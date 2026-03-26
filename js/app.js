@@ -4531,7 +4531,7 @@ async function doAppleSignIn() {
       const { data, error } = await db.auth.signInWithOAuth({
         provider: 'apple',
         options: {
-          redirectTo: window.location.origin + '/?auth_callback=1',
+          redirectTo: 'spotd://auth-callback',
           skipBrowserRedirect: true,
         }
       });
