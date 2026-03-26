@@ -1606,9 +1606,12 @@ function openVenueWebsite(id) {
     const city = state.city?.name || 'San Diego';
     url = 'https://www.google.com/search?q=' + encodeURIComponent(name + ' ' + city);
   }
-  // Use location.href so WKWebView's decidePolicyFor handler intercepts
-  // and opens external URLs in Safari (window.open is silently blocked)
-  window.location.href = url;
+  // On native iOS, open in SFSafariViewController (in-app browser)
+  if (window.spotdNative?.openBrowser) {
+    window.spotdNative.openBrowser(url);
+  } else {
+    window.location.href = url;
+  }
 }
 
 // ── EDIT REVIEW ────────────────────────────────────────
@@ -1656,8 +1659,9 @@ function renderAuth(mode) {
   document.getElementById('authContent').innerHTML = `
     <div class="auth-title">${si ? 'Welcome back' : 'Create account'}</div>
     <p class="auth-sub">${si ? 'Sign in to save spots & manage reviews' : 'Free forever — save spots, write reviews'}</p>
+    <form id="authForm" onsubmit="event.preventDefault();doAuth('${mode}');" autocomplete="on">
     ${!si ? `<div class="field-group"><div class="field-label">Name</div><input class="field" id="aName" type="text" placeholder="Your name" autocomplete="name"></div>` : ''}
-    <div class="field-group"><div class="field-label">Email</div><input class="field" id="aEmail" type="email" placeholder="you@example.com" autocomplete="email"></div>
+    <div class="field-group"><div class="field-label">Email</div><input class="field" id="aEmail" type="email" placeholder="you@example.com" autocomplete="${si ? 'username' : 'email'}"></div>
     <div class="field-group"><div class="field-label">Password</div><input class="field" id="aPass" type="password" placeholder="${si ? 'Your password' : 'Min 8 characters'}" autocomplete="${si ? 'current-password' : 'new-password'}"></div>
     ${!si ? `
     <div class="field-group">
@@ -1670,7 +1674,8 @@ function renderAuth(mode) {
     </label>
     ` : ''}
     ${si ? `<button class="auth-forgot" onclick="doForgot()">Forgot password?</button>` : ''}
-    <button class="btn-submit" id="authBtn" onclick="doAuth('${mode}')" style="width:100%;margin-top:4px">${si ? 'Sign In' : 'Create Account'}</button>
+    <button class="btn-submit" id="authBtn" type="submit" style="width:100%;margin-top:4px">${si ? 'Sign In' : 'Create Account'}</button>
+    </form>
     <div class="auth-divider"><span>or</span></div>
     <button class="btn-apple" onclick="doAppleSignIn()">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.51-3.23 0-1.44.64-2.2.45-3.06-.4C3.79 16.17 4.36 9.04 8.86 8.78c1.18.06 2 .7 2.7.73.98-.2 1.92-.77 2.98-.7 1.27.1 2.23.6 2.84 1.53-2.6 1.54-1.98 4.93.38 5.88-.46 1.2-.67 1.73-1.25 2.78-.85 1.5-2.04 3.37-3.46 3.28zM12.15 8.7c-.15-2.23 1.66-4.07 3.74-4.25.29 2.4-2.17 4.2-3.74 4.25z"/></svg>
@@ -4582,6 +4587,19 @@ async function doBlockUser(userId, btn) {
 async function doAppleSignIn() {
   if(typeof haptic==='function')haptic('medium');
   try {
+    // On native iOS, use skipBrowserRedirect so we can route through ASWebAuthenticationSession
+    if (window.spotdNative?.openOAuth) {
+      const { data, error } = await db.auth.signInWithOAuth({
+        provider: 'apple',
+        options: {
+          redirectTo: window.location.origin + '/?auth_callback=1',
+          skipBrowserRedirect: true,
+        }
+      });
+      if (error) throw error;
+      if (data?.url) window.spotdNative.openOAuth(data.url);
+      return { data, error: null };
+    }
     const { data, error } = await db.auth.signInWithOAuth({
       provider: 'apple',
       options: {
