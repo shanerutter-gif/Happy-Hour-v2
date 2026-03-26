@@ -2055,7 +2055,7 @@ function openProfileSettings() {
         </div>
       </div>
 
-      <button onclick="authSignOut().then(()=>{dismissOverlay(this.closest('.overlay'));closeProfile();})"
+      <button onclick="authSignOut().then(()=>{dismissOverlay(this.closest('.overlay'));closeProfile();showHome();})"
         style="width:100%;margin-top:8px;padding:13px;border-radius:12px;border:1.5px solid #e53935;background:none;color:#e53935;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;cursor:pointer;">
         Sign Out
       </button>
