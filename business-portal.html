@@ -2093,6 +2093,21 @@
   window.addEventListener('DOMContentLoaded', () => {
     if (checkSession()) enterApp();
   });
+
+  // ── Temporarily unlock all Pro features for free (acquisition phase) ──
+  // Override tier gating to always show Pro features unlocked
+  (function() {
+    const _origApplyTierGating = applyTierGating;
+    applyTierGating = function(tier) {
+      _origApplyTierGating('pro');
+    };
+    const _origRenderTierBanner = renderTierBanner;
+    renderTierBanner = function(tier, renewDate) {
+      // Hide the upgrade banner entirely
+      const container = document.getElementById('tier-banner');
+      if (container) container.innerHTML = '';
+    };
+  })();
   </script>
 </body>
 </html>
