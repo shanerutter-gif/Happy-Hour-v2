@@ -111,7 +111,7 @@
 <div id="homePage" class="home-page">
   <div class="home-top-bar">
     <a href="/blog.html" class="home-biz-link" style="margin-right:12px">Blog</a>
-    <a href="/business-landing.html" class="home-biz-link">For Business</a>
+    <a href="/business-landing.html" class="home-biz-link" id="homeBizLink">For Business</a>
   </div>
   <div class="home-inner">
     <div class="home-logo-wrap">
@@ -309,7 +309,7 @@
       <a href="#" onclick="event.preventDefault();openLegalPage('terms')" class="btf-footer-link">Terms of Service</a>
     </div>
     <a href="mailto:support@spotd.biz" class="btf-footer-biz">Support: support@spotd.biz</a>
-    <a href="/business-landing.html" class="btf-footer-biz">Own a venue? List it free →</a>
+    <a href="/business-landing.html" class="btf-footer-biz" id="footerBizLink">Own a venue? List it free →</a>
   </footer>
 
 </div><!-- /btf -->
@@ -633,6 +633,15 @@ function dismissA2HS() {
 
 <script src="js/icons.js"></script>
 <script src="js/app.js"></script>
+<script>
+// Hide business/Pro links on native iOS to comply with App Store IAP guidelines
+if (window.spotdNative) {
+  var _biz = document.getElementById('homeBizLink');
+  var _fbiz = document.getElementById('footerBizLink');
+  if (_biz) _biz.style.display = 'none';
+  if (_fbiz) _fbiz.style.display = 'none';
+}
+</script>
 
   <!-- ── DM INBOX OVERLAY ─────────────────────────── -->
 
