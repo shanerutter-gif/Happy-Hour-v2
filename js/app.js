@@ -121,6 +121,8 @@ document.addEventListener('DOMContentLoaded', () => {
   if (ffg) ffg.style.display = currentUser ? '' : 'none';
   const homeAuth = document.getElementById('homeAuthRow');
   if (homeAuth) homeAuth.style.display = currentUser ? 'none' : '';
+  const homeSkip = document.getElementById('homeSkipAuth');
+  if (homeSkip) homeSkip.style.display = currentUser ? 'none' : '';
 
   // Handle OAuth callback (Google SSO redirect)
   if (typeof handleOAuthCallback === 'function') {

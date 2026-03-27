@@ -117,6 +117,7 @@ body.theme-transitioning{transition:background .35s ease,color .35s ease}
 .home-auth-btn:hover{background:var(--card2);border-color:var(--coral)}
 .home-auth-btn--accent{background:var(--coral);color:#fff;border-color:var(--coral)}
 .home-auth-btn--accent:hover{background:#e55a30;border-color:#e55a30}
+.home-skip-auth{display:block;margin:0 auto 20px;background:none;border:none;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;text-decoration:underline;padding:4px 8px}
 
 /* CITY BAR */
 .city-bar{display:flex;align-items:center;gap:8px;padding:10px 20px;background:var(--nav-bg);border-bottom:1px solid var(--border2);flex-wrap:wrap;position:sticky;top:0;z-index:250;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}

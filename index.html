@@ -136,6 +136,7 @@
       <button class="home-auth-btn" onclick="openAuth('signin')">Sign In</button>
       <button class="home-auth-btn home-auth-btn--accent" onclick="openAuth('signup')">Create Account</button>
     </div>
+    <button id="homeSkipAuth" class="home-skip-auth" onclick="document.getElementById('cityGrid').scrollIntoView({behavior:'smooth'})">Continue without an account</button>
     <div class="city-grid" id="cityGrid"></div>
     <p class="home-coming">More cities coming soon</p>
   </div>
@@ -634,12 +635,18 @@ function dismissA2HS() {
 <script src="js/icons.js"></script>
 <script src="js/app.js"></script>
 <script>
-// Hide business/Pro links on native iOS to comply with App Store IAP guidelines
+// Hide business/Pro links and App Store badge on native iOS
 if (window.spotdNative) {
-  var _biz = document.getElementById('homeBizLink');
-  var _fbiz = document.getElementById('footerBizLink');
-  if (_biz) _biz.style.display = 'none';
-  if (_fbiz) _fbiz.style.display = 'none';
+  ['homeBizLink','footerBizLink'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+  // Hide "Coming Soon on App Store" badge — they're already in the app
+  var badge = document.querySelector('.app-store-badge');
+  if (badge) badge.style.display = 'none';
+  // Hide BTF marketing sections on native (scrolling below fold in-app isn't needed)
+  var btf = document.querySelector('.btf');
+  if (btf) btf.style.display = 'none';
 }
 </script>
 
