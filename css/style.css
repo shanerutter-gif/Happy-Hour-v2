@@ -203,8 +203,8 @@ body.theme-transitioning{transition:background .35s ease,color .35s ease}
 
 /* CONTROLS */
 .controls{position:sticky;top:0;z-index:200;background:var(--nav-bg);border-bottom:1px solid var(--border2);backdrop-filter:blur(20px) saturate(1.4);-webkit-backdrop-filter:blur(20px) saturate(1.4)}
-.controls-top{display:flex;align-items:center;gap:8px;padding:10px 16px 0}
-.controls-actions{display:flex;gap:8px;padding:6px 16px 0}
+.controls-top{display:flex;align-items:center;gap:8px;padding:10px 16px 6px}
+.controls-actions{display:flex;gap:8px;padding:0 16px 6px}
 .search-box{flex:1;background:var(--bg2);border:1px solid transparent;border-radius:var(--r);padding:11px 16px;font-family:'DM Sans',sans-serif;font-size:16px;color:var(--text);outline:none;min-height:var(--tap);transition:border-color var(--transition),background var(--transition),box-shadow var(--transition)}
 .search-box::placeholder{color:rgba(42,31,20,0.3)}
 .search-box:focus{border-color:var(--coral);background:var(--card);box-shadow:var(--ring)}
