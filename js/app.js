@@ -3560,42 +3560,41 @@ function _fallbackToFileInput() {
 }
 
 function openPhotoCheckinPrompt(venueId, venueName) {
-  // Close modal first to avoid stacking overlays that block file input taps
+  // Close modal first to avoid stacking overlays
   closeOverlay('modalOverlay');
 
-  // Use same pattern as "Add a Spot" — dynamically create overlay
   const overlay = document.createElement('div');
   overlay.className = 'overlay';
-  overlay.id = 'photoCheckinOverlay-dynamic';
   overlay.onclick = e => { if (e.target === overlay) { window._pendingCheckinPhoto = null; dismissOverlay(overlay); _tryPushPromptAfterCheckin(); } };
-
-  const uploadZone = `
-    <div class="photo-upload-area" id="photoUploadArea" style="position:relative">
-      <input type="file" accept="image/*" capture="environment" id="photoFileInput"
-        style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;z-index:2"
-        onchange="handlePhotoDropOrChange(event,'${venueId}','${esc(venueName)}')">
-      <div class="photo-upload-icon" style="position:relative;z-index:1;pointer-events:none">${icn('camera',32)}</div>
-      <div class="photo-upload-hint" style="position:relative;z-index:1;pointer-events:none">
-        Tap to add a photo
-      </div>
-    </div>`;
 
   overlay.innerHTML = `
     <div class="sheet">
       <div class="sheet-handle"></div>
       <button class="sheet-close" onclick="window._pendingCheckinPhoto=null;dismissOverlay(this.closest('.overlay'));_tryPushPromptAfterCheckin()">✕</button>
-      <div id="photoCheckinContent">
+      <div>
         <div class="photo-prompt-title">Add a photo? ${icn('camera',16)}</div>
         <div class="photo-prompt-sub">Show others what's happening at ${esc(venueName)} right now.</div>
-        ${uploadZone}
-        <div class="photo-preview-wrap" id="photoPreviewWrap">
-          <img id="photoPreviewImg" src="" alt="Preview">
-          <button class="photo-preview-remove" onclick="clearPhotoPreview('${venueId}','${esc(venueName)}')">✕</button>
+
+        <div class="photo-upload-area" id="photoUploadArea" style="position:relative">
+          <input type="file" accept="image/*" id="photoFileInput"
+            style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;z-index:2"
+            onchange="handleCheckinPhoto(this,'${venueId}','${esc(venueName)}')">
+          <div style="position:relative;z-index:1;pointer-events:none;text-align:center">
+            <div class="photo-upload-icon">${icn('camera',32)}</div>
+            <div class="photo-upload-hint">Tap to add a photo</div>
+          </div>
         </div>
+
+        <div id="checkinPhotoPreview" style="display:none;position:relative;margin-bottom:12px">
+          <img id="checkinPreviewImg" src="" alt="Preview" style="width:100%;border-radius:12px;max-height:240px;object-fit:cover">
+          <button onclick="clearCheckinPhotoPreview()" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.5);color:#fff;border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:14px">✕</button>
+        </div>
+
         <textarea class="photo-caption-field" id="photoCaptionField"
           placeholder="Add a caption (optional)…" rows="2"></textarea>
         <button class="photo-submit-btn" id="photoSubmitBtn" disabled
           onclick="submitPhotoCheckin('${venueId}','${esc(venueName)}')">Share Photo</button>
+
         <div class="s-div" style="margin:16px 0"></div>
         <div class="tag-prompt-title">Who'd you go with?</div>
         <div class="tag-prompt-sub">Tag a friend at ${esc(venueName)} and they'll see it in their feed.</div>
@@ -3608,6 +3607,37 @@ function openPhotoCheckinPrompt(venueId, venueName) {
 
   presentOverlay(overlay);
   _loadTagFriendsInline(venueId, venueName);
+}
+
+// Matches the working handleAddSpotPhoto pattern exactly
+function handleCheckinPhoto(input, venueId, venueName) {
+  const file = input.files?.[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) { showToast('Please choose an image'); return; }
+  if (file.size > 10 * 1024 * 1024) { showToast('Photo must be under 10 MB'); return; }
+  window._pendingCheckinPhoto = file;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const preview = document.getElementById('checkinPhotoPreview');
+    const img = document.getElementById('checkinPreviewImg');
+    const area = document.getElementById('photoUploadArea');
+    const btn = document.getElementById('photoSubmitBtn');
+    if (img) img.src = e.target.result;
+    if (preview) preview.style.display = 'block';
+    if (area) area.style.display = 'none';
+    if (btn) btn.disabled = false;
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearCheckinPhotoPreview() {
+  window._pendingCheckinPhoto = null;
+  const preview = document.getElementById('checkinPhotoPreview');
+  const area = document.getElementById('photoUploadArea');
+  const btn = document.getElementById('photoSubmitBtn');
+  if (preview) preview.style.display = 'none';
+  if (area) area.style.display = '';
+  if (btn) btn.disabled = true;
 }
 
 async function _loadTagFriendsInline(venueId, venueName) {
