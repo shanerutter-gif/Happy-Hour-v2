@@ -460,9 +460,7 @@ function showFeedTooltip() {
         <div class="feed-tooltip-way"><span>📍</span> <strong>Check in</strong> at a venue to show where you are</div>
         <div class="feed-tooltip-way"><span>📸</span> <strong>Share a photo</strong> when you check in</div>
         <div class="feed-tooltip-way"><span>⭐</span> <strong>Leave a review</strong> on any venue</div>
-        <div class="feed-tooltip-way"><span>🔥</span> <strong>Tap "Going Tonight"</strong> on a venue card</div>
         <div class="feed-tooltip-way"><span>❤️</span> <strong>Save a spot</strong> to your favorites</div>
-        <div class="feed-tooltip-way"><span>➕</span> <strong>Share a spot</strong> not on Spotd yet</div>
       </div>
       <p class="feed-tooltip-footer">All of these show up in the feed for your city!</p>
     </div>`;
