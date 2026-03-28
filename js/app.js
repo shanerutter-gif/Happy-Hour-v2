@@ -3560,30 +3560,18 @@ function _fallbackToFileInput() {
 }
 
 function openPhotoCheckinPrompt(venueId, venueName) {
-  const el = document.getElementById('photoCheckinContent');
-  if (!el) return;
+  // Close modal first to avoid stacking overlays that block file input taps
+  closeOverlay('modalOverlay');
 
-  const isNative = _isCapacitorNative();
+  // Use same pattern as "Add a Spot" — dynamically create overlay
+  const overlay = document.createElement('div');
+  overlay.className = 'overlay';
+  overlay.id = 'photoCheckinOverlay-dynamic';
+  overlay.onclick = e => { if (e.target === overlay) { window._pendingCheckinPhoto = null; dismissOverlay(overlay); _tryPushPromptAfterCheckin(); } };
 
-  // Native: two explicit buttons (take photo / library) — no file input at all
-  // Web fallback: standard file input for browser testing
-  const uploadZone = isNative ? `
-    <div class="photo-upload-area" id="photoUploadArea">
-      <div class="photo-upload-icon">${icn('camera',32)}</div>
-      <div class="photo-source-btns">
-        <button class="photo-source-btn" onclick="_capacitorTakePhoto()">
-          ${ICN.camera} Take Photo
-        </button>
-        <button class="photo-source-btn" onclick="_capacitorChoosePhoto()">
-          ${ICN.image} Choose from Library
-        </button>
-      </div>
-    </div>` : `
-    <div class="photo-upload-area" id="photoUploadArea"
-      ondragover="event.preventDefault();this.classList.add('dragover')"
-      ondragleave="this.classList.remove('dragover')"
-      ondrop="handlePhotoDropOrChange(event,'${venueId}','${esc(venueName)}')">
-      <input type="file" accept="image/*" id="photoFileInput"
+  const uploadZone = `
+    <div class="photo-upload-area" id="photoUploadArea" style="position:relative">
+      <input type="file" accept="image/*" capture="environment" id="photoFileInput"
         style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;z-index:2"
         onchange="handlePhotoDropOrChange(event,'${venueId}','${esc(venueName)}')">
       <div class="photo-upload-icon" style="position:relative;z-index:1;pointer-events:none">${icn('camera',32)}</div>
@@ -3592,28 +3580,33 @@ function openPhotoCheckinPrompt(venueId, venueName) {
       </div>
     </div>`;
 
-  el.innerHTML = `
-    <div class="photo-prompt-title">Add a photo? ${icn('camera',16)}</div>
-    <div class="photo-prompt-sub">Show others what's happening at ${esc(venueName)} right now.</div>
-    ${uploadZone}
-    <div class="photo-preview-wrap" id="photoPreviewWrap">
-      <img id="photoPreviewImg" src="" alt="Preview">
-      <button class="photo-preview-remove" onclick="clearPhotoPreview('${venueId}','${esc(venueName)}')">✕</button>
-    </div>
-    <textarea class="photo-caption-field" id="photoCaptionField"
-      placeholder="Add a caption (optional)…" rows="2"></textarea>
-    <button class="photo-submit-btn" id="photoSubmitBtn" disabled
-      onclick="submitPhotoCheckin('${venueId}','${esc(venueName)}')">Share Photo</button>
-    <div class="s-div" style="margin:16px 0"></div>
-    <div class="tag-prompt-title">Who'd you go with?</div>
-    <div class="tag-prompt-sub">Tag a friend at ${esc(venueName)} and they'll see it in their feed.</div>
-    <div class="tag-friends-grid" id="tagFriendsGridInline">
-      <div style="color:var(--muted);font-size:13px">Loading friends…</div>
-    </div>
-    <button class="photo-skip-btn" onclick="closeOverlay('photoCheckinOverlay'); _tryPushPromptAfterCheckin()">Done</button>`;
+  overlay.innerHTML = `
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <button class="sheet-close" onclick="window._pendingCheckinPhoto=null;dismissOverlay(this.closest('.overlay'));_tryPushPromptAfterCheckin()">✕</button>
+      <div id="photoCheckinContent">
+        <div class="photo-prompt-title">Add a photo? ${icn('camera',16)}</div>
+        <div class="photo-prompt-sub">Show others what's happening at ${esc(venueName)} right now.</div>
+        ${uploadZone}
+        <div class="photo-preview-wrap" id="photoPreviewWrap">
+          <img id="photoPreviewImg" src="" alt="Preview">
+          <button class="photo-preview-remove" onclick="clearPhotoPreview('${venueId}','${esc(venueName)}')">✕</button>
+        </div>
+        <textarea class="photo-caption-field" id="photoCaptionField"
+          placeholder="Add a caption (optional)…" rows="2"></textarea>
+        <button class="photo-submit-btn" id="photoSubmitBtn" disabled
+          onclick="submitPhotoCheckin('${venueId}','${esc(venueName)}')">Share Photo</button>
+        <div class="s-div" style="margin:16px 0"></div>
+        <div class="tag-prompt-title">Who'd you go with?</div>
+        <div class="tag-prompt-sub">Tag a friend at ${esc(venueName)} and they'll see it in their feed.</div>
+        <div class="tag-friends-grid" id="tagFriendsGridInline">
+          <div style="color:var(--muted);font-size:13px">Loading friends…</div>
+        </div>
+        <button class="photo-skip-btn" onclick="dismissOverlay(this.closest('.overlay')); _tryPushPromptAfterCheckin()">Done</button>
+      </div>
+    </div>`;
 
-  openOverlay('photoCheckinOverlay');
-  // Load friends inline
+  presentOverlay(overlay);
   _loadTagFriendsInline(venueId, venueName);
 }
 
