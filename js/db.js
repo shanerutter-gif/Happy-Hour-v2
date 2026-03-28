@@ -927,7 +927,7 @@ async function toggleLike(postId, postType, userId) {
 // is applied client-side after the parallel fetches.
 async function fetchSocialFeed(citySlug, followingIds = [], limit = 60) {
   try {
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
     // Parallel fetch all four sources
     const [photosRes, activityRes, goingRes] = await Promise.allSettled([
@@ -935,7 +935,7 @@ async function fetchSocialFeed(citySlug, followingIds = [], limit = 60) {
       db.from('checkin_photos')
         .select('id, user_id, venue_id, photo_url, caption, city_slug, created_at')
         .eq('city_slug', citySlug)
-        .gte('created_at', sevenDaysAgo)
+        .gte('created_at', thirtyDaysAgo)
         .order('created_at', { ascending: false })
         .limit(limit),
 
@@ -943,7 +943,7 @@ async function fetchSocialFeed(citySlug, followingIds = [], limit = 60) {
       db.from('activity_feed')
         .select('id, user_id, activity_type, venue_id, venue_name, neighborhood, meta, created_at')
         .in('activity_type', ['check_in', 'review', 'favorite', 'tagged_at'])
-        .gte('created_at', sevenDaysAgo)
+        .gte('created_at', thirtyDaysAgo)
         .order('created_at', { ascending: false })
         .limit(limit),
 
