@@ -445,6 +445,30 @@ async function submitSpotExperience() {
   if (btn) { btn.disabled = false; btn.textContent = 'Share with the feed'; }
 }
 
+function showFeedTooltip() {
+  if(typeof haptic==='function')haptic('light');
+  const existing = document.getElementById('feedTooltip');
+  if (existing) { existing.remove(); return; }
+  const tip = document.createElement('div');
+  tip.id = 'feedTooltip';
+  tip.innerHTML = `
+    <div class="feed-tooltip">
+      <button class="feed-tooltip-close" onclick="this.closest('#feedTooltip').remove()">&times;</button>
+      <div class="feed-tooltip-title">Your City's Feed</div>
+      <p class="feed-tooltip-desc">See what's happening in your city over the last 30 days. Posts from people you follow show up first.</p>
+      <div class="feed-tooltip-ways">
+        <div class="feed-tooltip-way"><span>📍</span> <strong>Check in</strong> at a venue to show where you are</div>
+        <div class="feed-tooltip-way"><span>📸</span> <strong>Share a photo</strong> when you check in</div>
+        <div class="feed-tooltip-way"><span>⭐</span> <strong>Leave a review</strong> on any venue</div>
+        <div class="feed-tooltip-way"><span>🔥</span> <strong>Tap "Going Tonight"</strong> on a venue card</div>
+        <div class="feed-tooltip-way"><span>❤️</span> <strong>Save a spot</strong> to your favorites</div>
+        <div class="feed-tooltip-way"><span>➕</span> <strong>Share a spot</strong> not on Spotd yet</div>
+      </div>
+      <p class="feed-tooltip-footer">All of these show up in the feed for your city!</p>
+    </div>`;
+  document.getElementById('socialTab').prepend(tip);
+}
+
 let _socialLoading = false;
 
 async function loadSocialFeed() {
