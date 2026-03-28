@@ -3500,32 +3500,63 @@ function _showPhotoPreview(dataUrl) {
 
 // Take photo using Capacitor Camera plugin (native path)
 async function _capacitorTakePhoto() {
-  const { Camera, CameraResultType, CameraSource } = window.Capacitor.Plugins;
-  const image = await Camera.getPhoto({
-    quality:      90,
-    allowEditing: false,
-    resultType:   CameraResultType.Base64,
-    source:       CameraSource.Camera,
-  });
-  const mime = 'image/jpeg';
-  const file = _base64ToFile(image.base64String, mime, `checkin-${Date.now()}.jpg`);
-  window._pendingCheckinPhoto = file;
-  _showPhotoPreview(`data:${mime};base64,${image.base64String}`);
+  try {
+    const { Camera, CameraResultType, CameraSource } = window.Capacitor.Plugins;
+    const image = await Camera.getPhoto({
+      quality:      90,
+      allowEditing: false,
+      resultType:   CameraResultType.Base64,
+      source:       CameraSource.Camera,
+    });
+    const mime = 'image/jpeg';
+    const file = _base64ToFile(image.base64String, mime, `checkin-${Date.now()}.jpg`);
+    window._pendingCheckinPhoto = file;
+    _showPhotoPreview(`data:${mime};base64,${image.base64String}`);
+  } catch(e) {
+    if (e.message === 'User cancelled photos app') return;
+    console.error('[Photo] Camera error, falling back to file input:', e);
+    _fallbackToFileInput();
+  }
 }
 
 // Choose from library using Capacitor Camera plugin (native path)
 async function _capacitorChoosePhoto() {
-  const { Camera, CameraResultType, CameraSource } = window.Capacitor.Plugins;
-  const image = await Camera.getPhoto({
-    quality:      90,
-    allowEditing: false,
-    resultType:   CameraResultType.Base64,
-    source:       CameraSource.Photos,
-  });
-  const mime = 'image/jpeg';
-  const file = _base64ToFile(image.base64String, mime, `checkin-${Date.now()}.jpg`);
-  window._pendingCheckinPhoto = file;
-  _showPhotoPreview(`data:${mime};base64,${image.base64String}`);
+  try {
+    const { Camera, CameraResultType, CameraSource } = window.Capacitor.Plugins;
+    const image = await Camera.getPhoto({
+      quality:      90,
+      allowEditing: false,
+      resultType:   CameraResultType.Base64,
+      source:       CameraSource.Photos,
+    });
+    const mime = 'image/jpeg';
+    const file = _base64ToFile(image.base64String, mime, `checkin-${Date.now()}.jpg`);
+    window._pendingCheckinPhoto = file;
+    _showPhotoPreview(`data:${mime};base64,${image.base64String}`);
+  } catch(e) {
+    if (e.message === 'User cancelled photos app') return;
+    console.error('[Photo] Library error, falling back to file input:', e);
+    _fallbackToFileInput();
+  }
+}
+
+// Fallback: inject a file input and trigger it
+function _fallbackToFileInput() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.style.display = 'none';
+  input.onchange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    window._pendingCheckinPhoto = file;
+    const reader = new FileReader();
+    reader.onload = ev => _showPhotoPreview(ev.target.result);
+    reader.readAsDataURL(file);
+    input.remove();
+  };
+  document.body.appendChild(input);
+  input.click();
 }
 
 function openPhotoCheckinPrompt(venueId, venueName) {
@@ -3540,10 +3571,10 @@ function openPhotoCheckinPrompt(venueId, venueName) {
     <div class="photo-upload-area" id="photoUploadArea">
       <div class="photo-upload-icon">${icn('camera',32)}</div>
       <div class="photo-source-btns">
-        <button class="photo-source-btn" onclick="window._capacitorTakePhoto().catch(e=>{ if(e.message!=='User cancelled photos app') showToast('Camera unavailable'); })">
+        <button class="photo-source-btn" onclick="_capacitorTakePhoto()">
           ${ICN.camera} Take Photo
         </button>
-        <button class="photo-source-btn" onclick="window._capacitorChoosePhoto().catch(e=>{ if(e.message!=='User cancelled photos app') showToast('Could not open library'); })">
+        <button class="photo-source-btn" onclick="_capacitorChoosePhoto()">
           ${ICN.image} Choose from Library
         </button>
       </div>
@@ -3661,24 +3692,37 @@ async function submitPhotoCheckin(venueId, venueName) {
   const file    = window._pendingCheckinPhoto;
   const caption = document.getElementById('photoCaptionField')?.value.trim() || '';
   const btn     = document.getElementById('photoSubmitBtn');
-  if (!file || !currentUser) return;
+  if (!file) { showToast('Please select a photo first'); return; }
+  if (!currentUser) { openAuth('signin'); return; }
 
   btn.disabled = true;
   btn.textContent = 'Uploading…';
 
-  const uploaded = await uploadCheckinPhoto(file, currentUser.id);
-  if (!uploaded) {
+  try {
+    const uploaded = await uploadCheckinPhoto(file, currentUser.id);
+    if (!uploaded) {
+      btn.disabled = false; btn.textContent = 'Share Photo';
+      showToast('Upload failed — please try again'); return;
+    }
+
+    const saved = await saveCheckinPhoto({
+      userId: currentUser.id, venueId, citySlug: state.city?.slug || '',
+      photoUrl: uploaded.url, storagePath: uploaded.storagePath, caption
+    });
+
+    if (!saved) {
+      btn.disabled = false; btn.textContent = 'Share Photo';
+      showToast('Could not save photo — please try again'); return;
+    }
+
+    window._pendingCheckinPhoto = null;
+    showToast('Photo shared!');
+  } catch(e) {
+    console.error('submitPhotoCheckin error:', e);
     btn.disabled = false; btn.textContent = 'Share Photo';
-    showToast('Upload failed — please try again'); return;
+    showToast('Something went wrong — please try again');
+    return;
   }
-
-  await saveCheckinPhoto({
-    userId: currentUser.id, venueId, citySlug: state.city?.slug || '',
-    photoUrl: uploaded.url, storagePath: uploaded.storagePath, caption
-  });
-
-  window._pendingCheckinPhoto = null;
-  showToast('Photo shared!');
 
   // Refresh UGC photos in background
   const ugcEl = document.getElementById(`ugc-photos-${venueId}`);

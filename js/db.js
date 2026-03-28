@@ -725,16 +725,19 @@ async function uploadCheckinPhoto(file, userId) {
       })
     : db;
 
+  console.log('[Photo] Uploading to', path, 'size:', file.size, 'type:', file.type);
   const { data, error } = await client.storage
     .from(CHECKIN_PHOTO_BUCKET)
-    .upload(path, file, { contentType: file.type, upsert: false });
+    .upload(path, file, { contentType: file.type || 'image/jpeg', upsert: false });
 
-  if (error) { console.error('uploadCheckinPhoto error', error); return null; }
+  if (error) { console.error('[Photo] Upload error:', JSON.stringify(error)); return null; }
+  console.log('[Photo] Upload success:', data);
 
   const { data: urlData } = client.storage
     .from(CHECKIN_PHOTO_BUCKET)
     .getPublicUrl(path);
 
+  console.log('[Photo] Public URL:', urlData.publicUrl);
   return { url: urlData.publicUrl, storagePath: path };
 }
 
