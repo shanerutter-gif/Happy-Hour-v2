@@ -469,6 +469,15 @@ async function loadSocialFeed() {
       return;
     }
 
+    // Hydrate like counts for each feed item
+    const postIds = items.map(i => i.id).filter(Boolean);
+    const likesMap = await fetchLikesBulk(postIds);
+    items.forEach(item => {
+      const likers = likesMap[item.id] || [];
+      item._likeCount = likers.length;
+      item._liked = currentUser ? likers.includes(currentUser.id) : false;
+    });
+
     container.innerHTML = items.map(item => renderSocialItem(item)).join('');
   } catch(e) {
     console.error('loadSocialFeed:', e);

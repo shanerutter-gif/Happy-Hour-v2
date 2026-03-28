@@ -867,6 +867,21 @@ async function fetchLikes(postId, postType) {
   } catch(e) { console.error('fetchLikes:', e); return { count: 0, likes: [] }; }
 }
 
+async function fetchLikesBulk(postIds) {
+  try {
+    if (!postIds.length) return {};
+    const { data } = await db.from('social_likes')
+      .select('post_id, user_id')
+      .in('post_id', postIds);
+    const map = {};
+    (data || []).forEach(r => {
+      if (!map[r.post_id]) map[r.post_id] = [];
+      map[r.post_id].push(r.user_id);
+    });
+    return map;
+  } catch(e) { console.error('fetchLikesBulk:', e); return {}; }
+}
+
 async function toggleLike(postId, postType, userId) {
   try {
     const session = getSession();
