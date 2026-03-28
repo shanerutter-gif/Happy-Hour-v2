@@ -3661,24 +3661,37 @@ async function submitPhotoCheckin(venueId, venueName) {
   const file    = window._pendingCheckinPhoto;
   const caption = document.getElementById('photoCaptionField')?.value.trim() || '';
   const btn     = document.getElementById('photoSubmitBtn');
-  if (!file || !currentUser) return;
+  if (!file) { showToast('Please select a photo first'); return; }
+  if (!currentUser) { openAuth('signin'); return; }
 
   btn.disabled = true;
   btn.textContent = 'Uploading…';
 
-  const uploaded = await uploadCheckinPhoto(file, currentUser.id);
-  if (!uploaded) {
+  try {
+    const uploaded = await uploadCheckinPhoto(file, currentUser.id);
+    if (!uploaded) {
+      btn.disabled = false; btn.textContent = 'Share Photo';
+      showToast('Upload failed — please try again'); return;
+    }
+
+    const saved = await saveCheckinPhoto({
+      userId: currentUser.id, venueId, citySlug: state.city?.slug || '',
+      photoUrl: uploaded.url, storagePath: uploaded.storagePath, caption
+    });
+
+    if (!saved) {
+      btn.disabled = false; btn.textContent = 'Share Photo';
+      showToast('Could not save photo — please try again'); return;
+    }
+
+    window._pendingCheckinPhoto = null;
+    showToast('Photo shared!');
+  } catch(e) {
+    console.error('submitPhotoCheckin error:', e);
     btn.disabled = false; btn.textContent = 'Share Photo';
-    showToast('Upload failed — please try again'); return;
+    showToast('Something went wrong — please try again');
+    return;
   }
-
-  await saveCheckinPhoto({
-    userId: currentUser.id, venueId, citySlug: state.city?.slug || '',
-    photoUrl: uploaded.url, storagePath: uploaded.storagePath, caption
-  });
-
-  window._pendingCheckinPhoto = null;
-  showToast('Photo shared!');
 
   // Refresh UGC photos in background
   const ugcEl = document.getElementById(`ugc-photos-${venueId}`);
