@@ -3567,6 +3567,17 @@ function openPhotoCheckinPrompt(venueId, venueName) {
   overlay.className = 'overlay';
   overlay.onclick = e => { if (e.target === overlay) { window._pendingCheckinPhoto = null; dismissOverlay(overlay); _tryPushPromptAfterCheckin(); } };
 
+  // Store for use after camera returns
+  window._checkinPhotoVenueId = venueId;
+  window._checkinPhotoVenueName = venueName;
+
+  // Build the file input separately so we can attach listener programmatically
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.accept = 'image/*';
+  fileInput.id = 'photoFileInput';
+  fileInput.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;z-index:2';
+
   overlay.innerHTML = `
     <div class="sheet">
       <div class="sheet-handle"></div>
@@ -3576,9 +3587,6 @@ function openPhotoCheckinPrompt(venueId, venueName) {
         <div class="photo-prompt-sub">Show others what's happening at ${esc(venueName)} right now.</div>
 
         <div class="photo-upload-area" id="photoUploadArea" style="position:relative">
-          <input type="file" accept="image/*" id="photoFileInput"
-            style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;z-index:2"
-            onchange="handleCheckinPhoto(this,'${venueId}','${esc(venueName)}')">
           <div style="position:relative;z-index:1;pointer-events:none;text-align:center">
             <div class="photo-upload-icon">${icn('camera',32)}</div>
             <div class="photo-upload-hint">Tap to add a photo</div>
@@ -3593,7 +3601,7 @@ function openPhotoCheckinPrompt(venueId, venueName) {
         <textarea class="photo-caption-field" id="photoCaptionField"
           placeholder="Add a caption (optional)…" rows="2"></textarea>
         <button class="photo-submit-btn" id="photoSubmitBtn" disabled
-          onclick="submitPhotoCheckin('${venueId}','${esc(venueName)}')">Share Photo</button>
+          onclick="submitPhotoCheckin(window._checkinPhotoVenueId, window._checkinPhotoVenueName)">Share Photo</button>
 
         <div class="s-div" style="margin:16px 0"></div>
         <div class="tag-prompt-title">Who'd you go with?</div>
@@ -3605,29 +3613,31 @@ function openPhotoCheckinPrompt(venueId, venueName) {
       </div>
     </div>`;
 
+  // Insert file input into the upload area and attach listener AFTER DOM is ready
+  const uploadArea = overlay.querySelector('#photoUploadArea');
+  uploadArea.prepend(fileInput);
+
+  // Use addEventListener — survives iOS camera suspend/resume better than onchange
+  fileInput.addEventListener('change', function() {
+    const file = this.files && this.files[0];
+    if (!file) return;
+    window._pendingCheckinPhoto = file;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const preview = document.getElementById('checkinPhotoPreview');
+      const img = document.getElementById('checkinPreviewImg');
+      const area = document.getElementById('photoUploadArea');
+      const btn = document.getElementById('photoSubmitBtn');
+      if (img) img.src = e.target.result;
+      if (preview) preview.style.display = 'block';
+      if (area) area.style.display = 'none';
+      if (btn) btn.disabled = false;
+    };
+    reader.readAsDataURL(file);
+  });
+
   presentOverlay(overlay);
   _loadTagFriendsInline(venueId, venueName);
-}
-
-// Matches the working handleAddSpotPhoto pattern exactly
-function handleCheckinPhoto(input, venueId, venueName) {
-  const file = input.files?.[0];
-  if (!file) return;
-  if (!file.type.startsWith('image/')) { showToast('Please choose an image'); return; }
-  if (file.size > 10 * 1024 * 1024) { showToast('Photo must be under 10 MB'); return; }
-  window._pendingCheckinPhoto = file;
-  const reader = new FileReader();
-  reader.onload = e => {
-    const preview = document.getElementById('checkinPhotoPreview');
-    const img = document.getElementById('checkinPreviewImg');
-    const area = document.getElementById('photoUploadArea');
-    const btn = document.getElementById('photoSubmitBtn');
-    if (img) img.src = e.target.result;
-    if (preview) preview.style.display = 'block';
-    if (area) area.style.display = 'none';
-    if (btn) btn.disabled = false;
-  };
-  reader.readAsDataURL(file);
 }
 
 function clearCheckinPhotoPreview() {
