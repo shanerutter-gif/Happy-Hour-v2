@@ -856,6 +856,20 @@ async function addComment(postId, postType, userId, text) {
   } catch(e) { console.error('addComment:', e); return null; }
 }
 
+async function fetchCommentCountsBulk(postIds) {
+  try {
+    if (!postIds.length) return {};
+    const { data } = await db.from('social_comments')
+      .select('post_id')
+      .in('post_id', postIds);
+    const map = {};
+    (data || []).forEach(r => {
+      map[r.post_id] = (map[r.post_id] || 0) + 1;
+    });
+    return map;
+  } catch(e) { console.error('fetchCommentCountsBulk:', e); return {}; }
+}
+
 // ── SOCIAL LIKES ──────────────────────────────────────
 async function fetchLikes(postId, postType) {
   try {
