@@ -484,6 +484,19 @@ async function loadSocialFeed() {
       return;
     }
 
+    // Hydrate like + comment counts for each feed item
+    const postIds = items.map(i => i.id).filter(Boolean);
+    const [likesMap, commentCounts] = await Promise.all([
+      fetchLikesBulk(postIds),
+      fetchCommentCountsBulk(postIds),
+    ]);
+    items.forEach(item => {
+      const likers = likesMap[item.id] || [];
+      item._likeCount = likers.length;
+      item._liked = currentUser ? likers.includes(currentUser.id) : false;
+      item._commentCount = commentCounts[item.id] || 0;
+    });
+
     container.innerHTML = items.map(item => renderSocialItem(item)).join('');
   } catch(e) {
     console.error('loadSocialFeed:', e);
@@ -515,6 +528,7 @@ function renderSocialItem(item) {
   const postType = item.type || '';
   const likeCount = item._likeCount || 0;
   const isLiked = item._liked || false;
+  const commentCount = item._commentCount || 0;
   const reportBtn = !isMe ? `<button class="social-report-btn" onclick="event.stopPropagation();openReportMenu('${postType}','${postId}','${item.user_id}')" title="Report">···</button>` : '';
   const commentSection = `
     <div class="social-actions-bar" id="actions-${postId}">
@@ -522,7 +536,7 @@ function renderSocialItem(item) {
         ${isLiked ? ICN.heartFill : ICN.heart} <span class="like-count">${likeCount || ''}</span>
       </button>
       <button class="social-comments-toggle" onclick="toggleComments('${postId}','${postType}',this)">
-        ${ICN.comment} Comments
+        ${ICN.comment} Comments${commentCount ? ` (${commentCount})` : ''}
       </button>
     </div>
     <div class="social-comments-section" id="comments-${postId}" style="display:none">
