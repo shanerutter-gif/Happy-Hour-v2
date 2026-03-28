@@ -828,7 +828,7 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 
 /* bottom-nav styles moved to redesigned section below */
 
-.app-page { padding-bottom: 96px; }
+.app-page { padding-bottom: 96px; overflow-x: hidden; }
 .app-page .top-nav { display: none; }
 .city-bar { position: sticky; top: 0; z-index: 250; }
 
