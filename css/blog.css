@@ -55,6 +55,18 @@
   color: var(--teal);
   font-weight: 600;
 }
+.blog-nav-cta {
+  display: inline-block;
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-weight: 700; font-size: 13px;
+  background: var(--coral, #FF6B4A);
+  color: #fff;
+  padding: 7px 16px;
+  border-radius: 18px;
+  text-decoration: none;
+  transition: opacity .15s;
+}
+.blog-nav-cta:hover { opacity: 0.85; }
 
 /* ── BLOG HERO ── */
 .blog-hero {
@@ -487,4 +499,36 @@
 .blog-empty-sub {
   font-size: 14px; color: var(--muted);
   margin: 0;
+}
+
+/* ── TAG FILTER BAR ── */
+.blog-tag-bar {
+  display: flex;
+  gap: 8px;
+  padding: 0 20px 16px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  max-width: 900px;
+  margin: 0 auto;
+}
+.blog-tag-bar::-webkit-scrollbar { display: none; }
+.blog-tag-btn {
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 500; font-size: 13px;
+  padding: 6px 14px;
+  border-radius: 16px;
+  border: 1px solid var(--border2);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all .15s;
+  flex-shrink: 0;
+}
+.blog-tag-btn:hover { border-color: var(--coral); color: var(--text); }
+.blog-tag-btn--active {
+  background: var(--charcoal, #1A1208);
+  color: #fff;
+  border-color: var(--charcoal, #1A1208);
 }
