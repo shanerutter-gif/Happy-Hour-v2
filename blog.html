@@ -115,52 +115,19 @@
     <p class="blog-empty-sub">Check back soon or explore another city above.</p>
   </div>
 
+  <!-- Tag filter -->
+  <div class="blog-tag-bar" id="blogTagBar">
+    <button class="blog-tag-btn blog-tag-btn--active" data-tag="all" onclick="filterBlogTag('all',this)">All</button>
+    <button class="blog-tag-btn" data-tag="City Guide" onclick="filterBlogTag('City Guide',this)">City Guide</button>
+    <button class="blog-tag-btn" data-tag="Events" onclick="filterBlogTag('Events',this)">Events</button>
+    <button class="blog-tag-btn" data-tag="Niche Guide" onclick="filterBlogTag('Niche Guide',this)">Niche Guide</button>
+    <button class="blog-tag-btn" data-tag="Tips" onclick="filterBlogTag('Tips',this)">Tips</button>
+  </div>
+
   <div class="blog-grid" id="blogGrid">
 
-    <!-- Article: SD Weekend Events Mar 27-29 -->
-    <a href="/blog/sd-weekend-events-march-27-29-2026.html" class="blog-card" data-city="san-diego">
-      <div class="blog-card-emoji">&#9918;</div>
-      <div class="blog-card-body">
-        <span class="blog-card-tag">Events</span>
-        <h2 class="blog-card-title">San Diego Weekend Events: March 27&ndash;29, 2026</h2>
-        <p class="blog-card-excerpt">Happy Opening Day. Padres vs. Tigers, Crew Classic, IRONMAN 70.3, Wave FC, live music, markets, and 30+ things to do this weekend.</p>
-        <div class="blog-card-meta">
-          <span>March 27, 2026</span>
-          <span>12 min read</span>
-        </div>
-      </div>
-    </a>
-
-    <!-- Article: Best Tacos -->
-    <a href="/blog/best-tacos-san-diego.html" class="blog-card" data-city="san-diego">
-      <div class="blog-card-emoji">&#127790;</div>
-      <div class="blog-card-body">
-        <span class="blog-card-tag">City Guide</span>
-        <h2 class="blog-card-title">Best Tacos in San Diego: A Neighborhood Guide</h2>
-        <p class="blog-card-excerpt">Tacos El Gordo's adobada, LOLA 55's Michelin creations, Mike's Red birria, Oscar's fish tacos &mdash; 12 spots across every neighborhood.</p>
-        <div class="blog-card-meta">
-          <span>April 4, 2026</span>
-          <span>9 min read</span>
-        </div>
-      </div>
-    </a>
-
-    <!-- Article: Local's To-Do List -->
-    <a href="/blog/locals-san-diego-to-do-list.html" class="blog-card" data-city="san-diego">
-      <div class="blog-card-emoji">&#9728;&#65039;</div>
-      <div class="blog-card-body">
-        <span class="blog-card-tag">City Guide</span>
-        <h2 class="blog-card-title">A Local's Ultimate San Diego To-Do List</h2>
-        <p class="blog-card-excerpt">Windansea sunsets, Torrey Pines hikes, sea cave kayaking, PopUp Bagels, and the spots only locals know. Your SD bucket list.</p>
-        <div class="blog-card-meta">
-          <span>April 2, 2026</span>
-          <span>9 min read</span>
-        </div>
-      </div>
-    </a>
-
-    <!-- Article: Best Burritos -->
-    <a href="/blog/best-burritos-san-diego.html" class="blog-card" data-city="san-diego">
+    <!-- Mar 31: Best Burritos -->
+    <a href="/blog/best-burritos-san-diego.html" class="blog-card" data-city="san-diego" data-tag="City Guide">
       <div class="blog-card-emoji">&#127783;&#65039;</div>
       <div class="blog-card-body">
         <span class="blog-card-tag">City Guide</span>
@@ -173,8 +140,36 @@
       </div>
     </a>
 
-    <!-- Article: Happy Hour Spots Locals Love -->
-    <a href="/blog/happy-hour-spots-locals-love-san-diego.html" class="blog-card" data-city="san-diego">
+    <!-- Mar 30: Best Tacos -->
+    <a href="/blog/best-tacos-san-diego.html" class="blog-card" data-city="san-diego" data-tag="City Guide">
+      <div class="blog-card-emoji">&#127790;</div>
+      <div class="blog-card-body">
+        <span class="blog-card-tag">City Guide</span>
+        <h2 class="blog-card-title">Best Tacos in San Diego: A Neighborhood Guide</h2>
+        <p class="blog-card-excerpt">Tacos El Gordo's adobada, LOLA 55's Michelin creations, Mike's Red birria, Oscar's fish tacos &mdash; 12 spots across every neighborhood.</p>
+        <div class="blog-card-meta">
+          <span>March 30, 2026</span>
+          <span>9 min read</span>
+        </div>
+      </div>
+    </a>
+
+    <!-- Mar 30: Local's To-Do List -->
+    <a href="/blog/locals-san-diego-to-do-list.html" class="blog-card" data-city="san-diego" data-tag="City Guide">
+      <div class="blog-card-emoji">&#9728;&#65039;</div>
+      <div class="blog-card-body">
+        <span class="blog-card-tag">City Guide</span>
+        <h2 class="blog-card-title">A Local's Ultimate San Diego To-Do List</h2>
+        <p class="blog-card-excerpt">Windansea sunsets, Torrey Pines hikes, sea cave kayaking, PopUp Bagels, and the spots only locals know. Your SD bucket list.</p>
+        <div class="blog-card-meta">
+          <span>March 30, 2026</span>
+          <span>9 min read</span>
+        </div>
+      </div>
+    </a>
+
+    <!-- Mar 29: Happy Hour Spots Locals Love -->
+    <a href="/blog/happy-hour-spots-locals-love-san-diego.html" class="blog-card" data-city="san-diego" data-tag="City Guide">
       <div class="blog-card-emoji">&#127867;</div>
       <div class="blog-card-body">
         <span class="blog-card-tag">City Guide</span>
@@ -187,13 +182,27 @@
       </div>
     </a>
 
-    <!-- Article 1 -->
-    <a href="/blog/best-happy-hours-san-diego.html" class="blog-card" data-city="san-diego">
+    <!-- Mar 27: SD Weekend Events -->
+    <a href="/blog/sd-weekend-events-march-27-29-2026.html" class="blog-card" data-city="san-diego" data-tag="Events">
+      <div class="blog-card-emoji">&#9918;</div>
+      <div class="blog-card-body">
+        <span class="blog-card-tag">Events</span>
+        <h2 class="blog-card-title">San Diego Weekend Events: March 27&ndash;29, 2026</h2>
+        <p class="blog-card-excerpt">Happy Opening Day. Padres vs. Tigers, Crew Classic, IRONMAN 70.3, Wave FC, live music, markets, and 30+ things to do this weekend.</p>
+        <div class="blog-card-meta">
+          <span>March 27, 2026</span>
+          <span>12 min read</span>
+        </div>
+      </div>
+    </a>
+
+    <!-- Mar 25: Best Happy Hours -->
+    <a href="/blog/best-happy-hours-san-diego.html" class="blog-card" data-city="san-diego" data-tag="City Guide">
       <div class="blog-card-emoji">🍹</div>
       <div class="blog-card-body">
         <span class="blog-card-tag">City Guide</span>
         <h2 class="blog-card-title">The 15 Best Happy Hours in San Diego (2026)</h2>
-        <p class="blog-card-excerpt">From $5 margs in the Gaslamp to ocean-view pints in Pacific Beach — our definitive guide to San Diego's best happy hour deals.</p>
+        <p class="blog-card-excerpt">From $5 margs in the Gaslamp to ocean-view pints in Pacific Beach &mdash; our definitive guide to San Diego's best happy hour deals.</p>
         <div class="blog-card-meta">
           <span>March 25, 2026</span>
           <span>8 min read</span>
@@ -201,12 +210,12 @@
       </div>
     </a>
 
-    <!-- Article 2 -->
-    <a href="/blog/best-trivia-nights-san-diego.html" class="blog-card" data-city="san-diego">
+    <!-- Mar 24: Trivia Nights -->
+    <a href="/blog/best-trivia-nights-san-diego.html" class="blog-card" data-city="san-diego" data-tag="Events">
       <div class="blog-card-emoji">🧠</div>
       <div class="blog-card-body">
         <span class="blog-card-tag">Events</span>
-        <h2 class="blog-card-title">Best Trivia Nights in San Diego — Every Day of the Week</h2>
+        <h2 class="blog-card-title">Best Trivia Nights in San Diego &mdash; Every Day of the Week</h2>
         <p class="blog-card-excerpt">Whether you're a Tuesday regular or a weekend warrior, here's where to flex your brain (and score free drinks).</p>
         <div class="blog-card-meta">
           <span>March 24, 2026</span>
@@ -215,8 +224,8 @@
       </div>
     </a>
 
-    <!-- Article 3 -->
-    <a href="/blog/rooftop-happy-hours-san-diego.html" class="blog-card" data-city="san-diego">
+    <!-- Mar 22: Rooftop Happy Hours -->
+    <a href="/blog/rooftop-happy-hours-san-diego.html" class="blog-card" data-city="san-diego" data-tag="Niche Guide">
       <div class="blog-card-emoji">🌅</div>
       <div class="blog-card-body">
         <span class="blog-card-tag">Niche Guide</span>
@@ -229,8 +238,8 @@
       </div>
     </a>
 
-    <!-- Article 4 (all cities) -->
-    <a href="/blog/how-to-find-best-happy-hour-deals.html" class="blog-card" data-city="all">
+    <!-- Mar 20: How to Find Deals (all cities) -->
+    <a href="/blog/how-to-find-best-happy-hour-deals.html" class="blog-card" data-city="all" data-tag="Tips">
       <div class="blog-card-emoji">💡</div>
       <div class="blog-card-body">
         <span class="blog-card-tag">Tips</span>
@@ -243,13 +252,13 @@
       </div>
     </a>
 
-    <!-- Article 5 -->
-    <a href="/blog/live-music-happy-hours-san-diego.html" class="blog-card" data-city="san-diego">
+    <!-- Mar 18: Live Music + Happy Hour -->
+    <a href="/blog/live-music-happy-hours-san-diego.html" class="blog-card" data-city="san-diego" data-tag="Events">
       <div class="blog-card-emoji">🎵</div>
       <div class="blog-card-body">
         <span class="blog-card-tag">Events</span>
         <h2 class="blog-card-title">Live Music + Happy Hour: San Diego's Best Combos</h2>
-        <p class="blog-card-excerpt">Why choose between cheap drinks and great music? These San Diego spots serve both — and they're all on Spotd.</p>
+        <p class="blog-card-excerpt">Why choose between cheap drinks and great music? These San Diego spots serve both &mdash; and they're all on Spotd.</p>
         <div class="blog-card-meta">
           <span>March 18, 2026</span>
           <span>6 min read</span>
@@ -265,30 +274,54 @@ var BLOG_CITY_NAMES = {
   'san-diego': 'San Diego', 'los-angeles': 'Los Angeles', 'new-york': 'New York',
   'chicago': 'Chicago', 'austin': 'Austin', 'miami': 'Miami', 'orange-county': 'Orange County'
 };
+var _blogActiveCity = 'all';
+var _blogActiveTag = 'all';
 
-function filterBlogCity(city, btn) {
-  // Update active button
-  document.querySelectorAll('.blog-filter-btn').forEach(function(b) { b.classList.remove('blog-filter-btn--active'); });
-  btn.classList.add('blog-filter-btn--active');
-
+function _blogApplyFilters() {
   var cards = document.querySelectorAll('.blog-card[data-city]');
   var visible = 0;
-
   cards.forEach(function(card) {
     var cardCity = card.getAttribute('data-city');
-    var show = city === 'all' || cardCity === city || cardCity === 'all';
+    var cardTag = card.getAttribute('data-tag');
+    var cityMatch = _blogActiveCity === 'all' || cardCity === _blogActiveCity || cardCity === 'all';
+    var tagMatch = _blogActiveTag === 'all' || cardTag === _blogActiveTag;
+    var show = cityMatch && tagMatch;
     card.style.display = show ? '' : 'none';
     if (show) visible++;
   });
-
-  // Show/hide city heading
   var heading = document.getElementById('blogCityHeading');
   var empty = document.getElementById('blogEmpty');
-  if (city === 'all') {
+  if (_blogActiveCity === 'all' && _blogActiveTag === 'all') {
     heading.style.display = 'none';
     empty.style.display = 'none';
   } else if (visible === 0) {
     heading.style.display = 'none';
+    empty.style.display = 'block';
+  } else {
+    empty.style.display = 'none';
+    if (_blogActiveCity !== 'all') {
+      heading.style.display = 'block';
+      document.getElementById('blogCityName').textContent = BLOG_CITY_NAMES[_blogActiveCity] || _blogActiveCity;
+      document.getElementById('blogCityCount').textContent = visible + ' article' + (visible !== 1 ? 's' : '');
+    } else {
+      heading.style.display = 'none';
+    }
+  }
+}
+
+function filterBlogCity(city, btn) {
+  document.querySelectorAll('.blog-filter-btn').forEach(function(b) { b.classList.remove('blog-filter-btn--active'); });
+  btn.classList.add('blog-filter-btn--active');
+  _blogActiveCity = city;
+  _blogApplyFilters();
+}
+
+function filterBlogTag(tag, btn) {
+  document.querySelectorAll('.blog-tag-btn').forEach(function(b) { b.classList.remove('blog-tag-btn--active'); });
+  btn.classList.add('blog-tag-btn--active');
+  _blogActiveTag = tag;
+  _blogApplyFilters();
+}
     empty.style.display = 'block';
   } else {
     heading.style.display = 'block';
