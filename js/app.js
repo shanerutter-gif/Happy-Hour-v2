@@ -2476,8 +2476,8 @@ function shareItem(id, type) {
   const items = type === 'venue' ? state.venues : state.events;
   const v = items.find(x => String(x.id) === String(id)); if (!v) return;
   const msg = type === 'venue'
-    ? `Happy Hour at ${v.name}\n${v.neighborhood} — ${v.address}\n${v.hours}\n${(v.deals||[]).slice(0,2).join(' · ')}\n\nSpotd — spotd.app`
-    : `${v.event_type} at ${v.venue_name || v.name}\n${v.neighborhood} — ${v.address}\n${v.hours}\n\nSpotd — spotd.app`;
+    ? `Happy Hour at ${v.name}\n${v.neighborhood} — ${v.address}\n${v.hours}\n${(v.deals||[]).slice(0,2).join(' · ')}\n\nSpotd — spotd.biz/app-download`
+    : `${v.event_type} at ${v.venue_name || v.name}\n${v.neighborhood} — ${v.address}\n${v.hours}\n\nSpotd — spotd.biz/app-download`;
   if (navigator.share) { navigator.share({ title: v.name, text: msg }).catch(() => {}); }
   else { window.open(`sms:?body=${encodeURIComponent(msg)}`, '_blank'); }
 }
