@@ -36,7 +36,69 @@ const OB_VIBES = [
   { id: 'music',     emoji: '🎵', label: 'Live music'      },
   { id: 'wine',      emoji: '🍷', label: 'Wine bars'       },
   { id: 'food',      emoji: '🌮', label: 'Food + drinks'   },
+  { id: 'brunch',    emoji: '🥂', label: 'Boozy brunch'    },
+  { id: 'sports',    emoji: '🏈', label: 'Sports bars'     },
+  { id: 'tiki',      emoji: '🌴', label: 'Tiki bars'       },
+  { id: 'date',      emoji: '💕', label: 'Date night'      },
 ];
+
+// ── DYNAMIC CONTENT POOLS ─────────────────────────────
+// Featured venues rotate each visit so the onboarding feels fresh
+const OB_FEATURED_VENUES = [
+  { name: 'Coin-Op Game Room',  deal: '$5 arcade tokens + $6 craft beers',  hood: 'North Park',    time: 'HH 4\u20137pm' },
+  { name: 'Kettner Exchange',   deal: '$8 cocktails + $2 oysters',          hood: 'Little Italy',  time: 'HH 4\u20136pm' },
+  { name: 'Wonderland OB',      deal: '$5 margs + ocean view',             hood: 'Ocean Beach',   time: 'HH 3\u20136pm' },
+  { name: 'The Grass Skirt',    deal: '$7 tiki cocktails',                  hood: 'Pacific Beach', time: 'HH 4\u20137pm' },
+  { name: 'Raised by Wolves',   deal: '$10 speakeasy cocktails',            hood: 'East Village',  time: 'HH 5\u20137pm' },
+  { name: 'Cannonball',         deal: '$6 poolside margs',                  hood: 'Mission Beach', time: 'HH 3\u20135pm' },
+  { name: 'Craft & Commerce',   deal: '$7 old fashioneds',                  hood: 'Little Italy',  time: 'HH 5\u20137pm' },
+  { name: 'Fairweather',        deal: '$6 rooftop spritzes',                hood: 'North Park',    time: 'HH 4\u20136pm' },
+];
+
+// Map pin configs that rotate
+const OB_MAP_PIN_SETS = [
+  { primary: { hood: 'North Park', deals: 8, top: '32%', left: '38%' },  secondary: { hood: 'Downtown', deals: 12, top: '18%', right: '22%' } },
+  { primary: { hood: 'Little Italy', deals: 9, top: '25%', left: '30%' }, secondary: { hood: 'Pacific Beach', deals: 7, top: '40%', right: '20%' } },
+  { primary: { hood: 'Gaslamp', deals: 6, top: '35%', left: '45%' },     secondary: { hood: 'Ocean Beach', deals: 4, top: '20%', right: '28%' } },
+  { primary: { hood: 'Hillcrest', deals: 5, top: '28%', left: '35%' },   secondary: { hood: 'East Village', deals: 6, top: '42%', right: '18%' } },
+];
+
+// Screen 1 headlines rotate
+const OB_SCREEN1_HEADLINES = [
+  { title: '{count} deals are live right now.', sub: 'See what\u2019s happening tonight near you.' },
+  { title: '{count} happy hours happening now.', sub: 'The best deals in San Diego, updated live.' },
+  { title: '{count} spots are popping off tonight.', sub: 'Find out where the locals are heading.' },
+  { title: 'Tonight looks good \u2014 {count} deals live.', sub: 'Don\u2019t miss what\u2019s happening near you.' },
+];
+
+// Screen 2 (vibe) headlines rotate
+const OB_SCREEN2_HEADLINES = [
+  { title: 'What\u2019s your vibe tonight?',    sub: 'Pick all that apply \u2014 we\u2019ll show you the best spots.' },
+  { title: 'What are you in the mood for?',     sub: 'Choose a few \u2014 we\u2019ll match you with the best deals.' },
+  { title: 'Tell us what you\u2019re into.',     sub: 'We\u2019ll curate the perfect night for you.' },
+  { title: 'How do you like to go out?',         sub: 'Pick your favorites and we\u2019ll do the rest.' },
+];
+
+// Screen 3 (neighborhood) headlines rotate
+const OB_SCREEN3_HEADLINES = [
+  { title: 'Where in San Diego?',              sub: '{total} deals live across the city tonight' },
+  { title: 'Pick your neighborhood.',           sub: '{total} spots are serving deals right now' },
+  { title: 'Where are you headed tonight?',     sub: '{total} happy hours live across San Diego' },
+  { title: 'Choose your turf.',                 sub: 'We\u2019ve got {total} deals waiting for you' },
+];
+
+function _obPick(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function _obShuffle(arr) {
+  var a = arr.slice();
+  for (var i = a.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var t = a[i]; a[i] = a[j]; a[j] = t;
+  }
+  return a;
+}
 
 // Endowed progress — starts partially filled
 const OB_PROGRESS = [20, 40, 58, 76, 92];
@@ -60,8 +122,57 @@ function obInit() {
   overlay.style.display = 'flex';
   overlay.style.opacity = '1';
   obGoTo(0);
+  obPopulateDynamic();
   obRenderVibes();
   obStartLiveCounter();
+}
+
+// ── DYNAMIC CONTENT ───────────────────────────────────
+function obPopulateDynamic() {
+  // Screen 1: featured venue + map pins + headline
+  var feat = _obPick(OB_FEATURED_VENUES);
+  var pins = _obPick(OB_MAP_PIN_SETS);
+  var h1   = _obPick(OB_SCREEN1_HEADLINES);
+
+  var mapCard = document.getElementById('obMapCardName');
+  var mapDeal = document.getElementById('obMapCardDeal');
+  var mapMeta = document.getElementById('obMapCardMeta');
+  if (mapCard) mapCard.textContent = feat.name;
+  if (mapDeal) mapDeal.textContent = feat.deal + ' \u00B7 ' + feat.time;
+  if (mapMeta) mapMeta.innerHTML = feat.hood + ' \u00B7 Ends in <span class="ob-timer">' + (Math.floor(Math.random()*3)+1) + 'h ' + (Math.floor(Math.random()*50)+10) + 'm</span>';
+
+  // Preview cards
+  var pc1 = document.getElementById('obPreviewVenue');
+  var pd1 = document.getElementById('obPreviewDeal');
+  var pt1 = document.getElementById('obPreviewTag');
+  if (pc1) pc1.textContent = feat.name;
+  if (pd1) pd1.textContent = feat.deal + ' \u00B7 ' + feat.time;
+  if (pt1) pt1.textContent = feat.hood;
+
+  // Map pin labels
+  var pin1 = document.getElementById('obPin1Label');
+  var pin2 = document.getElementById('obPin2Label');
+  if (pin1) pin1.textContent = pins.primary.hood + ' \u00B7 ' + pins.primary.deals + ' deals';
+  if (pin2) pin2.textContent = pins.secondary.hood + ' \u00B7 ' + pins.secondary.deals + ' deals';
+
+  // Screen 1 headline
+  var s1t = document.getElementById('obScreen1Title');
+  var s1s = document.getElementById('obScreen1Sub');
+  if (s1t) s1t.innerHTML = h1.title.replace('{count}', '<span class="ob-live-num">' + obState.liveCount + '</span>');
+  if (s1s) s1s.textContent = h1.sub;
+
+  // Screen 2 headline
+  var h2  = _obPick(OB_SCREEN2_HEADLINES);
+  var s2t = document.getElementById('obScreen2Title');
+  var s2s = document.getElementById('obScreen2Sub');
+  if (s2t) s2t.textContent = h2.title;
+  if (s2s) s2s.textContent = h2.sub;
+
+  // Screen 3 headline (total gets filled at render time)
+  var h3  = _obPick(OB_SCREEN3_HEADLINES);
+  obState._screen3Headline = h3;
+  var s3t = document.getElementById('obScreen3Title');
+  if (s3t) s3t.textContent = h3.title;
 }
 
 function obComplete() {
@@ -137,7 +248,9 @@ function obStartLiveCounter() {
 function obRenderVibes() {
   const grid = document.getElementById('obVibeGrid');
   if (!grid) return;
-  grid.innerHTML = OB_VIBES.map(v => `
+  // Shuffle and pick 6 so vibes feel fresh each visit
+  const vibes = _obShuffle(OB_VIBES).slice(0, 6);
+  grid.innerHTML = vibes.map(v => `
     <button class="ob-vibe-card" onclick="obToggleVibe('${v.id}',this)" data-vibe="${v.id}">
       <span class="ob-vibe-emoji">${v.emoji}</span>
       <span class="ob-vibe-label">${v.label}</span>
@@ -164,14 +277,23 @@ function obRenderNeighborhoods() {
   if (!grid || grid.dataset.rendered) return;
   grid.dataset.rendered = '1';
 
-  const total = OB_NEIGHBORHOODS.reduce((s, n) => s + n.deals, 0);
-  const banner = document.getElementById('obTotalDeals');
+  // Shuffle neighborhoods and randomly assign "popular" badge to one
+  var shuffled = _obShuffle(OB_NEIGHBORHOODS);
+  var popIdx = Math.floor(Math.random() * Math.min(3, shuffled.length)); // top 3 get a chance
+
+  const total = shuffled.reduce((s, n) => s + n.deals, 0);
+
+  // Update screen 3 subtitle with total
+  var h3 = obState._screen3Headline;
+  var s3s = document.getElementById('obScreen3Sub');
+  if (s3s && h3) s3s.textContent = h3.sub.replace('{total}', total);
+  var banner = document.getElementById('obTotalDeals');
   if (banner) banner.textContent = total;
 
-  grid.innerHTML = OB_NEIGHBORHOODS.map(n => `
-    <button class="ob-neigh-btn${n.popular ? ' ob-neigh-btn--popular' : ''}"
+  grid.innerHTML = shuffled.map((n, i) => `
+    <button class="ob-neigh-btn${i === popIdx ? ' ob-neigh-btn--popular' : ''}"
             onclick="obSelectNeighborhood('${n.name}',${n.deals},this)">
-      ${n.popular ? '<span class="ob-popular-badge">🔥 Most popular tonight</span>' : ''}
+      ${i === popIdx ? '<span class="ob-popular-badge">\uD83D\uDD25 Most popular tonight</span>' : ''}
       <span class="ob-neigh-name">${n.name}</span>
       <span class="ob-neigh-deals">${n.deals} deals live</span>
     </button>
