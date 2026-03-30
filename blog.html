@@ -87,12 +87,38 @@
   </div>
 </header>
 
+<!-- CITY FILTER -->
+<div class="blog-filter-bar">
+  <div class="blog-filter-inner">
+    <button class="blog-filter-btn blog-filter-btn--active" data-filter="all" onclick="filterBlogCity('all',this)">All Cities</button>
+    <button class="blog-filter-btn" data-filter="san-diego" onclick="filterBlogCity('san-diego',this)">San Diego</button>
+    <button class="blog-filter-btn" data-filter="los-angeles" onclick="filterBlogCity('los-angeles',this)">Los Angeles</button>
+    <button class="blog-filter-btn" data-filter="austin" onclick="filterBlogCity('austin',this)">Austin</button>
+    <button class="blog-filter-btn" data-filter="new-york" onclick="filterBlogCity('new-york',this)">New York</button>
+    <button class="blog-filter-btn" data-filter="miami" onclick="filterBlogCity('miami',this)">Miami</button>
+    <button class="blog-filter-btn" data-filter="chicago" onclick="filterBlogCity('chicago',this)">Chicago</button>
+    <button class="blog-filter-btn" data-filter="orange-county" onclick="filterBlogCity('orange-county',this)">Orange County</button>
+  </div>
+</div>
+
 <!-- ARTICLES -->
 <main class="blog-main">
-  <div class="blog-grid">
+
+  <!-- City section heading (dynamic) -->
+  <div class="blog-city-heading" id="blogCityHeading" style="display:none">
+    <h2 class="blog-city-name" id="blogCityName"></h2>
+    <p class="blog-city-count" id="blogCityCount"></p>
+  </div>
+  <div class="blog-empty" id="blogEmpty" style="display:none">
+    <div class="blog-empty-icon">&#128240;</div>
+    <p class="blog-empty-text">No articles for this city yet &mdash; we're working on it!</p>
+    <p class="blog-empty-sub">Check back soon or explore another city above.</p>
+  </div>
+
+  <div class="blog-grid" id="blogGrid">
 
     <!-- Article: SD Weekend Events Mar 27-29 -->
-    <a href="/blog/sd-weekend-events-march-27-29-2026.html" class="blog-card">
+    <a href="/blog/sd-weekend-events-march-27-29-2026.html" class="blog-card" data-city="san-diego">
       <div class="blog-card-emoji">&#9918;</div>
       <div class="blog-card-body">
         <span class="blog-card-tag">Events</span>
@@ -106,7 +132,7 @@
     </a>
 
     <!-- Article: Best Tacos -->
-    <a href="/blog/best-tacos-san-diego.html" class="blog-card">
+    <a href="/blog/best-tacos-san-diego.html" class="blog-card" data-city="san-diego">
       <div class="blog-card-emoji">&#127790;</div>
       <div class="blog-card-body">
         <span class="blog-card-tag">City Guide</span>
@@ -120,7 +146,7 @@
     </a>
 
     <!-- Article: Local's To-Do List -->
-    <a href="/blog/locals-san-diego-to-do-list.html" class="blog-card">
+    <a href="/blog/locals-san-diego-to-do-list.html" class="blog-card" data-city="san-diego">
       <div class="blog-card-emoji">&#9728;&#65039;</div>
       <div class="blog-card-body">
         <span class="blog-card-tag">City Guide</span>
@@ -134,7 +160,7 @@
     </a>
 
     <!-- Article: Best Burritos -->
-    <a href="/blog/best-burritos-san-diego.html" class="blog-card">
+    <a href="/blog/best-burritos-san-diego.html" class="blog-card" data-city="san-diego">
       <div class="blog-card-emoji">&#127783;&#65039;</div>
       <div class="blog-card-body">
         <span class="blog-card-tag">City Guide</span>
@@ -148,7 +174,7 @@
     </a>
 
     <!-- Article: Happy Hour Spots Locals Love -->
-    <a href="/blog/happy-hour-spots-locals-love-san-diego.html" class="blog-card">
+    <a href="/blog/happy-hour-spots-locals-love-san-diego.html" class="blog-card" data-city="san-diego">
       <div class="blog-card-emoji">&#127867;</div>
       <div class="blog-card-body">
         <span class="blog-card-tag">City Guide</span>
@@ -162,7 +188,7 @@
     </a>
 
     <!-- Article 1 -->
-    <a href="/blog/best-happy-hours-san-diego.html" class="blog-card">
+    <a href="/blog/best-happy-hours-san-diego.html" class="blog-card" data-city="san-diego">
       <div class="blog-card-emoji">🍹</div>
       <div class="blog-card-body">
         <span class="blog-card-tag">City Guide</span>
@@ -176,7 +202,7 @@
     </a>
 
     <!-- Article 2 -->
-    <a href="/blog/best-trivia-nights-san-diego.html" class="blog-card">
+    <a href="/blog/best-trivia-nights-san-diego.html" class="blog-card" data-city="san-diego">
       <div class="blog-card-emoji">🧠</div>
       <div class="blog-card-body">
         <span class="blog-card-tag">Events</span>
@@ -190,7 +216,7 @@
     </a>
 
     <!-- Article 3 -->
-    <a href="/blog/rooftop-happy-hours-san-diego.html" class="blog-card">
+    <a href="/blog/rooftop-happy-hours-san-diego.html" class="blog-card" data-city="san-diego">
       <div class="blog-card-emoji">🌅</div>
       <div class="blog-card-body">
         <span class="blog-card-tag">Niche Guide</span>
@@ -203,8 +229,8 @@
       </div>
     </a>
 
-    <!-- Article 4 -->
-    <a href="/blog/how-to-find-best-happy-hour-deals.html" class="blog-card">
+    <!-- Article 4 (all cities) -->
+    <a href="/blog/how-to-find-best-happy-hour-deals.html" class="blog-card" data-city="all">
       <div class="blog-card-emoji">💡</div>
       <div class="blog-card-body">
         <span class="blog-card-tag">Tips</span>
@@ -218,7 +244,7 @@
     </a>
 
     <!-- Article 5 -->
-    <a href="/blog/live-music-happy-hours-san-diego.html" class="blog-card">
+    <a href="/blog/live-music-happy-hours-san-diego.html" class="blog-card" data-city="san-diego">
       <div class="blog-card-emoji">🎵</div>
       <div class="blog-card-body">
         <span class="blog-card-tag">Events</span>
@@ -233,6 +259,54 @@
 
   </div>
 </main>
+
+<script>
+var BLOG_CITY_NAMES = {
+  'san-diego': 'San Diego', 'los-angeles': 'Los Angeles', 'new-york': 'New York',
+  'chicago': 'Chicago', 'austin': 'Austin', 'miami': 'Miami', 'orange-county': 'Orange County'
+};
+
+function filterBlogCity(city, btn) {
+  // Update active button
+  document.querySelectorAll('.blog-filter-btn').forEach(function(b) { b.classList.remove('blog-filter-btn--active'); });
+  btn.classList.add('blog-filter-btn--active');
+
+  var cards = document.querySelectorAll('.blog-card[data-city]');
+  var visible = 0;
+
+  cards.forEach(function(card) {
+    var cardCity = card.getAttribute('data-city');
+    var show = city === 'all' || cardCity === city || cardCity === 'all';
+    card.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+
+  // Show/hide city heading
+  var heading = document.getElementById('blogCityHeading');
+  var empty = document.getElementById('blogEmpty');
+  if (city === 'all') {
+    heading.style.display = 'none';
+    empty.style.display = 'none';
+  } else if (visible === 0) {
+    heading.style.display = 'none';
+    empty.style.display = 'block';
+  } else {
+    heading.style.display = 'block';
+    empty.style.display = 'none';
+    document.getElementById('blogCityName').textContent = BLOG_CITY_NAMES[city] || city;
+    document.getElementById('blogCityCount').textContent = visible + ' article' + (visible !== 1 ? 's' : '');
+  }
+}
+
+// Auto-select user's last city if available
+(function() {
+  var lastCity = localStorage.getItem('spotd-last-city');
+  if (lastCity) {
+    var btn = document.querySelector('.blog-filter-btn[data-filter="' + lastCity + '"]');
+    if (btn) filterBlogCity(lastCity, btn);
+  }
+})();
+</script>
 
 <!-- CTA -->
 <section class="blog-cta">

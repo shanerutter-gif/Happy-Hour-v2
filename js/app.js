@@ -223,12 +223,12 @@ function renderBottomNav(user) {
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-1a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v1"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-1a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         <span>The Spots</span>
       </button>
-      <button class="bottom-nav-btn" id="bnMessages" onclick="bottomNavMessages(this)">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-        <span>Messages<span class="bn-badge" id="bnMsgBadge" style="display:none"></span></span>
+      <button class="bottom-nav-btn" id="bnNews" onclick="bottomNavNews(this)">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><line x1="10" y1="6" x2="18" y2="6"/><line x1="10" y1="10" x2="18" y2="10"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
+        <span>Your News</span>
       </button>
       <button class="bottom-nav-btn" id="bnProfile" onclick="bottomNavProfile(this)">
-        <div class="bn-avatar" id="bnAvatarCircle">${initials}</div>
+        <div class="bn-avatar" id="bnAvatarCircle">${initials}<span class="bn-dot" id="bnProfileBadge" style="display:none"></span></div>
         <span id="bnProfileLabel">Profile</span>
       </button>`;
     document.body.appendChild(bar);
@@ -254,6 +254,7 @@ function toggleTheme() {
 function _navHideAll(keep) {
   if (keep !== 'dm')     closeDmTab();
   if (keep !== 'social') closeSocialTab();
+  if (keep !== 'news')   closeNewsTab();
   if (keep !== 'profile') closeProfile();
   closeSubPage('findPeoplePage');
   closeSubPage('followersPage');
@@ -282,12 +283,12 @@ function bottomNavSocial(btn) {
   openSocialTab();
 }
 
-function bottomNavMessages(btn) {
+function bottomNavNews(btn) {
   if(typeof haptic==='function')haptic('light');
   document.querySelectorAll('.bottom-nav-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  _navHideAll('dm');
-  openDmInbox();
+  _navHideAll('news');
+  openNewsTab();
 }
 
 function bottomNavProfile(btn) {
@@ -1910,6 +1911,10 @@ async function renderProfile(user) {
         <input type="file" id="profilePhotoInput" accept="image/*" style="display:none" onchange="handleProfilePhoto(this)">
       </div>
       <div class="pf-hero-actions">
+        <button class="pf-dm-btn" onclick="closeProfile();openDmInbox()" title="Messages">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <span class="pf-dm-badge" id="pfDmBadge" style="display:none"></span>
+        </button>
         <button class="pf-hamburger-btn" onclick="toggleProfileMenu(event)" title="Menu" id="pfMenuBtn">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
         </button>
@@ -3795,6 +3800,59 @@ function skipToTagFriends(venueId) {
 
 
 
+// ── YOUR NEWS (ARTICLE FEED) ──────────────────────────
+const NEWS_ARTICLES = [
+  { city: 'san-diego', emoji: '\u26BE', tag: 'Events',      title: 'San Diego Weekend Events: March 27\u201329, 2026', excerpt: 'Happy Opening Day. Padres vs. Tigers, Crew Classic, IRONMAN 70.3, Wave FC, live music, markets, and 30+ things to do this weekend.', url: '/blog/sd-weekend-events-march-27-29-2026.html', date: 'March 27, 2026', readTime: '12 min' },
+  { city: 'san-diego', emoji: '\uD83C\uDF2E', tag: 'City Guide',  title: 'Best Tacos in San Diego: A Neighborhood Guide', excerpt: 'Tacos El Gordo\u2019s adobada, LOLA 55\u2019s Michelin creations, Mike\u2019s Red birria, Oscar\u2019s fish tacos \u2014 12 spots across every neighborhood.', url: '/blog/best-tacos-san-diego.html', date: 'April 4, 2026', readTime: '9 min' },
+  { city: 'san-diego', emoji: '\u2600\uFE0F', tag: 'City Guide',  title: 'A Local\u2019s Ultimate San Diego To-Do List', excerpt: 'Windansea sunsets, Torrey Pines hikes, sea cave kayaking, PopUp Bagels, and the spots only locals know.', url: '/blog/locals-san-diego-to-do-list.html', date: 'April 2, 2026', readTime: '9 min' },
+  { city: 'san-diego', emoji: '\uD83C\uDF27\uFE0F', tag: 'City Guide',  title: 'The Best Burritos in San Diego, Ranked', excerpt: 'La Perla\u2019s viral Oaxacalifornia, Lolita\u2019s classic California burrito, and 7 more spots locals swear by.', url: '/blog/best-burritos-san-diego.html', date: 'March 31, 2026', readTime: '8 min' },
+  { city: 'san-diego', emoji: '\uD83C\uDF7B', tag: 'City Guide',  title: '10 Happy Hour Spots San Diego Locals Swear By', excerpt: 'Skip the tourist traps. $1 oysters, 2-for-1 drinks, $7 wine, and late-night steals \u2014 the spots locals actually go to.', url: '/blog/happy-hour-spots-locals-love-san-diego.html', date: 'March 29, 2026', readTime: '7 min' },
+  { city: 'san-diego', emoji: '\uD83C\uDF79', tag: 'City Guide',  title: 'The 15 Best Happy Hours in San Diego (2026)', excerpt: 'From $5 margs in the Gaslamp to ocean-view pints in Pacific Beach \u2014 our definitive guide to San Diego\u2019s best happy hour deals.', url: '/blog/best-happy-hours-san-diego.html', date: 'March 25, 2026', readTime: '8 min' },
+  { city: 'san-diego', emoji: '\uD83E\uDDE0', tag: 'Events',      title: 'Best Trivia Nights in San Diego \u2014 Every Day of the Week', excerpt: 'Whether you\u2019re a Tuesday regular or a weekend warrior, here\u2019s where to flex your brain and score free drinks.', url: '/blog/best-trivia-nights-san-diego.html', date: 'March 24, 2026', readTime: '7 min' },
+  { city: 'san-diego', emoji: '\uD83C\uDF05', tag: 'Niche Guide', title: 'San Diego Rooftop Happy Hours You Can\u2019t Miss', excerpt: 'Sunset views + drink specials = peak San Diego. These rooftop bars deliver both, without the tourist-trap prices.', url: '/blog/rooftop-happy-hours-san-diego.html', date: 'March 22, 2026', readTime: '6 min' },
+  { city: 'all',       emoji: '\uD83D\uDCA1', tag: 'Tips',        title: 'How to Find the Best Happy Hour Deals Near You', excerpt: 'Stop guessing, start saving. Here\u2019s the playbook for finding killer drink and food specials wherever you are.', url: '/blog/how-to-find-best-happy-hour-deals.html', date: 'March 20, 2026', readTime: '5 min' },
+  { city: 'san-diego', emoji: '\uD83C\uDFB5', tag: 'Events',      title: 'Live Music + Happy Hour: San Diego\u2019s Best Combos', excerpt: 'Why choose between cheap drinks and great music? These San Diego spots serve both \u2014 and they\u2019re all on Spotd.', url: '/blog/live-music-happy-hours-san-diego.html', date: 'March 18, 2026', readTime: '6 min' },
+];
+
+function openNewsTab() {
+  document.getElementById('newsTab').classList.add('tab-open');
+  renderNewsFeed();
+}
+
+function closeNewsTab() {
+  var el = document.getElementById('newsTab');
+  if (el) el.classList.remove('tab-open');
+}
+
+function renderNewsFeed() {
+  var container = document.getElementById('newsFeedContent');
+  if (!container) return;
+  var citySlug = state.city?.slug || 'san-diego';
+  var articles = NEWS_ARTICLES.filter(function(a) {
+    return a.city === citySlug || a.city === 'all';
+  });
+
+  if (!articles.length) {
+    container.innerHTML = '<div class="news-empty"><div class="news-empty-icon">\uD83D\uDCF0</div><div class="news-empty-text">No articles for this city yet \u2014 stay tuned!</div></div>';
+    return;
+  }
+
+  var cityName = state.city?.name || 'San Diego';
+  container.innerHTML =
+    '<div class="news-city-label">' + cityName + '</div>' +
+    articles.map(function(a) {
+      return '<a href="' + a.url + '" class="news-card">' +
+        '<div class="news-card-emoji">' + a.emoji + '</div>' +
+        '<div class="news-card-body">' +
+          '<span class="news-card-tag">' + a.tag + '</span>' +
+          '<div class="news-card-title">' + a.title + '</div>' +
+          '<div class="news-card-excerpt">' + a.excerpt + '</div>' +
+          '<div class="news-card-meta"><span>' + a.date + '</span><span>' + a.readTime + ' read</span></div>' +
+        '</div>' +
+      '</a>';
+    }).join('');
+}
+
 // ── MESSAGES ───────────────────────────────────────────
 // Clean tab architecture — no overlays, no inline style hacks.
 // Three named screens: inbox | convo | picker.
@@ -4414,10 +4472,18 @@ async function dmRefreshBadge() {
 setInterval(() => { if (currentUser) dmRefreshBadge(); }, 120000);
 
 function dmUpdateBadge(count) {
-  const badge = document.getElementById('bnMsgBadge');
-  if (!badge) return;
-  if (count > 0) { badge.textContent = count > 9 ? '9+' : count; badge.style.display = ''; }
-  else badge.style.display = 'none';
+  // Update badge on profile DM button (moved from nav)
+  const badge = document.getElementById('pfDmBadge');
+  if (badge) {
+    if (count > 0) { badge.textContent = count > 9 ? '9+' : count; badge.style.display = ''; }
+    else badge.style.display = 'none';
+  }
+  // Also show indicator on profile nav tab when there are unread DMs
+  const navBadge = document.getElementById('bnProfileBadge');
+  if (navBadge) {
+    if (count > 0) { navBadge.style.display = ''; }
+    else navBadge.style.display = 'none';
+  }
 }
 
 function dmScrollToBottom() {
