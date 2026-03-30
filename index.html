@@ -676,9 +676,10 @@
 
 <script>
 (function() {
-  // Show app download banner every visit (dismiss only lasts for this session)
+  // Show app download banner only on the website, not inside the native app
+  var isNative = window.spotdNative;
   var dismissed = sessionStorage.getItem('spotd-app-dl-dismissed');
-  if (!dismissed) {
+  if (!isNative && !dismissed) {
     setTimeout(function() {
       var b = document.getElementById('appDownloadBanner');
       if (b) b.style.display = 'block';
