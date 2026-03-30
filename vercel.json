@@ -1,5 +1,8 @@
 {
   "version": 2,
+  "redirects": [
+    { "source": "/app-download", "destination": "https://apps.apple.com/us/app/spotd/id6760452388", "permanent": false }
+  ],
   "routes": [
     { "src": "/api/auth",                  "dest": "/api/auth.js" },
     { "src": "/api/loops-onboarding",      "dest": "/api/loops-onboarding.js" },
