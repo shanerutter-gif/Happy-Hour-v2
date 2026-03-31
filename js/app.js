@@ -2652,8 +2652,8 @@ function getDirections(lat, lng, name) {
   if(typeof haptic==='function')haptic('light');
   const isApple = /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent);
   const url = isApple
-    ? `https://maps.apple.com/?daddr=${lat},${lng}&q=${encodeURIComponent(name)}`
-    : `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&destination_place_id=&query=${encodeURIComponent(name)}`;
+    ? `maps://maps.apple.com/?daddr=${encodeURIComponent(name)}&ll=${lat},${lng}&dirflg=d`
+    : `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
   window.open(url, '_blank');
 }
 function flyTo(id) {
