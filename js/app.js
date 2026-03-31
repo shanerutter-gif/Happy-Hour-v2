@@ -2650,10 +2650,7 @@ function popupHTML(v) {
 }
 function getDirections(lat, lng, name) {
   if(typeof haptic==='function')haptic('light');
-  const isApple = /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent);
-  const url = isApple
-    ? `https://maps.apple.com/?daddr=${lat},${lng}&dirflg=d`
-    : `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+  const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
   window.open(url, '_blank');
 }
 function flyTo(id) {
