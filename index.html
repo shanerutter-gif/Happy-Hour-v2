@@ -6,7 +6,18 @@
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-5271Q2407Q"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
+  function gtag(){
+    if(localStorage.getItem('spotd_disable_ga'))return;
+    dataLayer.push(arguments);
+  }
+  if(new URLSearchParams(location.search).get('disable_ga')==='true'){
+    localStorage.setItem('spotd_disable_ga','1');
+    history.replaceState({},'',location.pathname);
+  }
+  if(new URLSearchParams(location.search).get('disable_ga')==='false'){
+    localStorage.removeItem('spotd_disable_ga');
+    history.replaceState({},'',location.pathname);
+  }
   gtag('js', new Date());
   gtag('config', 'G-5271Q2407Q');
 </script>
