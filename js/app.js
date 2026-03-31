@@ -2646,7 +2646,15 @@ function updateMapMarkers() {
   });
 }
 function popupHTML(v) {
-  return `<div class="popup-body"><div class="popup-name">${esc(v.name)}</div><div class="popup-hood">${esc(v.neighborhood||'')}</div><div class="popup-when">${esc(getTodayHours(v))}</div>${(v.deals||[]).slice(0,2).map(d=>`<div class="popup-deal">${esc(d)}</div>`).join('')}<div class="popup-actions"><button class="popup-btn" onclick="openModal('${v.id}','${v.event_type?'event':'venue'}')">Details</button><button class="popup-share" onclick="shareItem('${v.id}','${v.event_type?'event':'venue'}')">Share</button></div></div>`;
+  return `<div class="popup-body"><div class="popup-name">${esc(v.name)}</div><div class="popup-hood">${esc(v.neighborhood||'')}</div><div class="popup-when">${esc(getTodayHours(v))}</div>${(v.deals||[]).slice(0,2).map(d=>`<div class="popup-deal">${esc(d)}</div>`).join('')}<div class="popup-actions"><button class="popup-btn" onclick="openModal('${v.id}','${v.event_type?'event':'venue'}')">Details</button><button class="popup-directions" onclick="getDirections(${v.lat},${v.lng},'${esc(v.name).replace(/'/g,"\\'")}')">Directions</button><button class="popup-share" onclick="shareItem('${v.id}','${v.event_type?'event':'venue'}')">Share</button></div></div>`;
+}
+function getDirections(lat, lng, name) {
+  if(typeof haptic==='function')haptic('light');
+  const isApple = /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent);
+  const url = isApple
+    ? `https://maps.apple.com/?daddr=${lat},${lng}&q=${encodeURIComponent(name)}`
+    : `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&destination_place_id=&query=${encodeURIComponent(name)}`;
+  window.open(url, '_blank');
 }
 function flyTo(id) {
   const all = [...state.venues, ...state.events];
