@@ -786,10 +786,10 @@
 
           <div id="edit-form">
 
-            <!-- Happy Hour Hours -->
+            <!-- Business Times -->
             <div class="edit-section" id="section-hours">
               <div class="edit-section-header" onclick="toggleSection('hours')">
-                <h3><span>🕐</span> Happy Hour Hours</h3>
+                <h3><span>🕐</span> Business Times</h3>
                 <span class="toggle">▾</span>
               </div>
               <div class="edit-section-body">
@@ -946,38 +946,6 @@
               </div>
             </div>
 
-            <!-- ── PRO: Featured Placement ── -->
-            <div class="pro-gate">
-              <div class="edit-section" id="section-featured">
-                <div class="edit-section-header" onclick="toggleSection('featured')">
-                  <h3><span>⭐</span> Featured Placement</h3>
-                  <span class="toggle">▾</span>
-                </div>
-                <div class="edit-section-body">
-                  <p style="color:var(--muted); font-size:13px; margin-bottom:20px;">Pin your venue to the top of search results with a ⭐ badge. When users filter by your neighborhood, you appear first.</p>
-                  <div class="amenity-row" style="background:rgba(255,107,74,0.04);border:1px solid rgba(255,107,74,0.12);margin-bottom:12px;">
-                    <div class="amenity-row-left">
-                      <span class="amenity-row-icon">⭐</span>
-                      <div>
-                        <div class="amenity-row-label">Featured in search results</div>
-                        <div class="amenity-row-desc">Pinned to the top of your neighborhood</div>
-                      </div>
-                    </div>
-                    <label class="amenity-switch">
-                      <input type="checkbox" id="toggle-featured" onchange="saveFeatured()">
-                      <span class="amenity-switch-track"></span>
-                    </label>
-                  </div>
-                  <p style="font-size:12px;color:var(--muted);">Changes take effect immediately.</p>
-                </div>
-              </div>
-              <div class="pro-gate-overlay" id="featured-lock">
-                <div style="font-size:24px;">⭐</div>
-                <div class="pro-gate-label">Pro feature</div>
-                <div class="pro-gate-sub">Upgrade to enable featured placement</div>
-                <button class="btn-upgrade" style="margin-top:10px;font-size:13px;padding:10px 20px;" onclick="startUpgrade()">Upgrade — $49/mo</button>
-              </div>
-            </div>
 
             <!-- ── PRO: Promo Code ── -->
             <div class="pro-gate">
@@ -1929,7 +1897,7 @@
           <div class="tier-banner-left">
             <div style="margin-bottom:6px;"><span class="tier-badge free">Free</span></div>
             <h4>Upgrade to Spotd Pro</h4>
-            <p>Events · Amenity tags · Featured placement · Promo code — $49/mo</p>
+            <p>Events · Amenity tags · Promo code — $49/mo</p>
           </div>
           <button class="btn-upgrade" onclick="startUpgrade()">Upgrade — $49/mo</button>
         </div>`;
@@ -1941,7 +1909,7 @@
     _currentVenueTier = tier;
     const isPro = tier === 'pro' || tier === 'founding';
     // Show/hide each lock overlay; hide/show the sibling section inside the same pro-gate
-    ['events-lock','amenities-lock','featured-lock','promo-lock'].forEach(lockId => {
+    ['events-lock','amenities-lock','promo-lock'].forEach(lockId => {
       const lock = document.getElementById(lockId);
       if (!lock) return;
       lock.style.display = isPro ? 'none' : 'flex';
@@ -1959,7 +1927,7 @@
   openEdit = async function(venueId, status) {
     await _origOpenEdit(venueId, status);
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/venues?id=eq.${venueId}&select=subscription_tier,subscription_current_period_end,promo_code,promo_description,featured`,
+      `${SUPABASE_URL}/rest/v1/venues?id=eq.${venueId}&select=subscription_tier,subscription_current_period_end,promo_code,promo_description`,
       { headers: sb.headers() }
     ).then(r => r.json()).catch(() => []);
     const v = Array.isArray(res) ? res[0] : null;
@@ -1969,8 +1937,6 @@
     if (tier === 'pro' || tier === 'founding') {
       if (v?.promo_code) document.getElementById('edit-promo-code').value = v.promo_code;
       if (v?.promo_description) document.getElementById('edit-promo-desc').value = v.promo_description;
-      const featToggle = document.getElementById('toggle-featured');
-      if (featToggle) featToggle.checked = !!v?.featured;
     }
   };
 
@@ -2057,13 +2023,6 @@
     else alert('Could not open billing portal: ' + (res.error || 'unknown error'));
   }
 
-  // ── Featured toggle ──────────────────────────────
-  async function saveFeatured() {
-    if (_currentVenueTier === 'free') return;
-    const checked = document.getElementById('toggle-featured')?.checked ?? false;
-    await updateVenueField({ featured: checked });
-    showSaveToast(checked ? 'Featured placement enabled!' : 'Featured placement disabled.');
-  }
 
   // ── Promo code ───────────────────────────────────
   async function savePromo() {

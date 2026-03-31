@@ -1217,7 +1217,10 @@ function applyFilters() {
 
   // Sort
   if (state.sort === 'distance' && state.userLat !== null) {
+    // Pin featured venues to the top, then sort by distance within each group
     state.filtered.sort((a, b) => {
+      if (a.featured && !b.featured) return -1;
+      if (!a.featured && b.featured) return 1;
       const da = haversine(state.userLat, state.userLng, a.lat, a.lng);
       const db = haversine(state.userLat, state.userLng, b.lat, b.lng);
       return da - db;
