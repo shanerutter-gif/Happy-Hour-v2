@@ -1528,6 +1528,17 @@ function renderModal(v, type, reviews) {
         <div class="s-div"></div>
         <div class="modal-section-label">Deals &amp; Specials</div>
         ${(v.deals || []).map(d => `<div class="modal-deal-item"><div class="modal-deal-arrow">→</div>${esc(d)}</div>`).join('')}
+        ${v.promo_code ? `
+        <div class="modal-promo">
+          <div class="modal-promo-inner" onclick="copyPromo('${esc(v.promo_code)}',this)">
+            <div class="modal-promo-left">
+              <span class="modal-promo-label">Promo Code</span>
+              <span class="modal-promo-code">${esc(v.promo_code)}</span>
+              ${v.promo_description ? `<span class="modal-promo-desc">${esc(v.promo_description)}</span>` : ''}
+            </div>
+            <span class="modal-promo-copy">${icn('copy',14)} Copy</span>
+          </div>
+        </div>` : ''}
         <div style="margin-top:4px;font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted)">${esc(v.cuisine || '')}</div>
         ${(() => {
           const evs = state.events.filter(e => e.venue_name && v.name && e.venue_name.trim().toLowerCase() === v.name.trim().toLowerCase());
@@ -2469,6 +2480,18 @@ async function toggleFollowFromSearch(userId, btn) {
 }
 
 
+
+// ── PROMO CODE COPY ───────────────────────────────────
+function copyPromo(code, el) {
+  if (typeof haptic === 'function') haptic('medium');
+  navigator.clipboard.writeText(code).then(function() {
+    var copyEl = el.querySelector('.modal-promo-copy');
+    if (copyEl) { copyEl.innerHTML = '✓ Copied!'; setTimeout(function() { copyEl.innerHTML = icn('copy',14) + ' Copy'; }, 2000); }
+    if (typeof showToast === 'function') showToast('Promo code copied!');
+  }).catch(function() {
+    if (typeof showToast === 'function') showToast('Tap and hold to copy: ' + code);
+  });
+}
 
 // ── SHARE ──────────────────────────────────────────────
 function shareItem(id, type) {

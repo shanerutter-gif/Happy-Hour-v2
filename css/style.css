@@ -2170,6 +2170,55 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   flex-shrink: 0; margin-top: 1px; font-weight: 700;
 }
 
+/* ── PROMO CODE ── */
+.modal-promo {
+  margin-top: 12px;
+}
+.modal-promo-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  background: linear-gradient(135deg, var(--coral-dim, rgba(255,107,74,.08)), rgba(0,198,166,.06));
+  border: 1px dashed var(--coral, #FF6B4A);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: transform .12s;
+}
+.modal-promo-inner:active { transform: scale(.98); }
+.modal-promo-left { display: flex; flex-direction: column; gap: 2px; }
+.modal-promo-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .7px;
+  color: var(--muted);
+  font-weight: 600;
+}
+.modal-promo-code {
+  font-family: 'Cabinet Grotesk', monospace;
+  font-weight: 800;
+  font-size: 18px;
+  color: var(--coral, #FF6B4A);
+  letter-spacing: 1px;
+}
+.modal-promo-desc {
+  font-size: 13px;
+  color: var(--text);
+  opacity: .7;
+  margin-top: 2px;
+}
+.modal-promo-copy {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--teal, #00C6A6);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 .modal-checkin-cta {
   width: 100%; margin-top: 14px; padding: 15px;
   background: var(--teal); color: #fff; border: none;
