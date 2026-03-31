@@ -1153,6 +1153,55 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 .social-refresh-btn  { background: none; border: none; cursor: pointer; padding: 6px; color: var(--muted); display: flex; align-items: center; border-radius: 8px; }
 .social-refresh-btn:active { background: var(--bg2); }
 
+/* ── Social sub-tabs (Following / Public) ── */
+.social-sub-tabs {
+  display: flex;
+  gap: 0;
+  padding: 0 20px 12px;
+  flex-shrink: 0;
+  background: var(--bg);
+}
+.social-sub-tab {
+  flex: 1;
+  padding: 10px 0;
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--muted);
+  background: none;
+  border: none;
+  border-bottom: 2.5px solid transparent;
+  cursor: pointer;
+  transition: color .15s, border-color .15s;
+  text-align: center;
+}
+.social-sub-tab.active {
+  color: var(--coral);
+  border-bottom-color: var(--coral);
+}
+.social-sub-tab:active { opacity: .7; }
+
+/* ── Share CTA in social empty ── */
+.social-share-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 14px 28px;
+  background: var(--coral);
+  color: #fff;
+  border: none;
+  border-radius: 14px;
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+  box-shadow: 0 4px 16px var(--coral-glow);
+  transition: transform .12s ease;
+}
+.social-share-cta:active { transform: scale(.95); }
+
 .feed-tooltip{background:var(--card);border:1px solid var(--border2);border-radius:16px;padding:20px;margin:12px 12px 0;position:relative;box-shadow:0 4px 20px rgba(42,31,20,0.08)}
 .feed-tooltip-close{position:absolute;top:12px;right:12px;background:none;border:none;font-size:20px;color:var(--muted);cursor:pointer;padding:4px 8px;line-height:1}
 .feed-tooltip-title{font-family:'Cabinet Grotesk',sans-serif;font-weight:800;font-size:17px;margin-bottom:6px}
@@ -2140,6 +2189,12 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   background: var(--teal); border-color: var(--teal);
   box-shadow: 0 4px 14px var(--coral-glow);
 }
+.modal-action.share {
+  background: var(--coral); border-color: var(--coral);
+  box-shadow: 0 4px 14px var(--coral-glow);
+}
+.modal-action.share .modal-action-icon { color: #fff; }
+.modal-action.share .modal-action-label { color: rgba(255,255,255,0.85); }
 .modal-action-icon { font-size: 18px; line-height: 1; }
 .modal-action-label {
   font-size: 9px; font-weight: 600;

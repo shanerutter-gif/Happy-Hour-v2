@@ -484,6 +484,8 @@ function showFeedTooltip() {
 }
 
 let _socialLoading = false;
+let _socialItems = [];
+let _socialActiveTab = 'following';
 
 async function loadSocialFeed() {
   if (_socialLoading) return;
@@ -497,36 +499,76 @@ async function loadSocialFeed() {
     const citySlug = state.city?.slug || 'san-diego';
     const items = await fetchSocialFeed(citySlug, followingIds, 60);
 
-    if (!items.length) {
-      container.innerHTML = `
-        <div class="social-empty">
-          <div class="social-empty-icon">${icn('camera',32)}</div>
-          <div class="social-empty-title">Nothing here yet</div>
-          <div class="social-empty-sub">Be the first to check in and share a photo tonight</div>
-        </div>`;
-      return;
+    // Hydrate like + comment counts for each feed item
+    if (items.length) {
+      const postIds = items.map(i => i.id).filter(Boolean);
+      const [likesMap, commentCounts] = await Promise.all([
+        fetchLikesBulk(postIds),
+        fetchCommentCountsBulk(postIds),
+      ]);
+      items.forEach(item => {
+        const likers = likesMap[item.id] || [];
+        item._likeCount = likers.length;
+        item._liked = currentUser ? likers.includes(currentUser.id) : false;
+        item._commentCount = commentCounts[item.id] || 0;
+      });
     }
 
-    // Hydrate like + comment counts for each feed item
-    const postIds = items.map(i => i.id).filter(Boolean);
-    const [likesMap, commentCounts] = await Promise.all([
-      fetchLikesBulk(postIds),
-      fetchCommentCountsBulk(postIds),
-    ]);
-    items.forEach(item => {
-      const likers = likesMap[item.id] || [];
-      item._likeCount = likers.length;
-      item._liked = currentUser ? likers.includes(currentUser.id) : false;
-      item._commentCount = commentCounts[item.id] || 0;
-    });
-
-    container.innerHTML = items.map(item => renderSocialItem(item)).join('');
+    _socialItems = items;
+    renderSocialTab(_socialActiveTab);
   } catch(e) {
     console.error('loadSocialFeed:', e);
     container.innerHTML = '<div class="social-empty"><div class="social-empty-sub">Failed to load — pull to refresh</div></div>';
   } finally {
     _socialLoading = false;
   }
+}
+
+function switchSocialTab(tab) {
+  _socialActiveTab = tab;
+  document.getElementById('socialSubFollowing').classList.toggle('active', tab === 'following');
+  document.getElementById('socialSubPublic').classList.toggle('active', tab === 'public');
+  renderSocialTab(tab);
+}
+
+function renderSocialTab(tab) {
+  const container = document.getElementById('socialFeedContent');
+  const filtered = tab === 'following'
+    ? _socialItems.filter(i => i.isFollowing)
+    : _socialItems.filter(i => !i.isFollowing);
+
+  if (tab === 'following' && !filtered.length) {
+    const hasAnyFollowing = _socialItems.some(i => i.isFollowing);
+    container.innerHTML = `
+      <div class="social-empty">
+        <div class="social-empty-icon">${icn('users',32)}</div>
+        <div class="social-empty-title">${hasAnyFollowing ? 'Nothing here yet' : 'Follow people to see their activity'}</div>
+        <div class="social-empty-sub">When you follow someone, their check-ins and photos show up here.</div>
+        <a href="https://apps.apple.com/us/app/spotd/id6760452388" class="social-share-cta" onclick="shareSpotsWithFriend();return false;">
+          ${icn('share',18)} Share Spotd with a friend!
+        </a>
+      </div>`;
+    return;
+  }
+
+  if (!filtered.length) {
+    container.innerHTML = `
+      <div class="social-empty">
+        <div class="social-empty-icon">${icn('camera',32)}</div>
+        <div class="social-empty-title">Nothing here yet</div>
+        <div class="social-empty-sub">Be the first to check in and share a photo tonight</div>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = filtered.map(item => renderSocialItem(item)).join('');
+}
+
+function shareSpotsWithFriend() {
+  if(typeof haptic==='function')haptic('light');
+  const msg = 'Check out Spotd — find the best happy hours, events & nightlife near you!\n\nhttps://apps.apple.com/us/app/spotd/id6760452388';
+  if (navigator.share) { navigator.share({ title: 'Spotd', text: msg }).catch(() => {}); }
+  else { window.open(`sms:?body=${encodeURIComponent(msg)}`, '_blank'); }
 }
 
 function renderSocialItem(item) {
@@ -1504,7 +1546,7 @@ function renderModal(v, type, reviews) {
           <span class="modal-action-icon">${icn('map',20)}</span>
           <span class="modal-action-label">Map</span>
         </div>
-        <div class="modal-action" onclick="shareItem('${v.id}','${type}')">
+        <div class="modal-action share" onclick="shareItem('${v.id}','${type}')">
           <span class="modal-action-icon">${icn('share',20)}</span>
           <span class="modal-action-label">Share</span>
         </div>
@@ -2498,10 +2540,11 @@ function shareItem(id, type) {
   if(typeof haptic==='function')haptic('light');
   const items = type === 'venue' ? state.venues : state.events;
   const v = items.find(x => String(x.id) === String(id)); if (!v) return;
+  const appUrl = 'https://apps.apple.com/us/app/spotd/id6760452388';
   const msg = type === 'venue'
-    ? `Happy Hour at ${v.name}\n${v.neighborhood} — ${v.address}\n${v.hours}\n${(v.deals||[]).slice(0,2).join(' · ')}\n\nSpotd — spotd.biz/app-download`
-    : `${v.event_type} at ${v.venue_name || v.name}\n${v.neighborhood} — ${v.address}\n${v.hours}\n\nSpotd — spotd.biz/app-download`;
-  if (navigator.share) { navigator.share({ title: v.name, text: msg }).catch(() => {}); }
+    ? `Happy Hour at ${v.name}\n${v.neighborhood} — ${v.address}\n${v.hours}\n${(v.deals||[]).slice(0,2).join(' · ')}\n\nDownload Spotd: ${appUrl}`
+    : `${v.event_type} at ${v.venue_name || v.name}\n${v.neighborhood} — ${v.address}\n${v.hours}\n\nDownload Spotd: ${appUrl}`;
+  if (navigator.share) { navigator.share({ title: v.name, text: msg, url: appUrl }).catch(() => {}); }
   else { window.open(`sms:?body=${encodeURIComponent(msg)}`, '_blank'); }
 }
 
