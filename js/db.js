@@ -292,6 +292,13 @@ async function handleOAuthCallback() {
       triggerLoopsOnboarding(user.email, user.user_metadata?.full_name, user.id, 'google-oauth');
     }
 
+    // GA custom event — detect provider from user metadata
+    if (typeof gtag === 'function') {
+      const provider = user.app_metadata?.provider || 'oauth';
+      const isNew = user.created_at && (Date.now() - new Date(user.created_at).getTime() < 60000);
+      gtag('event', isNew ? 'sign_up' : 'login', { method: provider });
+    }
+
     // Clean URL
     window.history.replaceState({}, document.title, window.location.pathname);
 
