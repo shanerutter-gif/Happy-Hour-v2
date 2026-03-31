@@ -84,12 +84,14 @@ create table public.venues (
   hours         text,
   days          text[] default '{}',
   cuisine       text,
-  deals         text[] default '{}',
-  url           text,
-  active        boolean default true,
-  featured      boolean default false,
-  created_at    timestamptz default now(),
-  updated_at    timestamptz default now()
+  deals              text[] default '{}',
+  url                text,
+  active             boolean default true,
+  featured           boolean default false,
+  promo_code         text,
+  promo_description  text,
+  created_at         timestamptz default now(),
+  updated_at         timestamptz default now()
 );
 create index venues_city_idx  on public.venues(city_slug);
 create index venues_hood_idx  on public.venues(neighborhood);
