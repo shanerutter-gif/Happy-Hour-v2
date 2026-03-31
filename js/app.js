@@ -1802,6 +1802,12 @@ async function doAuth(mode) {
     }
     closeOverlay('authOverlay');
     showToast(mode === 'signup' ? 'Account created!' : 'Welcome back!');
+    // GA custom event
+    if (typeof gtag === 'function') {
+      gtag('event', mode === 'signup' ? 'sign_up' : 'login', {
+        method: 'email',
+      });
+    }
   } catch(err) {
     showToast('Error: ' + (err.message || 'Something went wrong'));
     btn.disabled = false; btn.textContent = mode === 'signin' ? 'Sign In' : 'Create Account';
@@ -1809,6 +1815,7 @@ async function doAuth(mode) {
 }
 async function doGoogleSignIn() {
   if(typeof haptic==='function')haptic('medium');
+  if (typeof gtag === 'function') gtag('event', 'login_attempt', { method: 'google' });
   const result = await authSignInWithGoogle();
   if (result.error) {
     showToast('Error: ' + result.error.message);
@@ -4820,6 +4827,7 @@ async function doBlockUser(userId, btn) {
 // ── APPLE SIGN IN ────────────────────────────────────
 async function doAppleSignIn() {
   if(typeof haptic==='function')haptic('medium');
+  if (typeof gtag === 'function') gtag('event', 'login_attempt', { method: 'apple' });
   try {
     // On native iOS, use skipBrowserRedirect so we can route through ASWebAuthenticationSession
     if (window.spotdNative?.openOAuth) {
