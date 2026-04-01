@@ -947,38 +947,68 @@ async function enterCity(slug, name, stateCode) {
   buildFilterPills();
   renderSuggestions();
 
-  // Auto-enable nearest sort with geolocation
-  state.sort = 'distance';
-  document.querySelectorAll('#sortFilters .pill').forEach(b => b.classList.remove('active'));
+  // ── Location permission logic ──────────────────────────
+  // Granted once  → silently fetch fresh coords every time, sort by Nearest
+  // Denied/never  → default A-Z, re-ask every 3rd app open
+  const locationGranted = localStorage.getItem('spotd-location-granted') === 'yes';
   const nearBtn = document.getElementById('sort-distance');
-  if (nearBtn) nearBtn.classList.add('active');
-  document.getElementById('sort-default')?.classList.remove('active');
 
-  if (state.userLat !== null) {
+  function _defaultToAZ() {
+    state.sort = 'name';
+    document.querySelectorAll('#sortFilters .pill').forEach(b => b.classList.remove('active'));
+    document.getElementById('sort-name')?.classList.add('active');
     applyFilters();
-  } else if (navigator.geolocation) {
+  }
+
+  function _activateNearest() {
+    state.sort = 'distance';
+    document.querySelectorAll('#sortFilters .pill').forEach(b => b.classList.remove('active'));
+    if (nearBtn) nearBtn.classList.add('active');
+  }
+
+  function _requestLocation() {
+    if (!navigator.geolocation) { _defaultToAZ(); return; }
+    _activateNearest();
     if (nearBtn) { nearBtn.innerHTML = `${ICN.pin} Locating…`; nearBtn.disabled = true; }
     navigator.geolocation.getCurrentPosition(
       pos => {
         state.userLat = pos.coords.latitude;
         state.userLng = pos.coords.longitude;
+        localStorage.setItem('spotd-location-granted', 'yes');
+        localStorage.removeItem('spotd-location-deny-count');
+        try { localStorage.setItem('spotd-user-location', JSON.stringify({ lat: state.userLat, lng: state.userLng })); } catch(e) {}
         if (nearBtn) { nearBtn.innerHTML = `${ICN.pin} Nearest`; nearBtn.disabled = false; }
         applyFilters();
       },
       () => {
-        // Permission denied — fall back to A-Z sort
-        state.sort = 'name';
-        if (nearBtn) { nearBtn.innerHTML = `${ICN.pin} Nearest`; nearBtn.disabled = false; nearBtn.classList.remove('active'); }
-        document.getElementById('sort-name')?.classList.add('active');
-        applyFilters();
+        localStorage.setItem('spotd-location-deny-count', '0');
+        if (nearBtn) { nearBtn.innerHTML = `${ICN.pin} Nearest`; nearBtn.disabled = false; }
+        _defaultToAZ();
       },
       { timeout: 6000 }
     );
+  }
+
+  if (locationGranted) {
+    // Permission already granted — silently get fresh coords, default to Nearest
+    _requestLocation();
   } else {
-    state.sort = 'name';
-    if (nearBtn) nearBtn.classList.remove('active');
-    document.getElementById('sort-name')?.classList.add('active');
-    applyFilters();
+    // Not yet granted — check if we should ask on this open
+    const denyCount = parseInt(localStorage.getItem('spotd-location-deny-count'), 10);
+    if (isNaN(denyCount)) {
+      // First time ever — ask
+      _requestLocation();
+    } else {
+      // Previously denied — increment counter, ask every 3rd open
+      const newCount = denyCount + 1;
+      if (newCount >= 3) {
+        localStorage.setItem('spotd-location-deny-count', '0');
+        _requestLocation();
+      } else {
+        localStorage.setItem('spotd-location-deny-count', String(newCount));
+        _defaultToAZ();
+      }
+    }
   }
 
   initMap();
@@ -1262,30 +1292,29 @@ function setSort(val, btn) {
   btn.classList.add('active');
 
   if (val === 'distance') {
-    if (state.userLat !== null) {
-      applyFilters();
-    } else {
-      btn.innerHTML = `${ICN.pin} Locating…`;
-      btn.disabled = true;
-      navigator.geolocation.getCurrentPosition(
-        pos => {
-          state.userLat = pos.coords.latitude;
-          state.userLng = pos.coords.longitude;
-          btn.innerHTML = `${ICN.pin} Nearest`;
-          btn.disabled = false;
-          applyFilters();
-        },
-        err => {
-          showToast('Location access denied — enable in browser settings');
-          state.sort = 'default';
-          btn.innerHTML = `${ICN.pin} Nearest`;
-          btn.disabled = false;
-          document.getElementById('sort-default')?.classList.add('active');
-          btn.classList.remove('active');
-        },
-        { timeout: 8000 }
-      );
-    }
+    btn.innerHTML = `${ICN.pin} Locating…`;
+    btn.disabled = true;
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        state.userLat = pos.coords.latitude;
+        state.userLng = pos.coords.longitude;
+        localStorage.setItem('spotd-location-granted', 'yes');
+        localStorage.removeItem('spotd-location-deny-count');
+        try { localStorage.setItem('spotd-user-location', JSON.stringify({ lat: state.userLat, lng: state.userLng })); } catch(e) {}
+        btn.innerHTML = `${ICN.pin} Nearest`;
+        btn.disabled = false;
+        applyFilters();
+      },
+      err => {
+        showToast('Location access denied — enable in browser settings');
+        state.sort = 'default';
+        btn.innerHTML = `${ICN.pin} Nearest`;
+        btn.disabled = false;
+        document.getElementById('sort-default')?.classList.add('active');
+        btn.classList.remove('active');
+      },
+      { timeout: 8000 }
+    );
   } else {
     applyFilters();
   }
