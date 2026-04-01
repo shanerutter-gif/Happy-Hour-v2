@@ -1984,187 +1984,394 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   transition: background-color .3s ease, border-color .3s ease, color .3s ease;
 }
 
-/* ── REDESIGNED VENUE CARD ── */
-.vcard {
+/* ═══════════════════════════════════════════════════════
+   FEED REDESIGN — Three card types
+   Replace existing .vcard section (~line 1988) with this
+   ═══════════════════════════════════════════════════════ */
+
+/* ── Shared animation ── */
+@keyframes cardFadeIn {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Section labels ── */
+.feed-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 14px 4px 8px;
+}
+
+/* ── Cards grid override — remove existing grid gap, let cards manage own spacing ── */
+.cards-grid {
+  display: block !important;
+  grid-template-columns: none !important;
+  padding: 0 10px 120px;
+}
+
+/* ═══════════════════════════════════════
+   HERO CARD — tall photo, full bleed
+   ═══════════════════════════════════════ */
+.card-hero {
+  border-radius: 24px;
+  overflow: hidden;
+  position: relative;
+  margin-bottom: 10px;
+  cursor: pointer;
+  box-shadow: 0 8px 32px rgba(42,31,20,0.12), 0 2px 8px rgba(42,31,20,0.06);
+  animation: cardFadeIn .3s cubic-bezier(.22,1,.36,1) both;
+  -webkit-tap-highlight-color: transparent;
+}
+.card-hero:active { transform: scale(0.98); }
+
+.card-hero-img {
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+  display: block;
+  transition: transform .5s cubic-bezier(.22,1,.36,1);
+}
+.card-hero:active .card-hero-img { transform: scale(1.03); }
+
+.card-hero-overlay {
+  position: absolute; inset: 0;
+  background: linear-gradient(180deg,
+    rgba(42,31,20,0.0) 0%,
+    rgba(42,31,20,0.0) 35%,
+    rgba(20,15,8,0.75) 100%);
+  pointer-events: none;
+}
+
+.card-hero-fav {
+  position: absolute; top: 12px; left: 12px;
+  width: 36px; height: 36px; border-radius: 50%;
+  background: rgba(255,255,255,0.2);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.15);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px; color: rgba(255,255,255,0.7);
+  cursor: pointer; z-index: 3;
+  transition: transform .15s cubic-bezier(.34,1.56,.64,1), color .15s;
+}
+.card-hero-fav:active { transform: scale(1.25); }
+.card-hero-fav.faved { color: var(--coral); background: rgba(255,107,74,0.2); }
+
+.card-hero-badges {
+  position: absolute; top: 12px; right: 12px;
+  display: flex; gap: 5px; z-index: 3;
+}
+
+.card-hero-info {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  padding: 20px 16px 16px; z-index: 2;
+}
+.card-hero-name {
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 800; font-size: 22px;
+  color: #fff; line-height: 1.15;
+  letter-spacing: -0.03em;
+  margin-bottom: 6px;
+  text-shadow: 0 2px 12px rgba(0,0,0,0.3);
+}
+.card-hero-meta {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; color: rgba(255,255,255,0.75);
+  margin-bottom: 10px;
+}
+.card-hero-meta .dot {
+  width: 3px; height: 3px; border-radius: 50%;
+  background: rgba(255,255,255,0.4);
+}
+
+.card-hero-deals {
+  display: flex; gap: 6px; flex-wrap: wrap;
+}
+.card-hero-deal {
+  background: rgba(255,255,255,0.15);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 50px;
+  padding: 5px 11px;
+  font-size: 11px; font-weight: 600; color: #fff;
+}
+
+.card-hero-going {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 10px;
+  background: rgba(255,255,255,0.12);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 16px;
+  padding: 9px 12px;
+}
+.card-hero-going-left {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 600; color: #fff;
+}
+.card-hero-going-avatars { display: flex; }
+.card-hero-going-avatars span {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--coral); color: #fff;
+  font-size: 8px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+  border: 2px solid rgba(20,15,8,0.6);
+  margin-left: -6px;
+}
+.card-hero-going-avatars span:first-child { margin-left: 0; }
+
+.card-hero-going-btn {
+  background: rgba(255,255,255,0.18);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 50px;
+  padding: 5px 12px;
+  font-size: 11px; font-weight: 700; color: #fff;
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  transition: all .15s;
+}
+.card-hero-going-btn:active {
+  transform: scale(0.94);
+  background: rgba(255,255,255,0.3);
+}
+.card-hero-going-btn.joined {
+  background: rgba(255,107,74,0.5);
+  border-color: rgba(255,107,74,0.3);
+}
+
+/* ═══════════════════════════════════════
+   COMPACT CARD — 2-up grid, portrait photo
+   ═══════════════════════════════════════ */
+.card-compact-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.card-compact {
+  border-radius: 16px;
+  overflow: hidden;
+  position: relative;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  animation: cardFadeIn .3s cubic-bezier(.22,1,.36,1) both;
+  -webkit-tap-highlight-color: transparent;
+}
+.card-compact:active { transform: scale(0.97); }
+
+.card-compact-img {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  display: block;
+  transition: transform .5s cubic-bezier(.22,1,.36,1);
+}
+.card-compact:active .card-compact-img { transform: scale(1.04); }
+
+.card-compact-overlay {
+  position: absolute; inset: 0;
+  background: linear-gradient(180deg,
+    rgba(42,31,20,0.0) 0%,
+    rgba(42,31,20,0.0) 40%,
+    rgba(20,15,8,0.8) 100%);
+  pointer-events: none;
+}
+
+.card-compact-fav {
+  position: absolute; top: 8px; right: 8px;
+  width: 28px; height: 28px; border-radius: 50%;
+  background: rgba(255,255,255,0.2);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  border: none;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; color: rgba(255,255,255,0.6);
+  cursor: pointer; z-index: 3;
+  transition: transform .15s cubic-bezier(.34,1.56,.64,1);
+}
+.card-compact-fav:active { transform: scale(1.3); }
+.card-compact-fav.faved { color: var(--coral); }
+
+.card-compact-badge {
+  position: absolute; top: 8px; left: 8px; z-index: 3;
+}
+
+.card-compact-info {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  padding: 12px; z-index: 2;
+}
+.card-compact-name {
+  font-weight: 700; font-size: 14px;
+  color: #fff; line-height: 1.2;
+  margin-bottom: 3px;
+  text-shadow: 0 1px 6px rgba(0,0,0,0.3);
+}
+.card-compact-sub {
+  font-size: 10px; color: rgba(255,255,255,0.65);
+}
+.card-compact-deal {
+  margin-top: 6px;
+  background: rgba(255,255,255,0.15);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  padding: 5px 8px;
+  font-size: 10px; font-weight: 600; color: #fff;
+}
+
+/* ═══════════════════════════════════════
+   STANDARD CARD — horizontal row with thumb
+   ═══════════════════════════════════════ */
+.card-std {
+  display: flex;
   background: var(--card);
-  border-radius: 20px;
+  border-radius: 16px;
   overflow: hidden;
   border: 1px solid var(--border2);
   box-shadow: var(--shadow);
+  margin-bottom: 8px;
   cursor: pointer;
-  margin-bottom: 12px;
-  transition: transform .18s cubic-bezier(.4,0,.2,1), box-shadow .18s ease, background-color .3s ease;
-  animation: cardFadeIn .3s cubic-bezier(.4,0,.2,1) both;
-  content-visibility: auto;
-  contain-intrinsic-size: auto 320px;
+  transition: transform .15s cubic-bezier(.22,1,.36,1), box-shadow .15s;
+  animation: cardFadeIn .3s cubic-bezier(.22,1,.36,1) both;
+  -webkit-tap-highlight-color: transparent;
 }
-.vcard:active { transform: scale(.985); box-shadow: var(--shadow); }
-@keyframes cardFadeIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
+.card-std:active {
+  transform: scale(0.98);
+  box-shadow: 0 4px 12px rgba(42,31,20,0.06), 0 2px 4px rgba(42,31,20,0.04);
 }
-/* Stagger card entrance */
-.vcard:nth-child(1)  { animation-delay: 0s; }
-.vcard:nth-child(2)  { animation-delay: .04s; }
-.vcard:nth-child(3)  { animation-delay: .08s; }
-.vcard:nth-child(4)  { animation-delay: .12s; }
-.vcard:nth-child(5)  { animation-delay: .16s; }
-.vcard:nth-child(6)  { animation-delay: .20s; }
-.vcard:nth-child(n+7){ animation-delay: .24s; }
 
-.vcard-photo {
-  position: relative;
-  height: 160px;
-  overflow: hidden;
-  background: linear-gradient(135deg, #2A1F14, #1A1208);
+.card-std-img {
+  width: 110px; min-height: 110px;
+  object-fit: cover; flex-shrink: 0;
 }
-.vcard-photo img {
-  width: 100%; height: 100%;
-  object-fit: cover; display: block;
-  will-change: transform;
-  transition: transform .25s ease-out;
-}
-.vcard:active .vcard-photo img { transform: scale(1.02); }
-.vcard-photo-grad {
-  position: absolute; inset: 0;
-  background: linear-gradient(to top, rgba(14,11,9,0.75) 0%, transparent 55%);
-}
-.vcard-photo-name {
-  position: absolute; bottom: 10px; left: 14px; right: 44px;
-  font-family: 'Cabinet Grotesk', sans-serif;
-  font-weight: 900; font-size: 17px;
-  color: #fff; line-height: 1.2;
-  text-shadow: 0 1px 8px rgba(0,0,0,0.4);
-}
-.vcard-photo-fav {
-  position: absolute; bottom: 8px; right: 12px;
-  width: 32px; height: 32px; border-radius: 50%;
-  background: rgba(255,255,255,0.15);
-  border: 1px solid rgba(255,255,255,0.25);
-  backdrop-filter: blur(6px);
+.card-std-nophoto {
+  width: 110px; min-height: 110px;
+  flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
-  font-size: 16px; color: rgba(255,255,255,0.8);
-  cursor: pointer; transition: all .15s;
+  background: linear-gradient(135deg, var(--bg2), var(--bg));
+  font-size: 28px;
 }
-.vcard-photo-fav.faved { color: #FF6B4A; background: rgba(255,107,74,0.2); }
-.vcard-photo-dist {
-  position: absolute; top: 10px; right: 12px;
-  background: rgba(0,0,0,0.45); color: #fff;
-  font-size: 10px; font-weight: 700;
-  padding: 3px 8px; border-radius: 20px;
-  backdrop-filter: blur(6px);
-}
-.vcard-photo-verified {
-  position: absolute; top: 10px; left: 12px;
-  background: rgba(255,107,74,0.85); color: #fff;
-  font-size: 9px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase;
-  padding: 3px 8px; border-radius: 20px;
-}
-.vcard-body { padding: 12px 14px 0; }
-.vcard-meta {
-  display: flex; align-items: center; gap: 6px;
-  margin-bottom: 8px; flex-wrap: wrap;
-}
-.vcard-hours {
-  background: var(--coral-dim);
-  border: 1px solid rgba(255,107,74,0.22);
-  color: var(--teal);
-  font-size: 11px; font-weight: 700;
-  padding: 3px 10px; border-radius: 50px;
-  white-space: nowrap;
-}
-.vcard-hood { font-size: 12px; color: var(--muted); }
-.vcard-sep  { color: var(--border2); font-size: 10px; opacity: .5; }
-.vcard-deals { margin-bottom: 0; }
-.vcard-deal {
-  display: flex; align-items: flex-start; gap: 7px;
-  padding: 5px 0;
-  border-bottom: 1px solid var(--border2);
-  font-size: 12.5px; color: var(--text); opacity: .8;
-  line-height: 1.4;
-}
-.vcard-deal:last-child { border-bottom: none; }
-.vcard-deal-dot {
-  width: 5px; height: 5px; border-radius: 50%;
-  background: rgba(255,107,74,0.45);
-  flex-shrink: 0; margin-top: 5px;
-}
-.vcard-verified-row {
-  padding: 4px 14px 0;
-}
-.vcard-foot {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 8px 14px;
-}
-.vcard-cuisine {
-  font-size: 10px; text-transform: uppercase;
-  letter-spacing: .7px; color: var(--muted); font-weight: 600;
-}
-.vcard-stars { font-size: 11px; color: var(--muted); }
-.vcard-stars b { color: var(--amber); }
-.vcard-checkin-row {
-  padding: 0 12px 12px;
-}
-.vcard-checkin-btn {
-  width: 100%; padding: 10px;
-  border-radius: 12px;
-  border: 1.5px solid var(--teal);
-  background: var(--teal);
-  font-size: 12px; font-weight: 600;
-  color: #fff;
-  font-family: 'DM Sans', sans-serif;
-  cursor: pointer;
-  transition: transform .2s cubic-bezier(.2,1,.3,1), box-shadow .2s ease, background-color .15s;
-  display: flex; align-items: center; justify-content: center; gap: 6px;
-  position: relative; overflow: hidden;
-}
-.vcard-checkin-btn:active {
-  transform: scale(.94);
-  box-shadow: 0 0 0 4px rgba(255,107,74,0.2);
-}
-@keyframes checkinPop {
-  0% { transform: scale(1); }
-  30% { transform: scale(.92); }
-  60% { transform: scale(1.05); }
-  100% { transform: scale(1); }
-}
-@keyframes checkinRipple {
-  0% { transform: scale(0); opacity: 0.4; }
-  100% { transform: scale(4); opacity: 0; }
-}
-.vcard-checkin-btn.checkin-anim {
-  animation: checkinPop .4s cubic-bezier(.2,1,.3,1);
-}
-.vcard-checkin-btn.checkin-anim::after {
-  content: ''; position: absolute;
-  width: 40px; height: 40px; border-radius: 50%;
-  background: rgba(255,255,255,0.35);
-  animation: checkinRipple .5s ease-out forwards;
-}
-.vcard-checkin-btn.hot {
-  background: var(--coral-dim);
-  border-color: rgba(255,107,74,0.25);
-  color: var(--teal);
-}
-.vcard-checkin-btn.hot::before { content: ''; display: inline-block; width: 14px; height: 14px; background: currentColor; -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='currentColor'%3E%3Cpath d='M12 23c-4.97 0-8-3.03-8-7.5 0-3.82 2.63-6.8 4.5-8.8.47-.5 1.35-.15 1.35.54 0 1.3.82 2.6 1.65 3.26.2-.96.88-2.5 1.95-4.2C15.02 3.5 13.5 1 13.5 1s1.04.24 2.18 1.12C17.85 3.92 20 7.26 20 11.5c0 6.3-4.6 11.5-8 11.5z'/%3E%3C/svg%3E"); mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='currentColor'%3E%3Cpath d='M12 23c-4.97 0-8-3.03-8-7.5 0-3.82 2.63-6.8 4.5-8.8.47-.5 1.35-.15 1.35.54 0 1.3.82 2.6 1.65 3.26.2-.96.88-2.5 1.95-4.2C15.02 3.5 13.5 1 13.5 1s1.04.24 2.18 1.12C17.85 3.92 20 7.26 20 11.5c0 6.3-4.6 11.5-8 11.5z'/%3E%3C/svg%3E"); vertical-align: middle; }
 
-/* No-photo card */
-.vcard-nophoto { padding: 14px 14px 0; }
-.vcard-nophoto-top {
-  display: flex; justify-content: space-between; align-items: flex-start;
-  margin-bottom: 6px;
+.card-std-body {
+  flex: 1;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  min-width: 0;
 }
-.vcard-nophoto-name {
-  font-family: 'Cabinet Grotesk', sans-serif;
-  font-weight: 800; font-size: 16px;
-  color: var(--ink); line-height: 1.2; flex: 1;
+.card-std-name {
+  font-weight: 700; font-size: 14px;
+  color: var(--ink); line-height: 1.2;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.vcard-nophoto-fav {
-  font-size: 18px; color: var(--muted);
-  background: none; border: none; cursor: pointer; padding: 2px;
-  transition: color .15s;
+.card-std-meta {
+  font-size: 11px; color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.vcard-nophoto-fav.faved { color: var(--teal); }
+.card-std-deal {
+  font-size: 11.5px; color: var(--text); opacity: .7;
+  display: flex; align-items: center; gap: 5px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.card-std-deal::before {
+  content: '';
+  width: 4px; height: 4px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--coral), var(--amber));
+  flex-shrink: 0;
+}
+.card-std-going {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 10px; font-weight: 700; color: var(--coral);
+}
+.card-std-stars {
+  font-size: 10px; color: var(--muted);
+  display: flex; align-items: center; gap: 1px;
+}
+.card-std-stars .s-lit { color: var(--amber); }
+.card-std-stars .s-unlit { color: var(--border2); }
+.card-std-stars .s-count { margin-left: 3px; }
+
+.card-std-fav {
+  padding: 8px 12px 8px 0;
+  display: flex; align-items: center;
+  font-size: 16px; color: var(--muted);
+  background: none; border: none;
+  cursor: pointer; flex-shrink: 0;
+  transition: color .15s, transform .15s cubic-bezier(.34,1.56,.64,1);
+}
+.card-std-fav:active { transform: scale(1.25); }
+.card-std-fav.faved { color: var(--coral); }
+
+/* ═══════════════════════════════════════
+   SHARED BADGE PILL
+   ═══════════════════════════════════════ */
+.badge {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 4px 9px; border-radius: 50px;
+  font-size: 10px; font-weight: 700;
+  font-family: 'DM Sans', sans-serif;
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+}
+.badge-fire  { background: rgba(255,255,255,0.85); color: var(--coral); }
+.badge-today { background: rgba(255,107,74,0.92); color: #fff; }
+.badge-sports { background: rgba(255,255,255,0.85); color: var(--ink); }
+.badge-verified {
+  background: rgba(255,107,74,0.12);
+  color: var(--coral);
+  backdrop-filter: none;
+}
+
+/* ═══════════════════════════════════════
+   SKELETON LOADING
+   ═══════════════════════════════════════ */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skel {
+  background: linear-gradient(90deg,
+    rgba(42,31,20,0.05) 25%,
+    rgba(42,31,20,0.02) 50%,
+    rgba(42,31,20,0.05) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease infinite;
+}
+.skel-hero {
+  aspect-ratio: 4/5;
+  border-radius: 24px;
+  margin-bottom: 10px;
+}
+.skel-compact-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.skel-compact {
+  aspect-ratio: 3/4;
+  border-radius: 16px;
+}
+.skel-std {
+  height: 110px;
+  border-radius: 16px;
+  margin-bottom: 8px;
+}
+
+/* ═══════════════════════════════════════
+   STAGGER DELAYS — applied via inline style
+   ═══════════════════════════════════════ */
+/* Cards get animation-delay set inline by JS for precise stagger control */
+
+/* ═══════════════════════════════════════
+   KEEP OLD VCARD FOR FALLBACK
+   (only used if venue has no photo in standard mode)
+   ═══════════════════════════════════════ */
+/* The old .vcard styles can be removed once all venues have photos.
+   For now, no-photo venues render as card-std with emoji placeholder. */
 
 /* ── REDESIGNED MODAL ── */
 .modal-hero-wrap {
