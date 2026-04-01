@@ -442,9 +442,10 @@
       overflow:hidden; flex-shrink:0;
       display:flex; align-items:center; justify-content:center;
       border:4px solid rgba(128,128,128,0.15);
+      background:rgba(128,128,128,0.05);
     }
     .asset-canvas .asset-tot-img-wrap img {
-      width:100%; height:100%; object-fit:cover;
+      display:block; width:280px; height:280px; object-fit:contain;
     }
     .asset-canvas .asset-tot-img-placeholder {
       font-size:14px; opacity:0.3; text-align:center; font-weight:600;
@@ -2746,7 +2747,6 @@ Roundup</textarea>
     // Toggle toolbar fields
     document.getElementById('ag-fields-standard').style.display = isStandard ? '' : 'none';
     document.getElementById('ag-field-subtitle').style.display = isStandard ? '' : 'none';
-    document.getElementById('ag-field-size').style.display = isStandard ? '' : 'none';
     document.getElementById('ag-field-option1').style.display = isStandard ? 'none' : '';
     document.getElementById('ag-field-option2').style.display = isStandard ? 'none' : '';
     document.getElementById('ag-field-img1').style.display = isStandard ? 'none' : '';
@@ -2787,6 +2787,10 @@ Roundup</textarea>
         document.getElementById('ag-render-tag-tot').textContent = agTag.value;
         document.getElementById('ag-render-tot1').textContent = agOpt1.value;
         document.getElementById('ag-render-tot2').textContent = agOpt2.value;
+        // Apply font size to option text
+        var totSize = agSize.value + 'px';
+        document.getElementById('ag-render-tot1').style.fontSize = totSize;
+        document.getElementById('ag-render-tot2').style.fontSize = totSize;
         // Render uploaded images
         for (var n = 1; n <= 2; n++) {
           var img = document.getElementById('ag-render-img' + n);
