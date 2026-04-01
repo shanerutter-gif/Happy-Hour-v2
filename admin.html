@@ -424,6 +424,54 @@
     }
     .asset-canvas .asset-logo-wrap img { height:44px; width:auto; }
 
+    /* This-or-That template */
+    .asset-canvas .asset-tot-layout {
+      position:absolute; left:72px; right:72px;
+      top:50%; transform:translateY(-50%);
+      display:flex; flex-direction:column; align-items:center; gap:0;
+    }
+    .asset-canvas .asset-tot-option {
+      width:100%; display:flex; align-items:center; gap:40px;
+    }
+    .asset-canvas .asset-tot-text {
+      flex:1; font-size:80px; font-weight:1000;
+      line-height:0.95; letter-spacing:-2px;
+    }
+    .asset-canvas .asset-tot-img-wrap {
+      width:280px; height:280px; border-radius:28px;
+      overflow:hidden; flex-shrink:0;
+      display:flex; align-items:center; justify-content:center;
+      border:4px solid rgba(128,128,128,0.15);
+    }
+    .asset-canvas .asset-tot-img-wrap img {
+      width:100%; height:100%; object-fit:cover;
+    }
+    .asset-canvas .asset-tot-img-placeholder {
+      font-size:14px; opacity:0.3; text-align:center; font-weight:600;
+    }
+    .asset-canvas .asset-tot-or {
+      font-size:36px; font-weight:900; letter-spacing:6px;
+      text-transform:uppercase; padding:32px 0;
+      text-align:center; width:100%;
+    }
+
+    /* Upload button styling */
+    .ag-upload-btn {
+      padding:8px 14px; background:var(--bg2); border:1px solid var(--border);
+      border-radius:8px; font-size:12px; font-weight:600; cursor:pointer;
+      font-family:'DM Sans',sans-serif; color:var(--text); transition:background .15s;
+    }
+    .ag-upload-btn:hover { background:var(--border); }
+    .ag-upload-preview {
+      width:40px; height:40px; border-radius:6px; object-fit:cover;
+      border:1px solid var(--border); vertical-align:middle; margin-left:8px;
+    }
+
+    /* Theme colors for This-or-That */
+    .asset-theme-charcoal .asset-tot-or { color:#FF6B4A; }
+    .asset-theme-cream .asset-tot-or { color:#FF6B4A; }
+    .asset-theme-coral .asset-tot-or { color:#2A1F14; }
+
     /* Asset theme classes */
     .asset-theme-charcoal { background:#2A1F14; }
     .asset-theme-charcoal .asset-tag-text { color:#FF6B4A; }
@@ -1015,17 +1063,46 @@
 
         <div class="asset-gen-toolbar">
           <div class="asset-gen-field">
+            <label>Type</label>
+            <select id="ag-type" onchange="switchAssetType()">
+              <option value="standard" selected>Standard</option>
+              <option value="this-or-that">This or That</option>
+            </select>
+          </div>
+          <div class="asset-gen-field">
             <label>Tag</label>
             <input type="text" id="ag-tag" value="THIS WEEKEND" placeholder="e.g. THIS OR THAT">
           </div>
-          <div class="asset-gen-field">
+          <!-- Standard fields -->
+          <div class="asset-gen-field" id="ag-fields-standard">
             <label>Headline</label>
             <textarea id="ag-headline" placeholder="Line 1&#10;Line 2">Weekend
 Roundup</textarea>
           </div>
-          <div class="asset-gen-field">
+          <div class="asset-gen-field" id="ag-field-subtitle">
             <label>Subtitle</label>
             <input type="text" id="ag-subtitle" value="Apr 3–5 · North Park · Gaslamp" placeholder="optional subtitle">
+          </div>
+          <!-- This-or-That fields -->
+          <div class="asset-gen-field" id="ag-field-option1" style="display:none">
+            <label>Option 1</label>
+            <input type="text" id="ag-tot-option1" value="Tacos" placeholder="First option">
+          </div>
+          <div class="asset-gen-field" id="ag-field-img1" style="display:none">
+            <label>Image 1</label>
+            <div><button class="ag-upload-btn" onclick="document.getElementById('ag-file1').click()">Upload</button>
+            <input type="file" id="ag-file1" accept="image/*" style="display:none" onchange="handleAssetImgUpload(1,this)">
+            <img id="ag-img1-preview" class="ag-upload-preview" style="display:none"></div>
+          </div>
+          <div class="asset-gen-field" id="ag-field-option2" style="display:none">
+            <label>Option 2</label>
+            <input type="text" id="ag-tot-option2" value="Sushi" placeholder="Second option">
+          </div>
+          <div class="asset-gen-field" id="ag-field-img2" style="display:none">
+            <label>Image 2</label>
+            <div><button class="ag-upload-btn" onclick="document.getElementById('ag-file2').click()">Upload</button>
+            <input type="file" id="ag-file2" accept="image/*" style="display:none" onchange="handleAssetImgUpload(2,this)">
+            <img id="ag-img2-preview" class="ag-upload-preview" style="display:none"></div>
           </div>
           <div class="asset-gen-field">
             <label>Background</label>
@@ -1035,7 +1112,7 @@ Roundup</textarea>
               <option value="coral">Coral</option>
             </select>
           </div>
-          <div class="asset-gen-field">
+          <div class="asset-gen-field" id="ag-field-size">
             <label>Headline Size</label>
             <select id="ag-size">
               <option value="100">Medium (100px)</option>
@@ -1050,10 +1127,30 @@ Roundup</textarea>
         <div class="asset-preview-area" id="ag-preview-area">
           <div class="asset-canvas-wrap" id="ag-canvas-wrap">
             <div class="asset-canvas asset-theme-cream" id="ag-canvas">
-              <div class="asset-content">
+              <!-- Standard template -->
+              <div class="asset-content" id="ag-tpl-standard">
                 <div class="asset-tag-text" id="ag-render-tag">THIS WEEKEND</div>
                 <div class="asset-h1" id="ag-render-headline">Weekend<br>Roundup</div>
                 <p class="asset-sub" id="ag-render-subtitle">Apr 3–5 · North Park · Gaslamp</p>
+              </div>
+              <!-- This-or-That template -->
+              <div class="asset-tot-layout" id="ag-tpl-tot" style="display:none">
+                <div class="asset-tag-text" id="ag-render-tag-tot">THIS OR THAT</div>
+                <div class="asset-tot-option">
+                  <div class="asset-tot-text" id="ag-render-tot1">Tacos</div>
+                  <div class="asset-tot-img-wrap" id="ag-render-img1-wrap">
+                    <div class="asset-tot-img-placeholder" id="ag-render-img1-ph">No image</div>
+                    <img id="ag-render-img1" style="display:none" alt="">
+                  </div>
+                </div>
+                <div class="asset-tot-or">OR</div>
+                <div class="asset-tot-option">
+                  <div class="asset-tot-text" id="ag-render-tot2">Sushi</div>
+                  <div class="asset-tot-img-wrap" id="ag-render-img2-wrap">
+                    <div class="asset-tot-img-placeholder" id="ag-render-img2-ph">No image</div>
+                    <img id="ag-render-img2" style="display:none" alt="">
+                  </div>
+                </div>
               </div>
               <div class="asset-logo-wrap"><img id="ag-logo-img" src="https://opcskuzbdfrlnyhraysk.supabase.co/storage/v1/object/public/spotd-content/brand/spotd-logo.png" alt="Spotd"></div>
             </div>
@@ -2626,6 +2723,47 @@ Roundup</textarea>
 
 
   // ── ASSET GENERATOR ──────────────────────────────────
+  let _agImgData = { 1: null, 2: null };
+
+  function handleAssetImgUpload(num, input) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      _agImgData[num] = e.target.result;
+      // Show toolbar preview
+      const prev = document.getElementById('ag-img' + num + '-preview');
+      prev.src = e.target.result;
+      prev.style.display = 'inline';
+      updateAssetPreview();
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function switchAssetType() {
+    const type = document.getElementById('ag-type').value;
+    const isStandard = type === 'standard';
+    // Toggle toolbar fields
+    document.getElementById('ag-fields-standard').style.display = isStandard ? '' : 'none';
+    document.getElementById('ag-field-subtitle').style.display = isStandard ? '' : 'none';
+    document.getElementById('ag-field-size').style.display = isStandard ? '' : 'none';
+    document.getElementById('ag-field-option1').style.display = isStandard ? 'none' : '';
+    document.getElementById('ag-field-option2').style.display = isStandard ? 'none' : '';
+    document.getElementById('ag-field-img1').style.display = isStandard ? 'none' : '';
+    document.getElementById('ag-field-img2').style.display = isStandard ? 'none' : '';
+    // Toggle canvas templates
+    document.getElementById('ag-tpl-standard').style.display = isStandard ? '' : 'none';
+    document.getElementById('ag-tpl-tot').style.display = isStandard ? 'none' : '';
+    // Set default tag for this-or-that
+    if (!isStandard && document.getElementById('ag-tag').value === 'THIS WEEKEND') {
+      document.getElementById('ag-tag').value = 'THIS OR THAT';
+    }
+    if (isStandard && document.getElementById('ag-tag').value === 'THIS OR THAT') {
+      document.getElementById('ag-tag').value = 'THIS WEEKEND';
+    }
+    updateAssetPreview();
+  }
+
   (function() {
     const agTag = document.getElementById('ag-tag');
     const agHeadline = document.getElementById('ag-headline');
@@ -2633,31 +2771,51 @@ Roundup</textarea>
     const agBg = document.getElementById('ag-bg');
     const agSize = document.getElementById('ag-size');
     const agCanvas = document.getElementById('ag-canvas');
+    const agOpt1 = document.getElementById('ag-tot-option1');
+    const agOpt2 = document.getElementById('ag-tot-option2');
 
-    function updateAssetPreview() {
-      document.getElementById('ag-render-tag').textContent = agTag.value;
-      document.getElementById('ag-render-headline').innerHTML = agHeadline.value.replace(/\n/g, '<br>');
-      document.getElementById('ag-render-subtitle').textContent = agSubtitle.value;
+    window.updateAssetPreview = function updateAssetPreview() {
+      const type = document.getElementById('ag-type').value;
       agCanvas.className = 'asset-canvas asset-theme-' + agBg.value;
-      agCanvas.querySelector('.asset-h1').style.fontSize = agSize.value + 'px';
+
+      if (type === 'standard') {
+        document.getElementById('ag-render-tag').textContent = agTag.value;
+        document.getElementById('ag-render-headline').innerHTML = agHeadline.value.replace(/\n/g, '<br>');
+        document.getElementById('ag-render-subtitle').textContent = agSubtitle.value;
+        agCanvas.querySelector('.asset-h1').style.fontSize = agSize.value + 'px';
+      } else {
+        document.getElementById('ag-render-tag-tot').textContent = agTag.value;
+        document.getElementById('ag-render-tot1').textContent = agOpt1.value;
+        document.getElementById('ag-render-tot2').textContent = agOpt2.value;
+        // Render uploaded images
+        for (var n = 1; n <= 2; n++) {
+          var img = document.getElementById('ag-render-img' + n);
+          var ph = document.getElementById('ag-render-img' + n + '-ph');
+          if (_agImgData[n]) {
+            img.src = _agImgData[n];
+            img.style.display = '';
+            ph.style.display = 'none';
+          } else {
+            img.style.display = 'none';
+            ph.style.display = '';
+          }
+        }
+      }
 
       // Scale preview to fit container
-      const wrap = document.getElementById('ag-canvas-wrap');
-      const area = document.getElementById('ag-preview-area');
-      const scale = Math.min(area.clientWidth / 1120, (area.clientHeight - 20) / 1390, 0.45);
+      var wrap = document.getElementById('ag-canvas-wrap');
+      var area = document.getElementById('ag-preview-area');
+      var scale = Math.min(area.clientWidth / 1120, (area.clientHeight - 20) / 1390, 0.45);
       wrap.style.transform = 'scale(' + scale + ')';
-    }
+    };
 
-    [agTag, agHeadline, agSubtitle, agBg, agSize].forEach(function(el) {
+    [agTag, agHeadline, agSubtitle, agBg, agSize, agOpt1, agOpt2].forEach(function(el) {
       el.addEventListener('input', updateAssetPreview);
       el.addEventListener('change', updateAssetPreview);
     });
 
-    // Run initial update after page renders
     setTimeout(updateAssetPreview, 200);
     window.addEventListener('resize', updateAssetPreview);
-
-    // Expose for showPage trigger
     window._assetPreviewUpdate = updateAssetPreview;
   })();
 
