@@ -637,8 +637,8 @@ async function submitSpotExperience() {
     } else if (videoFile) {
       if (btn) btn.textContent = 'Uploading video…';
       const uploaded = await uploadCheckinVideo(videoFile, currentUser.id);
-      if (!uploaded) {
-        showToast('Video upload failed — try again');
+      if (!uploaded || uploaded.error) {
+        showToast('Video upload failed: ' + (uploaded?.error || 'unknown error'));
         if (btn) { btn.disabled = false; btn.textContent = 'Share with the feed'; }
         return;
       }
@@ -5178,7 +5178,22 @@ async function doBlockUser(userId, btn) {
 }
 
 async function doDeletePost(postType, postId, btn) {
-  if (!confirm('Delete this post? This can\'t be undone.')) return;
+  // Two-tap confirmation (confirm() is blocked in iOS WKWebView)
+  if (!btn._confirmed) {
+    btn._confirmed = true;
+    btn.textContent = 'Tap again to confirm';
+    btn.style.background = 'var(--coral)';
+    btn.style.color = '#fff';
+    setTimeout(() => {
+      if (btn && btn._confirmed) {
+        btn._confirmed = false;
+        btn.textContent = 'Delete this post';
+        btn.style.background = '';
+        btn.style.color = '';
+      }
+    }, 3000);
+    return;
+  }
   if (btn) { btn.disabled = true; btn.textContent = 'Deleting…'; }
   try {
     const overlay = btn?.closest('.overlay');
@@ -5191,7 +5206,8 @@ async function doDeletePost(postType, postId, btn) {
   } catch(e) {
     console.error('doDeletePost error:', e);
     showToast('Could not delete — try again');
-    if (btn) { btn.disabled = false; btn.textContent = 'Delete this post'; }
+    if (btn) { btn.disabled = false; btn.textContent = 'Delete this post'; btn._confirmed = false; }
+  }
   }
 }
 
