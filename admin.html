@@ -1232,8 +1232,17 @@
 
   async function loadVenues() {
     if (allVenues.length) return; // cached
-    allVenues = await sb.get('venues', 'select=*&limit=2000');
-    if (!Array.isArray(allVenues)) allVenues = [];
+    // Supabase caps responses at 1000 rows; paginate to get all venues
+    let offset = 0;
+    const pageSize = 1000;
+    allVenues = [];
+    while (true) {
+      const page = await sb.get('venues', `select=*&limit=${pageSize}&offset=${offset}`);
+      if (!Array.isArray(page) || !page.length) break;
+      allVenues.push(...page);
+      if (page.length < pageSize) break;
+      offset += pageSize;
+    }
     allVenues.sort((a,b) => a.name.localeCompare(b.name));
     renderVenueList();
   }
