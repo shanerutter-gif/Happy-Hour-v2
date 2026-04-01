@@ -380,10 +380,15 @@ function openAddSpotForm() {
           <video id="addSpotPreviewVid" src="" playsinline muted loop style="width:100%;border-radius:10px;max-height:240px;object-fit:cover;background:#000"></video>
           <div class="add-spot-video-duration" id="addSpotVideoDuration" style="position:absolute;bottom:12px;left:10px;background:rgba(0,0,0,0.6);color:#fff;font-size:11px;font-weight:600;padding:2px 8px;border-radius:6px"></div>
           <button onclick="clearAddSpotMedia()" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.5);color:#fff;border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:14px">✕</button>
+          <div class="cover-picker" id="addSpotCoverPicker" style="display:none;margin-top:8px">
+            <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px">Choose cover frame</div>
+            <div class="cover-filmstrip" id="addSpotFilmstrip"></div>
+          </div>
         </div>
         <div id="addSpotMediaHint" style="display:none;font-size:11px;color:var(--muted);margin-top:6px;text-align:center"></div>
       </div>
 
+      <progress id="addSpotUploadProgress" max="100" value="0" style="display:none;width:100%;height:6px;border-radius:3px;margin-top:8px;accent-color:var(--coral)"></progress>
       <button class="btn-save-sm" id="addSpotBtn" style="width:100%;padding:14px;margin-top:8px" onclick="submitSpotExperience()">Share with the feed</button>
     </div>`;
   presentOverlay(overlay);
@@ -432,9 +437,15 @@ function handleAddSpotMedia(input) {
       }
       window._pendingAddSpotVideo = file;
       window._pendingAddSpotPhoto = null;
+      window._pendingCoverDataUrl = null;
 
       const vid = document.getElementById('addSpotPreviewVid');
-      if (vid) { vid.src = URL.createObjectURL(file); vid.play().catch(() => {}); }
+      if (vid) {
+        vid.src = URL.createObjectURL(file);
+        vid.play().catch(() => {});
+        // Build filmstrip cover picker once video is ready
+        vid.onloadeddata = () => buildCoverPicker(vid);
+      }
       const durLabel = document.getElementById('addSpotVideoDuration');
       if (durLabel) durLabel.textContent = dur < 60 ? `0:${Math.round(dur).toString().padStart(2,'0')}` : '1:00';
       if (videoPreview) videoPreview.style.display = 'block';
@@ -450,6 +461,7 @@ function handleAddSpotMedia(input) {
 function clearAddSpotMedia() {
   window._pendingAddSpotPhoto = null;
   window._pendingAddSpotVideo = null;
+  window._pendingCoverDataUrl = null;
   const photoPreview = document.getElementById('addSpotPhotoPreview');
   const videoPreview = document.getElementById('addSpotVideoPreview');
   const area = document.getElementById('addSpotPhotoArea');
@@ -460,6 +472,135 @@ function clearAddSpotMedia() {
   if (videoPreview) videoPreview.style.display = 'none';
   if (hint) hint.style.display = 'none';
   if (area) area.style.display = '';
+}
+
+// ── Client-side video compression (FFmpeg.wasm, lazy loaded) ────
+let _ffmpegInstance = null;
+async function getFFmpeg() {
+  if (_ffmpegInstance) return _ffmpegInstance;
+  try {
+    const { FFmpeg } = await import('https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/+esm');
+    const { fetchFile } = await import('https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/+esm');
+    const ffmpeg = new FFmpeg();
+    await ffmpeg.load({
+      coreURL: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/esm/ffmpeg-core.js',
+    });
+    _ffmpegInstance = { ffmpeg, fetchFile };
+    return _ffmpegInstance;
+  } catch(e) {
+    console.warn('[FFmpeg] Failed to load:', e);
+    return null;
+  }
+}
+
+/**
+ * Compress a video file client-side. Returns the compressed File or the
+ * original if compression fails or is unavailable.
+ * @param {File} file
+ * @param {function(string):void} [onStatus] – status text callback
+ */
+async function compressVideo(file, onStatus) {
+  // Skip if file is already small (under 20MB)
+  if (file.size < 20 * 1024 * 1024) return file;
+
+  if (onStatus) onStatus('Loading compressor…');
+  const ff = await getFFmpeg();
+  if (!ff) return file; // FFmpeg unavailable, use original
+
+  try {
+    const { ffmpeg, fetchFile } = ff;
+    const inputName = 'input.' + (file.name.split('.').pop() || 'mp4');
+    const outputName = 'output.mp4';
+
+    if (onStatus) onStatus('Compressing video…');
+    await ffmpeg.writeFile(inputName, await fetchFile(file));
+
+    // Compress: re-encode to H.264 at reasonable bitrate, scale to max 720p
+    await ffmpeg.exec([
+      '-i', inputName,
+      '-vf', 'scale=-2:min(720\\,ih)',
+      '-c:v', 'libx264', '-preset', 'fast', '-crf', '28',
+      '-c:a', 'aac', '-b:a', '128k',
+      '-movflags', '+faststart',
+      '-y', outputName
+    ]);
+
+    const data = await ffmpeg.readFile(outputName);
+    const compressed = new File([data.buffer], 'compressed.mp4', { type: 'video/mp4' });
+
+    // Only use compressed if it's actually smaller
+    if (compressed.size < file.size) {
+      console.log(`[FFmpeg] Compressed ${(file.size/1024/1024).toFixed(1)}MB → ${(compressed.size/1024/1024).toFixed(1)}MB`);
+      return compressed;
+    }
+    return file;
+  } catch(e) {
+    console.warn('[FFmpeg] Compression failed:', e);
+    return file; // Fall back to original
+  }
+}
+
+// ── Cover frame picker (filmstrip) ──────────────────────
+function extractVideoFrames(videoEl, count) {
+  return new Promise(resolve => {
+    const dur = videoEl.duration;
+    if (!dur || !isFinite(dur)) { resolve([]); return; }
+    const frames = [];
+    const step = dur / (count + 1);
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    // Use a small thumbnail size for filmstrip
+    canvas.width = 96;
+    canvas.height = 72;
+    let idx = 0;
+
+    function grabNext() {
+      if (idx >= count) { resolve(frames); return; }
+      const t = step * (idx + 1);
+      videoEl.currentTime = t;
+    }
+
+    videoEl.onseeked = () => {
+      ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+      frames.push({ time: videoEl.currentTime, dataUrl: canvas.toDataURL('image/jpeg', 0.7) });
+      idx++;
+      grabNext();
+    };
+    grabNext();
+  });
+}
+
+async function buildCoverPicker(videoEl) {
+  const picker = document.getElementById('addSpotCoverPicker');
+  const strip = document.getElementById('addSpotFilmstrip');
+  if (!picker || !strip) return;
+
+  const wasPaused = videoEl.paused;
+  videoEl.pause();
+  const frames = await extractVideoFrames(videoEl, 8);
+  if (!wasPaused) videoEl.play().catch(() => {});
+  // Reset to start
+  videoEl.currentTime = 0;
+
+  if (frames.length === 0) return;
+  strip.innerHTML = '';
+  // Default to first frame
+  window._pendingCoverDataUrl = frames[0].dataUrl;
+
+  frames.forEach((f, i) => {
+    const thumb = document.createElement('img');
+    thumb.src = f.dataUrl;
+    thumb.className = 'cover-frame' + (i === 0 ? ' cover-frame--active' : '');
+    thumb.onclick = () => {
+      strip.querySelectorAll('.cover-frame').forEach(t => t.classList.remove('cover-frame--active'));
+      thumb.classList.add('cover-frame--active');
+      window._pendingCoverDataUrl = f.dataUrl;
+      // Scrub video to the selected time
+      videoEl.currentTime = f.time;
+    };
+    strip.appendChild(thumb);
+  });
+  picker.style.display = 'block';
 }
 
 function pickAddSpotStar(n) {
@@ -494,11 +635,23 @@ async function submitSpotExperience() {
         meta.photo_storage_path = uploaded.storagePath;
       }
     } else if (videoFile) {
-      if (btn) btn.textContent = 'Uploading video…';
-      const uploaded = await uploadCheckinVideo(videoFile, currentUser.id);
+      // Compress large videos client-side before uploading
+      const compressedFile = await compressVideo(videoFile, status => {
+        if (btn) btn.textContent = status;
+      });
+      if (btn) btn.textContent = 'Uploading video… 0%';
+      const progressBar = document.getElementById('addSpotUploadProgress');
+      if (progressBar) progressBar.style.display = 'block';
+      const onProgress = pct => {
+        if (btn) btn.textContent = `Uploading video… ${pct}%`;
+        if (progressBar) progressBar.value = pct;
+      };
+      const uploaded = await uploadCheckinVideo(compressedFile, currentUser.id, onProgress);
+      if (progressBar) progressBar.style.display = 'none';
       if (uploaded) {
         meta.video_url = uploaded.url;
         meta.video_storage_path = uploaded.storagePath;
+        if (window._pendingCoverDataUrl) meta.video_poster = window._pendingCoverDataUrl;
       }
     }
 
@@ -513,6 +666,7 @@ async function submitSpotExperience() {
 
     window._pendingAddSpotPhoto = null;
     window._pendingAddSpotVideo = null;
+    window._pendingCoverDataUrl = null;
     dismissOverlay(document.querySelector('.overlay.open'));
     showToast('Spot shared!');
     _socialLoading = false;
@@ -738,7 +892,8 @@ function renderSocialItem(item) {
         ${reportBtn}
       </div>
       <div class="social-video-wrap" onclick="toggleFeedVideo(this)">
-        <video class="social-video" src="${esc(item.meta.video_url)}" playsinline muted loop preload="metadata"
+        <video class="social-video" data-src="${esc(item.meta.video_url)}" playsinline muted loop preload="none"
+          ${item.meta.video_poster ? `poster="${esc(item.meta.video_poster)}"` : ''}
           onerror="this.closest('.social-video-wrap').remove()"></video>
         <div class="social-video-play-overlay">${ICN.play || '▶'}</div>
         <div class="social-video-mute-btn" onclick="event.stopPropagation();toggleFeedVideoMute(this)">
@@ -913,18 +1068,33 @@ function toggleFeedVideoMute(btn) {
   btn.innerHTML = vid.muted ? (ICN.volumeOff || '🔇') : (ICN.volumeOn || '🔊');
 }
 
-// Autoplay muted videos when they scroll into view, pause when out
+// Preload observer — loads video src when approaching viewport
+const _preloadMargin = (navigator.connection?.effectiveType === '4g') ? '300px' : '100px';
+const _feedVideoPreloader = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (!entry.isIntersecting) return;
+    const vid = entry.target.querySelector('video[data-src]');
+    if (vid && !vid.src) {
+      vid.src = vid.dataset.src;
+      vid.removeAttribute('data-src');
+    }
+    _feedVideoPreloader.unobserve(entry.target);
+  });
+}, { rootMargin: _preloadMargin });
+
+// Play/pause observer — autoplay muted when visible, pause when out
 const _feedVideoObserver = new IntersectionObserver((entries) => {
   entries.forEach(entry => {
     const vid = entry.target.querySelector('video');
     if (!vid) return;
+    const overlay = entry.target.querySelector('.social-video-play-overlay');
     if (entry.isIntersecting) {
+      // Ensure src is loaded before playing
+      if (vid.dataset.src && !vid.src) { vid.src = vid.dataset.src; vid.removeAttribute('data-src'); }
       vid.play().catch(() => {});
-      const overlay = entry.target.querySelector('.social-video-play-overlay');
       if (overlay) overlay.style.opacity = '0';
     } else {
       vid.pause();
-      const overlay = entry.target.querySelector('.social-video-play-overlay');
       if (overlay) overlay.style.opacity = '1';
     }
   });
@@ -932,6 +1102,7 @@ const _feedVideoObserver = new IntersectionObserver((entries) => {
 
 function observeFeedVideos() {
   document.querySelectorAll('.social-video-wrap').forEach(wrap => {
+    _feedVideoPreloader.observe(wrap);
     _feedVideoObserver.observe(wrap);
   });
 }

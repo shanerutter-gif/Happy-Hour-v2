@@ -1285,9 +1285,10 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 .social-video-wrap {
   position: relative; width: 100%; overflow: hidden; background: #000;
   cursor: pointer; -webkit-tap-highlight-color: transparent;
+  aspect-ratio: 4/5; /* prevents CLS — reserves space before video loads */
 }
 .social-video {
-  width: 100%; display: block; max-height: 420px; object-fit: contain;
+  width: 100%; height: 100%; display: block; object-fit: contain;
 }
 .social-video-play-overlay {
   position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
@@ -1307,6 +1308,22 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 .social-video-mute-btn:active { background: rgba(0,0,0,0.7); }
 .social-video-mute-btn .icn,
 .social-video-mute-btn svg { width: 16px; height: 16px; }
+
+/* ── Cover frame picker (filmstrip) ── */
+.cover-filmstrip {
+  display: flex; gap: 4px; overflow-x: auto; padding: 4px 0;
+  scrollbar-width: none; -ms-overflow-style: none;
+}
+.cover-filmstrip::-webkit-scrollbar { display: none; }
+.cover-frame {
+  width: 56px; height: 42px; object-fit: cover; border-radius: 6px;
+  border: 2px solid transparent; cursor: pointer; flex-shrink: 0;
+  opacity: 0.7; transition: opacity .15s ease, border-color .15s ease;
+}
+.cover-frame:hover { opacity: 1; }
+.cover-frame--active {
+  border-color: var(--coral); opacity: 1;
+}
 
 /* ── Actions bar (like + comment) ── */
 .social-actions-bar {
@@ -2382,8 +2399,8 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 .social-card-time   { font-size: 10px; color: var(--muted); flex-shrink: 0; }
 .social-photo-wrap  { cursor: pointer; }
 .social-photo { width: 100%; display: block; max-height: 280px; object-fit: cover; }
-.social-video-wrap  { cursor: pointer; }
-.social-video { max-height: 280px; }
+.social-video-wrap  { cursor: pointer; aspect-ratio: 4/5; }
+.social-video { width: 100%; height: 100%; object-fit: contain; }
 .social-caption { padding: 10px 16px 14px; font-size: 13px; color: var(--text); line-height: 1.55; }
 
 .social-row {

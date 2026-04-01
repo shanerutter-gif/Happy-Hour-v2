@@ -748,31 +748,68 @@ async function uploadCheckinPhoto(file, userId) {
   return { url: urlData.publicUrl, storagePath: path };
 }
 
-async function uploadCheckinVideo(file, userId) {
+/**
+ * Upload a video with XHR progress reporting and retry logic.
+ * @param {File} file
+ * @param {string} userId
+ * @param {function(number):void} [onProgress] – called with 0-100
+ * @param {number} [maxRetries=3]
+ */
+async function uploadCheckinVideo(file, userId, onProgress, maxRetries = 3) {
   const ext  = file.name.split('.').pop() || 'mp4';
   const path = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-
   const session = getSession();
-  const client  = session?.access_token
-    ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-        global: { headers: { Authorization: `Bearer ${session.access_token}` } }
-      })
-    : db;
+  const token = session?.access_token || SUPABASE_ANON_KEY;
+  const url = `${SUPABASE_URL}/storage/v1/object/${CHECKIN_PHOTO_BUCKET}/${path}`;
 
-  console.log('[Video] Uploading to', path, 'size:', file.size, 'type:', file.type);
-  const { data, error } = await client.storage
-    .from(CHECKIN_PHOTO_BUCKET)
-    .upload(path, file, { contentType: file.type || 'video/mp4', upsert: false });
+  function attempt() {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', url);
+      xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      xhr.setRequestHeader('apikey', SUPABASE_ANON_KEY);
+      xhr.setRequestHeader('Content-Type', file.type || 'video/mp4');
+      xhr.setRequestHeader('x-upsert', 'false');
+      if (onProgress) {
+        xhr.upload.onprogress = e => {
+          if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+        };
+      }
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) resolve();
+        else reject(new Error(`Upload HTTP ${xhr.status}: ${xhr.responseText}`));
+      };
+      xhr.onerror = () => reject(new Error('Network error during video upload'));
+      xhr.send(file);
+    });
+  }
 
-  if (error) { console.error('[Video] Upload error:', JSON.stringify(error)); return null; }
-  console.log('[Video] Upload success:', data);
+  for (let tries = 0; tries <= maxRetries; tries++) {
+    try {
+      console.log(`[Video] Upload attempt ${tries + 1}/${maxRetries + 1} to`, path, 'size:', file.size);
+      if (onProgress) onProgress(0);
+      await attempt();
+      console.log('[Video] Upload success:', path);
 
-  const { data: urlData } = client.storage
-    .from(CHECKIN_PHOTO_BUCKET)
-    .getPublicUrl(path);
-
-  console.log('[Video] Public URL:', urlData.publicUrl);
-  return { url: urlData.publicUrl, storagePath: path };
+      const client = session?.access_token
+        ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            global: { headers: { Authorization: `Bearer ${session.access_token}` } }
+          })
+        : db;
+      const { data: urlData } = client.storage.from(CHECKIN_PHOTO_BUCKET).getPublicUrl(path);
+      console.log('[Video] Public URL:', urlData.publicUrl);
+      return { url: urlData.publicUrl, storagePath: path };
+    } catch(err) {
+      console.error(`[Video] Attempt ${tries + 1} failed:`, err.message);
+      if (tries < maxRetries) {
+        const delay = Math.pow(2, tries + 1) * 1000; // 2s, 4s, 8s
+        console.log(`[Video] Retrying in ${delay}ms…`);
+        await new Promise(r => setTimeout(r, delay));
+      }
+    }
+  }
+  console.error('[Video] All upload attempts failed');
+  return null;
 }
 
 async function saveCheckinPhoto({ userId, venueId, citySlug, photoUrl, storagePath, caption }) {
