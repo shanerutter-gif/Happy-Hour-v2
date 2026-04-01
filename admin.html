@@ -478,7 +478,6 @@
     .asset-theme-charcoal .asset-tag-text { color:#FF6B4A; }
     .asset-theme-charcoal .asset-h1 { color:#F5EFE6; }
     .asset-theme-charcoal .asset-sub { color:#E8943A; }
-    .asset-theme-charcoal .asset-logo-wrap img { filter:brightness(0) invert(1); }
 
     .asset-theme-cream { background:#F5EFE6; }
     .asset-theme-cream .asset-tag-text { color:#FF6B4A; }
@@ -489,7 +488,6 @@
     .asset-theme-coral .asset-tag-text { color:#2A1F14; }
     .asset-theme-coral .asset-h1 { color:#F5EFE6; }
     .asset-theme-coral .asset-sub { color:rgba(245,239,230,0.55); }
-    .asset-theme-coral .asset-logo-wrap img { filter:brightness(0) invert(1); }
   </style>
 </head>
 <body>
@@ -2744,6 +2742,35 @@ Roundup</textarea>
 
   // ── ASSET GENERATOR ──────────────────────────────────
   let _agImgData = { 1: null, 2: null };
+  const AG_LOGO_SRC = 'https://opcskuzbdfrlnyhraysk.supabase.co/storage/v1/object/public/spotd-content/brand/spotd-logo.png';
+  let _agWhiteLogoSrc = null;
+
+  // Generate a white version of the logo using an offscreen canvas
+  (function generateWhiteLogo() {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = function() {
+      const c = document.createElement('canvas');
+      c.width = img.naturalWidth;
+      c.height = img.naturalHeight;
+      const ctx = c.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      // Invert all pixels to white
+      const data = ctx.getImageData(0, 0, c.width, c.height);
+      const px = data.data;
+      for (let i = 0; i < px.length; i += 4) {
+        px[i] = 255;     // R
+        px[i+1] = 255;   // G
+        px[i+2] = 255;   // B
+        // keep alpha
+      }
+      ctx.putImageData(data, 0, 0);
+      _agWhiteLogoSrc = c.toDataURL('image/png');
+      // Update preview if already on a dark theme
+      if (window.updateAssetPreview) window.updateAssetPreview();
+    };
+    img.src = AG_LOGO_SRC;
+  })();
 
   function handleAssetImgUpload(num, input) {
     const file = input.files[0];
@@ -2827,6 +2854,15 @@ Roundup</textarea>
             ph.style.display = '';
           }
         }
+      }
+
+      // Swap logo based on theme (white for charcoal/coral, original for cream)
+      var logoEl = document.getElementById('ag-logo-img');
+      var theme = agBg.value;
+      if ((theme === 'charcoal' || theme === 'coral') && _agWhiteLogoSrc) {
+        logoEl.src = _agWhiteLogoSrc;
+      } else {
+        logoEl.src = AG_LOGO_SRC;
       }
 
       // Scale preview to fit container
