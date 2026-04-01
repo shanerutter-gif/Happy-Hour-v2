@@ -749,7 +749,8 @@ async function uploadCheckinPhoto(file, userId) {
 }
 
 /**
- * Upload a video with XHR progress reporting and retry logic.
+ * Upload a video with progress reporting and retry logic.
+ * Uses XHR against the Supabase Storage REST API for progress tracking.
  * @param {File} file
  * @param {string} userId
  * @param {function(number):void} [onProgress] – called with 0-100
@@ -760,16 +761,16 @@ async function uploadCheckinVideo(file, userId, onProgress, maxRetries = 3) {
   const path = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
   const session = getSession();
   const token = session?.access_token || SUPABASE_ANON_KEY;
-  const url = `${SUPABASE_URL}/storage/v1/object/${CHECKIN_PHOTO_BUCKET}/${path}`;
 
   function attempt() {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-      xhr.open('POST', url);
+      // Supabase Storage REST endpoint for uploading objects
+      const uploadUrl = `${SUPABASE_URL}/storage/v1/object/${CHECKIN_PHOTO_BUCKET}/${encodeURIComponent(path).replace(/%2F/g, '/')}`;
+      xhr.open('POST', uploadUrl);
       xhr.setRequestHeader('Authorization', `Bearer ${token}`);
       xhr.setRequestHeader('apikey', SUPABASE_ANON_KEY);
       xhr.setRequestHeader('Content-Type', file.type || 'video/mp4');
-      xhr.setRequestHeader('x-upsert', 'false');
       if (onProgress) {
         xhr.upload.onprogress = e => {
           if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
@@ -808,8 +809,67 @@ async function uploadCheckinVideo(file, userId, onProgress, maxRetries = 3) {
       }
     }
   }
-  console.error('[Video] All upload attempts failed');
-  return null;
+  // Final fallback: try the Supabase JS client (no progress, but proven to work)
+  try {
+    console.log('[Video] Falling back to Supabase JS client upload');
+    const client = session?.access_token
+      ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+          global: { headers: { Authorization: `Bearer ${session.access_token}` } }
+        })
+      : db;
+    const { data, error } = await client.storage
+      .from(CHECKIN_PHOTO_BUCKET)
+      .upload(path, file, { contentType: file.type || 'video/mp4', upsert: false });
+    if (error) throw error;
+    if (onProgress) onProgress(100);
+    const { data: urlData } = client.storage.from(CHECKIN_PHOTO_BUCKET).getPublicUrl(path);
+    return { url: urlData.publicUrl, storagePath: path };
+  } catch(e) {
+    console.error('[Video] Fallback upload also failed:', e);
+    return null;
+  }
+}
+
+// Delete an activity feed post (and its storage file if video/photo)
+async function deleteActivityPost(postId, postType, meta) {
+  const session = getSession();
+  const client = session?.access_token
+    ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        global: { headers: { Authorization: `Bearer ${session.access_token}` } }
+      })
+    : db;
+
+  // Determine the DB table and real ID from the normalized post ID
+  let table, realId;
+  if (postType === 'photo' || postId.startsWith('photo-')) {
+    table = 'checkin_photos';
+    realId = postId.replace('photo-', '');
+  } else if (postType === 'going_tonight' || postId.startsWith('going-')) {
+    table = 'check_ins';
+    realId = postId.replace('going-', '');
+  } else {
+    table = 'activity_feed';
+    realId = postId.replace('activity-', '');
+  }
+
+  // Delete storage files if present
+  try {
+    const storagePath = meta?.photo_storage_path || meta?.video_storage_path;
+    if (storagePath) {
+      await client.storage.from(CHECKIN_PHOTO_BUCKET).remove([storagePath]);
+    }
+  } catch(e) { console.warn('[Delete] Storage cleanup error:', e); }
+
+  // Delete associated likes and comments
+  try {
+    await client.from('social_likes').delete().eq('post_id', postId);
+    await client.from('social_comments').delete().eq('post_id', postId);
+  } catch(e) { console.warn('[Delete] Social cleanup error:', e); }
+
+  // Delete the post itself
+  const { error } = await client.from(table).delete().eq('id', realId);
+  if (error) { console.error('[Delete] Error:', error); throw error; }
+  return true;
 }
 
 async function saveCheckinPhoto({ userId, venueId, citySlug, photoUrl, storagePath, caption }) {

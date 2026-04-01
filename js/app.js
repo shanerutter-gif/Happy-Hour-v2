@@ -812,7 +812,10 @@ function renderSocialItem(item) {
   const likeCount = item._likeCount || 0;
   const isLiked = item._liked || false;
   const commentCount = item._commentCount || 0;
-  const reportBtn = !isMe ? `<button class="social-report-btn" onclick="event.stopPropagation();openReportMenu('${postType}','${postId}','${item.user_id}')" title="Report">···</button>` : '';
+  const _meta = (item.meta && typeof item.meta === 'object') ? JSON.stringify(item.meta).replace(/'/g, '&#39;').replace(/"/g, '&quot;') : '';
+  const reportBtn = !isMe
+    ? `<button class="social-report-btn" onclick="event.stopPropagation();openReportMenu('${postType}','${postId}','${item.user_id}',false,'')" title="Report">···</button>`
+    : `<button class="social-report-btn" onclick="event.stopPropagation();openReportMenu('${postType}','${postId}','${item.user_id}',true,'${_meta}')" title="Options">···</button>`;
   const commentSection = `
     <div class="social-actions-bar" id="actions-${postId}">
       <button class="social-like-btn${isLiked ? ' liked' : ''}" id="like-${postId}" onclick="doToggleLike('${postId}','${postType}',this)">
@@ -921,7 +924,7 @@ function renderSocialItem(item) {
           ${item.meta?.note ? `<div class="social-row-note">"${esc(item.meta.note)}"</div>` : ''}
           ${item.meta?.rating ? `<div style="font-size:12px;color:var(--coral);margin-top:2px">${'★'.repeat(item.meta.rating)}${'☆'.repeat(5-item.meta.rating)}</div>` : ''}
         </div>
-        <div class="social-row-icon">${!isMe ? `<span class="social-report-btn" onclick="event.stopPropagation();openReportMenu('${postType}','${postId}','${item.user_id}')" title="Report">···</span>` : ICN.pin}</div>
+        <div class="social-row-icon">${!isMe ? `<span class="social-report-btn" onclick="event.stopPropagation();openReportMenu('${postType}','${postId}','${item.user_id}',false,'')" title="Report">···</span>` : `<span class="social-report-btn" onclick="event.stopPropagation();openReportMenu('${postType}','${postId}','${item.user_id}',true,'${_meta}')" title="Options">···</span>`}</div>
       </div>
       ${commentSection}
     </div>`;
@@ -943,7 +946,7 @@ function renderSocialItem(item) {
           ${item.meta?.text ? `<div class="social-row-note">"${esc(item.meta.text)}"</div>` : ''}
           <div class="social-row-meta">${neighborhood ? neighborhood + ' · ' : ''}${timeAgo}</div>
         </div>
-        ${!isMe ? `<span class="social-report-btn" onclick="event.stopPropagation();openReportMenu('review','${postId}','${item.user_id}')" title="Report">···</span>` : ''}
+        ${!isMe ? `<span class="social-report-btn" onclick="event.stopPropagation();openReportMenu('review','${postId}','${item.user_id}',false,'')" title="Report">···</span>` : `<span class="social-report-btn" onclick="event.stopPropagation();openReportMenu('review','${postId}','${item.user_id}',true,'${_meta}')" title="Options">···</span>`}
       </div>
       ${commentSection}
     </div>`;
@@ -5102,27 +5105,44 @@ async function doDeleteAccount() {
 }
 
 // ── REPORT / BLOCK ───────────────────────────────────
-function openReportMenu(contentType, contentId, userId) {
+function openReportMenu(contentType, contentId, userId, isOwn, metaJson) {
   if (!currentUser) { openAuth('signin'); return; }
   const overlay = document.createElement('div');
   overlay.className = 'overlay';
   overlay.onclick = e => { if (e.target === overlay) dismissOverlay(overlay); };
-  overlay.innerHTML = `
-    <div class="sheet">
-      <div class="sheet-handle"></div>
-      <button class="sheet-close" onclick="dismissOverlay(this.closest('.overlay'))">✕</button>
-      <div style="font-weight:800;font-size:17px;margin-bottom:16px">Report</div>
-      <div style="display:flex;flex-direction:column;gap:8px">
-        <button class="report-option" onclick="submitReport('${contentType}','${contentId}','${userId}','spam',this)">Spam or fake</button>
-        <button class="report-option" onclick="submitReport('${contentType}','${contentId}','${userId}','inappropriate',this)">Inappropriate or offensive</button>
-        <button class="report-option" onclick="submitReport('${contentType}','${contentId}','${userId}','harassment',this)">Harassment or bullying</button>
-        <button class="report-option" onclick="submitReport('${contentType}','${contentId}','${userId}','misinformation',this)">False information</button>
-      </div>
-      ${userId && userId !== currentUser.id ? `
-        <div style="border-top:1px solid var(--border);margin-top:16px;padding-top:16px">
-          <button class="report-option report-option--block" onclick="doBlockUser('${userId}',this)">Block this user</button>
-        </div>` : ''}
-    </div>`;
+
+  if (isOwn) {
+    // Own post — show delete option
+    overlay.innerHTML = `
+      <div class="sheet">
+        <div class="sheet-handle"></div>
+        <button class="sheet-close" onclick="dismissOverlay(this.closest('.overlay'))">✕</button>
+        <div style="font-weight:800;font-size:17px;margin-bottom:16px">Post Options</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button class="report-option report-option--block" id="deletePostBtn" onclick="doDeletePost('${contentType}','${contentId}',this)">Delete this post</button>
+        </div>
+      </div>`;
+  } else {
+    // Other user's post — show report/block options
+    overlay.innerHTML = `
+      <div class="sheet">
+        <div class="sheet-handle"></div>
+        <button class="sheet-close" onclick="dismissOverlay(this.closest('.overlay'))">✕</button>
+        <div style="font-weight:800;font-size:17px;margin-bottom:16px">Report</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button class="report-option" onclick="submitReport('${contentType}','${contentId}','${userId}','spam',this)">Spam or fake</button>
+          <button class="report-option" onclick="submitReport('${contentType}','${contentId}','${userId}','inappropriate',this)">Inappropriate or offensive</button>
+          <button class="report-option" onclick="submitReport('${contentType}','${contentId}','${userId}','harassment',this)">Harassment or bullying</button>
+          <button class="report-option" onclick="submitReport('${contentType}','${contentId}','${userId}','misinformation',this)">False information</button>
+        </div>
+        ${userId && userId !== currentUser.id ? `
+          <div style="border-top:1px solid var(--border);margin-top:16px;padding-top:16px">
+            <button class="report-option report-option--block" onclick="doBlockUser('${userId}',this)">Block this user</button>
+          </div>` : ''}
+      </div>`;
+  }
+  // Store meta on overlay for delete handler
+  overlay._postMeta = metaJson ? (() => { try { return JSON.parse(metaJson.replace(/&quot;/g,'"').replace(/&#39;/g,"'")); } catch(e) { return null; } })() : null;
   presentOverlay(overlay);
 }
 
@@ -5160,6 +5180,24 @@ async function doBlockUser(userId, btn) {
     showToast('User blocked.');
     const overlay = btn?.closest('.overlay');
     if (overlay) dismissOverlay(overlay);
+  }
+}
+
+async function doDeletePost(postType, postId, btn) {
+  if (!confirm('Delete this post? This can\'t be undone.')) return;
+  if (btn) { btn.disabled = true; btn.textContent = 'Deleting…'; }
+  try {
+    const overlay = btn?.closest('.overlay');
+    const meta = overlay?._postMeta || null;
+    await deleteActivityPost(postId, postType, meta);
+    if (overlay) dismissOverlay(overlay);
+    showToast('Post deleted');
+    _socialLoading = false;
+    loadSocialFeed();
+  } catch(e) {
+    console.error('doDeletePost error:', e);
+    showToast('Could not delete — try again');
+    if (btn) { btn.disabled = false; btn.textContent = 'Delete this post'; }
   }
 }
 
