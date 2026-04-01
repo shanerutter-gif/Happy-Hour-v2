@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Spotd Admin</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@400;500;700;800;900&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@400;500;700;800;900&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&family=DM+Mono:wght@400;500&family=Nunito:wght@400;700;800;900;1000&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -355,6 +355,92 @@
     .cms-section-title { font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#FF6B4A;padding-bottom:4px;border-bottom:1px solid #f0e8e0;margin-top:4px; }
     .cms-saved-toast { position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#2a1f14;color:#fff;padding:10px 20px;border-radius:24px;font-size:13px;font-weight:600;z-index:9999;pointer-events:none;opacity:0;transition:opacity .2s; }
     .cms-saved-toast.show { opacity:1; }
+
+    /* ── ASSET GENERATOR ──────────────────────────────── */
+    .asset-gen-toolbar {
+      display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end;
+      background:var(--card); border:1px solid var(--border); border-radius:14px;
+      padding:20px; margin-bottom:20px;
+    }
+    .asset-gen-field { display:flex; flex-direction:column; gap:4px; }
+    .asset-gen-field label {
+      font-family:'DM Sans',sans-serif; font-size:9px; letter-spacing:1.5px;
+      text-transform:uppercase; color:var(--muted); font-weight:700;
+    }
+    .asset-gen-field input,
+    .asset-gen-field select,
+    .asset-gen-field textarea {
+      padding:9px 12px; background:var(--bg); border:1px solid var(--border);
+      border-radius:8px; font-size:14px; color:var(--text); outline:none;
+      font-family:'DM Sans',sans-serif;
+    }
+    .asset-gen-field textarea { min-height:60px; resize:vertical; }
+    .asset-gen-field select { cursor:pointer; }
+    .asset-gen-field input:focus,
+    .asset-gen-field select:focus,
+    .asset-gen-field textarea:focus { border-color:var(--coral); }
+
+    .asset-gen-btn {
+      padding:10px 20px; border:none; border-radius:10px;
+      font-family:'Cabinet Grotesk',sans-serif; font-size:14px;
+      font-weight:700; cursor:pointer; transition:background .15s;
+    }
+    .asset-gen-btn-primary { background:var(--coral); color:white; }
+    .asset-gen-btn-primary:hover { background:var(--coral2); }
+
+    .asset-preview-area {
+      display:flex; justify-content:center; align-items:flex-start;
+      padding:20px; overflow:auto; background:var(--bg2);
+      border:1px solid var(--border); border-radius:14px;
+      min-height:500px;
+    }
+    .asset-canvas-wrap {
+      transform-origin:top center;
+      box-shadow:0 8px 32px rgba(0,0,0,0.15);
+    }
+    .asset-canvas {
+      width:1080px; height:1350px;
+      font-family:'Nunito',sans-serif;
+      position:relative; overflow:hidden;
+    }
+    .asset-canvas .asset-content {
+      position:absolute; left:72px; right:72px;
+      top:50%; transform:translateY(-42%);
+    }
+    .asset-canvas .asset-tag-text {
+      display:inline-block; font-size:28px; font-weight:900;
+      letter-spacing:4px; text-transform:uppercase; margin-bottom:24px;
+    }
+    .asset-canvas .asset-h1 {
+      font-size:140px; font-weight:1000;
+      line-height:0.95; margin-bottom:24px; letter-spacing:-3px;
+    }
+    .asset-canvas .asset-sub {
+      font-size:32px; font-weight:400;
+      font-style:italic; line-height:1.35;
+    }
+    .asset-canvas .asset-logo-wrap {
+      position:absolute; bottom:52px; right:64px;
+    }
+    .asset-canvas .asset-logo-wrap img { height:44px; width:auto; }
+
+    /* Asset theme classes */
+    .asset-theme-charcoal { background:#2A1F14; }
+    .asset-theme-charcoal .asset-tag-text { color:#FF6B4A; }
+    .asset-theme-charcoal .asset-h1 { color:#F5EFE6; }
+    .asset-theme-charcoal .asset-sub { color:#E8943A; }
+    .asset-theme-charcoal .asset-logo-wrap img { filter:brightness(0) invert(1); }
+
+    .asset-theme-cream { background:#F5EFE6; }
+    .asset-theme-cream .asset-tag-text { color:#FF6B4A; }
+    .asset-theme-cream .asset-h1 { color:#2A1F14; }
+    .asset-theme-cream .asset-sub { color:rgba(42,31,20,0.45); }
+
+    .asset-theme-coral { background:#FF6B4A; }
+    .asset-theme-coral .asset-tag-text { color:#2A1F14; }
+    .asset-theme-coral .asset-h1 { color:#F5EFE6; }
+    .asset-theme-coral .asset-sub { color:rgba(245,239,230,0.55); }
+    .asset-theme-coral .asset-logo-wrap img { filter:brightness(0) invert(1); }
   </style>
 </head>
 <body>
@@ -430,6 +516,7 @@
     <button class="drawer-item" onclick="showPage('cms');closeMobileMenu()" id="mob-nav-cms">✏️ Site Copy</button>
     <button class="drawer-item" onclick="showPage('board');closeMobileMenu()" id="mob-nav-board">🗂️ Project Board</button>
     <button class="drawer-item" onclick="showPage('demo');closeMobileMenu()" id="mob-nav-demo">🎭 Demo Data</button>
+    <button class="drawer-item" onclick="showPage('assets');closeMobileMenu()" id="mob-nav-assets">🎨 Asset Generator</button>
     <div class="drawer-footer">
       <button class="drawer-signout" onclick="handleLogout()">👋 Sign Out</button>
     </div>
@@ -482,6 +569,9 @@
       </div>
       <div class="sidebar-item" onclick="showPage('demo')" id="nav-demo">
         🎭 Demo Data
+      </div>
+      <div class="sidebar-item" onclick="showPage('assets')" id="nav-assets">
+        🎨 Asset Generator
       </div>
     </div>
 
@@ -916,6 +1006,59 @@
           <button onclick="clearDemoData()" style="padding:12px 24px;background:var(--bg2);color:var(--text);border:1px solid var(--border);border-radius:10px;font-family:'Cabinet Grotesk',sans-serif;font-size:15px;font-weight:700;cursor:pointer;transition:background .15s">🗑 Clear All Demo Data</button>
         </div>
         <div style="margin-top:12px;font-size:12px;color:var(--muted)">All demo profiles are tagged internally — Clear removes only generated data, never real users or reviews.</div>
+      </div>
+
+      <!-- ASSET GENERATOR PAGE -->
+      <div class="page" id="page-assets">
+        <div class="page-title">🎨 Asset Generator</div>
+        <div class="page-sub">Create branded Spotd social assets. Customize the text, pick a theme, and download a 1080×1350 PNG.</div>
+
+        <div class="asset-gen-toolbar">
+          <div class="asset-gen-field">
+            <label>Tag</label>
+            <input type="text" id="ag-tag" value="THIS WEEKEND" placeholder="e.g. THIS OR THAT">
+          </div>
+          <div class="asset-gen-field">
+            <label>Headline</label>
+            <textarea id="ag-headline" placeholder="Line 1&#10;Line 2">Weekend
+Roundup</textarea>
+          </div>
+          <div class="asset-gen-field">
+            <label>Subtitle</label>
+            <input type="text" id="ag-subtitle" value="Apr 3–5 · North Park · Gaslamp" placeholder="optional subtitle">
+          </div>
+          <div class="asset-gen-field">
+            <label>Background</label>
+            <select id="ag-bg">
+              <option value="charcoal">Charcoal</option>
+              <option value="cream" selected>Cream</option>
+              <option value="coral">Coral</option>
+            </select>
+          </div>
+          <div class="asset-gen-field">
+            <label>Headline Size</label>
+            <select id="ag-size">
+              <option value="100">Medium (100px)</option>
+              <option value="120">Large (120px)</option>
+              <option value="140" selected>XL (140px)</option>
+              <option value="160">XXL (160px)</option>
+            </select>
+          </div>
+          <button class="asset-gen-btn asset-gen-btn-primary" onclick="downloadAssetPng()">⬇ Download PNG</button>
+        </div>
+
+        <div class="asset-preview-area" id="ag-preview-area">
+          <div class="asset-canvas-wrap" id="ag-canvas-wrap">
+            <div class="asset-canvas asset-theme-cream" id="ag-canvas">
+              <div class="asset-content">
+                <div class="asset-tag-text" id="ag-render-tag">THIS WEEKEND</div>
+                <div class="asset-h1" id="ag-render-headline">Weekend<br>Roundup</div>
+                <p class="asset-sub" id="ag-render-subtitle">Apr 3–5 · North Park · Gaslamp</p>
+              </div>
+              <div class="asset-logo-wrap"><img id="ag-logo-img" src="https://opcskuzbdfrlnyhraysk.supabase.co/storage/v1/object/public/spotd-content/brand/spotd-logo.png" alt="Spotd"></div>
+            </div>
+          </div>
+        </div>
       </div>
 
     </div>
@@ -1510,7 +1653,7 @@
   const PAGE_TITLES = {
     requests: 'Venue Requests', venues: 'All Venues', users: 'User Analytics',
     churn: 'Churned Users', 'venues-top': 'Top Venues', cities: 'City Breakdown',
-    pipeline: 'Revenue Pipeline', feedback: 'User Feedback', push: 'Push Notifications', cms: 'Site Copy', board: 'Project Board', demo: 'Demo Data'
+    pipeline: 'Revenue Pipeline', feedback: 'User Feedback', push: 'Push Notifications', cms: 'Site Copy', board: 'Project Board', demo: 'Demo Data', assets: 'Asset Generator'
   };
 
   function showPage(page) {
@@ -1538,6 +1681,9 @@
         iframe.src = '/admin/board.html';
         iframe.dataset.loaded = '1';
       }
+    }
+    if (page === 'assets' && window._assetPreviewUpdate) {
+      setTimeout(window._assetPreviewUpdate, 100);
     }
   }
 
@@ -2478,6 +2624,78 @@
     `).join('');
   }
 
+
+  // ── ASSET GENERATOR ──────────────────────────────────
+  (function() {
+    const agTag = document.getElementById('ag-tag');
+    const agHeadline = document.getElementById('ag-headline');
+    const agSubtitle = document.getElementById('ag-subtitle');
+    const agBg = document.getElementById('ag-bg');
+    const agSize = document.getElementById('ag-size');
+    const agCanvas = document.getElementById('ag-canvas');
+
+    function updateAssetPreview() {
+      document.getElementById('ag-render-tag').textContent = agTag.value;
+      document.getElementById('ag-render-headline').innerHTML = agHeadline.value.replace(/\n/g, '<br>');
+      document.getElementById('ag-render-subtitle').textContent = agSubtitle.value;
+      agCanvas.className = 'asset-canvas asset-theme-' + agBg.value;
+      agCanvas.querySelector('.asset-h1').style.fontSize = agSize.value + 'px';
+
+      // Scale preview to fit container
+      const wrap = document.getElementById('ag-canvas-wrap');
+      const area = document.getElementById('ag-preview-area');
+      const scale = Math.min(area.clientWidth / 1120, (area.clientHeight - 20) / 1390, 0.45);
+      wrap.style.transform = 'scale(' + scale + ')';
+    }
+
+    [agTag, agHeadline, agSubtitle, agBg, agSize].forEach(function(el) {
+      el.addEventListener('input', updateAssetPreview);
+      el.addEventListener('change', updateAssetPreview);
+    });
+
+    // Run initial update after page renders
+    setTimeout(updateAssetPreview, 200);
+    window.addEventListener('resize', updateAssetPreview);
+
+    // Expose for showPage trigger
+    window._assetPreviewUpdate = updateAssetPreview;
+  })();
+
+  // Load html2canvas on demand and download
+  let _html2canvasLoaded = false;
+  function loadHtml2Canvas() {
+    return new Promise(function(resolve, reject) {
+      if (_html2canvasLoaded) return resolve();
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+      s.onload = function() { _html2canvasLoaded = true; resolve(); };
+      s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  }
+
+  async function downloadAssetPng() {
+    await loadHtml2Canvas();
+    const wrap = document.getElementById('ag-canvas-wrap');
+    const canvas = document.getElementById('ag-canvas');
+    const prevTransform = wrap.style.transform;
+    wrap.style.transform = 'none';
+
+    try {
+      const c = await html2canvas(canvas, {
+        width: 1080, height: 1350, scale: 1,
+        useCORS: true, allowTaint: true
+      });
+      const link = document.createElement('a');
+      const tag = document.getElementById('ag-tag').value;
+      link.download = (tag.toLowerCase().replace(/\s+/g, '-') || 'spotd-asset') + '.png';
+      link.href = c.toDataURL('image/png');
+      link.click();
+    } finally {
+      wrap.style.transform = prevTransform;
+      if (window._assetPreviewUpdate) window._assetPreviewUpdate();
+    }
+  }
 
 </script>
 </body>
