@@ -635,24 +635,16 @@ async function submitSpotExperience() {
         meta.photo_storage_path = uploaded.storagePath;
       }
     } else if (videoFile) {
-      // Compress large videos client-side before uploading
-      const compressedFile = await compressVideo(videoFile, status => {
-        if (btn) btn.textContent = status;
-      });
-      if (btn) btn.textContent = 'Uploading video… 0%';
-      const progressBar = document.getElementById('addSpotUploadProgress');
-      if (progressBar) progressBar.style.display = 'block';
-      const onProgress = pct => {
-        if (btn) btn.textContent = `Uploading video… ${pct}%`;
-        if (progressBar) progressBar.value = pct;
-      };
-      const uploaded = await uploadCheckinVideo(compressedFile, currentUser.id, onProgress);
-      if (progressBar) progressBar.style.display = 'none';
-      if (uploaded) {
-        meta.video_url = uploaded.url;
-        meta.video_storage_path = uploaded.storagePath;
-        if (window._pendingCoverDataUrl) meta.video_poster = window._pendingCoverDataUrl;
+      if (btn) btn.textContent = 'Uploading video…';
+      const uploaded = await uploadCheckinVideo(videoFile, currentUser.id);
+      if (!uploaded) {
+        showToast('Video upload failed — try again');
+        if (btn) { btn.disabled = false; btn.textContent = 'Share with the feed'; }
+        return;
       }
+      meta.video_url = uploaded.url;
+      meta.video_storage_path = uploaded.storagePath;
+      if (window._pendingCoverDataUrl) meta.video_poster = window._pendingCoverDataUrl;
     }
 
     await db.from('activity_feed').insert({

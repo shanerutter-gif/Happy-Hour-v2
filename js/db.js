@@ -748,15 +748,8 @@ async function uploadCheckinPhoto(file, userId) {
   return { url: urlData.publicUrl, storagePath: path };
 }
 
-/**
- * Upload a video with progress estimation and retry logic.
- * Uses the Supabase JS client (proven to work for photos).
- * @param {File} file
- * @param {string} userId
- * @param {function(number):void} [onProgress] – called with 0-100
- * @param {number} [maxRetries=3]
- */
-async function uploadCheckinVideo(file, userId, onProgress, maxRetries = 3) {
+// Identical to uploadCheckinPhoto but preserves video content type
+async function uploadCheckinVideo(file, userId) {
   const ext  = file.name.split('.').pop() || 'mp4';
   const path = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
@@ -767,57 +760,29 @@ async function uploadCheckinVideo(file, userId, onProgress, maxRetries = 3) {
       })
     : db;
 
-  for (let tries = 0; tries <= maxRetries; tries++) {
-    try {
-      console.log(`[Video] Upload attempt ${tries + 1}/${maxRetries + 1} to`, path, 'size:', file.size);
+  console.log('[Video] Uploading to', path, 'size:', file.size, 'type:', file.type);
+  const { data, error } = await client.storage
+    .from(CHECKIN_PHOTO_BUCKET)
+    .upload(path, file, { contentType: file.type || 'video/mp4', upsert: false });
 
-      // Simulate progress based on expected upload time
-      let progressInterval;
-      if (onProgress) {
-        let pct = 0;
-        const estimatedMs = (file.size / (1024 * 1024)) * 1500; // ~1.5s per MB estimate
-        const step = 100 / (estimatedMs / 200);
-        onProgress(0);
-        progressInterval = setInterval(() => {
-          pct = Math.min(pct + step, 95); // cap at 95 until actually done
-          onProgress(Math.round(pct));
-        }, 200);
-      }
+  if (error) { console.error('[Video] Upload error:', JSON.stringify(error)); return null; }
+  console.log('[Video] Upload success:', data);
 
-      const { data, error } = await client.storage
-        .from(CHECKIN_PHOTO_BUCKET)
-        .upload(path, file, { contentType: file.type || 'video/mp4', upsert: false });
+  const { data: urlData } = client.storage
+    .from(CHECKIN_PHOTO_BUCKET)
+    .getPublicUrl(path);
 
-      if (progressInterval) clearInterval(progressInterval);
-
-      if (error) throw error;
-      if (onProgress) onProgress(100);
-      console.log('[Video] Upload success:', data);
-
-      const { data: urlData } = client.storage.from(CHECKIN_PHOTO_BUCKET).getPublicUrl(path);
-      console.log('[Video] Public URL:', urlData.publicUrl);
-      return { url: urlData.publicUrl, storagePath: path };
-    } catch(err) {
-      console.error(`[Video] Attempt ${tries + 1} failed:`, err.message || err);
-      if (tries < maxRetries) {
-        const delay = Math.pow(2, tries + 1) * 1000;
-        console.log(`[Video] Retrying in ${delay}ms…`);
-        await new Promise(r => setTimeout(r, delay));
-      }
-    }
-  }
-  console.error('[Video] All upload attempts failed');
-  return null;
+  console.log('[Video] Public URL:', urlData.publicUrl);
+  return { url: urlData.publicUrl, storagePath: path };
 }
 
 // Delete an activity feed post (and its storage file if video/photo)
 async function deleteActivityPost(postId, postType, meta) {
   const session = getSession();
-  const client = session?.access_token
-    ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-        global: { headers: { Authorization: `Bearer ${session.access_token}` } }
-      })
-    : db;
+  if (!session?.access_token) throw new Error('Not authenticated');
+  const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    global: { headers: { Authorization: `Bearer ${session.access_token}` } }
+  });
 
   // Determine the DB table and real ID from the normalized post ID
   let table, realId;
@@ -832,23 +797,21 @@ async function deleteActivityPost(postId, postType, meta) {
     realId = postId.replace('activity-', '');
   }
 
-  // Delete storage files if present
-  try {
-    const storagePath = meta?.photo_storage_path || meta?.video_storage_path;
-    if (storagePath) {
-      await client.storage.from(CHECKIN_PHOTO_BUCKET).remove([storagePath]);
-    }
-  } catch(e) { console.warn('[Delete] Storage cleanup error:', e); }
+  console.log('[Delete] Deleting', table, realId, 'postId:', postId);
 
-  // Delete associated likes and comments
-  try {
-    await client.from('social_likes').delete().eq('post_id', postId);
-    await client.from('social_comments').delete().eq('post_id', postId);
-  } catch(e) { console.warn('[Delete] Social cleanup error:', e); }
-
-  // Delete the post itself
+  // Delete the post itself first (most important)
   const { error } = await client.from(table).delete().eq('id', realId);
   if (error) { console.error('[Delete] Error:', error); throw error; }
+
+  // Best-effort cleanup of storage, likes, comments (don't throw)
+  try {
+    const storagePath = meta?.photo_storage_path || meta?.video_storage_path;
+    if (storagePath) await client.storage.from(CHECKIN_PHOTO_BUCKET).remove([storagePath]);
+  } catch(e) { console.warn('[Delete] Storage cleanup error:', e); }
+
+  try { await client.from('social_likes').delete().eq('post_id', postId); } catch(e) {}
+  try { await client.from('social_comments').delete().eq('post_id', postId); } catch(e) {}
+
   return true;
 }
 
