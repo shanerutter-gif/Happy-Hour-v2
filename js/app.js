@@ -5208,7 +5208,6 @@ async function doDeletePost(postType, postId, btn) {
     showToast('Could not delete — try again');
     if (btn) { btn.disabled = false; btn.textContent = 'Delete this post'; btn._confirmed = false; }
   }
-  }
 }
 
 // ── APPLE SIGN IN ────────────────────────────────────
