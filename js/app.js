@@ -947,23 +947,69 @@ async function enterCity(slug, name, stateCode) {
   buildFilterPills();
   renderSuggestions();
 
-  // Default to A-Z sort; location is only requested when user clicks "Nearest"
-  state.sort = 'name';
-  document.querySelectorAll('#sortFilters .pill').forEach(b => b.classList.remove('active'));
-  document.getElementById('sort-name')?.classList.add('active');
+  // ── Location permission logic ──────────────────────────
+  // Granted once  → silently fetch fresh coords every time, sort by Nearest
+  // Denied/never  → default A-Z, re-ask every 3rd app open
+  const locationGranted = localStorage.getItem('spotd-location-granted') === 'yes';
+  const nearBtn = document.getElementById('sort-distance');
 
-  // Restore cached location so "Nearest" works without re-prompting
-  if (state.userLat === null) {
-    try {
-      const cached = JSON.parse(localStorage.getItem('spotd-user-location'));
-      if (cached && cached.lat != null && cached.lng != null) {
-        state.userLat = cached.lat;
-        state.userLng = cached.lng;
-      }
-    } catch(e) {}
+  function _defaultToAZ() {
+    state.sort = 'name';
+    document.querySelectorAll('#sortFilters .pill').forEach(b => b.classList.remove('active'));
+    document.getElementById('sort-name')?.classList.add('active');
+    applyFilters();
   }
 
-  applyFilters();
+  function _activateNearest() {
+    state.sort = 'distance';
+    document.querySelectorAll('#sortFilters .pill').forEach(b => b.classList.remove('active'));
+    if (nearBtn) nearBtn.classList.add('active');
+  }
+
+  function _requestLocation() {
+    if (!navigator.geolocation) { _defaultToAZ(); return; }
+    _activateNearest();
+    if (nearBtn) { nearBtn.innerHTML = `${ICN.pin} Locating…`; nearBtn.disabled = true; }
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        state.userLat = pos.coords.latitude;
+        state.userLng = pos.coords.longitude;
+        localStorage.setItem('spotd-location-granted', 'yes');
+        localStorage.removeItem('spotd-location-deny-count');
+        try { localStorage.setItem('spotd-user-location', JSON.stringify({ lat: state.userLat, lng: state.userLng })); } catch(e) {}
+        if (nearBtn) { nearBtn.innerHTML = `${ICN.pin} Nearest`; nearBtn.disabled = false; }
+        applyFilters();
+      },
+      () => {
+        localStorage.setItem('spotd-location-deny-count', '0');
+        if (nearBtn) { nearBtn.innerHTML = `${ICN.pin} Nearest`; nearBtn.disabled = false; }
+        _defaultToAZ();
+      },
+      { timeout: 6000 }
+    );
+  }
+
+  if (locationGranted) {
+    // Permission already granted — silently get fresh coords, default to Nearest
+    _requestLocation();
+  } else {
+    // Not yet granted — check if we should ask on this open
+    const denyCount = parseInt(localStorage.getItem('spotd-location-deny-count'), 10);
+    if (isNaN(denyCount)) {
+      // First time ever — ask
+      _requestLocation();
+    } else {
+      // Previously denied — increment counter, ask every 3rd open
+      const newCount = denyCount + 1;
+      if (newCount >= 3) {
+        localStorage.setItem('spotd-location-deny-count', '0');
+        _requestLocation();
+      } else {
+        localStorage.setItem('spotd-location-deny-count', String(newCount));
+        _defaultToAZ();
+      }
+    }
+  }
 
   initMap();
 }
@@ -1246,14 +1292,14 @@ function setSort(val, btn) {
   btn.classList.add('active');
 
   if (val === 'distance') {
-    // Always fetch fresh coordinates so results reflect current location.
-    // If permission was already granted, the browser returns coords silently (no prompt).
     btn.innerHTML = `${ICN.pin} Locating…`;
     btn.disabled = true;
     navigator.geolocation.getCurrentPosition(
       pos => {
         state.userLat = pos.coords.latitude;
         state.userLng = pos.coords.longitude;
+        localStorage.setItem('spotd-location-granted', 'yes');
+        localStorage.removeItem('spotd-location-deny-count');
         try { localStorage.setItem('spotd-user-location', JSON.stringify({ lat: state.userLat, lng: state.userLng })); } catch(e) {}
         btn.innerHTML = `${ICN.pin} Nearest`;
         btn.disabled = false;
