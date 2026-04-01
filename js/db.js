@@ -749,8 +749,8 @@ async function uploadCheckinPhoto(file, userId) {
 }
 
 /**
- * Upload a video with progress reporting and retry logic.
- * Uses XHR against the Supabase Storage REST API for progress tracking.
+ * Upload a video with progress estimation and retry logic.
+ * Uses the Supabase JS client (proven to work for photos).
  * @param {File} file
  * @param {string} userId
  * @param {function(number):void} [onProgress] – called with 0-100
@@ -759,75 +759,55 @@ async function uploadCheckinPhoto(file, userId) {
 async function uploadCheckinVideo(file, userId, onProgress, maxRetries = 3) {
   const ext  = file.name.split('.').pop() || 'mp4';
   const path = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-  const session = getSession();
-  const token = session?.access_token || SUPABASE_ANON_KEY;
 
-  function attempt() {
-    return new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      // Supabase Storage REST endpoint for uploading objects
-      const uploadUrl = `${SUPABASE_URL}/storage/v1/object/${CHECKIN_PHOTO_BUCKET}/${encodeURIComponent(path).replace(/%2F/g, '/')}`;
-      xhr.open('POST', uploadUrl);
-      xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-      xhr.setRequestHeader('apikey', SUPABASE_ANON_KEY);
-      xhr.setRequestHeader('Content-Type', file.type || 'video/mp4');
-      if (onProgress) {
-        xhr.upload.onprogress = e => {
-          if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
-        };
-      }
-      xhr.onload = () => {
-        if (xhr.status >= 200 && xhr.status < 300) resolve();
-        else reject(new Error(`Upload HTTP ${xhr.status}: ${xhr.responseText}`));
-      };
-      xhr.onerror = () => reject(new Error('Network error during video upload'));
-      xhr.send(file);
-    });
-  }
+  const session = getSession();
+  const client  = session?.access_token
+    ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        global: { headers: { Authorization: `Bearer ${session.access_token}` } }
+      })
+    : db;
 
   for (let tries = 0; tries <= maxRetries; tries++) {
     try {
       console.log(`[Video] Upload attempt ${tries + 1}/${maxRetries + 1} to`, path, 'size:', file.size);
-      if (onProgress) onProgress(0);
-      await attempt();
-      console.log('[Video] Upload success:', path);
 
-      const client = session?.access_token
-        ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-            global: { headers: { Authorization: `Bearer ${session.access_token}` } }
-          })
-        : db;
+      // Simulate progress based on expected upload time
+      let progressInterval;
+      if (onProgress) {
+        let pct = 0;
+        const estimatedMs = (file.size / (1024 * 1024)) * 1500; // ~1.5s per MB estimate
+        const step = 100 / (estimatedMs / 200);
+        onProgress(0);
+        progressInterval = setInterval(() => {
+          pct = Math.min(pct + step, 95); // cap at 95 until actually done
+          onProgress(Math.round(pct));
+        }, 200);
+      }
+
+      const { data, error } = await client.storage
+        .from(CHECKIN_PHOTO_BUCKET)
+        .upload(path, file, { contentType: file.type || 'video/mp4', upsert: false });
+
+      if (progressInterval) clearInterval(progressInterval);
+
+      if (error) throw error;
+      if (onProgress) onProgress(100);
+      console.log('[Video] Upload success:', data);
+
       const { data: urlData } = client.storage.from(CHECKIN_PHOTO_BUCKET).getPublicUrl(path);
       console.log('[Video] Public URL:', urlData.publicUrl);
       return { url: urlData.publicUrl, storagePath: path };
     } catch(err) {
-      console.error(`[Video] Attempt ${tries + 1} failed:`, err.message);
+      console.error(`[Video] Attempt ${tries + 1} failed:`, err.message || err);
       if (tries < maxRetries) {
-        const delay = Math.pow(2, tries + 1) * 1000; // 2s, 4s, 8s
+        const delay = Math.pow(2, tries + 1) * 1000;
         console.log(`[Video] Retrying in ${delay}ms…`);
         await new Promise(r => setTimeout(r, delay));
       }
     }
   }
-  // Final fallback: try the Supabase JS client (no progress, but proven to work)
-  try {
-    console.log('[Video] Falling back to Supabase JS client upload');
-    const client = session?.access_token
-      ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-          global: { headers: { Authorization: `Bearer ${session.access_token}` } }
-        })
-      : db;
-    const { data, error } = await client.storage
-      .from(CHECKIN_PHOTO_BUCKET)
-      .upload(path, file, { contentType: file.type || 'video/mp4', upsert: false });
-    if (error) throw error;
-    if (onProgress) onProgress(100);
-    const { data: urlData } = client.storage.from(CHECKIN_PHOTO_BUCKET).getPublicUrl(path);
-    return { url: urlData.publicUrl, storagePath: path };
-  } catch(e) {
-    console.error('[Video] Fallback upload also failed:', e);
-    return null;
-  }
+  console.error('[Video] All upload attempts failed');
+  return null;
 }
 
 // Delete an activity feed post (and its storage file if video/photo)
