@@ -365,17 +365,23 @@ function openAddSpotForm() {
       </div>
 
       <div class="p-section">
-        <div class="p-section-title">Photo <span style="font-weight:400;color:var(--muted)">(optional)</span></div>
+        <div class="p-section-title">Photo or Video <span style="font-weight:400;color:var(--muted)">(optional)</span></div>
         <div class="add-spot-photo-area" id="addSpotPhotoArea" style="position:relative;border:2px dashed var(--border2);border-radius:12px;padding:24px;text-align:center;cursor:pointer">
-          <input type="file" accept="image/*" id="addSpotPhotoInput"
+          <input type="file" accept="image/*,video/mp4,video/quicktime,video/webm" id="addSpotMediaInput"
             style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;z-index:2"
-            onchange="handleAddSpotPhoto(this)">
-          <div style="color:var(--muted);font-size:13px;pointer-events:none">${icn('camera',24)}<br>Tap to add a photo</div>
+            onchange="handleAddSpotMedia(this)">
+          <div style="color:var(--muted);font-size:13px;pointer-events:none">${icn('camera',24)}<br>Tap to add a photo or video</div>
         </div>
         <div id="addSpotPhotoPreview" style="display:none;position:relative;margin-top:8px">
           <img id="addSpotPreviewImg" src="" alt="Preview" style="width:100%;border-radius:10px;max-height:200px;object-fit:cover">
-          <button onclick="clearAddSpotPhoto()" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.5);color:#fff;border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:14px">✕</button>
+          <button onclick="clearAddSpotMedia()" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.5);color:#fff;border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:14px">✕</button>
         </div>
+        <div id="addSpotVideoPreview" style="display:none;position:relative;margin-top:8px">
+          <video id="addSpotPreviewVid" src="" playsinline muted loop style="width:100%;border-radius:10px;max-height:240px;object-fit:cover;background:#000"></video>
+          <div class="add-spot-video-duration" id="addSpotVideoDuration" style="position:absolute;bottom:12px;left:10px;background:rgba(0,0,0,0.6);color:#fff;font-size:11px;font-weight:600;padding:2px 8px;border-radius:6px"></div>
+          <button onclick="clearAddSpotMedia()" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.5);color:#fff;border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:14px">✕</button>
+        </div>
+        <div id="addSpotMediaHint" style="display:none;font-size:11px;color:var(--muted);margin-top:6px;text-align:center"></div>
       </div>
 
       <button class="btn-save-sm" id="addSpotBtn" style="width:100%;padding:14px;margin-top:8px" onclick="submitSpotExperience()">Share with the feed</button>
@@ -383,28 +389,76 @@ function openAddSpotForm() {
   presentOverlay(overlay);
 }
 
-function handleAddSpotPhoto(input) {
+function handleAddSpotMedia(input) {
   const file = input.files?.[0];
-  if (!file || !file.type.startsWith('image/')) { showToast('Please choose an image'); return; }
-  if (file.size > 10 * 1024 * 1024) { showToast('Photo must be under 10 MB'); return; }
-  window._pendingAddSpotPhoto = file;
-  const reader = new FileReader();
-  reader.onload = e => {
-    const preview = document.getElementById('addSpotPhotoPreview');
-    const img = document.getElementById('addSpotPreviewImg');
-    const area = document.getElementById('addSpotPhotoArea');
-    if (img) img.src = e.target.result;
-    if (preview) preview.style.display = 'block';
-    if (area) area.style.display = 'none';
-  };
-  reader.readAsDataURL(file);
+  if (!file) return;
+  const isVideo = file.type.startsWith('video/');
+  const isImage = file.type.startsWith('image/');
+  if (!isVideo && !isImage) { showToast('Please choose a photo or video'); return; }
+
+  const area = document.getElementById('addSpotPhotoArea');
+  const photoPreview = document.getElementById('addSpotPhotoPreview');
+  const videoPreview = document.getElementById('addSpotVideoPreview');
+  const hint = document.getElementById('addSpotMediaHint');
+
+  if (isImage) {
+    if (file.size > 10 * 1024 * 1024) { showToast('Photo must be under 10 MB'); return; }
+    window._pendingAddSpotPhoto = file;
+    window._pendingAddSpotVideo = null;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = document.getElementById('addSpotPreviewImg');
+      if (img) img.src = e.target.result;
+      if (photoPreview) photoPreview.style.display = 'block';
+      if (videoPreview) videoPreview.style.display = 'none';
+      if (area) area.style.display = 'none';
+      if (hint) hint.style.display = 'none';
+    };
+    reader.readAsDataURL(file);
+  } else {
+    // Video file
+    if (file.size > 100 * 1024 * 1024) { showToast('Video must be under 100 MB'); return; }
+
+    // Validate duration client-side before accepting
+    const tempUrl = URL.createObjectURL(file);
+    const probe = document.createElement('video');
+    probe.preload = 'metadata';
+    probe.onloadedmetadata = () => {
+      const dur = probe.duration;
+      URL.revokeObjectURL(tempUrl);
+      if (dur > 60) {
+        showToast('Video must be 60 seconds or less');
+        return;
+      }
+      window._pendingAddSpotVideo = file;
+      window._pendingAddSpotPhoto = null;
+
+      const vid = document.getElementById('addSpotPreviewVid');
+      if (vid) { vid.src = URL.createObjectURL(file); vid.play().catch(() => {}); }
+      const durLabel = document.getElementById('addSpotVideoDuration');
+      if (durLabel) durLabel.textContent = dur < 60 ? `0:${Math.round(dur).toString().padStart(2,'0')}` : '1:00';
+      if (videoPreview) videoPreview.style.display = 'block';
+      if (photoPreview) photoPreview.style.display = 'none';
+      if (area) area.style.display = 'none';
+      if (hint) { hint.textContent = `${(file.size / 1024 / 1024).toFixed(1)} MB · ${Math.round(dur)}s`; hint.style.display = 'block'; }
+    };
+    probe.onerror = () => { URL.revokeObjectURL(tempUrl); showToast('Could not read video file'); };
+    probe.src = tempUrl;
+  }
 }
 
-function clearAddSpotPhoto() {
+function clearAddSpotMedia() {
   window._pendingAddSpotPhoto = null;
-  const preview = document.getElementById('addSpotPhotoPreview');
+  window._pendingAddSpotVideo = null;
+  const photoPreview = document.getElementById('addSpotPhotoPreview');
+  const videoPreview = document.getElementById('addSpotVideoPreview');
   const area = document.getElementById('addSpotPhotoArea');
-  if (preview) preview.style.display = 'none';
+  const hint = document.getElementById('addSpotMediaHint');
+  const vid = document.getElementById('addSpotPreviewVid');
+  if (vid && vid.src) { vid.pause(); URL.revokeObjectURL(vid.src); vid.removeAttribute('src'); }
+  if (photoPreview) photoPreview.style.display = 'none';
+  if (videoPreview) videoPreview.style.display = 'none';
+  if (hint) hint.style.display = 'none';
   if (area) area.style.display = '';
 }
 
@@ -429,14 +483,22 @@ async function submitSpotExperience() {
     const citySlug = state.city?.slug || 'san-diego';
     const meta = { note, rating: rating || null, manual: true };
 
-    // Upload photo if one was selected
+    // Upload photo or video if one was selected
     const photoFile = window._pendingAddSpotPhoto;
+    const videoFile = window._pendingAddSpotVideo;
     if (photoFile) {
       if (btn) btn.textContent = 'Uploading photo…';
       const uploaded = await uploadCheckinPhoto(photoFile, currentUser.id);
       if (uploaded) {
         meta.photo_url = uploaded.url;
         meta.photo_storage_path = uploaded.storagePath;
+      }
+    } else if (videoFile) {
+      if (btn) btn.textContent = 'Uploading video…';
+      const uploaded = await uploadCheckinVideo(videoFile, currentUser.id);
+      if (uploaded) {
+        meta.video_url = uploaded.url;
+        meta.video_storage_path = uploaded.storagePath;
       }
     }
 
@@ -450,6 +512,7 @@ async function submitSpotExperience() {
     });
 
     window._pendingAddSpotPhoto = null;
+    window._pendingAddSpotVideo = null;
     dismissOverlay(document.querySelector('.overlay.open'));
     showToast('Spot shared!');
     _socialLoading = false;
@@ -562,6 +625,7 @@ function renderSocialTab(tab) {
   }
 
   container.innerHTML = filtered.map(item => renderSocialItem(item)).join('');
+  observeFeedVideos();
 }
 
 function shareSpotsWithFriend() {
@@ -653,6 +717,33 @@ function renderSocialItem(item) {
       <div class="social-photo-wrap">
         <img class="social-photo" src="${esc(item.meta.photo_url)}" alt="${esc(venueName)}" loading="lazy"
           onerror="this.closest('.social-photo-wrap').remove()">
+      </div>
+      ${item.meta?.note ? `<div class="social-caption">${esc(item.meta.note)}</div>` : ''}
+      ${item.meta?.rating ? `<div style="font-size:12px;color:var(--coral);padding:0 16px 8px">${'★'.repeat(item.meta.rating)}${'☆'.repeat(5-item.meta.rating)}</div>` : ''}
+      ${commentSection}
+    </div>`;
+  }
+
+  // ── Check-in with video (from manual post) ──
+  if (item.type === 'check_in' && item.meta?.video_url) {
+    return `<div class="social-card social-card--video">
+      <div class="social-card-header">
+        <div class="social-avatar" ${profileClick}>${avatarHtml}</div>
+        <div class="social-card-meta" style="flex:1">
+          ${followBadge ? `<div class="social-follow-badge-row">${followBadge}</div>` : ''}
+          <div class="social-card-name" ${profileClick}>${esc(displayName)}</div>
+          <div class="social-card-action">checked in at <span class="social-venue-link" ${venueClick}>${esc(venueName)}</span></div>
+          <div class="social-card-time">${neighborhood ? neighborhood + ' · ' : ''}${timeAgo}</div>
+        </div>
+        ${reportBtn}
+      </div>
+      <div class="social-video-wrap" onclick="toggleFeedVideo(this)">
+        <video class="social-video" src="${esc(item.meta.video_url)}" playsinline muted loop preload="metadata"
+          onerror="this.closest('.social-video-wrap').remove()"></video>
+        <div class="social-video-play-overlay">${ICN.play || '▶'}</div>
+        <div class="social-video-mute-btn" onclick="event.stopPropagation();toggleFeedVideoMute(this)">
+          ${ICN.volumeOff || '🔇'}
+        </div>
       </div>
       ${item.meta?.note ? `<div class="social-caption">${esc(item.meta.note)}</div>` : ''}
       ${item.meta?.rating ? `<div style="font-size:12px;color:var(--coral);padding:0 16px 8px">${'★'.repeat(item.meta.rating)}${'☆'.repeat(5-item.meta.rating)}</div>` : ''}
@@ -799,6 +890,50 @@ async function submitComment(postId, postType) {
     if (placeholder && placeholder.textContent.includes('No comments')) placeholder.remove();
     list?.appendChild(el);
   }
+}
+
+// ── Feed video controls ──────────────────────────────────
+function toggleFeedVideo(wrap) {
+  const vid = wrap.querySelector('video');
+  const overlay = wrap.querySelector('.social-video-play-overlay');
+  if (!vid) return;
+  if (vid.paused) {
+    vid.play().catch(() => {});
+    if (overlay) overlay.style.opacity = '0';
+  } else {
+    vid.pause();
+    if (overlay) overlay.style.opacity = '1';
+  }
+}
+
+function toggleFeedVideoMute(btn) {
+  const vid = btn.closest('.social-video-wrap')?.querySelector('video');
+  if (!vid) return;
+  vid.muted = !vid.muted;
+  btn.innerHTML = vid.muted ? (ICN.volumeOff || '🔇') : (ICN.volumeOn || '🔊');
+}
+
+// Autoplay muted videos when they scroll into view, pause when out
+const _feedVideoObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    const vid = entry.target.querySelector('video');
+    if (!vid) return;
+    if (entry.isIntersecting) {
+      vid.play().catch(() => {});
+      const overlay = entry.target.querySelector('.social-video-play-overlay');
+      if (overlay) overlay.style.opacity = '0';
+    } else {
+      vid.pause();
+      const overlay = entry.target.querySelector('.social-video-play-overlay');
+      if (overlay) overlay.style.opacity = '1';
+    }
+  });
+}, { threshold: 0.5 });
+
+function observeFeedVideos() {
+  document.querySelectorAll('.social-video-wrap').forEach(wrap => {
+    _feedVideoObserver.observe(wrap);
+  });
 }
 
 async function doToggleLike(postId, postType, btn) {

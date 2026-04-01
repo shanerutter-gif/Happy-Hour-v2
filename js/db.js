@@ -748,6 +748,33 @@ async function uploadCheckinPhoto(file, userId) {
   return { url: urlData.publicUrl, storagePath: path };
 }
 
+async function uploadCheckinVideo(file, userId) {
+  const ext  = file.name.split('.').pop() || 'mp4';
+  const path = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+
+  const session = getSession();
+  const client  = session?.access_token
+    ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        global: { headers: { Authorization: `Bearer ${session.access_token}` } }
+      })
+    : db;
+
+  console.log('[Video] Uploading to', path, 'size:', file.size, 'type:', file.type);
+  const { data, error } = await client.storage
+    .from(CHECKIN_PHOTO_BUCKET)
+    .upload(path, file, { contentType: file.type || 'video/mp4', upsert: false });
+
+  if (error) { console.error('[Video] Upload error:', JSON.stringify(error)); return null; }
+  console.log('[Video] Upload success:', data);
+
+  const { data: urlData } = client.storage
+    .from(CHECKIN_PHOTO_BUCKET)
+    .getPublicUrl(path);
+
+  console.log('[Video] Public URL:', urlData.publicUrl);
+  return { url: urlData.publicUrl, storagePath: path };
+}
+
 async function saveCheckinPhoto({ userId, venueId, citySlug, photoUrl, storagePath, caption }) {
   try {
     const session = getSession();
