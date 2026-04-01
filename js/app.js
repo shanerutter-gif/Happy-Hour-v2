@@ -947,39 +947,23 @@ async function enterCity(slug, name, stateCode) {
   buildFilterPills();
   renderSuggestions();
 
-  // Auto-enable nearest sort with geolocation
-  state.sort = 'distance';
+  // Default to A-Z sort; location is only requested when user clicks "Nearest"
+  state.sort = 'name';
   document.querySelectorAll('#sortFilters .pill').forEach(b => b.classList.remove('active'));
-  const nearBtn = document.getElementById('sort-distance');
-  if (nearBtn) nearBtn.classList.add('active');
-  document.getElementById('sort-default')?.classList.remove('active');
+  document.getElementById('sort-name')?.classList.add('active');
 
-  if (state.userLat !== null) {
-    applyFilters();
-  } else if (navigator.geolocation) {
-    if (nearBtn) { nearBtn.innerHTML = `${ICN.pin} Locating…`; nearBtn.disabled = true; }
-    navigator.geolocation.getCurrentPosition(
-      pos => {
-        state.userLat = pos.coords.latitude;
-        state.userLng = pos.coords.longitude;
-        if (nearBtn) { nearBtn.innerHTML = `${ICN.pin} Nearest`; nearBtn.disabled = false; }
-        applyFilters();
-      },
-      () => {
-        // Permission denied — fall back to A-Z sort
-        state.sort = 'name';
-        if (nearBtn) { nearBtn.innerHTML = `${ICN.pin} Nearest`; nearBtn.disabled = false; nearBtn.classList.remove('active'); }
-        document.getElementById('sort-name')?.classList.add('active');
-        applyFilters();
-      },
-      { timeout: 6000 }
-    );
-  } else {
-    state.sort = 'name';
-    if (nearBtn) nearBtn.classList.remove('active');
-    document.getElementById('sort-name')?.classList.add('active');
-    applyFilters();
+  // Restore cached location so "Nearest" works without re-prompting
+  if (state.userLat === null) {
+    try {
+      const cached = JSON.parse(localStorage.getItem('spotd-user-location'));
+      if (cached && cached.lat != null && cached.lng != null) {
+        state.userLat = cached.lat;
+        state.userLng = cached.lng;
+      }
+    } catch(e) {}
   }
+
+  applyFilters();
 
   initMap();
 }
@@ -1271,6 +1255,7 @@ function setSort(val, btn) {
         pos => {
           state.userLat = pos.coords.latitude;
           state.userLng = pos.coords.longitude;
+          try { localStorage.setItem('spotd-user-location', JSON.stringify({ lat: state.userLat, lng: state.userLng })); } catch(e) {}
           btn.innerHTML = `${ICN.pin} Nearest`;
           btn.disabled = false;
           applyFilters();
