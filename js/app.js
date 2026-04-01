@@ -1246,31 +1246,29 @@ function setSort(val, btn) {
   btn.classList.add('active');
 
   if (val === 'distance') {
-    if (state.userLat !== null) {
-      applyFilters();
-    } else {
-      btn.innerHTML = `${ICN.pin} Locating…`;
-      btn.disabled = true;
-      navigator.geolocation.getCurrentPosition(
-        pos => {
-          state.userLat = pos.coords.latitude;
-          state.userLng = pos.coords.longitude;
-          try { localStorage.setItem('spotd-user-location', JSON.stringify({ lat: state.userLat, lng: state.userLng })); } catch(e) {}
-          btn.innerHTML = `${ICN.pin} Nearest`;
-          btn.disabled = false;
-          applyFilters();
-        },
-        err => {
-          showToast('Location access denied — enable in browser settings');
-          state.sort = 'default';
-          btn.innerHTML = `${ICN.pin} Nearest`;
-          btn.disabled = false;
-          document.getElementById('sort-default')?.classList.add('active');
-          btn.classList.remove('active');
-        },
-        { timeout: 8000 }
-      );
-    }
+    // Always fetch fresh coordinates so results reflect current location.
+    // If permission was already granted, the browser returns coords silently (no prompt).
+    btn.innerHTML = `${ICN.pin} Locating…`;
+    btn.disabled = true;
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        state.userLat = pos.coords.latitude;
+        state.userLng = pos.coords.longitude;
+        try { localStorage.setItem('spotd-user-location', JSON.stringify({ lat: state.userLat, lng: state.userLng })); } catch(e) {}
+        btn.innerHTML = `${ICN.pin} Nearest`;
+        btn.disabled = false;
+        applyFilters();
+      },
+      err => {
+        showToast('Location access denied — enable in browser settings');
+        state.sort = 'default';
+        btn.innerHTML = `${ICN.pin} Nearest`;
+        btn.disabled = false;
+        document.getElementById('sort-default')?.classList.add('active');
+        btn.classList.remove('active');
+      },
+      { timeout: 8000 }
+    );
   } else {
     applyFilters();
   }
