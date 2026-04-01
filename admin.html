@@ -1232,17 +1232,12 @@
 
   async function loadVenues() {
     if (allVenues.length) return; // cached
-    // Supabase caps responses at 1000 rows; paginate to get all venues
-    let offset = 0;
-    const pageSize = 1000;
-    allVenues = [];
-    while (true) {
-      const page = await sb.get('venues', `select=*&limit=${pageSize}&offset=${offset}`);
-      if (!Array.isArray(page) || !page.length) break;
-      allVenues.push(...page);
-      if (page.length < pageSize) break;
-      offset += pageSize;
-    }
+    // Supabase caps default responses at 1000 rows; use Range header to fetch all
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/venues?select=*&order=created_at.desc`, {
+      headers: { ...svcHeaders(), 'Range': '0-4999' }
+    });
+    allVenues = await r.json();
+    if (!Array.isArray(allVenues)) allVenues = [];
     allVenues.sort((a,b) => a.name.localeCompare(b.name));
     renderVenueList();
   }
