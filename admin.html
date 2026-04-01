@@ -1232,7 +1232,7 @@
 
   async function loadVenues() {
     if (allVenues.length) return; // cached
-    allVenues = await sb.get('venues', 'select=*&limit=500');
+    allVenues = await sb.get('venues', 'select=*&limit=2000');
     if (!Array.isArray(allVenues)) allVenues = [];
     allVenues.sort((a,b) => a.name.localeCompare(b.name));
     renderVenueList();
