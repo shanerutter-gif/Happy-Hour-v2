@@ -765,7 +765,10 @@ async function uploadCheckinVideo(file, userId) {
     .from(CHECKIN_PHOTO_BUCKET)
     .upload(path, file, { contentType: file.type || 'video/mp4', upsert: false });
 
-  if (error) { console.error('[Video] Upload error:', JSON.stringify(error)); return null; }
+  if (error) {
+    console.error('[Video] Upload error:', JSON.stringify(error));
+    return { error: error.message || error.statusCode || 'Upload failed' };
+  }
   console.log('[Video] Upload success:', data);
 
   const { data: urlData } = client.storage

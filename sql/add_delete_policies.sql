@@ -1,5 +1,13 @@
+-- ── Allow video uploads in the checkin-photos bucket ─────
+-- The bucket may restrict MIME types to images only. This adds video types.
+UPDATE storage.buckets
+SET allowed_mime_types = array[
+  'image/jpeg','image/png','image/gif','image/webp','image/heic',
+  'video/mp4','video/quicktime','video/webm'
+]
+WHERE id = 'checkin-photos';
+
 -- ── RLS policies for deleting social content ────────────
--- Run this in Supabase SQL Editor to enable post deletion.
 -- Uses DROP IF EXISTS to avoid conflicts with existing policies.
 
 -- Activity feed
