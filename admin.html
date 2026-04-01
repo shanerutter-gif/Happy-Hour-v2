@@ -422,7 +422,7 @@
     .asset-canvas .asset-logo-wrap {
       position:absolute; bottom:52px; right:64px;
     }
-    .asset-canvas .asset-logo-wrap img { height:44px; width:auto; }
+    .asset-canvas .asset-logo-wrap img { height:64px; width:auto; }
 
     /* This-or-That template */
     .asset-canvas .asset-tot-layout {
@@ -445,7 +445,7 @@
       background:rgba(128,128,128,0.05);
     }
     .asset-canvas .asset-tot-img-wrap img {
-      display:block; width:280px; height:280px; object-fit:contain;
+      display:block; max-width:100%; max-height:100%; width:auto; height:auto;
     }
     .asset-canvas .asset-tot-img-placeholder {
       font-size:14px; opacity:0.3; text-align:center; font-weight:600;
@@ -1113,13 +1113,32 @@ Roundup</textarea>
               <option value="coral">Coral</option>
             </select>
           </div>
-          <div class="asset-gen-field" id="ag-field-size">
+          <div class="asset-gen-field">
             <label>Headline Size</label>
             <select id="ag-size">
-              <option value="100">Medium (100px)</option>
-              <option value="120">Large (120px)</option>
+              <option value="80">S (80px)</option>
+              <option value="100">M (100px)</option>
+              <option value="120">L (120px)</option>
               <option value="140" selected>XL (140px)</option>
               <option value="160">XXL (160px)</option>
+            </select>
+          </div>
+          <div class="asset-gen-field" id="ag-field-tag-size" style="display:none">
+            <label>Tag Size</label>
+            <select id="ag-tag-size">
+              <option value="22">S (22px)</option>
+              <option value="28" selected>M (28px)</option>
+              <option value="36">L (36px)</option>
+              <option value="44">XL (44px)</option>
+            </select>
+          </div>
+          <div class="asset-gen-field" id="ag-field-or-size" style="display:none">
+            <label>OR Size</label>
+            <select id="ag-or-size">
+              <option value="28">S (28px)</option>
+              <option value="36" selected>M (36px)</option>
+              <option value="48">L (48px)</option>
+              <option value="60">XL (60px)</option>
             </select>
           </div>
           <button class="asset-gen-btn asset-gen-btn-primary" onclick="downloadAssetPng()">⬇ Download PNG</button>
@@ -2751,6 +2770,8 @@ Roundup</textarea>
     document.getElementById('ag-field-option2').style.display = isStandard ? 'none' : '';
     document.getElementById('ag-field-img1').style.display = isStandard ? 'none' : '';
     document.getElementById('ag-field-img2').style.display = isStandard ? 'none' : '';
+    document.getElementById('ag-field-tag-size').style.display = isStandard ? 'none' : '';
+    document.getElementById('ag-field-or-size').style.display = isStandard ? 'none' : '';
     // Toggle canvas templates
     document.getElementById('ag-tpl-standard').style.display = isStandard ? '' : 'none';
     document.getElementById('ag-tpl-tot').style.display = isStandard ? 'none' : '';
@@ -2773,6 +2794,8 @@ Roundup</textarea>
     const agCanvas = document.getElementById('ag-canvas');
     const agOpt1 = document.getElementById('ag-tot-option1');
     const agOpt2 = document.getElementById('ag-tot-option2');
+    const agTagSize = document.getElementById('ag-tag-size');
+    const agOrSize = document.getElementById('ag-or-size');
 
     window.updateAssetPreview = function updateAssetPreview() {
       const type = document.getElementById('ag-type').value;
@@ -2785,12 +2808,12 @@ Roundup</textarea>
         agCanvas.querySelector('.asset-h1').style.fontSize = agSize.value + 'px';
       } else {
         document.getElementById('ag-render-tag-tot').textContent = agTag.value;
+        document.getElementById('ag-render-tag-tot').style.fontSize = agTagSize.value + 'px';
         document.getElementById('ag-render-tot1').textContent = agOpt1.value;
         document.getElementById('ag-render-tot2').textContent = agOpt2.value;
-        // Apply font size to option text
-        var totSize = agSize.value + 'px';
-        document.getElementById('ag-render-tot1').style.fontSize = totSize;
-        document.getElementById('ag-render-tot2').style.fontSize = totSize;
+        document.getElementById('ag-render-tot1').style.fontSize = agSize.value + 'px';
+        document.getElementById('ag-render-tot2').style.fontSize = agSize.value + 'px';
+        agCanvas.querySelector('.asset-tot-or').style.fontSize = agOrSize.value + 'px';
         // Render uploaded images
         for (var n = 1; n <= 2; n++) {
           var img = document.getElementById('ag-render-img' + n);
@@ -2813,7 +2836,7 @@ Roundup</textarea>
       wrap.style.transform = 'scale(' + scale + ')';
     };
 
-    [agTag, agHeadline, agSubtitle, agBg, agSize, agOpt1, agOpt2].forEach(function(el) {
+    [agTag, agHeadline, agSubtitle, agBg, agSize, agOpt1, agOpt2, agTagSize, agOrSize].forEach(function(el) {
       el.addEventListener('input', updateAssetPreview);
       el.addEventListener('change', updateAssetPreview);
     });
