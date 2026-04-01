@@ -1139,6 +1139,18 @@ Roundup</textarea>
               <option value="60">XL (60px)</option>
             </select>
           </div>
+          <div class="asset-gen-field">
+            <label>Font Color</label>
+            <select id="ag-font-color">
+              <option value="">Auto (theme default)</option>
+              <option value="#F5EFE6">Cream</option>
+              <option value="#FFFFFF">White</option>
+              <option value="#2A1F14">Charcoal</option>
+              <option value="#FF6B4A">Coral</option>
+              <option value="#E8943A">Amber</option>
+              <option value="#000000">Black</option>
+            </select>
+          </div>
           <button class="asset-gen-btn asset-gen-btn-primary" onclick="downloadAssetPng()">⬇ Download PNG</button>
         </div>
 
@@ -2823,16 +2835,22 @@ Roundup</textarea>
     const agOpt2 = document.getElementById('ag-tot-option2');
     const agTagSize = document.getElementById('ag-tag-size');
     const agOrSize = document.getElementById('ag-or-size');
+    const agFontColor = document.getElementById('ag-font-color');
 
     window.updateAssetPreview = function updateAssetPreview() {
       const type = document.getElementById('ag-type').value;
       agCanvas.className = 'asset-canvas asset-theme-' + agBg.value;
+      var fc = agFontColor.value; // empty string = auto
 
       if (type === 'standard') {
         document.getElementById('ag-render-tag').textContent = agTag.value;
         document.getElementById('ag-render-headline').innerHTML = agHeadline.value.replace(/\n/g, '<br>');
         document.getElementById('ag-render-subtitle').textContent = agSubtitle.value;
         agCanvas.querySelector('.asset-h1').style.fontSize = agSize.value + 'px';
+        // Apply font color override
+        document.getElementById('ag-render-tag').style.color = fc;
+        document.getElementById('ag-render-headline').style.color = fc;
+        document.getElementById('ag-render-subtitle').style.color = fc;
       } else {
         document.getElementById('ag-render-tag-tot').textContent = agTag.value;
         document.getElementById('ag-render-tag-tot').style.fontSize = agTagSize.value + 'px';
@@ -2841,6 +2859,11 @@ Roundup</textarea>
         document.getElementById('ag-render-tot1').style.fontSize = agSize.value + 'px';
         document.getElementById('ag-render-tot2').style.fontSize = agSize.value + 'px';
         agCanvas.querySelector('.asset-tot-or').style.fontSize = agOrSize.value + 'px';
+        // Apply font color override
+        document.getElementById('ag-render-tag-tot').style.color = fc;
+        document.getElementById('ag-render-tot1').style.color = fc;
+        document.getElementById('ag-render-tot2').style.color = fc;
+        agCanvas.querySelector('.asset-tot-or').style.color = fc;
         // Render uploaded images
         for (var n = 1; n <= 2; n++) {
           var img = document.getElementById('ag-render-img' + n);
@@ -2872,7 +2895,7 @@ Roundup</textarea>
       wrap.style.transform = 'scale(' + scale + ')';
     };
 
-    [agTag, agHeadline, agSubtitle, agBg, agSize, agOpt1, agOpt2, agTagSize, agOrSize].forEach(function(el) {
+    [agTag, agHeadline, agSubtitle, agBg, agSize, agOpt1, agOpt2, agTagSize, agOrSize, agFontColor].forEach(function(el) {
       el.addEventListener('input', updateAssetPreview);
       el.addEventListener('change', updateAssetPreview);
     });
