@@ -688,10 +688,10 @@
 <script>
 (function() {
   // Show app download banner only on the website, not inside the native app
-  var isNative = window.spotdNative;
   var dismissed = sessionStorage.getItem('spotd-app-dl-dismissed');
-  if (!isNative && !dismissed) {
+  if (!dismissed) {
     setTimeout(function() {
+      if (window.spotdNative) return;
       var b = document.getElementById('appDownloadBanner');
       if (b) b.style.display = 'block';
     }, 3000);
