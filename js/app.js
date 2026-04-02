@@ -1238,12 +1238,10 @@ async function enterCity(slug, name, stateCode) {
     } catch(e) {}
   }
 
-  // Load checked in tonight counts and review averages BEFORE first render
-  // to avoid re-rendering cards multiple times (which drops taps on iOS)
-  await Promise.all([
-    loadGoingTonight(slug),
-    loadReviewAverages(slug).catch(() => {}) // remove its internal renderCards() call
-  ]);
+  // Fire-and-forget — data loads in background, cards render immediately
+  // loadReviewAverages no longer calls renderCards() so it won't nuke the DOM
+  loadGoingTonight(slug);
+  loadReviewAverages(slug);
 
   // Build filter pills + suggestions
   buildFilterPills();
