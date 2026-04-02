@@ -1995,8 +1995,8 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   margin-bottom: 12px;
   transition: transform .18s cubic-bezier(.4,0,.2,1), box-shadow .18s ease, background-color .3s ease;
   animation: cardFadeIn .3s cubic-bezier(.4,0,.2,1) both;
-  content-visibility: auto;
-  contain-intrinsic-size: auto 320px;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 .vcard:active { transform: scale(.985); box-shadow: var(--shadow); }
 @keyframes cardFadeIn {
@@ -2028,6 +2028,7 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 .vcard-photo-grad {
   position: absolute; inset: 0;
   background: linear-gradient(to top, rgba(14,11,9,0.75) 0%, transparent 55%);
+  pointer-events: none;
 }
 .vcard-photo-name {
   position: absolute; bottom: 10px; left: 14px; right: 44px;
@@ -2035,6 +2036,7 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   font-weight: 900; font-size: 17px;
   color: #fff; line-height: 1.2;
   text-shadow: 0 1px 8px rgba(0,0,0,0.4);
+  pointer-events: none;
 }
 .vcard-photo-fav {
   position: absolute; bottom: 8px; right: 12px;
@@ -2053,12 +2055,14 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   font-size: 10px; font-weight: 700;
   padding: 3px 8px; border-radius: 20px;
   backdrop-filter: blur(6px);
+  pointer-events: none;
 }
 .vcard-photo-verified {
   position: absolute; top: 10px; left: 12px;
   background: rgba(255,107,74,0.85); color: #fff;
   font-size: 9px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase;
   padding: 3px 8px; border-radius: 20px;
+  pointer-events: none;
 }
 .vcard-body { padding: 12px 14px 0; }
 .vcard-meta {
