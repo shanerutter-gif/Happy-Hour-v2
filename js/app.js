@@ -373,7 +373,7 @@ function openAddSpotForm() {
   overlay.onclick = e => { if (e.target === overlay) dismissOverlay(overlay); };
   overlay.innerHTML = `
     <div class="sheet">
-      <button class="sheet-close" onclick="dismissOverlay(this.closest('.overlay'))">✕</button>
+      <div class="sheet-handle"></div>
       <div style="font-weight:800;font-size:17px;margin-bottom:20px;">Add a Spot</div>
 
       <div class="p-section">
@@ -2708,7 +2708,7 @@ function openProfileSettings() {
 
   overlay.innerHTML = `
     <div class="sheet">
-      <button class="sheet-close" onclick="dismissOverlay(this.closest('.overlay'))">✕</button>
+      <div class="sheet-handle"></div>
       <div style="font-weight:800;font-size:17px;margin-bottom:20px;">Settings</div>
 
       <div class="p-section">
@@ -3286,8 +3286,13 @@ function buildMapSidebar() {
 function presentOverlay(overlay) {
   overlay.classList.remove('open');
   document.body.appendChild(overlay);
-  void overlay.offsetHeight; // force layout so starting state registers
-  requestAnimationFrame(() => overlay.classList.add('open'));
+  void overlay.offsetHeight;
+  requestAnimationFrame(() => {
+    overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    const sheet = overlay.querySelector('.sheet');
+    if (sheet) attachSwipeDismiss(sheet, overlay);
+  });
 }
 function openOverlay(id)  {
   const el = document.getElementById(id); if (!el) return;
@@ -3368,7 +3373,8 @@ function attachSwipeDismiss(sheet, overlayId) {
       setTimeout(() => {
         sheet.style.transition = '';
         sheet.style.transform = '';
-        closeOverlay(overlayId);
+        if (typeof overlayId === 'string') closeOverlay(overlayId);
+        else dismissOverlay(overlayId);
       }, 300);
     } else {
       sheet.style.transition = 'transform .25s cubic-bezier(.2,.8,.4,1)';
@@ -4242,7 +4248,6 @@ function openPhotoCheckinPrompt(venueId, venueName) {
   overlay.innerHTML = `
     <div class="sheet">
       <div class="sheet-handle"></div>
-      <button class="sheet-close" onclick="window._pendingCheckinPhoto=null;dismissOverlay(this.closest('.overlay'));_tryPushPromptAfterCheckin()">✕</button>
       <div>
         <div class="photo-prompt-title">Add a photo? ${icn('camera',16)}</div>
         <div class="photo-prompt-sub">Show others what's happening at ${esc(venueName)} right now.</div>
@@ -5371,7 +5376,6 @@ function openReportMenu(contentType, contentId, userId, isOwn) {
     overlay.innerHTML = `
       <div class="sheet">
         <div class="sheet-handle"></div>
-        <button class="sheet-close" onclick="dismissOverlay(this.closest('.overlay'))">✕</button>
         <div style="font-weight:800;font-size:17px;margin-bottom:16px">Post Options</div>
         <div style="display:flex;flex-direction:column;gap:8px">
           <button class="report-option report-option--block" id="deletePostBtn" onclick="doDeletePost('${contentType}','${contentId}',this)">Delete this post</button>
@@ -5382,7 +5386,6 @@ function openReportMenu(contentType, contentId, userId, isOwn) {
     overlay.innerHTML = `
       <div class="sheet">
         <div class="sheet-handle"></div>
-        <button class="sheet-close" onclick="dismissOverlay(this.closest('.overlay'))">✕</button>
         <div style="font-weight:800;font-size:17px;margin-bottom:16px">Report</div>
         <div style="display:flex;flex-direction:column;gap:8px">
           <button class="report-option" onclick="submitReport('${contentType}','${contentId}','${userId}','spam',this)">Spam or fake</button>
