@@ -2024,6 +2024,7 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   box-shadow: 0 8px 32px rgba(42,31,20,0.12), 0 2px 8px rgba(42,31,20,0.06);
   animation: cardFadeIn .3s cubic-bezier(.22,1,.36,1) both;
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 .card-hero:active { transform: scale(0.98); }
 
@@ -2062,11 +2063,13 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 .card-hero-badges {
   position: absolute; top: 12px; right: 12px;
   display: flex; gap: 5px; z-index: 3;
+  pointer-events: none;
 }
 
 .card-hero-info {
   position: absolute; bottom: 0; left: 0; right: 0;
   padding: 20px 16px 16px; z-index: 2;
+  pointer-events: none;
 }
 .card-hero-name {
   font-family: 'DM Sans', sans-serif;
@@ -2122,6 +2125,9 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 }
 .card-hero-going-avatars span:first-child { margin-left: 0; }
 
+.card-hero-going {
+  pointer-events: auto;
+}
 .card-hero-going-btn {
   background: rgba(255,255,255,0.18);
   border: 1px solid rgba(255,255,255,0.2);
@@ -2159,6 +2165,7 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   box-shadow: var(--shadow);
   animation: cardFadeIn .3s cubic-bezier(.22,1,.36,1) both;
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 .card-compact:active { transform: scale(0.97); }
 
@@ -2196,11 +2203,13 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 
 .card-compact-badge {
   position: absolute; top: 8px; left: 8px; z-index: 3;
+  pointer-events: none;
 }
 
 .card-compact-info {
   position: absolute; bottom: 0; left: 0; right: 0;
   padding: 12px; z-index: 2;
+  pointer-events: none;
 }
 .card-compact-name {
   font-weight: 700; font-size: 14px;
