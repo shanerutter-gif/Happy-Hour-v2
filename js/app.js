@@ -1793,7 +1793,6 @@ function heroCardHTML(v, delay) {
   // Badges
   const badges = [];
   if (count >= 2)       badges.push(`<span class="badge badge-fire">🔥 ${count} going</span>`);
-  if (todayH)           badges.push(`<span class="badge badge-today">Today</span>`);
   if (v.has_sports_tv)  badges.push(`<span class="badge badge-sports">📺</span>`);
   if (v.owner_verified) badges.push(`<span class="badge badge-verified">✓</span>`);
 
@@ -1857,8 +1856,7 @@ function compactCardHTML(v, delay) {
 
   // Badge
   let badge = '';
-  if (todayH) badge = `<div class="card-compact-badge"><span class="badge badge-today">Today</span></div>`;
-  else if (v.has_sports_tv) badge = `<div class="card-compact-badge"><span class="badge badge-sports">📺 Sports</span></div>`;
+  if (v.has_sports_tv) badge = `<div class="card-compact-badge"><span class="badge badge-sports">📺 Sports</span></div>`;
 
   const dealsHtml = deals.length ? deals.map(d => `<div class="card-compact-deal">${esc(d)}</div>`).join('') : '';
 
@@ -2062,13 +2060,13 @@ function renderModal(v, type, reviews) {
     <div class="modal-hero-wrap" onclick="openPhotoLightbox('${esc(photo)}','${esc(v.name)}')">
       <img src="${esc(photo)}" alt="${esc(v.name)}" loading="lazy" onerror="this.closest('.modal-hero-wrap').style.background='linear-gradient(135deg,#2A1F14,#1A1208)';this.remove()">
       <div class="modal-hero-grad"></div>
-      <div class="modal-hero-tag">${isVenue ? icn('beer',12) + ' Happy Hour' : esc(v.event_type || 'Event')}</div>
+      ${!isVenue ? `<div class="modal-hero-tag">${esc(v.event_type || 'Event')}</div>` : ''}
       <div class="modal-hero-name">${esc(v.name)}${v.owner_verified ? ' ✓' : ''}</div>
       <button class="modal-hero-fav${faved ? ' faved' : ''}" onclick="doFavorite('${v.id}','${type}',this)">${faved ? '★' : '☆'}</button>
     </div>` : `
     <div style="padding:16px 18px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
       <div>
-        <div class="s-tag ${isVenue ? 'hh' : 'ev'}">${isVenue ? icn('beer',12) + ' Happy Hour' : esc(v.event_type || 'Event')}</div>
+        ${!isVenue ? `<div class="s-tag ev">${esc(v.event_type || 'Event')}</div>` : ''}
         <div class="s-name">${esc(v.name)}${v.owner_verified ? ' <span class="verified-badge verified-badge--modal">✓ Verified</span>' : ''}</div>
       </div>
       <button class="heart-btn heart-btn--lg${faved ? ' faved' : ''}" onclick="doFavorite('${v.id}','${type}',this)" style="margin-top:4px;flex-shrink:0">${faved ? '★' : '☆'}</button>
