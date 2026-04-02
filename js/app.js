@@ -1238,11 +1238,12 @@ async function enterCity(slug, name, stateCode) {
     } catch(e) {}
   }
 
-  // Load checked in tonight counts
-  loadGoingTonight(slug);
-
-  // Bulk-load review averages so cards show ratings immediately
-  loadReviewAverages(slug);
+  // Load checked in tonight counts and review averages BEFORE first render
+  // to avoid re-rendering cards multiple times (which drops taps on iOS)
+  await Promise.all([
+    loadGoingTonight(slug),
+    loadReviewAverages(slug).catch(() => {}) // remove its internal renderCards() call
+  ]);
 
   // Build filter pills + suggestions
   buildFilterPills();
@@ -3371,8 +3372,7 @@ async function loadReviewAverages(citySlug) {
       }
     });
 
-    // Re-render cards so stars show up
-    renderCards();
+    // Cards will be rendered after this returns — no extra renderCards() needed
   } catch(e) { console.warn('loadReviewAverages failed', e); }
 }
 
