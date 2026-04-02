@@ -3283,59 +3283,34 @@ function attachSwipeDismiss(sheet, overlayId) {
     currentY = startY;
     dragging = true;
     sheet.style.transition = 'none';
-    sheet.style.willChange = 'transform';
   };
 
   sheet._swipeMoveHandler = (e) => {
     if (!dragging) return;
     currentY = e.touches[0].clientY;
     const dy = currentY - startY;
-    if (dy < 0) { sheet.style.transform = 'translateY(0)'; return; }
-    sheet.style.transform = `translateY(${dy}px)`;
-    const overlay = document.getElementById(overlayId);
-    if (overlay) {
-      const progress = Math.min(dy / 400, 1);
-      overlay.style.opacity = 1 - progress * 0.6;
-    }
+    if (dy < 0) { sheet.style.transform = 'translate3d(0,0,0)'; return; }
     e.preventDefault();
+    sheet.style.transform = `translate3d(0,${dy}px,0)`;
   };
 
   sheet._swipeEndHandler = () => {
     if (!dragging) return;
     dragging = false;
     const dy = currentY - startY;
-    sheet.style.willChange = '';
 
     if (dy > DISMISS_THRESHOLD) {
-      // Smooth slide out
-      sheet.style.transition = 'transform .28s cubic-bezier(.4,0,1,1), opacity .28s ease-out';
-      sheet.style.transform = 'translateY(100%)';
-      sheet.style.opacity = '0';
-      const overlay = document.getElementById(overlayId);
-      if (overlay) {
-        overlay.style.transition = 'opacity .28s ease-out';
-        overlay.style.opacity = '0';
-      }
+      sheet.style.transition = 'transform .28s cubic-bezier(.4,0,1,1)';
+      sheet.style.transform = 'translate3d(0,100%,0)';
       setTimeout(() => {
         sheet.style.transition = '';
         sheet.style.transform = '';
-        sheet.style.opacity = '';
-        if (overlay) { overlay.style.transition = ''; overlay.style.opacity = ''; }
         closeOverlay(overlayId);
       }, 300);
     } else {
-      // Snap back smoothly
       sheet.style.transition = 'transform .25s cubic-bezier(.2,.8,.4,1)';
       sheet.style.transform = '';
-      const overlay = document.getElementById(overlayId);
-      if (overlay) {
-        overlay.style.transition = 'opacity .25s ease';
-        overlay.style.opacity = '';
-      }
-      setTimeout(() => {
-        sheet.style.transition = '';
-        if (overlay) overlay.style.transition = '';
-      }, 260);
+      setTimeout(() => { sheet.style.transition = ''; }, 260);
     }
   };
 
