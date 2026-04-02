@@ -3516,13 +3516,13 @@ function fmtDate(iso)      { return new Date(iso).toLocaleDateString('en-US',{mo
 function showToast(msg)    { document.querySelectorAll('.toast').forEach(t=>t.remove()); const t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),2600); }
 function shareSpotd() {
   if(typeof haptic==='function')haptic('light');
-  const text = 'Discover the best spots near you';
-  const url  = 'https://spotd.biz';
+  const text = 'Check out Spotd — find the best happy hours, events & nightlife near you!';
+  const url  = 'https://apps.apple.com/us/app/spotd/id6760452388';
   if (navigator.share) {
     navigator.share({ title: 'Spotd', text, url }).catch(() => {});
   } else {
     navigator.clipboard?.writeText(url).then(() => showToast('Link copied!')).catch(() => {
-      showToast('spotd.biz');
+      showToast('Link copied!');
     });
   }
 }
