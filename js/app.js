@@ -1360,6 +1360,17 @@ async function enterCity(slug, name, stateCode) {
   }
 
   initMap();
+
+  // ── Push notification prompt (after location dialog settles) ──
+  // Show soft push prompt ~3s after entering city for the first time
+  if (!localStorage.getItem('spotd-push-prompted')) {
+    localStorage.setItem('spotd-push-prompted', '1');
+    setTimeout(() => {
+      if (typeof promptPushIfAppropriate === 'function') {
+        promptPushIfAppropriate(true);
+      }
+    }, 3000);
+  }
 }
 
 // ── SHOW FILTER ────────────────────────────────────────
@@ -2218,6 +2229,7 @@ async function submitReview(itemId, type) {
   const te = document.getElementById(`rtext-${itemId}`); if (te) te.value = '';
   await refreshReviews(itemId, type);
   showToast('Review posted!');
+  if (typeof promptPushIfAppropriate === 'function') setTimeout(() => promptPushIfAppropriate(), 500);
 }
 function closeModal(e) { if (e && e.target !== document.getElementById('modalOverlay')) return; closeOverlay('modalOverlay'); }
 

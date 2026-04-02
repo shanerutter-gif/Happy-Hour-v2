@@ -101,30 +101,40 @@ async function haptic(style = 'light') {
 }
 
 // ── PROMPT HELPER — ask at the right moment ────────────
-// Call this AFTER a user does something positive (check-in, save a spot)
-// NOT on first app open — that tanks acceptance rates
-async function promptPushIfAppropriate() {
+// Called in two contexts:
+//   1. Right after signup (via enterCity) — immediate soft prompt
+//   2. After first check-in, save, or review — re-prompt if they declined at signup
+async function promptPushIfAppropriate(isPostSignup) {
   if (typeof window === 'undefined') return;
 
-  // On native: eligible unless we already asked (iOS has no JS permission API)
-  // On web: need Notification API in 'default' (not-yet-asked) state
+  // Already have permission — nothing to do
   if (isNative()) {
-    if (localStorage.getItem('nativePushAsked')) return;
+    if (localStorage.getItem('nativePushGranted')) return;
   } else {
     if (!('Notification' in window)) return;
-    if (Notification.permission !== 'default') return;
+    if (Notification.permission === 'granted') return;
+    if (Notification.permission === 'denied') return;
   }
 
-  // Only prompt after user has shown intent (checked in or saved 1+ spot)
-  const checkIns = await fetchAllCheckIns(currentUser?.id);
-  const favs     = await getFavoriteItems(currentUser?.id);
-  if ((checkIns?.length || 0) + (favs?.length || 0) < 1) return;
+  // Post-signup prompt: show immediately (short delay for location dialog to settle)
+  if (isPostSignup) {
+    // Don't show if user already saw the banner this session
+    if (localStorage.getItem('pushBannerDismissed')) return;
+    showPushPromptBanner();
+    return;
+  }
+
+  // Re-prompt after action: only if they previously dismissed
+  const dismissed = localStorage.getItem('pushBannerDismissed');
+  if (!dismissed) return; // never dismissed = never shown yet (signup prompt will handle)
+
+  // On native: don't re-ask if iOS already asked (system-level)
+  if (isNative() && localStorage.getItem('nativePushAsked')) return;
 
   // Don't re-show if dismissed in the last 7 days
-  const dismissed = localStorage.getItem('pushBannerDismissed');
-  if (dismissed && Date.now() - Number(dismissed) < 7 * 24 * 60 * 60 * 1000) return;
+  if (Date.now() - Number(dismissed) < 7 * 24 * 60 * 60 * 1000) return;
 
-  // Show a soft in-app prompt first (much better than cold browser prompt)
+  // Show a soft in-app prompt (much better than cold browser prompt)
   showPushPromptBanner();
 }
 
