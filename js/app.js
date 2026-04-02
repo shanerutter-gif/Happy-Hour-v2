@@ -148,8 +148,12 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // Let form fields handle taps natively (preventDefault kills iOS keyboard/focus)
-    if (e.target.closest('input, select, textarea')) return;
+    // Form fields: explicitly focus on iOS (native focus is unreliable in WKWebView overlays)
+    const formEl = e.target.closest('input, select, textarea');
+    if (formEl) {
+      if (formEl.type !== 'file') formEl.focus();
+      return;
+    }
 
     // Everything else — find the nearest clickable element and fire .click()
     const clickable = e.target.closest('button, a, [onclick], [role="button"], label');
