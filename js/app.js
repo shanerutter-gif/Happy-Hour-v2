@@ -1719,6 +1719,19 @@ function _renderCardsNow() {
   }
 
   grid.innerHTML = html;
+
+  // Attach delegated click handler once for reliable iOS taps
+  if (!grid._cardDelegateAttached) {
+    grid._cardDelegateAttached = true;
+    grid.addEventListener('click', function(e) {
+      // Don't interfere with buttons (fav, going, etc.)
+      if (e.target.closest('button')) return;
+      const card = e.target.closest('.card-hero, .card-compact, .card-std, .card');
+      if (!card) return;
+      const id = card.dataset.id;
+      if (id) openModal(id, card.classList.contains('card') && !card.classList.contains('card-std') ? 'event' : 'venue');
+    });
+  }
 }
 
 
