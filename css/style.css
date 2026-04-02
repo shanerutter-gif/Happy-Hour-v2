@@ -2869,8 +2869,8 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   border-radius: var(--r-sm); overflow: hidden;
 }
 .social-photo {
-  width: 100%; display: block; max-height: 340px;
-  object-fit: cover; border-radius: var(--r-sm);
+  width: 100%; display: block; max-height: 520px;
+  object-fit: contain; border-radius: var(--r-sm);
   transition: transform .5s cubic-bezier(.22,1,.36,1);
 }
 .social-photo-wrap:active .social-photo { transform: scale(1.02); }
