@@ -127,6 +127,23 @@ const CITIES = [
 ];
 
 document.addEventListener('DOMContentLoaded', () => {
+  // Global card tap handler — attached once on document, works regardless of DOM changes
+  // Uses touchend for instant iOS response (click events have inherent delays)
+  let _tapTarget = null;
+  document.addEventListener('touchstart', function(e) {
+    _tapTarget = e.target;
+  }, { passive: true });
+  document.addEventListener('touchend', function(e) {
+    // Only fire if finger didn't move (not a scroll)
+    if (_tapTarget !== e.target && !e.target.closest?.('.card-hero, .card-compact, .card-std, .card')?.contains(_tapTarget)) return;
+    if (e.target.closest('button')) return;
+    const card = e.target.closest('.card-hero, .card-compact, .card-std, .card');
+    if (!card || !card.dataset.id) return;
+    e.preventDefault(); // prevent delayed click from also firing
+    const type = (card.classList.contains('card') && !card.classList.contains('card-std')) ? 'event' : 'venue';
+    openModal(card.dataset.id, type);
+  }, { passive: false });
+
   loadSiteCopy();
   renderCityGrid();
   renderNav(currentUser);
