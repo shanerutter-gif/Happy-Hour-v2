@@ -129,13 +129,18 @@ const CITIES = [
 document.addEventListener('DOMContentLoaded', () => {
   // Global card tap handler — attached once on document, works regardless of DOM changes
   // Uses touchend for instant iOS response (click events have inherent delays)
-  let _tapTarget = null;
+  let _tapX = 0, _tapY = 0;
   document.addEventListener('touchstart', function(e) {
-    _tapTarget = e.target;
+    const t = e.touches[0];
+    _tapX = t.clientX;
+    _tapY = t.clientY;
   }, { passive: true });
   document.addEventListener('touchend', function(e) {
-    // Only fire if finger didn't move (not a scroll)
-    if (_tapTarget !== e.target && !e.target.closest?.('.card-hero, .card-compact, .card-std, .card')?.contains(_tapTarget)) return;
+    // Ignore if finger moved more than 10px (it's a scroll, not a tap)
+    const t = e.changedTouches[0];
+    const dx = Math.abs(t.clientX - _tapX);
+    const dy = Math.abs(t.clientY - _tapY);
+    if (dx > 10 || dy > 10) return;
     if (e.target.closest('button')) return;
     const card = e.target.closest('.card-hero, .card-compact, .card-std, .card');
     if (!card || !card.dataset.id) return;
