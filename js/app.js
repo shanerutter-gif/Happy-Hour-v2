@@ -3466,6 +3466,8 @@ function attachSwipeDismiss(sheet, overlayId) {
   const DISMISS_THRESHOLD = 100; // px needed to dismiss
 
   sheet._swipeHandler = (e) => {
+    // Don't intercept touches on form fields (iOS needs native handling for focus/keyboard)
+    if (e.target.closest('input, select, textarea')) return;
     // Only start drag if at the very top of the sheet scroll
     if (sheet.scrollTop > 4) return;
     startY = e.touches[0].clientY;
