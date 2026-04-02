@@ -175,7 +175,6 @@ function onAuthChange(user) {
   const ffg = document.getElementById('favFilterGroup');
   if (ffg) ffg.style.display = user ? '' : 'none';
   if (!user && state.favFilterOn) { state.favFilterOn = false; applyFilters(); }
-  if (state.city) renderCards();
   // Refresh unread badge whenever auth state changes
   if (user) dmRefreshBadge();
   // Push prompt is now shown via the soft modal after check-in/save flow
@@ -1723,7 +1722,6 @@ function _renderCardsNow() {
   if (!grid._cardDelegateAttached) {
     grid._cardDelegateAttached = true;
     grid.addEventListener('click', function(e) {
-      // Don't interfere with buttons (fav, going, etc.)
       if (e.target.closest('button')) return;
       const card = e.target.closest('.card-hero, .card-compact, .card-std, .card');
       if (!card) return;
