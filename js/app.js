@@ -334,6 +334,7 @@ function openSocialTab() {
   document.getElementById('socialTab').classList.add('tab-open');
   loadSocialFeed();
   maybeShowSocialNudge();
+  checkSocialNotifications();
 }
 
 function maybeShowSocialNudge() {
@@ -1852,12 +1853,14 @@ function compactCardHTML(v, delay) {
   const faved    = isFavorite(v.id);
   const todayH   = getTodayHours(v);
   const count    = state.goingCounts[v.id] || 0;
-  const topDeal  = (v.deals || [])[0] || '';
+  const deals    = (v.deals || []).slice(0, 2);
 
   // Badge
   let badge = '';
   if (todayH) badge = `<div class="card-compact-badge"><span class="badge badge-today">Today</span></div>`;
   else if (v.has_sports_tv) badge = `<div class="card-compact-badge"><span class="badge badge-sports">📺 Sports</span></div>`;
+
+  const dealsHtml = deals.length ? deals.map(d => `<div class="card-compact-deal">${esc(d)}</div>`).join('') : '';
 
   return `<div class="card-compact" data-id="${v.id}"
     onclick="openModal('${v.id}','venue')" style="animation-delay:${delay}ms">
@@ -1870,7 +1873,7 @@ function compactCardHTML(v, delay) {
     <div class="card-compact-info">
       <div class="card-compact-name">${esc(v.name)}</div>
       <div class="card-compact-sub">${esc(v.cuisine || '')} · ★ ${avg.toFixed(1)}${count > 0 ? ` · 🔥 ${count}` : ''}</div>
-      ${topDeal ? `<div class="card-compact-deal">${esc(topDeal)}</div>` : ''}
+      ${dealsHtml}
     </div>
   </div>`;
 }
@@ -1887,7 +1890,7 @@ function standardCardHTML(v, delay) {
   const faved    = isFavorite(v.id);
   const todayH   = getTodayHours(v);
   const count    = state.goingCounts[v.id] || 0;
-  const topDeal  = (v.deals || [])[0] || '';
+  const deals    = (v.deals || []).slice(0, 3);
 
   const photoEl = hasPhoto
     ? `<img class="card-std-img" src="${photoUrl}" alt="${esc(v.name)}" loading="lazy"
@@ -1905,7 +1908,7 @@ function standardCardHTML(v, delay) {
     <div class="card-std-body">
       <div class="card-std-name">${esc(v.name)}</div>
       <div class="card-std-meta">${esc(v.neighborhood || '')} · ${esc(v.cuisine || '')}${todayH ? ' · ' + esc(todayH) : ''}</div>
-      ${topDeal ? `<div class="card-std-deal">${esc(topDeal)}</div>` : ''}
+      ${deals.length ? deals.map(d => `<div class="card-std-deal">${esc(d)}</div>`).join('') : ''}
       ${count > 0 ? `<div class="card-std-going">🔥 ${count} going tonight</div>` : starsEl}
     </div>
     <button class="card-std-fav${faved ? ' faved' : ''}"
@@ -2600,8 +2603,6 @@ async function renderProfile(user) {
       <button class="pf-tab on" onclick="selectProfileTab('checkins',this)">Check-ins</button>
       <button class="pf-tab" onclick="selectProfileTab('reviews',this)">Reviews</button>
       <button class="pf-tab" onclick="selectProfileTab('saved',this)">Saved</button>
-      <button class="pf-tab" onclick="selectProfileTab('hoods',this)">Areas</button>
-      <button class="pf-tab" onclick="openFindPeople()">People</button>
     </div>
 
     <div class="pf-content">
@@ -2984,6 +2985,60 @@ async function toggleHoodFromBar(hood, btn) {
 
 async function toggleHood(hood, btn) { if (!currentUser) return;
   if(typeof haptic==='function')haptic('light'); const added = await toggleNeighborhoodFollow(currentUser.id, hood); btn.classList.toggle('on', added); showToast(added ? `Following ${hood}` : `Unfollowed ${hood}`); }
+
+// ── SOCIAL NOTIFICATIONS ──────────────────────────────
+async function openSocialNotifications() {
+  if (!currentUser) { openAuth('signin'); return; }
+  const container = document.getElementById('socialFeedContent');
+  container.innerHTML = '<div class="social-loading"><div class="social-spinner"></div></div>';
+
+  // Mark as seen
+  localStorage.setItem('spotd-notif-seen', new Date().toISOString());
+  const dot = document.getElementById('socialNotifDot');
+  if (dot) dot.style.display = 'none';
+
+  const items = await fetchMyPostActivity(currentUser.id);
+  if (!items.length) {
+    container.innerHTML = `<div class="social-empty"><div class="social-empty-title">No notifications yet</div><div class="social-empty-sub">When people like or comment on your posts, you'll see it here</div></div>`;
+    return;
+  }
+
+  container.innerHTML = `<div style="padding:12px 16px 8px;font-size:14px;font-weight:700;color:var(--text)">Activity</div>` +
+    items.map(n => {
+      const name = n.profile.display_name || 'Someone';
+      const avatar = initialsAvatar(name);
+      const time = fmtDate(n.created_at);
+      if (n.type === 'like') {
+        return `<div class="notif-row" onclick="showToast('${esc(name)} liked your post')">
+          ${avatar}
+          <div class="notif-body"><span class="notif-name">${esc(name)}</span> liked your post <span class="notif-time">${time}</span></div>
+          <span class="notif-icon">${ICN.heartFill || '❤️'}</span>
+        </div>`;
+      } else {
+        return `<div class="notif-row" onclick="showToast('${esc(name)}: ${esc(n.text?.slice(0,40) || '')}')">
+          ${avatar}
+          <div class="notif-body"><span class="notif-name">${esc(name)}</span> commented: "${esc((n.text || '').slice(0, 60))}" <span class="notif-time">${time}</span></div>
+          <span class="notif-icon">${ICN.comment || '💬'}</span>
+        </div>`;
+      }
+    }).join('') +
+    `<div style="padding:16px;text-align:center"><button class="social-refresh-btn" style="width:auto;border-radius:12px;padding:8px 20px;font-size:12px;font-weight:600" onclick="loadSocialFeed()">Back to Feed</button></div>`;
+}
+
+// Check for unseen notifications and show dot
+async function checkSocialNotifications() {
+  if (!currentUser) return;
+  try {
+    const items = await fetchMyPostActivity(currentUser.id);
+    if (!items.length) return;
+    const lastSeen = localStorage.getItem('spotd-notif-seen');
+    const unseenCount = lastSeen
+      ? items.filter(n => new Date(n.created_at) > new Date(lastSeen)).length
+      : items.length;
+    const dot = document.getElementById('socialNotifDot');
+    if (dot) dot.style.display = unseenCount > 0 ? '' : 'none';
+  } catch(e) {}
+}
 
 // ── FIND PEOPLE ────────────────────────────────────────
 async function openFindPeople() {

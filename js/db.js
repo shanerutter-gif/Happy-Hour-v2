@@ -1001,6 +1001,56 @@ async function toggleLike(postId, postType, userId) {
   } catch(e) { console.error('toggleLike:', e); return null; }
 }
 
+// ── ACTIVITY NOTIFICATIONS ────────────────────────────
+// Fetch likes and comments on the current user's posts
+async function fetchMyPostActivity(userId) {
+  try {
+    // Get all post IDs owned by this user from activity_feed, checkin_photos, check_ins
+    const [af, cp, ci] = await Promise.all([
+      db.from('activity_feed').select('id').eq('user_id', userId),
+      db.from('checkin_photos').select('id').eq('user_id', userId),
+      db.from('check_ins').select('id, venue_id').eq('user_id', userId),
+    ]);
+    const myPostIds = new Set();
+    (af.data || []).forEach(r => myPostIds.add('activity-' + r.id));
+    (cp.data || []).forEach(r => myPostIds.add('photo-' + r.id));
+    (ci.data || []).forEach(r => myPostIds.add('going-' + r.id));
+    if (!myPostIds.size) return [];
+
+    const postIdArr = [...myPostIds];
+    // Fetch likes on my posts (not by me)
+    const { data: likes } = await db.from('social_likes')
+      .select('id, post_id, post_type, user_id, created_at')
+      .in('post_id', postIdArr)
+      .neq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    // Fetch comments on my posts (not by me)
+    const { data: comments } = await db.from('social_comments')
+      .select('id, post_id, post_type, user_id, text, created_at')
+      .in('post_id', postIdArr)
+      .neq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    // Fetch profiles for all users involved
+    const userIds = [...new Set([...(likes||[]).map(l=>l.user_id), ...(comments||[]).map(c=>c.user_id)])];
+    const profiles = {};
+    if (userIds.length) {
+      const { data: pdata } = await db.from('profiles').select('id, display_name, avatar_emoji').in('id', userIds);
+      (pdata || []).forEach(p => { profiles[p.id] = p; });
+    }
+
+    // Merge into unified list sorted by time
+    const items = [];
+    (likes || []).forEach(l => items.push({ type: 'like', ...l, profile: profiles[l.user_id] || {} }));
+    (comments || []).forEach(c => items.push({ type: 'comment', ...c, profile: profiles[c.user_id] || {} }));
+    items.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    return items.slice(0, 50);
+  } catch(e) { console.error('fetchMyPostActivity:', e); return []; }
+}
+
 // ── SOCIAL FEED ────────────────────────────────────────
 // Fetches a city-wide social feed merging photos, check-ins,
 // reviews, and going-tonight activity. Following-first ordering
