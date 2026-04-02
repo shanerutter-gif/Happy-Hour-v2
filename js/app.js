@@ -127,30 +127,28 @@ const CITIES = [
 ];
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Card tap handler — scoped to cardsGrid only, won't interfere with nav/buttons
-  // Uses touchend for instant iOS response (click events have inherent delays)
+  // Global iOS tap fix — synthesize immediate click on touchend for ALL tappable elements
+  // iOS WKWebView has unreliable click event delivery; touchend is reliable
   let _tapX = 0, _tapY = 0;
-  const _gridEl = document.getElementById('cardsGrid');
-  if (_gridEl) {
-    _gridEl.addEventListener('touchstart', function(e) {
-      const t = e.touches[0];
-      _tapX = t.clientX;
-      _tapY = t.clientY;
-    }, { passive: true });
-    _gridEl.addEventListener('touchend', function(e) {
-      // Ignore if finger moved more than 10px (it's a scroll, not a tap)
-      const t = e.changedTouches[0];
-      const dx = Math.abs(t.clientX - _tapX);
-      const dy = Math.abs(t.clientY - _tapY);
-      if (dx > 10 || dy > 10) return;
-      if (e.target.closest('button')) return;
-      const card = e.target.closest('.card-hero, .card-compact, .card-std, .card');
-      if (!card || !card.dataset.id) return;
+  document.addEventListener('touchstart', function(e) {
+    const t = e.touches[0];
+    _tapX = t.clientX;
+    _tapY = t.clientY;
+  }, { passive: true });
+  document.addEventListener('touchend', function(e) {
+    const t = e.changedTouches[0];
+    if (Math.abs(t.clientX - _tapX) > 10 || Math.abs(t.clientY - _tapY) > 10) return;
+    // Card tap — open modal directly
+    const card = e.target.closest('.card-hero, .card-compact, .card-std, .card');
+    if (card && card.dataset.id && !e.target.closest('button')) {
       e.preventDefault();
       const type = (card.classList.contains('card') && !card.classList.contains('card-std')) ? 'event' : 'venue';
       openModal(card.dataset.id, type);
-    }, { passive: false });
-  }
+      return;
+    }
+    // For everything else with onclick — just let the native click fire naturally
+    // Don't preventDefault so normal click events still work
+  }, { passive: true });
 
   loadSiteCopy();
   renderCityGrid();
@@ -256,21 +254,6 @@ function renderBottomNav(user) {
         <span id="bnProfileLabel">Profile</span>
       </button>`;
     document.body.appendChild(bar);
-    // Touchend handler for reliable iOS nav taps (same approach as card taps)
-    let _navTapX = 0, _navTapY = 0;
-    bar.addEventListener('touchstart', function(e) {
-      const t = e.touches[0];
-      _navTapX = t.clientX;
-      _navTapY = t.clientY;
-    }, { passive: true });
-    bar.addEventListener('touchend', function(e) {
-      const t = e.changedTouches[0];
-      if (Math.abs(t.clientX - _navTapX) > 10 || Math.abs(t.clientY - _navTapY) > 10) return;
-      const btn = e.target.closest('.bottom-nav-btn');
-      if (!btn) return;
-      e.preventDefault();
-      btn.click();
-    }, { passive: false });
   } else {
     const avatar = document.getElementById('bnAvatarCircle');
     if (avatar) avatar.textContent = initials;
