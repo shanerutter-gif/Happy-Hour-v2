@@ -222,11 +222,11 @@
   font-family: 'DM Sans', sans-serif;
   font-size: 14px;
   font-weight: 600;
-  color: #fff;
+  color: #fff !important;
   background: var(--teal);
   padding: 12px 28px;
   border-radius: 100px;
-  text-decoration: none;
+  text-decoration: none !important;
   transition: background 0.15s, transform 0.1s;
 }
 .blog-cta-btn:hover {
