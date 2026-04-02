@@ -378,7 +378,11 @@ function openAddSpotForm() {
 
       <div class="p-section">
         <div class="p-section-title">Venue Name</div>
-        <input class="field" id="addSpotName" type="text" placeholder="e.g. The Rooftop Bar" style="width:100%;box-sizing:border-box">
+        <div class="add-spot-search-wrap">
+          <input class="field" id="addSpotName" type="text" placeholder="Search or type a venue name…" autocomplete="off" style="width:100%;box-sizing:border-box" oninput="_addSpotVenueSearch(this.value)">
+          <div class="add-spot-results" id="addSpotResults" style="display:none"></div>
+        </div>
+        <div class="add-spot-linked" id="addSpotLinked" style="display:none"></div>
       </div>
 
       <div class="p-section">
@@ -424,6 +428,83 @@ function openAddSpotForm() {
       <button class="btn-save-sm" id="addSpotBtn" style="width:100%;padding:14px;margin-top:8px" onclick="submitSpotExperience()">Share with the feed</button>
     </div>`;
   presentOverlay(overlay);
+}
+
+// ── Add-a-Spot venue autocomplete ──
+window._addSpotVenueId = null;
+let _addSpotSearchTimer = null;
+
+function _addSpotVenueSearch(query) {
+  const results = document.getElementById('addSpotResults');
+  if (!results) return;
+  clearTimeout(_addSpotSearchTimer);
+  const q = query.trim().toLowerCase();
+
+  // If user edits after selecting, clear the linked venue
+  if (window._addSpotVenueId) {
+    window._addSpotVenueId = null;
+    const linked = document.getElementById('addSpotLinked');
+    if (linked) linked.style.display = 'none';
+  }
+
+  if (q.length < 2) { results.style.display = 'none'; return; }
+
+  _addSpotSearchTimer = setTimeout(() => {
+    const allVenues = [...(state.venues || []), ...(state.events || [])];
+    const matches = allVenues.filter(v => v.name && v.name.toLowerCase().includes(q)).slice(0, 6);
+
+    if (!matches.length) { results.style.display = 'none'; return; }
+
+    results.innerHTML = matches.map(v => {
+      const rating = v.google_rating ? `<span style="color:var(--muted);font-size:12px"> · ${ICN.star} ${v.google_rating}</span>` : '';
+      return `<div class="add-spot-result" onclick="_addSpotSelectVenue('${v.id}')">
+        <div class="add-spot-result-name">${esc(v.name)}${rating}</div>
+        <div class="add-spot-result-hood">${esc(v.neighborhood || v.city_slug || '')}</div>
+      </div>`;
+    }).join('') +
+    `<div class="add-spot-result add-spot-result--custom" onclick="document.getElementById('addSpotResults').style.display='none'">
+      <div class="add-spot-result-name" style="color:var(--muted)">Not listed? Keep typing to add a new spot</div>
+    </div>`;
+    results.style.display = 'block';
+  }, 150);
+}
+
+function _addSpotSelectVenue(venueId) {
+  const allVenues = [...(state.venues || []), ...(state.events || [])];
+  const v = allVenues.find(x => String(x.id) === String(venueId));
+  if (!v) return;
+
+  window._addSpotVenueId = v.id;
+
+  // Fill form fields
+  const nameInput = document.getElementById('addSpotName');
+  const hoodInput = document.getElementById('addSpotHood');
+  if (nameInput) nameInput.value = v.name;
+  if (hoodInput && v.neighborhood) hoodInput.value = v.neighborhood;
+
+  // Hide results
+  document.getElementById('addSpotResults').style.display = 'none';
+
+  // Show linked venue badge
+  const linked = document.getElementById('addSpotLinked');
+  if (linked) {
+    linked.style.display = 'flex';
+    linked.innerHTML = `
+      <div class="add-spot-linked-info">
+        <span class="add-spot-linked-icon">${ICN.pin}</span>
+        <span class="add-spot-linked-name">${esc(v.name)}</span>
+        ${v.neighborhood ? `<span class="add-spot-linked-hood">${esc(v.neighborhood)}</span>` : ''}
+      </div>
+      <button class="add-spot-linked-clear" onclick="_addSpotClearVenue()">✕</button>`;
+  }
+}
+
+function _addSpotClearVenue() {
+  window._addSpotVenueId = null;
+  const linked = document.getElementById('addSpotLinked');
+  if (linked) linked.style.display = 'none';
+  const nameInput = document.getElementById('addSpotName');
+  if (nameInput) { nameInput.value = ''; nameInput.focus(); }
 }
 
 function handleAddSpotMedia(input) {
@@ -679,14 +760,42 @@ async function submitSpotExperience() {
       if (window._pendingCoverDataUrl) meta.video_poster = window._pendingCoverDataUrl;
     }
 
+    const linkedVenueId = window._addSpotVenueId || null;
+
     await db.from('activity_feed').insert({
       user_id: currentUser.id,
       activity_type: 'check_in',
-      venue_id: null,
+      venue_id: linkedVenueId,
       venue_name: name,
       neighborhood: hood || null,
       meta,
     });
+
+    // If linked to a real venue, also create a check-in and review
+    if (linkedVenueId) {
+      const today = new Date().toISOString().slice(0, 10);
+      // Add check-in (ignore if duplicate)
+      await db.from('check_ins').upsert({
+        user_id: currentUser.id,
+        venue_id: linkedVenueId,
+        city_slug: citySlug,
+        date: today,
+        note: note || null,
+      }, { onConflict: 'user_id, venue_id, date', ignoreDuplicates: true }).catch(() => {});
+
+      // Add review if they gave a rating
+      if (rating) {
+        await db.from('reviews').insert({
+          venue_id: linkedVenueId,
+          user_id: currentUser.id,
+          rating,
+          text: note || null,
+          name: currentUser.user_metadata?.full_name || 'Anonymous',
+        }).catch(() => {});
+      }
+    }
+
+    window._addSpotVenueId = null;
 
     window._pendingAddSpotPhoto = null;
     window._pendingAddSpotVideo = null;
