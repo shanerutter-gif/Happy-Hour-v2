@@ -27,7 +27,7 @@ html { touch-action: manipulation; }
 /* Vary colors by first letter for visual variety */
 .social-avatar .initials-avatar,
 .feed-avatar .initials-avatar,
-.dm-thread-avatar .initials-avatar { width: 100%; height: 100%; font-size: inherit; }
+.dm-thread-avatar .initials-avatar { width: 100%; height: 100%; font-size: 18px; }
 .pub-avatar .initials-avatar { width: 100%; height: 100%; font-size: 24px; }
 .lb-avatar .initials-avatar { width: 100%; height: 100%; font-size: 14px; }
 .pf-avatar .initials-avatar { width: 100%; height: 100%; font-size: 28px; }

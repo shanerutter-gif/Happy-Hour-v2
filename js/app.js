@@ -817,7 +817,7 @@ function renderSocialItem(item) {
   const neighborhood = venue?.neighborhood || item.neighborhood || '';
   const profile = item.profile || {};
   const displayName = profile.display_name || 'Someone';
-  const avatarHtml = initialsAvatar(displayName);
+  const avatarHtml = initialsAvatar(displayName, '', profile.avatar_emoji, profile.avatar_url);
   const isMe = item.user_id === currentUser?.id;
   const timeAgo = fmtDate(item.created_at);
   const followBadge = item.isFollowing && !isMe
@@ -2513,7 +2513,7 @@ async function renderProfile(user) {
         <div class="pf-ring pf-ring-1"></div><div class="pf-ring pf-ring-2"></div><div class="pf-ring pf-ring-3"></div>` : ''}
         <div class="pf-avatar-zone">
           <div class="pf-avatar" id="myAvatar">
-            ${avatarUrl ? `<img src="${esc(avatarUrl)}" alt="Profile" style="width:100%;height:100%;border-radius:50%;object-fit:cover">` : initialsAvatar(displayName, 'initials-avatar--lg')}
+            ${avatarUrl ? `<img src="${esc(avatarUrl)}" alt="Profile" style="width:100%;height:100%;border-radius:50%;object-fit:cover">` : initialsAvatar(displayName, 'initials-avatar--lg', profile?.avatar_emoji)}
           </div>
         </div>
         <input type="file" id="headerPhotoInput" accept="image/*" style="display:none" onchange="handleHeaderPhoto(this)">
@@ -2912,7 +2912,7 @@ async function showFollowersList() {
   content.innerHTML = (profiles || []).map(p => `
     <div style="display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--border);cursor:pointer;"
       onclick="closeSubPage('followersPage');openPublicProfile('${p.id}')">
-      <div style="width:42px;height:42px;border-radius:50%;background:var(--bg2);display:flex;align-items:center;justify-content:center;flex-shrink:0;">${initialsAvatar(p.display_name)}</div>
+      <div style="width:42px;height:42px;border-radius:50%;background:var(--bg2);display:flex;align-items:center;justify-content:center;flex-shrink:0;">${initialsAvatar(p.display_name, '', p.avatar_emoji)}</div>
       <div style="flex:1;min-width:0;">
         <div style="font-weight:700;font-size:14px;">${esc(p.display_name || 'Spotd User')}</div>
         ${p.username ? `<div style="font-size:12px;color:var(--muted);">@${esc(p.username)}</div>` : ''}
@@ -3004,7 +3004,7 @@ async function openSocialNotifications() {
   container.innerHTML = `<div style="padding:12px 16px 8px;font-size:14px;font-weight:700;color:var(--text)">Activity</div>` +
     items.map(n => {
       const name = n.profile.display_name || 'Someone';
-      const avatar = initialsAvatar(name);
+      const avatar = initialsAvatar(name, '', n.profile.avatar_emoji, n.profile.avatar_url);
       const time = fmtDate(n.created_at);
       if (n.type === 'like') {
         return `<div class="notif-row" onclick="showToast('${esc(name)} liked your post')">
@@ -3084,7 +3084,7 @@ function peopleRowHTML(p, followingSet) {
   const isF = followingSet.has(p.id);
   const name = p.display_name || 'Spotd User';
   return `<div class="people-row">
-    <div class="feed-avatar" onclick="closeSubPage('findPeoplePage');openPublicProfile('${p.id}')" style="cursor:pointer">${initialsAvatar(p.display_name || 'Spotd User')}</div>
+    <div class="feed-avatar" onclick="closeSubPage('findPeoplePage');openPublicProfile('${p.id}')" style="cursor:pointer">${initialsAvatar(p.display_name || 'Spotd User', '', p.avatar_emoji)}</div>
     <div class="people-info" onclick="closeSubPage('findPeoplePage');openPublicProfile('${p.id}')" style="cursor:pointer;flex:1;min-width:0">
       <div class="people-name">${esc(name)}</div>
       ${p.bio ? `<div class="people-bio">${esc(p.bio)}</div>` : ''}
@@ -3582,7 +3582,7 @@ async function renderPublicProfile(userId) {
       <div class="pf-hero-overlay"></div>
       <div class="pf-avatar-zone">
         <div class="pf-avatar">
-          ${avatarUrl ? `<img src="${esc(avatarUrl)}" alt="Profile" style="width:100%;height:100%;border-radius:50%;object-fit:cover">` : initialsAvatar(displayName, 'initials-avatar--lg')}
+          ${avatarUrl ? `<img src="${esc(avatarUrl)}" alt="Profile" style="width:100%;height:100%;border-radius:50%;object-fit:cover">` : initialsAvatar(displayName, 'initials-avatar--lg', profile.avatar_emoji)}
         </div>
       </div>
     </div>
@@ -3777,7 +3777,7 @@ async function loadFeedTab(tab) {
     const p = profileMap[a.user_id] || {};
     const isMe = a.user_id === currentUser.id;
     const name = isMe ? 'You' : (p.display_name || 'Someone');
-    const feedAvatarHtml = initialsAvatar(name);
+    const feedAvatarHtml = initialsAvatar(name, '', p.avatar_emoji);
     const venue = a.venue_id ? allItems.find(x => String(x.id) === String(a.venue_id)) : null;
     const clickable = !!venue;
     const venueClick = clickable ? ' onclick="closeSubPage(\'feedPage\');openModal(\''+a.venue_id+'\',\'venue\')"' : '';
@@ -3843,7 +3843,7 @@ async function openLeaderboard() {
           const lbClick = !isMe ? ' onclick="closeSubPage(\'leaderboardPage\');openPublicProfile(\''+u.uid+'\')" style="cursor:pointer"' : '';
           return '<div class="leaderboard-row"' + lbClick + '>'
             + '<div class="lb-rank">' + (medals[i] || '#' + (i+1)) + '</div>'
-            + '<div class="lb-avatar">' + initialsAvatar(isMe ? 'You' : (p.display_name || 'Spotd User')) + '</div>'
+            + '<div class="lb-avatar">' + initialsAvatar(isMe ? 'You' : (p.display_name || 'Spotd User'), '', p.avatar_emoji) + '</div>'
             + '<div class="lb-info"><div class="lb-name">' + (isMe ? 'You' : esc(p.display_name || 'Spotd User')) + '</div>'
             + '<div class="lb-meta">' + u.venues + ' venue' + (u.venues !== 1 ? 's' : '') + '</div></div>'
             + '<div class="lb-count">' + u.count + ' <span style="font-size:11px;font-weight:500;opacity:.6">check-ins</span></div>'
@@ -4073,7 +4073,7 @@ async function openTagFriends(venueId, venueName, followingIds) {
     grid.innerHTML = profiles.map(p => `
       <button class="tag-friend-chip" id="tag-chip-${p.id}"
         onclick="tagFriend('${p.id}','${esc(p.display_name || '')}','${venueId}','${esc(venueName)}',this)">
-        <span class="tag-friend-chip-avatar">${initialsAvatar(p.display_name || 'Friend')}</span>
+        <span class="tag-friend-chip-avatar">${initialsAvatar(p.display_name || 'Friend', '', p.avatar_emoji)}</span>
         <span class="tag-friend-chip-name">${esc(p.display_name || 'Friend')}</span>
       </button>`).join('');
   } catch(e) {
@@ -4331,7 +4331,7 @@ async function _loadTagFriendsInline(venueId, venueName) {
     grid.innerHTML = profiles.map(p => `
       <button class="tag-friend-chip" id="tag-chip-${p.id}"
         onclick="tagFriendInline('${p.id}','${esc(p.display_name || '')}','${venueId}','${esc(venueName)}',this)">
-        <span class="tag-friend-chip-avatar">${initialsAvatar(p.display_name || 'Friend')}</span>
+        <span class="tag-friend-chip-avatar">${initialsAvatar(p.display_name || 'Friend', '', p.avatar_emoji)}</span>
         <span class="tag-friend-chip-name">${esc(p.display_name || 'Friend')}</span>
       </button>`).join('');
   } catch(e) {
@@ -4658,7 +4658,7 @@ async function dmLoadInbox() {
         } else {
           const p = pMap[others[0]] || {};
           name    = p.display_name || 'Spotd User';
-          avatar  = initialsAvatar(name);
+          avatar  = initialsAvatar(name, '', p.avatar_emoji);
         }
 
         const preview  = last ? (last.msg_type === 'venue_share' ? 'Shared a venue' : (last.body || '').slice(0, 45)) : 'Say hello!';
@@ -4748,7 +4748,7 @@ async function dmOpenConvo(convoId, name, isGroup, knownMembers) {
     const renderMembers = (profs) => {
       const sorted = (profs || []).sort((a, b) => a.id === currentUser.id ? -1 : b.id === currentUser.id ? 1 : 0);
       bar.innerHTML = `<div class="dm-members-pills">${sorted.map(p =>
-        `<div class="dm-member-pill">${initialsAvatar((p.display_name||'User').split(' ')[0])} ${esc((p.display_name||'User').split(' ')[0])}${p.id===currentUser.id?' (you)':''}</div>`
+        `<div class="dm-member-pill">${initialsAvatar((p.display_name||'User').split(' ')[0], '', p.avatar_emoji)} ${esc((p.display_name||'User').split(' ')[0])}${p.id===currentUser.id?' (you)':''}</div>`
       ).join('')}</div>`;
     };
     if (knownMembers?.length) {
@@ -4886,7 +4886,7 @@ function dmShowPicker(users, isGroup) {
       ${users.length
         ? users.map(u => `
           <div class="dm-picker-row" id="dpick-${u.id}" onclick="dmPickerToggle('${u.id}',${isGroup})">
-            <div class="dm-thread-avatar" style="width:36px;height:36px">${initialsAvatar(u.display_name||'User')}</div>
+            <div class="dm-thread-avatar" style="width:36px;height:36px">${initialsAvatar(u.display_name||'User', '', u.avatar_emoji)}</div>
             <div style="flex:1">${esc(u.display_name||'User')}</div>
             <div class="dm-pick-check" id="dcheck-${u.id}">○</div>
           </div>`).join('')
@@ -4993,7 +4993,7 @@ async function dmOpenVenueSharePicker(venueId) {
     const others = convoPartsMap[c.id] || [];
     const myFirst = (currentUser?.user_metadata?.full_name || 'You').split(' ')[0];
     const name   = c.is_group ? (c.name || [myFirst,...others.map(id=>(pMap[id]?.display_name||'User').split(' ')[0])].join(', ')) : (pMap[others[0]]?.display_name || 'Spotd User');
-    const avatar = c.is_group ? icn('users',20) : initialsAvatar(name);
+    const avatar = c.is_group ? icn('users',20) : initialsAvatar(name, '', pMap[others[0]]?.avatar_emoji);
     return `<div class="dm-thread-row dm-share-row" data-name="${esc(name.toLowerCase())}" style="border-bottom:1px solid var(--bg2);" onclick="dmSendVenue('${venueId}','${c.id}');document.getElementById('dmSharePickerOverlay').remove()">
       <div class="dm-thread-main"><div class="dm-thread-avatar">${avatar}</div><div class="dm-thread-info"><div class="dm-thread-name">${esc(name)}</div></div></div>
       <div style="color:var(--coral);font-weight:700;font-size:13px;flex-shrink:0;padding-right:16px">Send</div>
@@ -5051,7 +5051,7 @@ function dmFilterSharePicker(query) {
       searchResults.innerHTML = `<div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:8px 0 6px">People</div>`
         + users.map(u => `<div class="dm-thread-row" style="border-bottom:1px solid var(--bg2);cursor:pointer"
           onclick="dmSendVenueToUser('${u.id}','${esc(u.display_name||'User')}')">
-          <div class="dm-thread-main"><div class="dm-thread-avatar">${initialsAvatar(u.display_name || 'User')}</div>
+          <div class="dm-thread-main"><div class="dm-thread-avatar">${initialsAvatar(u.display_name || 'User', '', u.avatar_emoji)}</div>
           <div class="dm-thread-info"><div class="dm-thread-name">${esc(u.display_name || 'User')}</div></div></div>
           <div style="color:var(--coral);font-weight:700;font-size:13px;flex-shrink:0;padding-right:16px">Send</div>
         </div>`).join('');

@@ -70,16 +70,20 @@ function icn(name, size) {
   return svg.replace(/width="\d+"/, `width="${size}"`).replace(/height="\d+"/, `height="${size}"`);
 }
 
-// Generate initials avatar HTML from a name string
-function initialsAvatar(name, sizeClass) {
+// Generate avatar HTML — emoji fallback, photo if uploaded
+function initialsAvatar(name, sizeClass, emoji, photoUrl) {
   const cls = sizeClass || '';
-  const n = (name || '').trim();
-  let initials = '?';
-  if (n) {
-    const parts = n.split(/\s+/).filter(Boolean);
-    initials = parts.length >= 2
-      ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
-      : n.slice(0, 2).toUpperCase();
+  if (photoUrl) {
+    return `<img src="${photoUrl}" alt="" class="initials-avatar ${cls}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`;
   }
-  return `<span class="initials-avatar ${cls}">${initials}</span>`;
+  if (emoji) {
+    return `<span class="initials-avatar ${cls}">${emoji}</span>`;
+  }
+  // Default: random emoji based on name hash
+  const emojis = ['😎','🤠','🦊','🐻','🦁','🐸','🍕','🌮','🍺','🎉','🔥','⭐','🌴','🎸','🎯','🍩','🦄','🐱','🐶','🌈','🍹','🎲','🏄','🎭','🪩','🍔','🦋','🌺','🍿','🎪'];
+  const n = (name || '').trim();
+  let hash = 0;
+  for (let i = 0; i < n.length; i++) hash = ((hash << 5) - hash + n.charCodeAt(i)) | 0;
+  const fallback = emojis[Math.abs(hash) % emojis.length];
+  return `<span class="initials-avatar ${cls}">${fallback}</span>`;
 }
