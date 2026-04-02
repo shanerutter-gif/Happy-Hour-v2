@@ -127,8 +127,8 @@ const CITIES = [
 ];
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Global iOS tap fix — synthesize immediate click on touchend for ALL tappable elements
-  // iOS WKWebView has unreliable click event delivery; touchend is reliable
+  // Global iOS tap fix — iOS WKWebView has unreliable click event delivery.
+  // This handler synthesizes immediate clicks via touchend for ALL tappable elements.
   let _tapX = 0, _tapY = 0;
   document.addEventListener('touchstart', function(e) {
     const t = e.touches[0];
@@ -138,7 +138,8 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('touchend', function(e) {
     const t = e.changedTouches[0];
     if (Math.abs(t.clientX - _tapX) > 10 || Math.abs(t.clientY - _tapY) > 10) return;
-    // Card tap — open modal directly
+
+    // Card tap — open modal directly (cards use onclick on the container, not buttons)
     const card = e.target.closest('.card-hero, .card-compact, .card-std, .card');
     if (card && card.dataset.id && !e.target.closest('button')) {
       e.preventDefault();
@@ -146,9 +147,14 @@ document.addEventListener('DOMContentLoaded', () => {
       openModal(card.dataset.id, type);
       return;
     }
-    // For everything else with onclick — just let the native click fire naturally
-    // Don't preventDefault so normal click events still work
-  }, { passive: true });
+
+    // Everything else — find the nearest clickable element and fire .click()
+    const clickable = e.target.closest('button, a, [onclick], [role="button"], input, select, textarea, label');
+    if (clickable) {
+      e.preventDefault();
+      clickable.click();
+    }
+  }, { passive: false });
 
   loadSiteCopy();
   renderCityGrid();
