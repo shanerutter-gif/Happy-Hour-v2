@@ -1519,12 +1519,20 @@ Roundup</textarea>
   async function loadVenues() {
     if (allVenues.length) return; // cached
     // Supabase caps default responses at 1000 rows; use Range header to fetch all
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/venues?select=*&order=created_at.desc`, {
-      headers: { ...svcHeaders(), 'Range': '0-4999' }
-    });
-    allVenues = await r.json();
-    if (!Array.isArray(allVenues)) allVenues = [];
-    allVenues.sort((a,b) => a.name.localeCompare(b.name));
+    // Also add Prefer header to get exact count for debugging
+    allVenues = [];
+    let offset = 0;
+    const PAGE = 1000;
+    while (true) {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/venues?select=*&order=name.asc&limit=${PAGE}&offset=${offset}`, {
+        headers: svcHeaders()
+      });
+      const batch = await r.json();
+      if (!Array.isArray(batch) || !batch.length) break;
+      allVenues = allVenues.concat(batch);
+      if (batch.length < PAGE) break;
+      offset += PAGE;
+    }
     renderVenueList();
   }
 
