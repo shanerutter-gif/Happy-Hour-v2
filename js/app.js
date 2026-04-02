@@ -1634,10 +1634,17 @@ function renderCards() {
   if (_renderCardsRaf) cancelAnimationFrame(_renderCardsRaf);
   _renderCardsRaf = requestAnimationFrame(_renderCardsNow);
 }
+// ═══════════════════════════════════════════════════════
+// FEED REDESIGN — Mixed layout render pipeline
+// Replaces: _renderCardsNow() and venueCardHTML()
+// Keeps: renderCards(), eventCardHTML(), all helpers
+// ═══════════════════════════════════════════════════════
+
 function _renderCardsNow() {
   _renderCardsRaf = null;
   const grid = document.getElementById('cardsGrid');
   if (!grid) return;
+
   if (!state.filtered.length) {
     grid.innerHTML = `<div class="empty-state">
       <svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -1653,92 +1660,236 @@ function _renderCardsNow() {
     </div>`;
     return;
   }
-  // Show all venues to guests — browsing is not account-gated
+
   const items = state.filtered;
-  const html = items.map(v => v.event_type ? eventCardHTML(v) : venueCardHTML(v)).join('');
+  const events = items.filter(v => v.event_type);
+  const venues = items.filter(v => !v.event_type);
+
+  // Split into tiers
+  const heroes   = venues.filter(v => v.is_hero && (v.photo_url || (v.photo_urls && v.photo_urls.length)));
+  const nonHeroes = venues.filter(v => !v.is_hero || !(v.photo_url || (v.photo_urls && v.photo_urls.length)));
+
+  // Compact = next batch with photos (up to 6 venues = 3 rows of 2)
+  const withPhoto    = nonHeroes.filter(v => v.photo_url || (v.photo_urls && v.photo_urls.length));
+  const withoutPhoto = nonHeroes.filter(v => !(v.photo_url || (v.photo_urls && v.photo_urls.length)));
+
+  const compactVenues = withPhoto.slice(0, 6);
+  const standardVenues = withPhoto.slice(6).concat(withoutPhoto);
+
+  let html = '';
+  let delay = 0;
+
+  // ── Hero cards ──
+  if (heroes.length) {
+    html += `<div class="feed-label">🔥 Hot right now</div>`;
+    heroes.forEach(v => {
+      html += heroCardHTML(v, delay);
+      delay += 80;
+    });
+  }
+
+  // ── Compact grid ──
+  if (compactVenues.length) {
+    html += `<div class="feed-label">${heroes.length ? 'Near you' : 'Today\'s happy hours'}</div>`;
+    for (let i = 0; i < compactVenues.length; i += 2) {
+      html += `<div class="card-compact-row">`;
+      html += compactCardHTML(compactVenues[i], delay);
+      delay += 60;
+      if (compactVenues[i + 1]) {
+        html += compactCardHTML(compactVenues[i + 1], delay);
+        delay += 60;
+      }
+      html += `</div>`;
+    }
+  }
+
+  // ── Standard rows ──
+  if (standardVenues.length) {
+    html += `<div class="feed-label">More spots</div>`;
+    standardVenues.forEach(v => {
+      html += standardCardHTML(v, delay);
+      delay += 40;
+    });
+  }
+
+  // ── Event cards (keep existing) ──
+  if (events.length) {
+    html += `<div class="feed-label">Events</div>`;
+    events.forEach(v => { html += eventCardHTML(v); });
+  }
+
   grid.innerHTML = html;
 }
 
-function venueCardHTML(v) {
-  const cached    = state.reviewCache[v.id] || [];
-  const avg       = avgFromList(cached);
-  const faved     = isFavorite(v.id);
-  const hasPhoto  = !!(v.photo_url || (v.photo_urls && v.photo_urls.length));
-  const photoUrl  = v.photo_url || (v.photo_urls && v.photo_urls[0]) || '';
-  const distBadge = state.sort === 'distance' && state.userLat !== null
-    ? fmtDistance(haversine(state.userLat, state.userLng, v.lat, v.lng)) : '';
-  const todayHours = getTodayHours(v);
-  const checkInCount = state.goingCounts[v.id] || 0;
-  const isMeIn = state.goingByMe.has(v.id);
-  const ciLabel = checkInBtnLabel(checkInCount, isMeIn);
-  const amenityTags = AMENITIES.filter(a => v[a.key]).map(a =>
-    `<span class="amenity-tag amenity-tag--${a.key}">${icn(a.icon,12)} ${a.label}</span>`).join('');
 
-  if (hasPhoto) {
-    return `<div class="vcard" data-id="${v.id}" onclick="openModal('${v.id}','venue')" role="button" tabindex="0">
-      <div class="vcard-photo">
-        <img src="${photoUrl}" alt="${esc(v.name)}" loading="lazy"
-          onerror="this.closest('.vcard-photo').style.background='linear-gradient(135deg,#2A1F14,#1A1208)';this.remove()">
-        <div class="vcard-photo-grad"></div>
-        <div class="vcard-photo-name">${esc(v.name)}</div>
-        ${distBadge ? `<div class="vcard-photo-dist">${distBadge}</div>` : ''}
-        <button class="vcard-photo-fav${faved ? ' faved' : ''}"
-          onclick="event.stopPropagation();doFavorite('${v.id}','venue',this);this.classList.toggle('faved');this.textContent=this.classList.contains('faved')?'★':'☆'">${faved ? '★' : '☆'}</button>
+// ═══════════════════════════════════════
+// HERO CARD
+// ═══════════════════════════════════════
+function heroCardHTML(v, delay) {
+  const photoUrl = v.photo_url || (v.photo_urls && v.photo_urls[0]) || '';
+  const cached   = state.reviewCache[v.id] || [];
+  const avg      = avgFromList(cached);
+  const faved    = isFavorite(v.id);
+  const todayH   = getTodayHours(v);
+  const count    = state.goingCounts[v.id] || 0;
+  const isMeIn   = state.goingByMe.has(v.id);
+
+  // Badges
+  const badges = [];
+  if (count >= 2)       badges.push(`<span class="badge badge-fire">🔥 ${count} going</span>`);
+  if (todayH)           badges.push(`<span class="badge badge-today">Today</span>`);
+  if (v.has_sports_tv)  badges.push(`<span class="badge badge-sports">📺</span>`);
+  if (v.owner_verified) badges.push(`<span class="badge badge-verified">✓</span>`);
+
+  // Deals as glass pills (max 3)
+  const deals = (v.deals || []).slice(0, 3).map(d =>
+    `<span class="card-hero-deal">${esc(d)}</span>`
+  ).join('');
+
+  // Going tonight bar
+  const goingBar = count > 0 ? `
+    <div class="card-hero-going">
+      <div class="card-hero-going-left">
+        <div class="card-hero-going-avatars">${goingAvatars(v.id, count)}</div>
+        ${count} ${count === 1 ? 'person' : 'people'} going tonight
       </div>
-      <div class="vcard-body">
-        <div class="vcard-meta">
-          ${todayHours ? `<span class="vcard-hours">${esc(todayHours)}</span>` : ''}
-          ${v.neighborhood ? `<span class="vcard-hood">${esc(v.neighborhood)}</span>` : ''}
-        </div>
-        ${amenityTags ? `<div class="amenity-tags" style="margin-bottom:6px">${amenityTags}</div>` : ''}
-        <div class="vcard-deals">
-          ${(v.deals || []).slice(0,3).map(d => `<div class="vcard-deal"><div class="vcard-deal-dot"></div>${esc(d)}</div>`).join('')}
-          ${(v.deals||[]).length > 3 ? `<div class="vcard-deal" style="opacity:.5"><div class="vcard-deal-dot"></div>+${v.deals.length-3} more deals</div>` : ''}
-        </div>
-      </div>
-      ${v.owner_verified ? '<div class="vcard-verified-row"><span class="verified-badge verified-badge--card">✓ Verified</span></div>' : ''}
-      <div class="vcard-foot">
-        <span class="vcard-cuisine">${esc(v.cuisine || '')}</span>
-        <div class="vcard-stars">${starHTML(avg,5,11)}<span style="margin-left:3px;font-size:10px;color:var(--muted)">${cached.length ? `(${cached.length})` : ''}</span></div>
-      </div>
-      <div class="vcard-checkin-row">
-        <button class="vcard-checkin-btn${isMeIn ? ' hot' : checkInCount >= 1 ? ' hot' : ''}"
-          onclick="event.stopPropagation();doGoingTonight('${v.id}',this)">${ciLabel}</button>
-      </div>
-      ${!v.owner_verified && !window.spotdNative ? `<div class="card-claim"><a href="business-portal.html" onclick="event.stopPropagation()" class="claim-link">Own this spot? Claim it →</a></div>` : ''}
+      <button class="card-hero-going-btn${isMeIn ? ' joined' : ''}"
+        onclick="event.stopPropagation();doGoingTonight('${v.id}',this)">${isMeIn ? '✓ Going!' : '+ Join'}</button>
+    </div>` : `
+    <div class="card-hero-going">
+      <div class="card-hero-going-left">Be the first one here tonight</div>
+      <button class="card-hero-going-btn"
+        onclick="event.stopPropagation();doGoingTonight('${v.id}',this)">+ Check In</button>
     </div>`;
-  }
 
-  // No photo variant
-  return `<div class="vcard" data-id="${v.id}" onclick="openModal('${v.id}','venue')" role="button" tabindex="0">
-    <div class="vcard-nophoto">
-      <div class="vcard-nophoto-top">
-        <div class="vcard-nophoto-name">${esc(v.name)}</div>
-        <button class="vcard-nophoto-fav${faved ? ' faved' : ''}"
-          onclick="event.stopPropagation();doFavorite('${v.id}','venue',this);this.classList.toggle('faved');this.textContent=this.classList.contains('faved')?'★':'☆'">${faved ? '★' : '☆'}</button>
+  return `<div class="card-hero" data-id="${v.id}"
+    onclick="openModal('${v.id}','venue')" style="animation-delay:${delay}ms">
+    <img class="card-hero-img" src="${photoUrl}" alt="${esc(v.name)}" loading="eager"
+      onerror="this.closest('.card-hero').style.background='linear-gradient(135deg,#2A1F14,#1A1208)';this.remove()">
+    <div class="card-hero-overlay"></div>
+    <button class="card-hero-fav${faved ? ' faved' : ''}"
+      onclick="event.stopPropagation();doFavorite('${v.id}','venue',this);this.classList.toggle('faved');this.textContent=this.classList.contains('faved')?'★':'☆'">${faved ? '★' : '☆'}</button>
+    <div class="card-hero-badges">${badges.join('')}</div>
+    <div class="card-hero-info">
+      <div class="card-hero-name">${esc(v.name)}</div>
+      <div class="card-hero-meta">
+        <span>${esc(v.neighborhood || '')}</span>
+        <span class="dot"></span>
+        <span>${esc(v.cuisine || '')}</span>
+        ${todayH ? `<span class="dot"></span><span>${esc(todayH)}</span>` : ''}
+        <span class="dot"></span>
+        <span>★ ${avg.toFixed(1)}</span>
       </div>
-      <div class="vcard-meta">
-        ${todayHours ? `<span class="vcard-hours">${esc(todayHours)}</span>` : ''}
-        ${v.neighborhood ? `<span class="vcard-hood">${esc(v.neighborhood)}</span>` : ''}
-        ${distBadge ? `<span class="vcard-sep">·</span><span class="vcard-hood">${distBadge}</span>` : ''}
-      </div>
-      ${amenityTags ? `<div class="amenity-tags" style="margin-bottom:6px">${amenityTags}</div>` : ''}
-      <div class="vcard-deals">
-        ${(v.deals || []).slice(0,3).map(d => `<div class="vcard-deal"><div class="vcard-deal-dot"></div>${esc(d)}</div>`).join('')}
-        ${(v.deals||[]).length > 3 ? `<div class="vcard-deal" style="opacity:.5"><div class="vcard-deal-dot"></div>+${v.deals.length-3} more</div>` : ''}
-      </div>
+      <div class="card-hero-deals">${deals}</div>
+      ${goingBar}
     </div>
-    ${v.owner_verified ? '<div class="vcard-verified-row"><span class="verified-badge verified-badge--card">✓ Verified</span></div>' : ''}
-    <div class="vcard-foot">
-      <span class="vcard-cuisine">${esc(v.cuisine || '')}</span>
-      <div class="vcard-stars">${starHTML(avg,5,11)}<span style="margin-left:3px;font-size:10px;color:var(--muted)">${cached.length ? `(${cached.length})` : ''}</span></div>
-    </div>
-    <div class="vcard-checkin-row">
-      <button class="vcard-checkin-btn${isMeIn ? ' hot' : checkInCount >= 1 ? ' hot' : ''}"
-        onclick="event.stopPropagation();doGoingTonight('${v.id}',this)">${ciLabel}</button>
-    </div>
-    ${!v.owner_verified && !window.spotdNative ? `<div class="card-claim"><a href="business-portal.html" onclick="event.stopPropagation()" class="claim-link">Own this spot? Claim it →</a></div>` : ''}
   </div>`;
+}
+
+
+// ═══════════════════════════════════════
+// COMPACT CARD (2-up grid)
+// ═══════════════════════════════════════
+function compactCardHTML(v, delay) {
+  const photoUrl = v.photo_url || (v.photo_urls && v.photo_urls[0]) || '';
+  const cached   = state.reviewCache[v.id] || [];
+  const avg      = avgFromList(cached);
+  const faved    = isFavorite(v.id);
+  const todayH   = getTodayHours(v);
+  const count    = state.goingCounts[v.id] || 0;
+  const topDeal  = (v.deals || [])[0] || '';
+
+  // Badge
+  let badge = '';
+  if (todayH) badge = `<div class="card-compact-badge"><span class="badge badge-today">Today</span></div>`;
+  else if (v.has_sports_tv) badge = `<div class="card-compact-badge"><span class="badge badge-sports">📺 Sports</span></div>`;
+
+  return `<div class="card-compact" data-id="${v.id}"
+    onclick="openModal('${v.id}','venue')" style="animation-delay:${delay}ms">
+    <img class="card-compact-img" src="${photoUrl}" alt="${esc(v.name)}" loading="lazy"
+      onerror="this.closest('.card-compact').style.background='linear-gradient(135deg,#2A1F14,#1A1208)';this.remove()">
+    <div class="card-compact-overlay"></div>
+    <button class="card-compact-fav${faved ? ' faved' : ''}"
+      onclick="event.stopPropagation();doFavorite('${v.id}','venue',this);this.classList.toggle('faved');this.textContent=this.classList.contains('faved')?'★':'☆'">${faved ? '★' : '☆'}</button>
+    ${badge}
+    <div class="card-compact-info">
+      <div class="card-compact-name">${esc(v.name)}</div>
+      <div class="card-compact-sub">${esc(v.cuisine || '')} · ★ ${avg.toFixed(1)}${count > 0 ? ` · 🔥 ${count}` : ''}</div>
+      ${topDeal ? `<div class="card-compact-deal">${esc(topDeal)}</div>` : ''}
+    </div>
+  </div>`;
+}
+
+
+// ═══════════════════════════════════════
+// STANDARD CARD (horizontal row)
+// ═══════════════════════════════════════
+function standardCardHTML(v, delay) {
+  const hasPhoto = !!(v.photo_url || (v.photo_urls && v.photo_urls.length));
+  const photoUrl = v.photo_url || (v.photo_urls && v.photo_urls[0]) || '';
+  const cached   = state.reviewCache[v.id] || [];
+  const avg      = avgFromList(cached);
+  const faved    = isFavorite(v.id);
+  const todayH   = getTodayHours(v);
+  const count    = state.goingCounts[v.id] || 0;
+  const topDeal  = (v.deals || [])[0] || '';
+
+  const photoEl = hasPhoto
+    ? `<img class="card-std-img" src="${photoUrl}" alt="${esc(v.name)}" loading="lazy"
+        onerror="this.outerHTML='<div class=\\'card-std-nophoto\\'>🍺</div>'">`
+    : `<div class="card-std-nophoto">🍺</div>`;
+
+  const starsEl = `<div class="card-std-stars">${
+    Array.from({length:5},(_,i) =>
+      `<span class="${i < Math.round(avg) ? 's-lit' : 's-unlit'}">★</span>`
+    ).join('')}<span class="s-count">(${cached.length || '—'})</span></div>`;
+
+  return `<div class="card-std" data-id="${v.id}"
+    onclick="openModal('${v.id}','venue')" style="animation-delay:${delay}ms">
+    ${photoEl}
+    <div class="card-std-body">
+      <div class="card-std-name">${esc(v.name)}</div>
+      <div class="card-std-meta">${esc(v.neighborhood || '')} · ${esc(v.cuisine || '')}${todayH ? ' · ' + esc(todayH) : ''}</div>
+      ${topDeal ? `<div class="card-std-deal">${esc(topDeal)}</div>` : ''}
+      ${count > 0 ? `<div class="card-std-going">🔥 ${count} going tonight</div>` : starsEl}
+    </div>
+    <button class="card-std-fav${faved ? ' faved' : ''}"
+      onclick="event.stopPropagation();doFavorite('${v.id}','venue',this);this.classList.toggle('faved');this.textContent=this.classList.contains('faved')?'★':'☆'">${faved ? '★' : '☆'}</button>
+  </div>`;
+}
+
+
+// ═══════════════════════════════════════
+// SKELETON LOADING
+// ═══════════════════════════════════════
+function renderFeedSkeleton() {
+  return `
+    <div class="feed-label" style="opacity:0.3">Loading…</div>
+    <div class="skel skel-hero"></div>
+    <div class="skel-compact-row">
+      <div class="skel skel-compact"></div>
+      <div class="skel skel-compact"></div>
+    </div>
+    <div class="skel skel-std"></div>
+    <div class="skel skel-std"></div>
+    <div class="skel skel-std"></div>`;
+}
+
+
+// ═══════════════════════════════════════
+// HELPER — avatar circles for going-tonight
+// ═══════════════════════════════════════
+function goingAvatars(venueId, count) {
+  // Generate placeholder initials for the going-tonight avatars
+  // In a future version, pull real profile data
+  const initials = ['JK','TM','AL','SR','MK','LN','DP','RG'];
+  const n = Math.min(count, 3);
+  let html = '';
+  for (let i = 0; i < n; i++) {
+    html += `<span>${initials[i % initials.length]}</span>`;
+  }
+  if (count > 3) html += `<span>+${count - 3}</span>`;
+  return html;
 }
 
 function eventCardHTML(v) {
@@ -1845,6 +1996,8 @@ function renderModal(v, type, reviews) {
   const photo   = photos[0] || '';
   const checkInCount = state.goingCounts[v.id] || 0;
   const isMeIn  = state.goingByMe.has(v.id);
+  const cached  = state.reviewCache[v.id] || reviews || [];
+  const avg     = avgFromList(cached);
 
   document.getElementById('modalContent').innerHTML = `
     ${photo ? `
@@ -1855,7 +2008,7 @@ function renderModal(v, type, reviews) {
       <div class="modal-hero-name">${esc(v.name)}${v.owner_verified ? ' ✓' : ''}</div>
       <button class="modal-hero-fav${faved ? ' faved' : ''}" onclick="doFavorite('${v.id}','${type}',this)">${faved ? '★' : '☆'}</button>
     </div>` : `
-    <div style="padding:16px 20px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
+    <div style="padding:16px 18px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
       <div>
         <div class="s-tag ${isVenue ? 'hh' : 'ev'}">${isVenue ? icn('beer',12) + ' Happy Hour' : esc(v.event_type || 'Event')}</div>
         <div class="s-name">${esc(v.name)}${v.owner_verified ? ' <span class="verified-badge verified-badge--modal">✓ Verified</span>' : ''}</div>
@@ -1863,35 +2016,34 @@ function renderModal(v, type, reviews) {
       <button class="heart-btn heart-btn--lg${faved ? ' faved' : ''}" onclick="doFavorite('${v.id}','${type}',this)" style="margin-top:4px;flex-shrink:0">${faved ? '★' : '☆'}</button>
     </div>`}
 
+    <div class="modal-actions-grid">
+      <div class="modal-action primary" onclick="openVenueWebsite('${v.id}')">
+        <span class="modal-action-icon">${icn('globe',20)}</span>
+        <span class="modal-action-label">Website</span>
+      </div>
+      <div class="modal-action" onclick="goToMap('${v.id}')">
+        <span class="modal-action-icon" style="background:var(--bg2);border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center">${icn('map',20)}</span>
+        <span class="modal-action-label">Directions</span>
+      </div>
+      <div class="modal-action share" onclick="shareItem('${v.id}','${type}')">
+        <span class="modal-action-icon">${icn('share',20)}</span>
+        <span class="modal-action-label">Share</span>
+      </div>
+      ${currentUser ? `<div class="modal-action" onclick="dmOpenVenueSharePicker('${v.id}')">
+        <span class="modal-action-icon" style="background:var(--bg2);border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center">${icn('comment',20)}</span>
+        <span class="modal-action-label">Send</span>
+      </div>` : `<div class="modal-action" onclick="openAuth('signin')">
+        <span class="modal-action-icon" style="background:var(--bg2);border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center">${icn('bell',20)}</span>
+        <span class="modal-action-label">Alerts</span>
+      </div>`}
+    </div>
+
     <div class="modal-body-inner">
       <div class="modal-loc-row">
         <span class="modal-hood">${esc(v.neighborhood || '')}</span>
         ${v.neighborhood && v.address ? '<span class="modal-sep">·</span>' : ''}
         <span class="modal-addr">${ICN.pin} ${esc(v.address || '')}</span>
       </div>
-
-      <div class="modal-actions-grid">
-        <div class="modal-action primary" onclick="openVenueWebsite('${v.id}')">
-          <span class="modal-action-icon">${icn('globe',20)}</span>
-          <span class="modal-action-label">Website</span>
-        </div>
-        <div class="modal-action" onclick="goToMap('${v.id}')">
-          <span class="modal-action-icon">${icn('map',20)}</span>
-          <span class="modal-action-label">Map</span>
-        </div>
-        <div class="modal-action share" onclick="shareItem('${v.id}','${type}')">
-          <span class="modal-action-icon">${icn('share',20)}</span>
-          <span class="modal-action-label">Share</span>
-        </div>
-        ${currentUser ? `<div class="modal-action" onclick="dmOpenVenueSharePicker('${v.id}')">
-          <span class="modal-action-icon">${icn('comment',20)}</span>
-          <span class="modal-action-label">Send</span>
-        </div>` : `<div class="modal-action" onclick="openAuth('signin')">
-          <span class="modal-action-icon">${icn('bell',20)}</span>
-          <span class="modal-action-label">Alerts</span>
-        </div>`}
-      </div>
-
 
       <div class="s-div"></div>
       <div class="modal-section-label">Schedule</div>
@@ -1902,7 +2054,7 @@ function renderModal(v, type, reviews) {
         ${(() => { const tags = AMENITIES.filter(a => v[a.key]).map(a => `<span class="amenity-tag amenity-tag--${a.key}">${icn(a.icon,12)} ${a.label}</span>`).join(''); return tags ? `<div class="amenity-tags amenity-tags--modal" style="margin-top:10px">${tags}</div>` : ''; })()}
         <div class="s-div"></div>
         <div class="modal-section-label">Deals &amp; Specials</div>
-        ${(v.deals || []).map(d => `<div class="modal-deal-item"><div class="modal-deal-arrow">→</div>${esc(d)}</div>`).join('')}
+        ${(v.deals || []).map(d => `<div class="modal-deal-item"><div class="modal-deal-arrow"></div>${esc(d)}</div>`).join('')}
         ${v.promo_code ? `
         <div class="modal-promo">
           <div class="modal-promo-inner" onclick="copyPromo('${esc(v.promo_code)}',this)">
@@ -1914,7 +2066,7 @@ function renderModal(v, type, reviews) {
             <span class="modal-promo-copy">${icn('copy',14)} Copy</span>
           </div>
         </div>` : ''}
-        <div style="margin-top:4px;font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted)">${esc(v.cuisine || '')}</div>
+        <div style="margin-top:4px;font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)">${esc(v.cuisine || '')}</div>
         ${(() => {
           const evs = state.events.filter(e => e.venue_name && v.name && e.venue_name.trim().toLowerCase() === v.name.trim().toLowerCase());
           if (!evs.length) return '';
@@ -1939,13 +2091,21 @@ function renderModal(v, type, reviews) {
         <div class="s-div"></div>
         <div class="modal-section-label">About</div>
         <p style="font-size:14px;color:var(--muted);line-height:1.6">${esc(v.description || '')}</p>
-        ${v.venue_name ? `<div style="margin-top:8px;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px">At ${esc(v.venue_name)}</div>` : ''}
-        ${v.price ? `<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px">Entry: ${esc(v.price)}</div>` : ''}
+        ${v.venue_name ? `<div style="margin-top:8px;font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em">At ${esc(v.venue_name)}</div>` : ''}
+        ${v.price ? `<div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em">Entry: ${esc(v.price)}</div>` : ''}
       `}
 
       ${isVenue ? `<div id="ugc-photos-${v.id}"></div>` : ''}
       <div class="s-div"></div>
-      <div class="modal-section-label">Reviews <span id="ravg-${v.id}">${avgHTML(reviews)}</span></div>
+      <div class="modal-section-label">Reviews</div>
+      ${cached.length ? `<div class="modal-rating-summary">
+        <div class="modal-rating-big">${avg.toFixed(1)}</div>
+        <div class="modal-rating-detail">
+          <div class="modal-rating-stars">${starHTML(avg, 5, 14)}</div>
+          <div class="modal-rating-count">${cached.length} review${cached.length !== 1 ? 's' : ''}</div>
+        </div>
+      </div>` : ''}
+      <span id="ravg-${v.id}"></span>
       <div class="review-form">
         <div class="star-picker" id="sp-${v.id}" data-val="0">${[1,2,3,4,5].map(n => `<button class="sp" onclick="pickStar('${v.id}',${n})">★</button>`).join('')}</div>
         ${!currentUser ? `<p class="review-guest-note">Posting as guest — <button class="auth-switch-btn" onclick="openAuth('signin')">sign in</button> to manage reviews</p>` : ''}

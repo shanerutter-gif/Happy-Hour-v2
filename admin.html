@@ -582,6 +582,9 @@
       <div class="sidebar-item" onclick="showPage('venues')" id="nav-venues">
         All Venues
       </div>
+      <div class="sidebar-item" onclick="showPage('heroes')" id="nav-heroes">
+        🔥 Hero Picker
+      </div>
       <div class="sidebar-label" style="margin-top:20px;margin-bottom:8px">Users</div>
       <div class="sidebar-item" onclick="showPage('users')" id="nav-users">
         User Analytics
@@ -663,6 +666,19 @@
         </div>
         <div id="venues-list-count" style="font-family:'DM Sans',sans-serif;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:14px"></div>
         <div id="venues-list"></div>
+      </div>
+
+      <!-- HERO PICKER PAGE -->
+      <div class="page" id="page-heroes">
+        <div class="page-title">🔥 Hero Picker</div>
+        <div class="page-sub">Toggle which venues get the large hero card in the feed. Only venues with photos are shown.</div>
+        <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center">
+          <input class="venue-search-input" id="hero-search" type="text" placeholder="Search venues…" oninput="filterHeroList()" autocomplete="off">
+          <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:6px">
+            <span id="hero-count" style="color:var(--coral);font-weight:700">0</span> heroes active
+          </div>
+        </div>
+        <div id="hero-list"></div>
       </div>
 
       <!-- USERS PAGE -->
@@ -1656,6 +1672,7 @@ Roundup</textarea>
       <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:16px">
         ${chk('ev-active',    v.active,         '✅ Active (visible in app)')}
         ${chk('ev-featured',  v.featured,        '⭐ Featured (pinned to top)')}
+        ${chk('ev-hero',      v.is_hero,         '🔥 Hero Card (large photo in feed)')}
         ${chk('ev-verified',  v.owner_verified,  '✓ Owner verified')}
       </div>
       <div style="font-family:'DM Sans',sans-serif;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px">Amenities</div>
@@ -1733,6 +1750,7 @@ Roundup</textarea>
         photo_url:      document.getElementById('ev-photo')?.value.trim()   || null,
         active:         document.getElementById('ev-active')?.checked       ?? false,
         featured:       document.getElementById('ev-featured')?.checked     ?? false,
+        is_hero:        document.getElementById('ev-hero')?.checked         ?? false,
         has_sports_tv:   document.getElementById('ev-sports')?.checked     ?? false,
         owner_verified:  document.getElementById('ev-verified')?.checked   ?? false,
         has_happy_hour:  document.getElementById('ev-happyhour')?.checked   ?? false,
@@ -1778,7 +1796,7 @@ Roundup</textarea>
   function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
   function formatDate(iso) { if(!iso) return ''; return new Date(iso).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }
   const PAGE_TITLES = {
-    requests: 'Venue Requests', venues: 'All Venues', users: 'User Analytics',
+    requests: 'Venue Requests', venues: 'All Venues', heroes: 'Hero Picker', users: 'User Analytics',
     churn: 'Churned Users', 'venues-top': 'Top Venues', cities: 'City Breakdown',
     pipeline: 'Revenue Pipeline', feedback: 'User Feedback', push: 'Push Notifications', cms: 'Site Copy', board: 'Project Board', demo: 'Demo Data', assets: 'Asset Generator'
   };
@@ -1793,6 +1811,7 @@ Roundup</textarea>
     const titleEl = document.getElementById('mobilePageTitle');
     if (titleEl) titleEl.textContent = PAGE_TITLES[page] || page;
     if (page === 'venues')     loadVenues();
+    if (page === 'heroes')     loadHeroes();
     if (page === 'users')      loadUsers();
     if (page === 'venues-top') loadTopVenues();
     if (page === 'cities')     loadCities();
@@ -1811,6 +1830,85 @@ Roundup</textarea>
     }
     if (page === 'assets' && window._assetPreviewUpdate) {
       setTimeout(window._assetPreviewUpdate, 100);
+    }
+  }
+
+  // ── HERO PICKER ──────────────────────────────────────
+  function loadHeroes() {
+    // Reuse allVenues which is already loaded
+    if (!allVenues.length) {
+      loadVenues().then(() => renderHeroList());
+    } else {
+      renderHeroList();
+    }
+  }
+
+  function filterHeroList() { renderHeroList(); }
+
+  function renderHeroList() {
+    const search = (document.getElementById('hero-search')?.value || '').toLowerCase().trim();
+    const list = allVenues
+      .filter(v => v.photo_url)
+      .filter(v => !search || v.name.toLowerCase().includes(search) || (v.neighborhood||'').toLowerCase().includes(search))
+      .sort((a, b) => {
+        if (a.is_hero && !b.is_hero) return -1;
+        if (!a.is_hero && b.is_hero) return 1;
+        return (a.name || '').localeCompare(b.name || '');
+      });
+
+    const heroCount = allVenues.filter(v => v.is_hero).length;
+    const countEl = document.getElementById('hero-count');
+    if (countEl) countEl.textContent = heroCount;
+
+    const el = document.getElementById('hero-list');
+    if (!el) return;
+
+    if (!list.length) {
+      el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">No venues with photos found. Add photos first.</div>';
+      return;
+    }
+
+    el.innerHTML = list.map(v => `
+      <div style="background:var(--card);border:1px solid ${v.is_hero ? 'var(--coral)' : 'var(--border)'};border-radius:12px;padding:12px 16px;margin-bottom:8px;display:flex;align-items:center;gap:14px;transition:all .15s;${v.is_hero ? 'box-shadow:0 0 0 2px rgba(255,107,74,0.15);' : ''}">
+        <img src="${esc(v.photo_url)}" alt="" style="width:56px;height:56px;border-radius:10px;object-fit:cover;flex-shrink:0" onerror="this.style.display='none'">
+        <div style="flex:1;min-width:0">
+          <div style="font-family:'Cabinet Grotesk',sans-serif;font-weight:700;font-size:15px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(v.name)}</div>
+          <div style="font-size:12px;color:var(--muted)">${[v.neighborhood, v.cuisine, v.hours].filter(Boolean).join(' · ')}</div>
+        </div>
+        <button onclick="toggleHero('${v.id}', this)" style="
+          padding:8px 16px;border-radius:50px;border:1.5px solid ${v.is_hero ? 'var(--coral)' : 'var(--border)'};
+          background:${v.is_hero ? 'var(--coral)' : 'var(--card)'};
+          color:${v.is_hero ? '#fff' : 'var(--muted)'};
+          font-family:'DM Sans',sans-serif;font-size:12px;font-weight:700;cursor:pointer;
+          transition:all .15s;white-space:nowrap;flex-shrink:0;
+        ">${v.is_hero ? '🔥 Hero' : 'Make Hero'}</button>
+      </div>
+    `).join('');
+  }
+
+  async function toggleHero(id, btn) {
+    const v = allVenues.find(x => x.id === id);
+    if (!v) return;
+    const newVal = !v.is_hero;
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+
+    try {
+      const result = await sb.patch('venues', id, { is_hero: newVal });
+      if (!Array.isArray(result) || !result[0]) {
+        showToast('❌ Failed to update');
+        btn.disabled = false;
+        btn.textContent = v.is_hero ? '🔥 Hero' : 'Make Hero';
+        return;
+      }
+      v.is_hero = newVal;
+      renderHeroList();
+      showToast(newVal ? `🔥 ${v.name} is now a hero` : `${v.name} removed from heroes`);
+    } catch(e) {
+      console.error(e);
+      showToast('❌ Error — check console');
+      btn.disabled = false;
+      btn.textContent = v.is_hero ? '🔥 Hero' : 'Make Hero';
     }
   }
 
