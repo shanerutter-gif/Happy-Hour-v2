@@ -1289,13 +1289,30 @@ async function enterCity(slug, name, stateCode) {
   }
 
   if (locationGranted) {
-    // Permission already granted — silently get fresh coords, default to Nearest
+    // Permission already granted — render cards immediately with cached/AZ sort,
+    // then silently get fresh coords and re-sort when ready
+    const cached = localStorage.getItem('spotd-user-location');
+    if (cached) {
+      try {
+        const loc = JSON.parse(cached);
+        state.userLat = loc.lat;
+        state.userLng = loc.lng;
+      } catch(e) {}
+    }
+    // Render cards NOW (with cached location or A-Z if no cache)
+    if (state.userLat !== null) {
+      _activateNearest();
+    }
+    applyFilters();
+    // Then fetch fresh GPS in background and re-sort
     _requestLocation();
   } else {
     // Not yet granted — check if we should ask on this open
     const denyCount = parseInt(localStorage.getItem('spotd-location-deny-count'), 10);
+    // Always render cards immediately in A-Z, then request location in background
+    _defaultToAZ();
     if (isNaN(denyCount)) {
-      // First time ever — ask
+      // First time ever — ask (cards already showing)
       _requestLocation();
     } else {
       // Previously denied — increment counter, ask every 3rd open
@@ -1305,7 +1322,6 @@ async function enterCity(slug, name, stateCode) {
         _requestLocation();
       } else {
         localStorage.setItem('spotd-location-deny-count', String(newCount));
-        _defaultToAZ();
       }
     }
   }
