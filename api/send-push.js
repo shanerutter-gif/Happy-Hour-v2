@@ -1,7 +1,7 @@
 export const config = { runtime: 'edge' };
 
 // Web Push requires these headers for the VAPID protocol
-const VAPID_PUBLIC_KEY  = 'BMkbnu3qwis5D-0GOq1boIfSjvfis991VIeFerO6go9bH0M3AMpbSHmYHXqnlfVVBpC_fU8YMn3skSdQId6ZKtc';
+const VAPID_PUBLIC_KEY  = 'BMW9ZANN8ywdnRhtDWmd5haZ9mwI4Dr8n28hO67aNy60h3WPOmGaElvseWgSj9zfw9geaqR5gbVUfMPQ9VvrjfU';
 
 export default async function handler(req) {
   if (req.method === 'OPTIONS') {

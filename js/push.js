@@ -216,7 +216,7 @@ function dismissPushBanner() {
 // ── WEB PUSH SUBSCRIPTION ─────────────────────────────
 // Requires a VAPID key pair — generate at: https://vapidkeys.com
 // Add your public key to the env var NEXT_PUBLIC_VAPID_PUBLIC_KEY
-const VAPID_PUBLIC_KEY = 'BMkbnu3qwis5D-0GOq1boIfSjvfis991VIeFerO6go9bH0M3AMpbSHmYHXqnlfVVBpC_fU8YMn3skSdQId6ZKtc';
+const VAPID_PUBLIC_KEY = 'BMW9ZANN8ywdnRhtDWmd5haZ9mwI4Dr8n28hO67aNy60h3WPOmGaElvseWgSj9zfw9geaqR5gbVUfMPQ9VvrjfU';
 
 async function subscribeWebPush() {
   if (isNative() || !('serviceWorker' in navigator)) return;
