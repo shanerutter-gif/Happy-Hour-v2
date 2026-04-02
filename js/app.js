@@ -1996,6 +1996,8 @@ function renderModal(v, type, reviews) {
   const photo   = photos[0] || '';
   const checkInCount = state.goingCounts[v.id] || 0;
   const isMeIn  = state.goingByMe.has(v.id);
+  const cached  = state.reviewCache[v.id] || reviews || [];
+  const avg     = avgFromList(cached);
 
   document.getElementById('modalContent').innerHTML = `
     ${photo ? `
@@ -2006,7 +2008,7 @@ function renderModal(v, type, reviews) {
       <div class="modal-hero-name">${esc(v.name)}${v.owner_verified ? ' ✓' : ''}</div>
       <button class="modal-hero-fav${faved ? ' faved' : ''}" onclick="doFavorite('${v.id}','${type}',this)">${faved ? '★' : '☆'}</button>
     </div>` : `
-    <div style="padding:16px 20px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
+    <div style="padding:16px 18px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
       <div>
         <div class="s-tag ${isVenue ? 'hh' : 'ev'}">${isVenue ? icn('beer',12) + ' Happy Hour' : esc(v.event_type || 'Event')}</div>
         <div class="s-name">${esc(v.name)}${v.owner_verified ? ' <span class="verified-badge verified-badge--modal">✓ Verified</span>' : ''}</div>
@@ -2014,35 +2016,34 @@ function renderModal(v, type, reviews) {
       <button class="heart-btn heart-btn--lg${faved ? ' faved' : ''}" onclick="doFavorite('${v.id}','${type}',this)" style="margin-top:4px;flex-shrink:0">${faved ? '★' : '☆'}</button>
     </div>`}
 
+    <div class="modal-actions-grid">
+      <div class="modal-action primary" onclick="openVenueWebsite('${v.id}')">
+        <span class="modal-action-icon">${icn('globe',20)}</span>
+        <span class="modal-action-label">Website</span>
+      </div>
+      <div class="modal-action" onclick="goToMap('${v.id}')">
+        <span class="modal-action-icon" style="background:var(--bg2);border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center">${icn('map',20)}</span>
+        <span class="modal-action-label">Directions</span>
+      </div>
+      <div class="modal-action share" onclick="shareItem('${v.id}','${type}')">
+        <span class="modal-action-icon">${icn('share',20)}</span>
+        <span class="modal-action-label">Share</span>
+      </div>
+      ${currentUser ? `<div class="modal-action" onclick="dmOpenVenueSharePicker('${v.id}')">
+        <span class="modal-action-icon" style="background:var(--bg2);border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center">${icn('comment',20)}</span>
+        <span class="modal-action-label">Send</span>
+      </div>` : `<div class="modal-action" onclick="openAuth('signin')">
+        <span class="modal-action-icon" style="background:var(--bg2);border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center">${icn('bell',20)}</span>
+        <span class="modal-action-label">Alerts</span>
+      </div>`}
+    </div>
+
     <div class="modal-body-inner">
       <div class="modal-loc-row">
         <span class="modal-hood">${esc(v.neighborhood || '')}</span>
         ${v.neighborhood && v.address ? '<span class="modal-sep">·</span>' : ''}
         <span class="modal-addr">${ICN.pin} ${esc(v.address || '')}</span>
       </div>
-
-      <div class="modal-actions-grid">
-        <div class="modal-action primary" onclick="openVenueWebsite('${v.id}')">
-          <span class="modal-action-icon">${icn('globe',20)}</span>
-          <span class="modal-action-label">Website</span>
-        </div>
-        <div class="modal-action" onclick="goToMap('${v.id}')">
-          <span class="modal-action-icon">${icn('map',20)}</span>
-          <span class="modal-action-label">Map</span>
-        </div>
-        <div class="modal-action share" onclick="shareItem('${v.id}','${type}')">
-          <span class="modal-action-icon">${icn('share',20)}</span>
-          <span class="modal-action-label">Share</span>
-        </div>
-        ${currentUser ? `<div class="modal-action" onclick="dmOpenVenueSharePicker('${v.id}')">
-          <span class="modal-action-icon">${icn('comment',20)}</span>
-          <span class="modal-action-label">Send</span>
-        </div>` : `<div class="modal-action" onclick="openAuth('signin')">
-          <span class="modal-action-icon">${icn('bell',20)}</span>
-          <span class="modal-action-label">Alerts</span>
-        </div>`}
-      </div>
-
 
       <div class="s-div"></div>
       <div class="modal-section-label">Schedule</div>
@@ -2053,7 +2054,7 @@ function renderModal(v, type, reviews) {
         ${(() => { const tags = AMENITIES.filter(a => v[a.key]).map(a => `<span class="amenity-tag amenity-tag--${a.key}">${icn(a.icon,12)} ${a.label}</span>`).join(''); return tags ? `<div class="amenity-tags amenity-tags--modal" style="margin-top:10px">${tags}</div>` : ''; })()}
         <div class="s-div"></div>
         <div class="modal-section-label">Deals &amp; Specials</div>
-        ${(v.deals || []).map(d => `<div class="modal-deal-item"><div class="modal-deal-arrow">→</div>${esc(d)}</div>`).join('')}
+        ${(v.deals || []).map(d => `<div class="modal-deal-item"><div class="modal-deal-arrow"></div>${esc(d)}</div>`).join('')}
         ${v.promo_code ? `
         <div class="modal-promo">
           <div class="modal-promo-inner" onclick="copyPromo('${esc(v.promo_code)}',this)">
@@ -2065,7 +2066,7 @@ function renderModal(v, type, reviews) {
             <span class="modal-promo-copy">${icn('copy',14)} Copy</span>
           </div>
         </div>` : ''}
-        <div style="margin-top:4px;font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted)">${esc(v.cuisine || '')}</div>
+        <div style="margin-top:4px;font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)">${esc(v.cuisine || '')}</div>
         ${(() => {
           const evs = state.events.filter(e => e.venue_name && v.name && e.venue_name.trim().toLowerCase() === v.name.trim().toLowerCase());
           if (!evs.length) return '';
@@ -2090,13 +2091,21 @@ function renderModal(v, type, reviews) {
         <div class="s-div"></div>
         <div class="modal-section-label">About</div>
         <p style="font-size:14px;color:var(--muted);line-height:1.6">${esc(v.description || '')}</p>
-        ${v.venue_name ? `<div style="margin-top:8px;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px">At ${esc(v.venue_name)}</div>` : ''}
-        ${v.price ? `<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px">Entry: ${esc(v.price)}</div>` : ''}
+        ${v.venue_name ? `<div style="margin-top:8px;font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em">At ${esc(v.venue_name)}</div>` : ''}
+        ${v.price ? `<div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em">Entry: ${esc(v.price)}</div>` : ''}
       `}
 
       ${isVenue ? `<div id="ugc-photos-${v.id}"></div>` : ''}
       <div class="s-div"></div>
-      <div class="modal-section-label">Reviews <span id="ravg-${v.id}">${avgHTML(reviews)}</span></div>
+      <div class="modal-section-label">Reviews</div>
+      ${cached.length ? `<div class="modal-rating-summary">
+        <div class="modal-rating-big">${avg.toFixed(1)}</div>
+        <div class="modal-rating-detail">
+          <div class="modal-rating-stars">${starHTML(avg, 5, 14)}</div>
+          <div class="modal-rating-count">${cached.length} review${cached.length !== 1 ? 's' : ''}</div>
+        </div>
+      </div>` : ''}
+      <span id="ravg-${v.id}"></span>
       <div class="review-form">
         <div class="star-picker" id="sp-${v.id}" data-val="0">${[1,2,3,4,5].map(n => `<button class="sp" onclick="pickStar('${v.id}',${n})">★</button>`).join('')}</div>
         ${!currentUser ? `<p class="review-guest-note">Posting as guest — <button class="auth-switch-btn" onclick="openAuth('signin')">sign in</button> to manage reviews</p>` : ''}
