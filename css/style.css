@@ -1433,7 +1433,7 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   padding: 14px 20px 12px;
   padding-top: calc(14px + env(safe-area-inset-top, 0px));
   flex-shrink: 0;
-  background: rgba(var(--bg-rgb, 245,239,230), 0.82);
+  background: var(--nav-bg);
   backdrop-filter: blur(20px) saturate(1.4);
   -webkit-backdrop-filter: blur(20px) saturate(1.4);
   border-bottom: 1px solid var(--border2);
@@ -1442,37 +1442,35 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 .dm-title {
   flex: 1;
   font-family: 'Cabinet Grotesk', sans-serif;
-  font-weight: 800;
-  font-size: 20px;
+  font-weight: 900;
+  font-size: 22px;
   color: var(--ink);
+  letter-spacing: -.5px;
 }
 .dm-back-btn {
-  background: none;
-  border: none;
-  color: var(--coral);
-  font-size: 15px;
-  font-weight: 700;
-  cursor: pointer;
-  padding: 6px 10px;
-  min-width: 56px;
-  font-family: 'DM Sans', sans-serif;
-  border-radius: 12px;
-  transition: background .15s;
-}
-.dm-back-btn:active { background: rgba(255,107,74,0.08); }
-.dm-new-btn {
   width: 36px; height: 36px;
-  background: var(--bg2);
-  border: 1.5px solid var(--border2);
+  background: var(--card);
+  border: 1px solid var(--border2);
   border-radius: 50%;
-  color: var(--coral);
-  font-size: 20px;
-  font-weight: 500;
+  color: var(--muted);
   cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  transition: all .15s;
+  transition: transform .15s;
+  box-shadow: var(--shadow);
 }
-.dm-new-btn:active { transform: scale(.92); background: rgba(255,107,74,0.1); }
+.dm-back-btn:active { transform: scale(.88); }
+.dm-new-btn {
+  width: 36px; height: 36px;
+  background: var(--card);
+  border: 1px solid var(--border2);
+  border-radius: 50%;
+  color: var(--muted);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform .15s;
+  box-shadow: var(--shadow);
+}
+.dm-new-btn:active { transform: scale(.88); }
 
 /* ── Screens ── */
 .dm-screen { flex:1; min-height:0; }
@@ -1531,13 +1529,19 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--bg2), rgba(255,107,74,0.08));
+  background: linear-gradient(145deg, rgba(255,107,74,0.12), rgba(255,133,102,0.06));
   border-radius: 50%;
   position: relative;
+  box-shadow: 0 2px 8px rgba(255,107,74,0.1);
 }
 .dm-thread-avatar .initials-avatar {
   width: 100%; height: 100%;
   font-size: 22px;
+}
+.dm-thread-avatar img {
+  width: 100%; height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
 }
 .dm-thread-info { flex: 1; min-width: 0; overflow: hidden; }
 .dm-thread-name {
@@ -1616,42 +1620,45 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   min-height: 0;
   background: var(--bg);
 }
-.dm-msg { display: flex; flex-direction: column; max-width: 80%; }
+.dm-msg { display: flex; flex-direction: column; max-width: 78%; margin-bottom: 2px; }
 .dm-msg--mine { align-self: flex-end; align-items: flex-end; }
 .dm-msg--theirs { align-self: flex-start; align-items: flex-start; }
 .dm-bubble {
-  padding: 11px 16px;
-  border-radius: 20px;
+  padding: 12px 16px;
+  border-radius: 22px;
   font-family: 'DM Sans', sans-serif;
   font-size: 15px;
-  line-height: 1.45;
+  line-height: 1.5;
   word-break: break-word;
 }
 .dm-msg--mine .dm-bubble {
-  background: var(--teal);
+  background: linear-gradient(135deg, var(--teal), var(--teal-dk));
   color: #fff;
   border-bottom-right-radius: 6px;
+  box-shadow: 0 2px 8px rgba(255,107,74,0.2);
 }
 .dm-msg--theirs .dm-bubble {
   background: var(--card);
   color: var(--text);
   border: 1px solid var(--border2);
   border-bottom-left-radius: 6px;
+  box-shadow: 0 1px 4px rgba(42,31,20,0.04);
 }
 .dm-msg-time {
   font-family: 'DM Sans', sans-serif;
   font-size: 10px;
   color: var(--muted);
-  margin-top: 3px;
-  padding: 0 4px;
+  margin-top: 4px;
+  padding: 0 6px;
+  opacity: .7;
 }
 .dm-sender-name {
   font-family: 'DM Sans', sans-serif;
   font-size: 11px;
   font-weight: 600;
-  color: var(--muted);
+  color: var(--coral);
   margin-bottom: 3px;
-  padding-left: 4px;
+  padding-left: 6px;
 }
 
 .dm-compose {
@@ -1662,9 +1669,9 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
   border-top: 1px solid var(--border2);
   flex-shrink: 0;
-  background: rgba(var(--bg-rgb, 245,239,230), 0.92);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: var(--nav-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
 .dm-input {
   flex: 1;
@@ -1677,12 +1684,12 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   font-family: 'DM Sans', sans-serif;
   outline: none;
   min-width: 0;
-  transition: border-color .15s;
+  transition: border-color .2s, box-shadow .2s;
 }
-.dm-input:focus { border-color: var(--teal); }
+.dm-input:focus { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(255,107,74,0.1); }
 .dm-send-btn {
   width: 44px; height: 44px;
-  background: var(--teal);
+  background: linear-gradient(135deg, var(--teal), var(--teal-dk));
   color: #fff;
   border: none;
   border-radius: 50%;
@@ -1691,8 +1698,9 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: transform .1s, opacity .1s;
+  transition: transform .15s cubic-bezier(.34,1.56,.64,1), box-shadow .15s;
   font-size: 0;
+  box-shadow: 0 3px 12px rgba(255,107,74,0.3);
 }
 .dm-send-btn::after {
   content: '';
@@ -1702,7 +1710,7 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cline x1='22' y1='2' x2='11' y2='13'/%3E%3Cpolygon points='22 2 15 22 11 13 2 9 22 2'/%3E%3C/svg%3E") center/contain no-repeat;
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cline x1='22' y1='2' x2='11' y2='13'/%3E%3Cpolygon points='22 2 15 22 11 13 2 9 22 2'/%3E%3C/svg%3E") center/contain no-repeat;
 }
-.dm-send-btn:active { transform: scale(.9); opacity: .85; }
+.dm-send-btn:active { transform: scale(.85); box-shadow: 0 1px 6px rgba(255,107,74,0.2); }
 /* Text-style send button for picker footer */
 .dm-send-btn--text {
   width: auto; height: auto;
@@ -1865,15 +1873,17 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 .dm-venue-meta { font-family: 'DM Sans', sans-serif; font-size: 12px; color: var(--muted); margin-top: 2px; }
 .dm-venue-arrow { font-size: 16px; color: var(--muted); flex-shrink: 0; }
 
-/* ── Nav DM badge dot ── */
-.bn-dm-dot {
-  position: absolute;
-  top: 6px; right: 50%;
-  transform: translateX(14px);
-  width: 9px; height: 9px;
-  background: var(--coral);
-  border-radius: 50%;
-  border: 2px solid var(--card);
+/* ── DM date separator ── */
+.dm-date-sep {
+  text-align: center;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 12px 0 4px;
+  opacity: .6;
+  text-transform: uppercase;
+  letter-spacing: .5px;
 }
 
 

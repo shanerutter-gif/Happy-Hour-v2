@@ -254,11 +254,6 @@ function renderBottomNav(user) {
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-1a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v1"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-1a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         <span>The Spots</span>
       </button>
-      <button class="bottom-nav-btn" id="bnDm" onclick="bottomNavDm(this)">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-        <span>Messages</span>
-        <span class="bn-dm-dot" id="bnDmBadge" style="display:none"></span>
-      </button>
       <button class="bottom-nav-btn" id="bnNews" onclick="bottomNavNews(this)">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><line x1="10" y1="6" x2="18" y2="6"/><line x1="10" y1="10" x2="18" y2="10"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
         <span>Your News</span>
@@ -317,14 +312,6 @@ function bottomNavSocial(btn) {
   btn.classList.add('active');
   _navHideAll('social');
   openSocialTab();
-}
-
-function bottomNavDm(btn) {
-  if(typeof haptic==='function')haptic('light');
-  document.querySelectorAll('.bottom-nav-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  _navHideAll('dm');
-  openDmInbox();
 }
 
 function bottomNavNews(btn) {
@@ -4620,16 +4607,16 @@ async function openDmInbox() {
 }
 
 const DM_EMPTY_HTML = `<div class="dm-empty-state">
-  <div class="dm-empty-icon">${icn('comment',32)}</div>
-  <div class="dm-empty-title">No messages yet</div>
-  <div class="dm-empty-sub">Chat with fellow Spotd users<br>about your favorite spots</div>
+  <div class="dm-empty-icon">💬</div>
+  <div class="dm-empty-title">Your inbox is empty</div>
+  <div class="dm-empty-sub">Share spots, plan nights out, and chat with friends on Spotd</div>
   <button class="dm-invite-btn" onclick="shareSpotd()">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
       <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
       <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
       <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
     </svg>
-    Invite a Friend to Spotd
+    Invite a Friend
   </button>
 </div>`;
 
@@ -5184,10 +5171,10 @@ function dmUpdateBadge(count) {
     if (count > 0) { badge.textContent = count > 9 ? '9+' : count; badge.style.display = ''; }
     else badge.style.display = 'none';
   }
-  // Update badge on bottom nav Messages tab
-  const navDmBadge = document.getElementById('bnDmBadge');
-  if (navDmBadge) {
-    navDmBadge.style.display = count > 0 ? '' : 'none';
+  // Update badge on social feed header DM button
+  const socialDmDot = document.getElementById('socialDmDot');
+  if (socialDmDot) {
+    socialDmDot.style.display = count > 0 ? '' : 'none';
   }
   // Also show indicator on profile nav tab when there are unread DMs
   const navBadge = document.getElementById('bnProfileBadge');
