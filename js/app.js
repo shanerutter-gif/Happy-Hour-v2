@@ -254,6 +254,11 @@ function renderBottomNav(user) {
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-1a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v1"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-1a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         <span>The Spots</span>
       </button>
+      <button class="bottom-nav-btn" id="bnDm" onclick="bottomNavDm(this)">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <span>Messages</span>
+        <span class="bn-dm-dot" id="bnDmBadge" style="display:none"></span>
+      </button>
       <button class="bottom-nav-btn" id="bnNews" onclick="bottomNavNews(this)">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><line x1="10" y1="6" x2="18" y2="6"/><line x1="10" y1="10" x2="18" y2="10"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
         <span>Your News</span>
@@ -312,6 +317,14 @@ function bottomNavSocial(btn) {
   btn.classList.add('active');
   _navHideAll('social');
   openSocialTab();
+}
+
+function bottomNavDm(btn) {
+  if(typeof haptic==='function')haptic('light');
+  document.querySelectorAll('.bottom-nav-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  _navHideAll('dm');
+  openDmInbox();
 }
 
 function bottomNavNews(btn) {
@@ -4581,7 +4594,7 @@ function dmShowScreen(name) {
   if (name === 'inbox') {
     backBtn.style.display    = 'none';
     newBtn.style.display     = '';
-    title.innerHTML          = '<img src="/spotd_logo_v5.png" alt="Spotd" class="header-logo-img" onerror="this.style.display=\'none\'">';
+    title.textContent        = 'Messages';
     title.style.textAlign    = 'left';
   } else {
     backBtn.style.display    = '';
@@ -4670,7 +4683,7 @@ async function dmLoadInbox() {
     if (otherIds.length) {
       try {
         const res = await Promise.race([
-          db.from('profiles').select('id, display_name, avatar_emoji').in('id', otherIds),
+          db.from('profiles').select('id, display_name, avatar_emoji, avatar_url').in('id', otherIds),
           new Promise(res => setTimeout(() => res({ data: [] }), 2000))
         ]);
         (res.data || []).forEach(p => { pMap[p.id] = p; });
@@ -4701,7 +4714,7 @@ async function dmLoadInbox() {
         const time     = last ? fmtDate(last.created_at) : '';
         const safeName = (name || '').replace(/'/g, '&#39;');
 
-        return `<div class="dm-thread-row" id="dmrow-${c.id}">
+        return `<div class="dm-thread-row${unread ? ' dm-thread-row--unread' : ''}" id="dmrow-${c.id}">
           <div class="dm-thread-swipe-wrap"
             ontouchstart="dmSwipeStart(event,this)"
             ontouchmove="dmSwipeMove(event,this)"
@@ -4709,10 +4722,13 @@ async function dmLoadInbox() {
             <div class="dm-thread-main" onclick="dmOpenConvo('${c.id}','${safeName}',${!!c.is_group})">
               <div class="dm-thread-avatar">${avatar}</div>
               <div class="dm-thread-info">
-                <div class="dm-thread-name">${esc(name)}${unread ? `<span class="dm-unread-dot">${unread}</span>` : ''}</div>
+                <div class="dm-thread-name">${esc(name)}</div>
                 <div class="dm-thread-preview">${esc(preview)}</div>
               </div>
-              <div class="dm-thread-time">${time}</div>
+              <div class="dm-thread-right">
+                <div class="dm-thread-time">${time}</div>
+                ${unread ? `<span class="dm-unread-dot">${unread}</span>` : ''}
+              </div>
             </div>
             <button class="dm-swipe-delete" onclick="dmDeleteConvo('${c.id}')">Delete</button>
           </div>
@@ -4795,7 +4811,7 @@ async function dmOpenConvo(convoId, name, isGroup, knownMembers) {
         try {
           const { data: parts } = await db.from('conversation_participants').select('user_id').eq('conversation_id', convoId);
           const ids = (parts || []).map(p => p.user_id);
-          const { data: profs } = ids.length ? await db.from('profiles').select('id, display_name, avatar_emoji').in('id', ids) : { data: [] };
+          const { data: profs } = ids.length ? await db.from('profiles').select('id, display_name, avatar_emoji, avatar_url').in('id', ids) : { data: [] };
           renderMembers(profs);
         } catch(e) { bar.style.display = 'none'; }
       })();
@@ -4896,7 +4912,7 @@ async function dmStartNewConvo() {
   const { data: following } = await db.from('user_follows').select('following_id').eq('follower_id', currentUser.id);
   const followIds = (following || []).map(f => f.following_id);
   const { data: profiles } = followIds.length
-    ? await db.from('profiles').select('id, display_name, avatar_emoji').in('id', followIds) : { data: [] };
+    ? await db.from('profiles').select('id, display_name, avatar_emoji, avatar_url').in('id', followIds) : { data: [] };
   dmShowPicker(profiles || [], false);
 }
 
@@ -4922,9 +4938,9 @@ function dmShowPicker(users, isGroup) {
       ${users.length
         ? users.map(u => `
           <div class="dm-picker-row" id="dpick-${u.id}" onclick="dmPickerToggle('${u.id}',${isGroup})">
-            <div class="dm-thread-avatar" style="width:36px;height:36px">${initialsAvatar(u.display_name||'User', '', u.avatar_emoji, u.avatar_url)}</div>
-            <div style="flex:1">${esc(u.display_name||'User')}</div>
-            <div class="dm-pick-check" id="dcheck-${u.id}">○</div>
+            <div class="dm-thread-avatar" style="width:40px;height:40px">${initialsAvatar(u.display_name||'User', '', u.avatar_emoji, u.avatar_url)}</div>
+            <div style="flex:1;font-weight:600;font-size:15px">${esc(u.display_name||'User')}</div>
+            <div class="dm-pick-check"></div>
           </div>`).join('')
         : '<div class="dm-empty">Follow people to message them</div>'
       }
@@ -4939,11 +4955,11 @@ function dmFilterPicker(q) {
 }
 
 function dmPickerToggle(userId, isGroup) {
-  const sel = window._dmPickerSelected, check = document.getElementById(`dcheck-${userId}`), row = document.getElementById(`dpick-${userId}`);
-  if (sel.has(userId)) { sel.delete(userId); check.textContent = '○'; row.classList.remove('dm-picker-row--selected'); }
+  const sel = window._dmPickerSelected, row = document.getElementById(`dpick-${userId}`);
+  if (sel.has(userId)) { sel.delete(userId); row.classList.remove('dm-picker-row--selected'); }
   else {
-    if (!isGroup) { sel.forEach(id => { document.getElementById(`dcheck-${id}`).textContent = '○'; document.getElementById(`dpick-${id}`)?.classList.remove('dm-picker-row--selected'); }); sel.clear(); }
-    sel.add(userId); check.textContent = '●'; row.classList.add('dm-picker-row--selected');
+    if (!isGroup) { sel.forEach(id => { document.getElementById(`dpick-${id}`)?.classList.remove('dm-picker-row--selected'); }); sel.clear(); }
+    sel.add(userId); row.classList.add('dm-picker-row--selected');
   }
 }
 
@@ -5162,11 +5178,16 @@ async function dmRefreshBadge() {
 setInterval(() => { if (currentUser) dmRefreshBadge(); }, 120000);
 
 function dmUpdateBadge(count) {
-  // Update badge on profile DM button (moved from nav)
+  // Update badge on profile DM button
   const badge = document.getElementById('pfDmBadge');
   if (badge) {
     if (count > 0) { badge.textContent = count > 9 ? '9+' : count; badge.style.display = ''; }
     else badge.style.display = 'none';
+  }
+  // Update badge on bottom nav Messages tab
+  const navDmBadge = document.getElementById('bnDmBadge');
+  if (navDmBadge) {
+    navDmBadge.style.display = count > 0 ? '' : 'none';
   }
   // Also show indicator on profile nav tab when there are unread DMs
   const navBadge = document.getElementById('bnProfileBadge');
