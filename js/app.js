@@ -127,10 +127,6 @@ const CITIES = [
 ];
 
 document.addEventListener('DOMContentLoaded', () => {
-  // DEBUG: log all document-level clicks to find what's eating taps
-  document.addEventListener('click', function(e) {
-    console.log('[DOC-CLICK]', e.target.tagName, e.target.className?.substring?.(0,50), 'x:', e.clientX, 'y:', e.clientY);
-  }, true); // capture phase
   loadSiteCopy();
   renderCityGrid();
   renderNav(currentUser);
@@ -179,7 +175,6 @@ function onAuthChange(user) {
   const ffg = document.getElementById('favFilterGroup');
   if (ffg) ffg.style.display = user ? '' : 'none';
   if (!user && state.favFilterOn) { state.favFilterOn = false; applyFilters(); }
-  if (state.city) renderCards();
   // Refresh unread badge whenever auth state changes
   if (user) dmRefreshBadge();
   // Push prompt is now shown via the soft modal after check-in/save flow
@@ -1726,21 +1721,13 @@ function _renderCardsNow() {
   // Attach delegated click handler once for reliable iOS taps
   if (!grid._cardDelegateAttached) {
     grid._cardDelegateAttached = true;
-    // Log ALL taps on the grid for debugging
     grid.addEventListener('click', function(e) {
-      console.log('[TAP] Grid click:', e.target.tagName, e.target.className, 'coords:', e.clientX, e.clientY);
-      // Don't interfere with buttons (fav, going, etc.)
-      if (e.target.closest('button')) { console.log('[TAP] Ignored - button'); return; }
+      if (e.target.closest('button')) return;
       const card = e.target.closest('.card-hero, .card-compact, .card-std, .card');
-      if (!card) { console.log('[TAP] No card found from target'); return; }
+      if (!card) return;
       const id = card.dataset.id;
-      console.log('[TAP] Card found:', card.className, 'id:', id);
       if (id) openModal(id, card.classList.contains('card') && !card.classList.contains('card-std') ? 'event' : 'venue');
     });
-    // Also catch taps that might not register as clicks on iOS
-    grid.addEventListener('touchend', function(e) {
-      console.log('[TOUCH] touchend on:', e.target.tagName, e.target.className);
-    }, { passive: true });
   }
 }
 
@@ -1957,7 +1944,6 @@ function toggleFavFilter() {
 
 // ── MODAL ──────────────────────────────────────────────
 async function openModal(id, type = 'venue') {
-  console.log('[TAP] openModal called', id, type);
   if(typeof haptic==='function')haptic('light');
   state.activeItemId   = id;
   state.activeItemType = type;
