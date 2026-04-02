@@ -227,10 +227,12 @@ function obSkip() {
   obComplete();
 }
 
-// ── PROGRESS BAR ───────────────────────────────────────
+// ── PROGRESS DOTS ──────────────────────────────────────
 function obUpdateProgress(screen) {
-  const fill = document.getElementById('obProgressFill');
-  if (fill) fill.style.width = (OB_PROGRESS[screen] ?? 20) + '%';
+  const dots = document.querySelectorAll('.ob-dot');
+  dots.forEach((d, i) => {
+    d.classList.toggle('ob-dot--active', i <= screen);
+  });
 }
 
 // ── LIVE COUNTER ───────────────────────────────────────
