@@ -256,6 +256,21 @@ function renderBottomNav(user) {
         <span id="bnProfileLabel">Profile</span>
       </button>`;
     document.body.appendChild(bar);
+    // Touchend handler for reliable iOS nav taps (same approach as card taps)
+    let _navTapX = 0, _navTapY = 0;
+    bar.addEventListener('touchstart', function(e) {
+      const t = e.touches[0];
+      _navTapX = t.clientX;
+      _navTapY = t.clientY;
+    }, { passive: true });
+    bar.addEventListener('touchend', function(e) {
+      const t = e.changedTouches[0];
+      if (Math.abs(t.clientX - _navTapX) > 10 || Math.abs(t.clientY - _navTapY) > 10) return;
+      const btn = e.target.closest('.bottom-nav-btn');
+      if (!btn) return;
+      e.preventDefault();
+      btn.click();
+    }, { passive: false });
   } else {
     const avatar = document.getElementById('bnAvatarCircle');
     if (avatar) avatar.textContent = initials;
