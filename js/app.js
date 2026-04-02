@@ -127,27 +127,30 @@ const CITIES = [
 ];
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Global card tap handler — attached once on document, works regardless of DOM changes
+  // Card tap handler — scoped to cardsGrid only, won't interfere with nav/buttons
   // Uses touchend for instant iOS response (click events have inherent delays)
   let _tapX = 0, _tapY = 0;
-  document.addEventListener('touchstart', function(e) {
-    const t = e.touches[0];
-    _tapX = t.clientX;
-    _tapY = t.clientY;
-  }, { passive: true });
-  document.addEventListener('touchend', function(e) {
-    // Ignore if finger moved more than 10px (it's a scroll, not a tap)
-    const t = e.changedTouches[0];
-    const dx = Math.abs(t.clientX - _tapX);
-    const dy = Math.abs(t.clientY - _tapY);
-    if (dx > 10 || dy > 10) return;
-    if (e.target.closest('button')) return;
-    const card = e.target.closest('.card-hero, .card-compact, .card-std, .card');
-    if (!card || !card.dataset.id) return;
-    e.preventDefault(); // prevent delayed click from also firing
-    const type = (card.classList.contains('card') && !card.classList.contains('card-std')) ? 'event' : 'venue';
-    openModal(card.dataset.id, type);
-  }, { passive: false });
+  const _gridEl = document.getElementById('cardsGrid');
+  if (_gridEl) {
+    _gridEl.addEventListener('touchstart', function(e) {
+      const t = e.touches[0];
+      _tapX = t.clientX;
+      _tapY = t.clientY;
+    }, { passive: true });
+    _gridEl.addEventListener('touchend', function(e) {
+      // Ignore if finger moved more than 10px (it's a scroll, not a tap)
+      const t = e.changedTouches[0];
+      const dx = Math.abs(t.clientX - _tapX);
+      const dy = Math.abs(t.clientY - _tapY);
+      if (dx > 10 || dy > 10) return;
+      if (e.target.closest('button')) return;
+      const card = e.target.closest('.card-hero, .card-compact, .card-std, .card');
+      if (!card || !card.dataset.id) return;
+      e.preventDefault();
+      const type = (card.classList.contains('card') && !card.classList.contains('card-std')) ? 'event' : 'venue';
+      openModal(card.dataset.id, type);
+    }, { passive: false });
+  }
 
   loadSiteCopy();
   renderCityGrid();
