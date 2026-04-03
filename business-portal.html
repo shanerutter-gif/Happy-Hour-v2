@@ -1502,6 +1502,8 @@
         const err = await r.json().catch(() => ({}));
         throw new Error(err.message || 'Submission failed');
       }
+      // Loops: venue_request_submitted event
+      _sendPortalLoopsEvent(email, 'venue_request_submitted', { venueName: name, citySlug: city });
       // Show success
       hideMsg('add-venue-msg');
       document.getElementById('new-venue-success-email').textContent = email;
@@ -1518,6 +1520,16 @@
   // ─────────────────────────────────────────────
   // SUBMIT CLAIM
   // ─────────────────────────────────────────────
+  // Loops event helper for business portal (fire-and-forget)
+  function _sendPortalLoopsEvent(email, eventName, properties) {
+    if (!email) return;
+    fetch('/api/loops-event', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, eventName, properties }),
+    }).catch(() => {});
+  }
+
   async function submitClaim() {
     if (!selectedVenueId) return showMsg('claim-msg', 'Please select a venue first.', 'error');
     const name = document.getElementById('claim-name').value.trim();
@@ -1542,6 +1554,8 @@
       document.getElementById('claim-step-2').style.display = 'none';
       document.getElementById('claim-success').style.display = 'block';
       document.getElementById('success-email').textContent = email;
+      // Loops: venue_claimed event
+      _sendPortalLoopsEvent(email, 'venue_claimed', { venueId: selectedVenueId, contactName: name });
       loadDashboard();
     } else {
       showMsg('claim-msg', 'Something went wrong. Please try again.', 'error');

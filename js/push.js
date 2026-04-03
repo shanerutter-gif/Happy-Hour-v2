@@ -85,6 +85,8 @@ async function savePushToken(token, platformOverride) {
       updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id, platform' });
     console.log('[Push] Token saved (' + platform + ')');
+    // Loops: push_opt_in event (fire-and-forget)
+    if (typeof sendLoopsEvent === 'function') sendLoopsEvent('push_opt_in', { platform });
   } catch(e) {
     console.warn('[Push] Token save failed:', e);
   }

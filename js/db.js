@@ -170,6 +170,17 @@ function triggerLoopsOnboarding(email, firstName, userId, source) {
   }).catch(e => console.warn('[Loops] Onboarding trigger failed:', e.message));
 }
 
+// ── LOOPS EVENTS (fire-and-forget) ───────────────────
+function sendLoopsEvent(eventName, properties) {
+  const email = currentUser?.email;
+  if (!email) return;
+  fetch('/api/loops-event', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, eventName, properties }),
+  }).catch(e => console.warn(`[Loops] Event "${eventName}" failed:`, e.message));
+}
+
 // ── AUTH ───────────────────────────────────────────────
 async function authSignIn(email, password) {
   try {
@@ -433,6 +444,12 @@ async function postReview({ itemId, itemType = 'venue', rating, text, guestName 
 
   const { data, error } = await client.from('reviews').insert(payload).select().single();
   if (error) console.error('postReview error:', error);
+  // Loops: first_review event
+  if (!error && session?.user?.id) {
+    db.from('reviews').select('id').eq('user_id', session.user.id).then(({ data: all }) => {
+      if (all?.length === 1) sendLoopsEvent('first_review', { itemId, itemType, rating });
+    }).catch(() => {});
+  }
   return { data, error };
 }
 async function updateReview(reviewId, { rating, text }) {
@@ -479,6 +496,7 @@ async function removeGoingTonight(userId, venueId, date) { return removeCheckIn(
 async function submitVenueRequestToDB(payload) {
   const { data, error } = await db.from('venue_requests').insert(payload);
   if (error) console.error('submitVenueRequest error:', error);
+  if (!error) sendLoopsEvent('venue_request_submitted', { venueName: payload.venue_name, citySlug: payload.city_slug });
   return { data, error };
 }
 
@@ -514,8 +532,20 @@ async function addCheckIn({ userId, venueId, citySlug, date, note }) {
     await logActivity(userId, 'check_in', venueId, { note });
     // Check badges
     await checkAndAwardBadges(userId);
+    // Loops events: first check-in + milestones
+    _fireCheckinLoopsEvents(userId, venueId);
     return true;
   } catch(e) { console.warn('addCheckIn error', e); return false; }
+}
+async function _fireCheckinLoopsEvents(userId, venueId) {
+  try {
+    const { data } = await db.from('check_ins').select('id').eq('user_id', userId);
+    const count = data?.length || 0;
+    if (count === 1) sendLoopsEvent('first_checkin', { venueId });
+    if (count === 3 || count === 5 || count === 10 || count === 25 || count === 50) {
+      sendLoopsEvent('checkin_streak', { count, venueId });
+    }
+  } catch(e) {}
 }
 async function removeCheckIn(userId, venueId, date) {
   try {
@@ -568,6 +598,22 @@ async function followUser(followerId, followingId) {
   try {
     const { error } = await db.from('user_follows').insert({ follower_id: followerId, following_id: followingId });
     if (error) { console.warn('followUser error:', error.message); return false; }
+    // Loops: first_follow (for the person doing the follow)
+    db.from('user_follows').select('id').eq('follower_id', followerId).then(({ data }) => {
+      if (data?.length === 1) sendLoopsEvent('first_follow', { followingId });
+    }).catch(() => {});
+    // Loops: got_first_follower (for the person being followed)
+    db.from('user_follows').select('id').eq('following_id', followingId).then(async ({ data }) => {
+      if (data?.length === 1) {
+        // Look up their email to send the event
+        const { data: profile } = await db.from('profiles').select('id').eq('id', followingId).single();
+        if (profile) {
+          // We need their email from auth — but we can only get it if it's the current user
+          // Instead, send via the follower's email with the followingId as context
+          sendLoopsEvent('got_first_follower', { followedUserId: followingId, followerId });
+        }
+      }
+    }).catch(() => {});
     return true;
   } catch(e) { return false; }
 }
@@ -1018,6 +1064,8 @@ async function toggleLike(postId, postType, userId) {
       return { liked: false };
     } else {
       await client.from('social_likes').insert({ post_id: postId, post_type: postType, user_id: userId });
+      // Loops: post_liked — fire for the liker (could trigger "your community is active" campaigns)
+      sendLoopsEvent('post_liked', { postId, postType });
       return { liked: true };
     }
   } catch(e) { console.error('toggleLike:', e); return null; }
