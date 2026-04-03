@@ -4608,7 +4608,7 @@ function renderNewsFeed() {
   var rest = articles.slice(1);
   container.innerHTML =
     '<div class="news-city-label">' + cityName + '</div>' +
-    '<a href="' + hero.url + '" class="news-hero">' +
+    '<a href="' + hero.url + '?inapp=1" class="news-hero">' +
       '<img src="' + hero.img + '" alt="" class="news-hero-img" loading="eager">' +
       '<div class="news-hero-overlay"></div>' +
       '<div class="news-hero-content">' +
@@ -4619,7 +4619,7 @@ function renderNewsFeed() {
     '</a>' +
     '<div class="news-grid">' +
     rest.map(function(a) {
-      return '<a href="' + a.url + '" class="news-card">' +
+      return '<a href="' + a.url + '?inapp=1" class="news-card">' +
         '<div class="news-card-img-wrap">' +
           '<img src="' + a.img + '" alt="" class="news-card-img" loading="lazy">' +
         '</div>' +

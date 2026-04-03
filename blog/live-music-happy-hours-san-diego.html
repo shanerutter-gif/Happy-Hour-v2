@@ -62,7 +62,7 @@
   </div>
   <a href="javascript:history.back()" class="blog-nav-back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>Back</a>
 </nav>
-<script>if(window.navigator.standalone||window.matchMedia('(display-mode:standalone)').matches)document.documentElement.classList.add('standalone');</script>
+<script>if(window.navigator.standalone||window.matchMedia('(display-mode:standalone)').matches||/[?&]inapp=1/.test(location.search))document.documentElement.classList.add('standalone');</script>
 
 <article class="blog-article">
   <header class="blog-article-header">
