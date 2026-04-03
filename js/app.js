@@ -915,7 +915,38 @@ function renderSocialTab(tab) {
     return;
   }
 
-  container.innerHTML = filtered.map(item => renderSocialItem(item)).join('');
+  // ── Modular masonry layout ──
+  // Photo/video posts → full-width hero cards
+  // Text-only posts → batched into 2-up compact rows with occasional full-width singles
+  let html = '';
+  let textBatch = [];
+  let batchIdx = 0;
+
+  const flushTextBatch = () => {
+    if (!textBatch.length) return;
+    // Every 3rd batch, let the first item be full-width for rhythm
+    while (textBatch.length > 0) {
+      if (textBatch.length >= 2 && batchIdx % 3 !== 2) {
+        html += `<div class="sf-compact-row">${renderSocialItem(textBatch.shift(), 'compact')}${renderSocialItem(textBatch.shift(), 'compact')}</div>`;
+      } else {
+        html += renderSocialItem(textBatch.shift(), 'wide');
+      }
+      batchIdx++;
+    }
+  };
+
+  filtered.forEach(item => {
+    const hasMedia = item.type === 'photo' || (item.type === 'check_in' && (item.meta?.photo_url || item.meta?.video_url));
+    if (hasMedia) {
+      flushTextBatch();
+      html += renderSocialItem(item, 'hero');
+    } else {
+      textBatch.push(item);
+    }
+  });
+  flushTextBatch();
+
+  container.innerHTML = html;
   observeFeedVideos();
 }
 
@@ -926,7 +957,7 @@ function shareSpotsWithFriend() {
   else { window.open(`sms:?body=${encodeURIComponent(msg)}`, '_blank'); }
 }
 
-function renderSocialItem(item) {
+function renderSocialItem(item, variant) {
   const allItems = [...(state.venues || []), ...(state.events || [])];
   const venue = item.venue_id ? allItems.find(v => String(v.id) === String(item.venue_id)) : null;
   const venueName = venue?.name || item.venue_name || 'a spot';
@@ -936,8 +967,6 @@ function renderSocialItem(item) {
   const avatarHtml = initialsAvatar(displayName, '', profile.avatar_emoji, profile.avatar_url);
   const isMe = item.user_id === currentUser?.id;
   const timeAgo = fmtDate(item.created_at);
-  const followBadge = item.isFollowing && !isMe
-    ? '<span class="social-follow-badge">Following</span>' : '';
 
   const profileClick = !isMe
     ? `onclick="openPublicProfile('${item.user_id}')" style="cursor:pointer"` : '';
@@ -949,18 +978,44 @@ function renderSocialItem(item) {
   const likeCount = item._likeCount || 0;
   const isLiked = item._liked || false;
   const commentCount = item._commentCount || 0;
-  // Store meta in a global map so we don't need to serialize it into onclick attributes
   if (!window._socialPostMeta) window._socialPostMeta = {};
   window._socialPostMeta[postId] = item.meta || null;
-  const reportBtn = `<button class="social-report-btn" onclick="event.stopPropagation();openReportMenu('${postType}','${postId}','${item.user_id}',${isMe})" title="${isMe ? 'Options' : 'Report'}">···</button>`;
-  const commentSection = `
-    <div class="social-actions-bar" id="actions-${postId}">
-      <button class="social-like-btn${isLiked ? ' liked' : ''}" id="like-${postId}" onclick="doToggleLike('${postId}','${postType}',this)">
-        ${isLiked ? ICN.heartFill : ICN.heart} <span class="like-count">${likeCount || ''}</span>
+
+  // ── Action type labels ──
+  const actionVerbs = { photo: 'checked in at', check_in: 'checked in at', review: 'reviewed', favorite: 'saved', going_tonight: 'is going to', tagged_at: 'was tagged at' };
+  const actionVerb = actionVerbs[item.type] || 'visited';
+  const actionSuffix = item.type === 'going_tonight' ? ' tonight' : '';
+
+  // ── Type icons ──
+  const typeIcons = { check_in: '📍', review: '★', favorite: '♥', going_tonight: '🔥', tagged_at: '🏷' };
+  const typeIcon = typeIcons[item.type] || '📍';
+
+  // ── Rating display ──
+  const rating = item.meta?.rating || 0;
+  const ratingHtml = rating ? `<span class="sf-stars">${'★'.repeat(rating)}${'☆'.repeat(5-rating)}</span>` : '';
+
+  // ── Caption / note ──
+  const caption = item.caption || item.meta?.note || item.meta?.text || '';
+
+  // ── Photo URL ──
+  const photoUrl = item.photo_url || item.meta?.photo_url || '';
+  const videoUrl = item.meta?.video_url || '';
+  const videoPoster = item.meta?.video_poster || '';
+
+  // ── Follow badge (glass pill) ──
+  const followPill = (item.isFollowing && !isMe)
+    ? '<span class="sf-follow-pill">Following</span>' : '';
+
+  // ── Comment section (shared across all variants) ──
+  const actionBar = `
+    <div class="sf-actions" id="actions-${postId}">
+      <button class="sf-action-btn${isLiked ? ' sf-liked' : ''}" id="like-${postId}" onclick="doToggleLike('${postId}','${postType}',this)">
+        ${isLiked ? ICN.heartFill : ICN.heart}${likeCount ? `<span>${likeCount}</span>` : ''}
       </button>
-      <button class="social-comments-toggle" onclick="toggleComments('${postId}','${postType}',this)">
-        ${ICN.comment} Comments${commentCount ? ` (${commentCount})` : ''}
+      <button class="sf-action-btn" onclick="toggleComments('${postId}','${postType}',this)">
+        ${ICN.comment}${commentCount ? `<span>${commentCount}</span>` : ''}
       </button>
+      <button class="sf-action-btn sf-more" onclick="event.stopPropagation();openReportMenu('${postType}','${postId}','${item.user_id}',${isMe})" title="${isMe ? 'Options' : 'Report'}">···</button>
     </div>
     <div class="social-comments-section" id="comments-${postId}" style="display:none">
       <div class="social-comments-body">
@@ -973,177 +1028,113 @@ function renderSocialItem(item) {
       </div>
     </div>`;
 
-  // ── Photo post — full card with image ──
-  if (item.type === 'photo') {
-    return `<div class="social-card social-card--photo">
-      <div class="social-card-header">
-        <div class="social-avatar" ${profileClick}>${avatarHtml}</div>
-        <div class="social-card-meta" style="flex:1">
-          ${followBadge ? `<div class="social-follow-badge-row">${followBadge}</div>` : ''}
-          <div class="social-card-name" ${profileClick}>${esc(displayName)}</div>
-          <div class="social-card-action">checked in at <span class="social-venue-link" ${venueClick}>${esc(venueName)}</span></div>
-          <div class="social-card-time">${neighborhood ? neighborhood + ' · ' : ''}${timeAgo}</div>
+  // ═══════════════════════════════════════════
+  // HERO VARIANT — full-bleed photo/video card
+  // ═══════════════════════════════════════════
+  if (variant === 'hero') {
+    if (videoUrl) {
+      return `<div class="sf-hero">
+        <div class="sf-hero-media" onclick="toggleFeedVideo(this)">
+          <video class="social-video" data-src="${esc(videoUrl)}" playsinline muted loop preload="none"
+            ${videoPoster ? `poster="${esc(videoPoster)}"` : ''}
+            onerror="this.closest('.sf-hero-media').remove()"></video>
+          <div class="social-video-play-overlay">${ICN.play || '▶'}</div>
+          <div class="social-video-mute-btn" onclick="event.stopPropagation();toggleFeedVideoMute(this)">${ICN.volumeOff || '🔇'}</div>
+          <div class="sf-hero-grad"></div>
         </div>
-        ${reportBtn}
-      </div>
-      <div class="social-photo-wrap" ${venueClick}>
-        <img class="social-photo" src="${esc(item.photo_url)}" alt="${esc(venueName)}" loading="lazy"
-          onerror="this.closest('.social-card').remove()">
-      </div>
-      ${item.caption ? `<div class="social-caption">${esc(item.caption)}</div>` : ''}
-      ${commentSection}
-    </div>`;
-  }
-
-  // ── Check-in with photo (from manual post) ──
-  if (item.type === 'check_in' && item.meta?.photo_url) {
-    return `<div class="social-card social-card--photo">
-      <div class="social-card-header">
-        <div class="social-avatar" ${profileClick}>${avatarHtml}</div>
-        <div class="social-card-meta" style="flex:1">
-          ${followBadge ? `<div class="social-follow-badge-row">${followBadge}</div>` : ''}
-          <div class="social-card-name" ${profileClick}>${esc(displayName)}</div>
-          <div class="social-card-action">checked in at <span class="social-venue-link" ${venueClick}>${esc(venueName)}</span></div>
-          <div class="social-card-time">${neighborhood ? neighborhood + ' · ' : ''}${timeAgo}</div>
-        </div>
-        ${reportBtn}
-      </div>
-      <div class="social-photo-wrap">
-        <img class="social-photo" src="${esc(item.meta.photo_url)}" alt="${esc(venueName)}" loading="lazy"
-          onerror="this.closest('.social-photo-wrap').remove()">
-      </div>
-      ${item.meta?.note ? `<div class="social-caption">${esc(item.meta.note)}</div>` : ''}
-      ${item.meta?.rating ? `<div style="font-size:12px;color:var(--coral);padding:0 16px 8px">${'★'.repeat(item.meta.rating)}${'☆'.repeat(5-item.meta.rating)}</div>` : ''}
-      ${commentSection}
-    </div>`;
-  }
-
-  // ── Check-in with video (from manual post) ──
-  if (item.type === 'check_in' && item.meta?.video_url) {
-    return `<div class="social-card social-card--video">
-      <div class="social-card-header">
-        <div class="social-avatar" ${profileClick}>${avatarHtml}</div>
-        <div class="social-card-meta" style="flex:1">
-          ${followBadge ? `<div class="social-follow-badge-row">${followBadge}</div>` : ''}
-          <div class="social-card-name" ${profileClick}>${esc(displayName)}</div>
-          <div class="social-card-action">checked in at <span class="social-venue-link" ${venueClick}>${esc(venueName)}</span></div>
-          <div class="social-card-time">${neighborhood ? neighborhood + ' · ' : ''}${timeAgo}</div>
-        </div>
-        ${reportBtn}
-      </div>
-      <div class="social-video-wrap" onclick="toggleFeedVideo(this)">
-        <video class="social-video" data-src="${esc(item.meta.video_url)}" playsinline muted loop preload="none"
-          ${item.meta.video_poster ? `poster="${esc(item.meta.video_poster)}"` : ''}
-          onerror="this.closest('.social-video-wrap').remove()"></video>
-        <div class="social-video-play-overlay">${ICN.play || '▶'}</div>
-        <div class="social-video-mute-btn" onclick="event.stopPropagation();toggleFeedVideoMute(this)">
-          ${ICN.volumeOff || '🔇'}
-        </div>
-      </div>
-      ${item.meta?.note ? `<div class="social-caption">${esc(item.meta.note)}</div>` : ''}
-      ${item.meta?.rating ? `<div style="font-size:12px;color:var(--coral);padding:0 16px 8px">${'★'.repeat(item.meta.rating)}${'☆'.repeat(5-item.meta.rating)}</div>` : ''}
-      ${commentSection}
-    </div>`;
-  }
-
-  // ── Check-in (no photo) ──
-  if (item.type === 'check_in') {
-    return `<div class="social-card social-card--row">
-      <div class="social-row">
-        <div class="social-avatar" ${profileClick}>${avatarHtml}</div>
-        <div class="social-row-body">
-          ${followBadge ? `<div class="social-follow-badge-row">${followBadge}</div>` : ''}
-          <div class="social-row-text">
-            <span class="social-row-name" ${profileClick}>${esc(displayName)}</span>
-            checked in at <span class="social-venue-link" ${venueClick}>${esc(venueName)}</span>
+        <div class="sf-hero-info">
+          <div class="sf-hero-top">${followPill}</div>
+          <div class="sf-hero-user" ${profileClick}>
+            <div class="sf-hero-avatar">${avatarHtml}</div>
+            <span class="sf-hero-name">${esc(displayName)}</span>
           </div>
-          <div class="social-row-meta">${neighborhood ? neighborhood + ' · ' : ''}${timeAgo}</div>
-          ${item.meta?.note ? `<div class="social-row-note">"${esc(item.meta.note)}"</div>` : ''}
-          ${item.meta?.rating ? `<div style="font-size:12px;color:var(--coral);margin-top:2px">${'★'.repeat(item.meta.rating)}${'☆'.repeat(5-item.meta.rating)}</div>` : ''}
+          <div class="sf-hero-venue" ${venueClick}>${esc(venueName)}</div>
+          <div class="sf-hero-meta">${neighborhood ? `<span>${esc(neighborhood)}</span><span class="sf-dot"></span>` : ''}<span>${timeAgo}</span></div>
+          ${caption ? `<div class="sf-hero-caption">${esc(caption)}</div>` : ''}
+          ${ratingHtml ? `<div class="sf-hero-rating">${ratingHtml}</div>` : ''}
         </div>
-        <div class="social-row-icon"><span class="social-report-btn" onclick="event.stopPropagation();openReportMenu('${postType}','${postId}','${item.user_id}',${isMe})" title="${isMe ? 'Options' : 'Report'}">···</span></div>
+        ${actionBar}
+      </div>`;
+    }
+    return `<div class="sf-hero">
+      <div class="sf-hero-media" ${venueClick}>
+        <img class="sf-hero-img" src="${esc(photoUrl)}" alt="${esc(venueName)}" loading="lazy"
+          onerror="this.closest('.sf-hero').style.background='linear-gradient(135deg,#2A1F14,#1A1208)';this.remove()">
+        <div class="sf-hero-grad"></div>
       </div>
-      ${commentSection}
+      <div class="sf-hero-info">
+        <div class="sf-hero-top">${followPill}</div>
+        <div class="sf-hero-user" ${profileClick}>
+          <div class="sf-hero-avatar">${avatarHtml}</div>
+          <span class="sf-hero-name">${esc(displayName)}</span>
+        </div>
+        <div class="sf-hero-venue" ${venueClick}>${esc(venueName)}</div>
+        <div class="sf-hero-meta">${neighborhood ? `<span>${esc(neighborhood)}</span><span class="sf-dot"></span>` : ''}<span>${timeAgo}</span></div>
+        ${caption ? `<div class="sf-hero-caption">${esc(caption)}</div>` : ''}
+        ${ratingHtml ? `<div class="sf-hero-rating">${ratingHtml}</div>` : ''}
+      </div>
+      ${actionBar}
     </div>`;
   }
 
-  // ── Review ──
-  if (item.type === 'review') {
-    const stars = item.meta?.rating ? '●'.repeat(item.meta.rating) + '○'.repeat(5 - item.meta.rating) : '';
-    return `<div class="social-card social-card--row">
-      <div class="social-row" ${venueClick}>
-        <div class="social-avatar" ${profileClick}>${avatarHtml}</div>
-        <div class="social-row-body">
-          ${followBadge ? `<div class="social-follow-badge-row">${followBadge}</div>` : ''}
-          <div class="social-row-text">
-            <span class="social-row-name" ${profileClick}>${esc(displayName)}</span>
-            reviewed <span class="social-venue-link" ${venueClick}>${esc(venueName)}</span>
-          </div>
-          ${stars ? `<div class="social-row-stars">${stars}</div>` : ''}
-          ${item.meta?.text ? `<div class="social-row-note">"${esc(item.meta.text)}"</div>` : ''}
-          <div class="social-row-meta">${neighborhood ? neighborhood + ' · ' : ''}${timeAgo}</div>
-        </div>
-        <span class="social-report-btn" onclick="event.stopPropagation();openReportMenu('review','${postId}','${item.user_id}',${isMe})" title="${isMe ? 'Options' : 'Report'}">···</span>
+  // ═══════════════════════════════════════════
+  // COMPACT VARIANT — small card for 2-up grid
+  // ═══════════════════════════════════════════
+  if (variant === 'compact') {
+    return `<div class="sf-compact" ${venueClick}>
+      <div class="sf-compact-accent"></div>
+      <div class="sf-compact-icon">${typeIcon}</div>
+      <div class="sf-compact-user" ${profileClick}>
+        <div class="sf-compact-avatar">${avatarHtml}</div>
+        <span class="sf-compact-name">${esc(displayName)}</span>
       </div>
-      ${commentSection}
+      <div class="sf-compact-venue">${esc(venueName)}</div>
+      ${ratingHtml ? `<div class="sf-compact-rating">${ratingHtml}</div>` : ''}
+      ${caption ? `<div class="sf-compact-caption">${esc(caption)}</div>` : ''}
+      <div class="sf-compact-meta">${esc(neighborhood || timeAgo)}</div>
+      <div class="sf-compact-actions">
+        <button class="sf-pill-btn${isLiked ? ' sf-liked' : ''}" id="like-${postId}" onclick="event.stopPropagation();doToggleLike('${postId}','${postType}',this)">
+          ${isLiked ? ICN.heartFill : ICN.heart}${likeCount ? ` ${likeCount}` : ''}
+        </button>
+        ${commentCount ? `<button class="sf-pill-btn" onclick="event.stopPropagation();toggleComments('${postId}','${postType}',this)">${ICN.comment} ${commentCount}</button>` : ''}
+      </div>
+      <div class="social-comments-section" id="comments-${postId}" style="display:none">
+        <div class="social-comments-body">
+          <div class="social-comments-list" id="clist-${postId}"></div>
+          ${currentUser ? `<div class="social-comment-compose">
+            <input class="social-comment-input" id="cinput-${postId}" type="text" placeholder="Comment..." maxlength="280"
+              onkeydown="if(event.key==='Enter')submitComment('${postId}','${postType}')">
+            <button class="social-comment-send" onclick="submitComment('${postId}','${postType}')">→</button>
+          </div>` : ''}
+        </div>
+      </div>
     </div>`;
   }
 
-  // ── Favorite ──
-  if (item.type === 'favorite') {
-    return `<div class="social-card social-card--row">
-      <div class="social-row" ${venueClick}>
-        <div class="social-avatar" ${profileClick}>${avatarHtml}</div>
-        <div class="social-row-body">
-          ${followBadge ? `<div class="social-follow-badge-row">${followBadge}</div>` : ''}
-          <div class="social-row-text">
-            <span class="social-row-name" ${profileClick}>${esc(displayName)}</span>
-            saved <span class="social-venue-link" ${venueClick}>${esc(venueName)}</span>
-          </div>
-          <div class="social-row-meta">${neighborhood ? neighborhood + ' · ' : ''}${timeAgo}</div>
-        </div>
+  // ═══════════════════════════════════════════
+  // WIDE VARIANT — full-width text card
+  // ═══════════════════════════════════════════
+  return `<div class="sf-wide" ${venueClick}>
+    <div class="sf-wide-accent"></div>
+    <div class="sf-wide-main">
+      <div class="sf-wide-left">
+        <div class="sf-wide-avatar" ${profileClick}>${avatarHtml}</div>
       </div>
-      ${commentSection}
-    </div>`;
-  }
-
-  // ── Going tonight ──
-  if (item.type === 'going_tonight') {
-    return `<div class="social-card social-card--row">
-      <div class="social-row" ${venueClick}>
-        <div class="social-avatar" ${profileClick}>${avatarHtml}</div>
-        <div class="social-row-body">
-          ${followBadge ? `<div class="social-follow-badge-row">${followBadge}</div>` : ''}
-          <div class="social-row-text">
-            <span class="social-row-name" ${profileClick}>${esc(displayName)}</span>
-            is going to <span class="social-venue-link" ${venueClick}>${esc(venueName)}</span> tonight
-          </div>
-          <div class="social-row-meta">${neighborhood ? neighborhood + ' · ' : ''}${timeAgo}</div>
+      <div class="sf-wide-body">
+        <div class="sf-wide-headline">
+          ${followPill}
+          <span class="sf-wide-name" ${profileClick}>${esc(displayName)}</span>
+          <span class="sf-wide-verb">${actionVerb}</span>
+          <span class="sf-wide-venue">${esc(venueName)}</span>${actionSuffix}
         </div>
+        ${ratingHtml ? `<div class="sf-wide-rating">${ratingHtml}</div>` : ''}
+        ${caption ? `<div class="sf-wide-caption">"${esc(caption)}"</div>` : ''}
+        <div class="sf-wide-meta">${neighborhood ? `${esc(neighborhood)} · ` : ''}${timeAgo}</div>
       </div>
-      ${commentSection}
-    </div>`;
-  }
-
-  // ── Tagged at (friend tag) ──
-  if (item.type === 'tagged_at') {
-    return `<div class="social-card social-card--row">
-      <div class="social-row" ${venueClick}>
-        <div class="social-avatar" ${profileClick}>${avatarHtml}</div>
-        <div class="social-row-body">
-          ${followBadge ? `<div class="social-follow-badge-row">${followBadge}</div>` : ''}
-          <div class="social-row-text">
-            <span class="social-row-name" ${profileClick}>${esc(displayName)}</span>
-            was tagged at <span class="social-venue-link" ${venueClick}>${esc(venueName)}</span>
-          </div>
-          <div class="social-row-meta">${neighborhood ? neighborhood + ' · ' : ''}${timeAgo}</div>
-        </div>
-      </div>
-      ${commentSection}
-    </div>`;
-  }
-
-  return '';
+      <div class="sf-wide-icon">${typeIcon}</div>
+    </div>
+    ${actionBar}
+  </div>`;
 }
 // ── SOCIAL COMMENTS ──
 async function toggleComments(postId, postType, btn) {
@@ -1252,15 +1243,15 @@ async function doToggleLike(postId, postType, btn) {
   if(typeof haptic==='function')haptic('light');
   const result = await toggleLike(postId, postType, currentUser.id);
   if (!result) return;
-  const countEl = btn.querySelector('.like-count');
+  const countEl = btn.querySelector('span');
   const currentCount = parseInt(countEl?.textContent || '0', 10) || 0;
   if (result.liked) {
-    btn.classList.add('liked');
-    btn.innerHTML = `${ICN.heartFill} <span class="like-count">${currentCount + 1}</span>`;
+    btn.classList.add('liked', 'sf-liked');
+    btn.innerHTML = `${ICN.heartFill}<span>${currentCount + 1}</span>`;
   } else {
-    btn.classList.remove('liked');
+    btn.classList.remove('liked', 'sf-liked');
     const newCount = Math.max(0, currentCount - 1);
-    btn.innerHTML = `${ICN.heart} <span class="like-count">${newCount || ''}</span>`;
+    btn.innerHTML = `${ICN.heart}${newCount ? `<span>${newCount}</span>` : ''}`;
   }
 }
 
