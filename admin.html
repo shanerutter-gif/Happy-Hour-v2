@@ -3374,56 +3374,94 @@ Roundup</textarea>
   let crmActivities = [];
 
   // ── TABLE INIT (auto-create if needed) ──
+  let _crmTablesReady = false;
+
   async function ensureCrmTables() {
-    // Check if crm_contacts table exists by trying a lightweight query
+    if (_crmTablesReady) return true;
     try {
       const r = await fetch(`${SUPABASE_URL}/rest/v1/crm_contacts?select=id&limit=1`, { headers: svcHeaders() });
-      if (r.ok) return true;
+      if (r.ok) { _crmTablesReady = true; return true; }
     } catch(e) {}
-    // Tables don't exist — create them via SQL
+
+    // Tables don't exist — try the migration endpoint
     try {
-      const sql = `
-        CREATE TABLE IF NOT EXISTS crm_contacts (
+      const migSql = `
+        CREATE TABLE IF NOT EXISTS public.crm_contacts (
           id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-          contact_name text NOT NULL,
-          business_name text,
-          email text,
-          phone text,
-          city_slug text,
-          stage text DEFAULT 'lead' CHECK (stage IN ('lead','contacted','demo','proposal','won','lost')),
-          venue_id uuid REFERENCES venues(id),
-          source text DEFAULT 'manual',
-          created_at timestamptz DEFAULT now(),
-          updated_at timestamptz DEFAULT now()
+          contact_name text NOT NULL, business_name text, email text, phone text,
+          city_slug text, stage text DEFAULT 'lead' CHECK (stage IN ('lead','contacted','demo','proposal','won','lost')),
+          venue_id uuid REFERENCES public.venues(id), source text DEFAULT 'manual',
+          created_at timestamptz DEFAULT now(), updated_at timestamptz DEFAULT now()
         );
-        CREATE TABLE IF NOT EXISTS crm_notes (
+        CREATE TABLE IF NOT EXISTS public.crm_notes (
           id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-          contact_id uuid NOT NULL REFERENCES crm_contacts(id) ON DELETE CASCADE,
-          note text NOT NULL,
-          author text,
+          contact_id uuid NOT NULL REFERENCES public.crm_contacts(id) ON DELETE CASCADE,
+          note text NOT NULL, author text, created_at timestamptz DEFAULT now()
+        );
+        CREATE TABLE IF NOT EXISTS public.crm_activities (
+          id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+          contact_id uuid REFERENCES public.crm_contacts(id) ON DELETE CASCADE,
+          activity_type text NOT NULL, description text NOT NULL, meta jsonb DEFAULT '{}',
           created_at timestamptz DEFAULT now()
         );
-        CREATE TABLE IF NOT EXISTS crm_activities (
-          id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-          contact_id uuid REFERENCES crm_contacts(id) ON DELETE CASCADE,
-          activity_type text NOT NULL,
-          description text NOT NULL,
-          meta jsonb DEFAULT '{}',
-          created_at timestamptz DEFAULT now()
-        );
-        CREATE INDEX IF NOT EXISTS idx_crm_contacts_stage ON crm_contacts(stage);
-        CREATE INDEX IF NOT EXISTS idx_crm_notes_contact ON crm_notes(contact_id);
-        CREATE INDEX IF NOT EXISTS idx_crm_activities_contact ON crm_activities(contact_id);
+        CREATE INDEX IF NOT EXISTS idx_crm_contacts_stage ON public.crm_contacts(stage);
+        CREATE INDEX IF NOT EXISTS idx_crm_notes_contact ON public.crm_notes(contact_id);
+        CREATE INDEX IF NOT EXISTS idx_crm_activities_contact ON public.crm_activities(contact_id);
+        ALTER TABLE public.crm_contacts ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE public.crm_notes ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE public.crm_activities ENABLE ROW LEVEL SECURITY;
+        DO $$ BEGIN
+          CREATE POLICY "Service role full access on crm_contacts" ON public.crm_contacts FOR ALL USING (true) WITH CHECK (true);
+        EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+        DO $$ BEGIN
+          CREATE POLICY "Service role full access on crm_notes" ON public.crm_notes FOR ALL USING (true) WITH CHECK (true);
+        EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+        DO $$ BEGIN
+          CREATE POLICY "Service role full access on crm_activities" ON public.crm_activities FOR ALL USING (true) WITH CHECK (true);
+        EXCEPTION WHEN duplicate_object THEN NULL; END $$;
       `;
-      await fetch(`${SUPABASE_URL}/rest/v1/rpc/exec_sql`, {
+      const mr = await fetch('/api/run-migration', {
         method: 'POST',
-        headers: { ...svcHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: sql })
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SERVICE_ROLE_KEY}` },
+        body: JSON.stringify({ sql: migSql })
       });
+      const mj = await mr.json();
+      if (mj.success) {
+        _crmTablesReady = true;
+        showToast('CRM tables created successfully');
+        return true;
+      }
+      console.warn('Migration endpoint response:', mj);
     } catch(e) {
-      console.warn('CRM table init via RPC failed (tables may already exist):', e);
+      console.warn('Migration endpoint failed:', e);
     }
-    return true;
+
+    // Show setup instructions if auto-create failed
+    showCrmSetupInstructions();
+    return false;
+  }
+
+  function showCrmSetupInstructions() {
+    const pages = ['page-crm','page-crm-contacts','page-crm-pipeline','page-crm-activity'];
+    pages.forEach(p => {
+      const el = document.getElementById(p);
+      if (!el) return;
+      el.innerHTML = `
+        <div class="page-title">CRM Setup Required</div>
+        <div class="page-sub">The CRM database tables need to be created before you can use this feature.</div>
+        <div class="request-card" style="max-width:560px">
+          <div style="font-family:'Cabinet Grotesk',sans-serif;font-weight:800;font-size:17px;margin-bottom:10px">Two quick steps:</div>
+          <div style="margin-bottom:16px;line-height:1.8;font-size:14px">
+            <strong>1.</strong> Add a <code style="background:var(--bg2);padding:2px 6px;border-radius:4px;font-size:12px">DATABASE_URL</code> env var in Vercel → Settings → Environment Variables.<br>
+            Format: <code style="background:var(--bg2);padding:2px 6px;border-radius:4px;font-size:11px;word-break:break-all">postgresql://postgres.opcskuzbdfrlnyhraysk:[your-db-password]@aws-0-us-west-1.pooler.supabase.com:6543/postgres</code><br>
+            <span style="font-size:12px;color:var(--muted)">(Find your DB password in Supabase → Project Settings → Database)</span>
+          </div>
+          <div style="margin-bottom:16px;line-height:1.8;font-size:14px">
+            <strong>2.</strong> Or run the SQL manually in Supabase SQL Editor — copy from <code style="background:var(--bg2);padding:2px 6px;border-radius:4px;font-size:12px">sql/crm-tables.sql</code>
+          </div>
+          <button class="crm-btn-primary" onclick="ensureCrmTables().then(ok => { if(ok) loadCrmDashboard(); })">🔄 Retry Connection</button>
+        </div>`;
+    });
   }
 
   // ── FETCH ALL CRM DATA ──
