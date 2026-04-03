@@ -494,6 +494,10 @@
     .cc-dot-fb { background:#1877F2; }
     .cc-dot-li { background:#0A66C2; }
     .cc-dot-tk { background:#000; }
+    .cc-dot-rd { background:#FF4500; }
+    .cc-dot-nd { background:#8ED500; }
+    #cc-publish-btns .cc-platform-btn { background:rgba(255,107,74,0.06); border-color:var(--coral); color:var(--coral); }
+    #cc-publish-btns .cc-platform-btn:hover { background:rgba(255,107,74,0.14); }
 
     /* List view */
     .cc-list { display:flex; flex-direction:column; gap:8px; }
@@ -2183,6 +2187,8 @@ in San Diego</textarea>
               <option value="facebook">Facebook</option>
               <option value="linkedin">LinkedIn</option>
               <option value="tiktok">TikTok</option>
+              <option value="reddit">Reddit</option>
+              <option value="nextdoor">Nextdoor</option>
             </select>
             <select class="cc-input" id="cc-filter-status" style="width:auto;padding:7px 12px;font-size:12px" onchange="ccRender()">
               <option value="">All Status</option>
@@ -2226,6 +2232,8 @@ in San Diego</textarea>
           <button class="cc-platform-btn" data-platform="facebook" onclick="ccTogglePlatform(this)"><span class="cc-pl-icon cc-dot-fb"></span> Facebook</button>
           <button class="cc-platform-btn" data-platform="linkedin" onclick="ccTogglePlatform(this)"><span class="cc-pl-icon cc-dot-li"></span> LinkedIn</button>
           <button class="cc-platform-btn" data-platform="tiktok" onclick="ccTogglePlatform(this)"><span class="cc-pl-icon cc-dot-tk"></span> TikTok</button>
+          <button class="cc-platform-btn" data-platform="reddit" onclick="ccTogglePlatform(this)"><span class="cc-pl-icon cc-dot-rd"></span> Reddit</button>
+          <button class="cc-platform-btn" data-platform="nextdoor" onclick="ccTogglePlatform(this)"><span class="cc-pl-icon cc-dot-nd"></span> Nextdoor</button>
         </div>
       </div>
 
@@ -2282,6 +2290,11 @@ in San Diego</textarea>
         <div class="cc-label">Internal Notes</div>
         <textarea class="cc-input" id="cc-notes" placeholder="Notes for your team..." style="min-height:60px"></textarea>
       </div>
+    </div>
+    <!-- Publish row -->
+    <div id="cc-publish-row" style="padding:0 24px 8px;display:none">
+      <div class="cc-label" style="margin-bottom:6px">Publish To</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap" id="cc-publish-btns"></div>
     </div>
     <div class="cc-modal-footer">
       <div>
@@ -4828,9 +4841,20 @@ in San Diego</textarea>
   let _ccMediaFiles = []; // { file, url, type, name }
   let _ccTags = [];
   const CC_STORAGE_KEY = 'spotd_content_calendar';
-  const CC_PLATFORMS = ['instagram','twitter','facebook','linkedin','tiktok'];
-  const CC_PLATFORM_LABELS = { instagram:'Instagram', twitter:'Twitter / X', facebook:'Facebook', linkedin:'LinkedIn', tiktok:'TikTok' };
-  const CC_PLATFORM_DOTS = { instagram:'cc-dot-ig', twitter:'cc-dot-tw', facebook:'cc-dot-fb', linkedin:'cc-dot-li', tiktok:'cc-dot-tk' };
+  const CC_PLATFORMS = ['instagram','twitter','facebook','linkedin','tiktok','reddit','nextdoor'];
+  const CC_PLATFORM_LABELS = { instagram:'Instagram', twitter:'Twitter / X', facebook:'Facebook', linkedin:'LinkedIn', tiktok:'TikTok', reddit:'Reddit', nextdoor:'Nextdoor' };
+  const CC_PLATFORM_DOTS = { instagram:'cc-dot-ig', twitter:'cc-dot-tw', facebook:'cc-dot-fb', linkedin:'cc-dot-li', tiktok:'cc-dot-tk', reddit:'cc-dot-rd', nextdoor:'cc-dot-nd' };
+
+  // Platform compose URLs — these open the platform's native composer with pre-filled text
+  const CC_PUBLISH_URLS = {
+    twitter: (text) => `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`,
+    facebook: (text) => `https://www.facebook.com/sharer/sharer.php?quote=${encodeURIComponent(text)}`,
+    linkedin: (text) => `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent('https://spotd.biz')}&summary=${encodeURIComponent(text)}`,
+    reddit: (text) => `https://www.reddit.com/submit?type=TEXT&title=${encodeURIComponent(text.split('\n')[0] || text)}&text=${encodeURIComponent(text)}`,
+    nextdoor: () => `https://nextdoor.com/post/`,
+  };
+  // Platforms that support pre-filled compose links
+  const CC_PUBLISHABLE = ['twitter','facebook','linkedin','reddit','nextdoor'];
   const CC_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
   // ── PERSISTENCE (Supabase content_posts table or localStorage fallback) ──
@@ -5108,6 +5132,7 @@ in San Diego</textarea>
     ccRenderTags();
     ccRenderMediaPreviews();
     ccUpdateCharCount();
+    ccRenderPublishBtns();
     document.getElementById('ccComposeModal').classList.add('open');
   }
 
@@ -5118,11 +5143,40 @@ in San Diego</textarea>
     _ccMediaFiles = [];
   }
 
-  function ccTogglePlatform(btn) { btn.classList.toggle('sel'); }
+  function ccTogglePlatform(btn) { btn.classList.toggle('sel'); ccRenderPublishBtns(); }
 
   function ccUpdateCharCount() {
     const len = (document.getElementById('cc-caption').value || '').length;
     document.getElementById('cc-char-count').textContent = len + ' character' + (len !== 1 ? 's' : '');
+  }
+
+  function ccRenderPublishBtns() {
+    const row = document.getElementById('cc-publish-row');
+    const btns = document.getElementById('cc-publish-btns');
+    const selected = [];
+    document.querySelectorAll('#cc-platforms .cc-platform-btn.sel').forEach(btn => selected.push(btn.dataset.platform));
+    const publishable = selected.filter(p => CC_PUBLISHABLE.includes(p));
+    if (!publishable.length) { row.style.display = 'none'; return; }
+    row.style.display = '';
+    btns.innerHTML = publishable.map(p => {
+      const dotClass = CC_PLATFORM_DOTS[p] || '';
+      const label = CC_PLATFORM_LABELS[p] || p;
+      return `<button class="cc-platform-btn sel" style="cursor:pointer" onclick="ccPublishTo('${p}')">
+        <span class="cc-pl-icon ${dotClass}"></span> Open ${label}
+      </button>`;
+    }).join('');
+  }
+
+  function ccPublishTo(platform) {
+    const caption = document.getElementById('cc-caption').value || '';
+    const urlFn = CC_PUBLISH_URLS[platform];
+    if (!urlFn) { showToast(CC_PLATFORM_LABELS[platform] + ' doesn\'t support direct compose links'); return; }
+    const url = urlFn(caption);
+    window.open(url, '_blank');
+    // Copy caption to clipboard as backup
+    navigator.clipboard.writeText(caption).then(() => {
+      showToast('Caption copied to clipboard — paste it into ' + CC_PLATFORM_LABELS[platform]);
+    }).catch(() => {});
   }
 
   // ── MEDIA ──
