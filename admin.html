@@ -488,6 +488,115 @@
     .asset-theme-coral .asset-tag-text { color:#2A1F14; }
     .asset-theme-coral .asset-h1 { color:#F5EFE6; }
     .asset-theme-coral .asset-sub { color:rgba(245,239,230,0.55); }
+
+    /* ═══════════════════════════════════════════════════
+       CRM STYLES
+       ═══════════════════════════════════════════════════ */
+    .crm-kpi-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin-bottom:28px; }
+    .crm-kpi { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:18px 20px; }
+    .crm-kpi-label { font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); font-family:'DM Sans',sans-serif; margin-bottom:4px; }
+    .crm-kpi-value { font-family:'Cabinet Grotesk',sans-serif; font-size:28px; font-weight:900; color:var(--text); }
+    .crm-kpi-sub { font-size:12px; color:var(--muted); margin-top:2px; }
+    .crm-kpi-value .crm-kpi-pct { font-size:13px; font-weight:600; margin-left:6px; }
+    .crm-kpi-pct.up { color:var(--success); }
+    .crm-kpi-pct.down { color:var(--error); }
+
+    /* CRM Section Cards */
+    .crm-section { margin-bottom:28px; }
+    .crm-section-title { font-family:'Cabinet Grotesk',sans-serif; font-size:17px; font-weight:800; margin-bottom:14px; display:flex; align-items:center; gap:8px; }
+    .crm-section-title .crm-count { font-size:12px; font-weight:600; color:var(--muted); }
+
+    /* Pipeline Kanban */
+    .crm-pipeline { display:flex; gap:12px; overflow-x:auto; padding-bottom:8px; -webkit-overflow-scrolling:touch; }
+    .crm-pipeline-col { min-width:200px; flex:1; background:var(--bg2); border-radius:14px; padding:14px; }
+    .crm-pipeline-col-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+    .crm-pipeline-col-title { font-family:'Cabinet Grotesk',sans-serif; font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; }
+    .crm-pipeline-col-count { font-family:'DM Mono',monospace; font-size:11px; background:var(--card); border:1px solid var(--border); border-radius:50px; padding:2px 8px; color:var(--muted); }
+    .crm-pipeline-card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:12px 14px; margin-bottom:8px; cursor:pointer; transition:box-shadow .15s, border-color .15s; }
+    .crm-pipeline-card:hover { box-shadow:0 4px 16px rgba(42,31,20,0.08); border-color:rgba(255,107,74,0.25); }
+    .crm-pipeline-card-name { font-family:'Cabinet Grotesk',sans-serif; font-weight:700; font-size:14px; margin-bottom:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .crm-pipeline-card-meta { font-size:11px; color:var(--muted); }
+    .crm-pipeline-card-tags { display:flex; gap:4px; margin-top:6px; flex-wrap:wrap; }
+    .crm-tag { font-size:9px; font-weight:600; letter-spacing:.3px; padding:2px 7px; border-radius:4px; text-transform:uppercase; }
+    .crm-tag-lead { background:rgba(196,125,14,0.1); color:var(--warn); }
+    .crm-tag-contacted { background:rgba(67,133,255,0.1); color:#4385FF; }
+    .crm-tag-demo { background:rgba(147,51,234,0.1); color:#9333EA; }
+    .crm-tag-proposal { background:rgba(255,107,74,0.1); color:var(--coral); }
+    .crm-tag-won { background:rgba(42,122,90,0.1); color:var(--success); }
+    .crm-tag-lost { background:rgba(192,57,43,0.08); color:var(--error); }
+
+    /* Contact List */
+    .crm-contact-filters { display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap; }
+    .crm-contact-search { background:var(--card); border:1px solid var(--border); border-radius:9px; padding:10px 14px; color:var(--text); font-family:'DM Sans',sans-serif; font-size:14px; outline:none; transition:border-color .2s; flex:1; min-width:200px; }
+    .crm-contact-search:focus { border-color:rgba(255,107,74,0.45); }
+    .crm-filter-select { background:var(--card); border:1px solid var(--border); border-radius:9px; padding:10px 14px; color:var(--text); font-family:'DM Sans',sans-serif; font-size:13px; outline:none; cursor:pointer; max-width:160px; }
+
+    .crm-contact-row { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px 20px; margin-bottom:8px; display:flex; align-items:center; gap:14px; cursor:pointer; transition:box-shadow .15s, border-color .15s; }
+    .crm-contact-row:hover { box-shadow:0 4px 16px rgba(42,31,20,0.08); border-color:rgba(255,107,74,0.2); }
+    .crm-contact-avatar { width:40px; height:40px; border-radius:10px; background:linear-gradient(135deg,var(--coral),#E8943A); color:#fff; display:flex; align-items:center; justify-content:center; font-family:'Cabinet Grotesk',sans-serif; font-weight:800; font-size:15px; flex-shrink:0; }
+    .crm-contact-info { flex:1; min-width:0; }
+    .crm-contact-name { font-family:'Cabinet Grotesk',sans-serif; font-weight:700; font-size:15px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .crm-contact-venue { font-size:12px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .crm-contact-stage { flex-shrink:0; }
+    .crm-contact-actions { display:flex; gap:6px; flex-shrink:0; }
+    .crm-btn-sm { background:var(--bg2); border:1px solid var(--border); border-radius:7px; padding:6px 12px; font-size:12px; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; color:var(--muted); transition:all .15s; }
+    .crm-btn-sm:hover { border-color:rgba(42,31,20,0.2); color:var(--text); }
+
+    /* Contact Detail Modal */
+    .crm-detail-header { display:flex; gap:16px; align-items:flex-start; margin-bottom:20px; }
+    .crm-detail-avatar { width:56px; height:56px; border-radius:14px; background:linear-gradient(135deg,var(--coral),#E8943A); color:#fff; display:flex; align-items:center; justify-content:center; font-family:'Cabinet Grotesk',sans-serif; font-weight:900; font-size:22px; flex-shrink:0; }
+    .crm-detail-info { flex:1; }
+    .crm-detail-name { font-family:'Cabinet Grotesk',sans-serif; font-weight:900; font-size:22px; }
+    .crm-detail-venue { font-size:13px; color:var(--muted); margin-top:2px; }
+    .crm-detail-meta-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:20px; }
+    .crm-detail-meta-item { background:var(--bg); border-radius:8px; padding:10px 12px; }
+    .crm-detail-meta-label { font-size:9px; letter-spacing:1.2px; text-transform:uppercase; color:var(--muted); margin-bottom:2px; }
+    .crm-detail-meta-value { font-size:14px; font-weight:600; color:var(--text); word-break:break-all; }
+    .crm-detail-meta-value a { color:var(--coral); text-decoration:none; }
+
+    /* Stage Selector */
+    .crm-stage-bar { display:flex; gap:3px; margin-bottom:20px; background:var(--bg); border-radius:9px; padding:3px; }
+    .crm-stage-btn { flex:1; padding:7px 4px; border:none; border-radius:7px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.3px; cursor:pointer; text-align:center; background:transparent; color:var(--muted); transition:all .15s; font-family:'DM Sans',sans-serif; }
+    .crm-stage-btn.active { background:var(--card); color:var(--text); box-shadow:0 1px 4px rgba(42,31,20,0.1); }
+    .crm-stage-btn:hover:not(.active) { color:var(--text); }
+
+    /* Notes */
+    .crm-notes-list { max-height:240px; overflow-y:auto; margin-bottom:12px; }
+    .crm-note { background:var(--bg); border-radius:8px; padding:10px 12px; margin-bottom:6px; }
+    .crm-note-text { font-size:13px; color:var(--text); line-height:1.5; white-space:pre-wrap; }
+    .crm-note-meta { font-size:10px; color:var(--muted); margin-top:4px; }
+    .crm-note-input { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:10px 12px; color:var(--text); font-family:'DM Sans',sans-serif; font-size:13px; outline:none; resize:vertical; min-height:60px; transition:border-color .2s; }
+    .crm-note-input:focus { border-color:rgba(255,107,74,0.45); background:#fff; }
+    .crm-note-actions { display:flex; gap:8px; margin-top:8px; }
+    .crm-btn-primary { background:var(--coral); color:#fff; border:none; border-radius:8px; padding:9px 18px; font-size:13px; font-weight:700; cursor:pointer; font-family:'Cabinet Grotesk',sans-serif; transition:background .15s; }
+    .crm-btn-primary:hover { background:var(--coral2); }
+
+    /* Activity Timeline */
+    .crm-timeline { position:relative; padding-left:20px; }
+    .crm-timeline::before { content:''; position:absolute; left:6px; top:4px; bottom:4px; width:2px; background:var(--border); border-radius:2px; }
+    .crm-timeline-item { position:relative; margin-bottom:14px; padding-left:12px; }
+    .crm-timeline-item::before { content:''; position:absolute; left:-17px; top:6px; width:10px; height:10px; border-radius:50%; background:var(--bg2); border:2px solid var(--border); }
+    .crm-timeline-item.type-note::before { border-color:var(--coral); background:rgba(255,107,74,0.15); }
+    .crm-timeline-item.type-stage::before { border-color:var(--success); background:rgba(42,122,90,0.15); }
+    .crm-timeline-item.type-create::before { border-color:#4385FF; background:rgba(67,133,255,0.15); }
+    .crm-timeline-text { font-size:13px; color:var(--text); }
+    .crm-timeline-date { font-size:11px; color:var(--muted); margin-top:2px; }
+
+    /* Add Contact Form */
+    .crm-add-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px; }
+    .crm-add-row.full { grid-template-columns:1fr; }
+    .crm-add-label { display:block; font-size:9px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); margin-bottom:5px; font-family:'DM Sans',sans-serif; }
+
+    @media(max-width:680px) {
+      .crm-kpi-grid { grid-template-columns:1fr 1fr; }
+      .crm-pipeline { flex-direction:column; }
+      .crm-pipeline-col { min-width:100%; }
+      .crm-contact-actions { display:none; }
+      .crm-detail-meta-grid { grid-template-columns:1fr; }
+      .crm-add-row { grid-template-columns:1fr; }
+      .crm-stage-bar { flex-wrap:wrap; }
+      .crm-stage-btn { flex:0 0 calc(33.33% - 2px); }
+    }
   </style>
 </head>
 <body>
@@ -556,6 +665,11 @@
     <button class="drawer-item" onclick="showPage('venues-top');closeMobileMenu()" id="mob-nav-venues-top">🏆 Top Venues</button>
     <button class="drawer-item" onclick="showPage('cities');closeMobileMenu()" id="mob-nav-cities">🗺️ City Breakdown</button>
     <button class="drawer-item" onclick="showPage('pipeline');closeMobileMenu()" id="mob-nav-pipeline">💰 Revenue Pipeline</button>
+    <div class="drawer-section-label">CRM</div>
+    <button class="drawer-item" onclick="showPage('crm');closeMobileMenu()" id="mob-nav-crm">📊 Dashboard</button>
+    <button class="drawer-item" onclick="showPage('crm-contacts');closeMobileMenu()" id="mob-nav-crm-contacts">👤 Contacts</button>
+    <button class="drawer-item" onclick="showPage('crm-pipeline');closeMobileMenu()" id="mob-nav-crm-pipeline">🔀 Pipeline</button>
+    <button class="drawer-item" onclick="showPage('crm-activity');closeMobileMenu()" id="mob-nav-crm-activity">📋 Activity Log</button>
     <div class="drawer-section-label">Engage</div>
     <button class="drawer-item" onclick="showPage('feedback');closeMobileMenu()" id="mob-nav-feedback">📬 User Feedback</button>
     <button class="drawer-item" onclick="showPage('push');closeMobileMenu()" id="mob-nav-push">🔔 Push Notifications</button>
@@ -601,6 +715,19 @@
       </div>
       <div class="sidebar-item" onclick="showPage('pipeline')" id="nav-pipeline">
         Revenue Pipeline
+      </div>
+      <div class="sidebar-label" style="margin-top:20px;margin-bottom:8px">CRM</div>
+      <div class="sidebar-item" onclick="showPage('crm')" id="nav-crm">
+        📊 Dashboard
+      </div>
+      <div class="sidebar-item" onclick="showPage('crm-contacts')" id="nav-crm-contacts">
+        👤 Contacts
+      </div>
+      <div class="sidebar-item" onclick="showPage('crm-pipeline')" id="nav-crm-pipeline">
+        🔀 Pipeline
+      </div>
+      <div class="sidebar-item" onclick="showPage('crm-activity')" id="nav-crm-activity">
+        📋 Activity Log
       </div>
       <div class="sidebar-label" style="margin-top:20px;margin-bottom:8px">Engage</div>
       <div class="sidebar-item" onclick="showPage('feedback')" id="nav-feedback">
@@ -857,6 +984,190 @@
               </tr></thead>
               <tbody id="pipeline-tbody"><tr><td colspan="6" class="table-empty">Loading…</td></tr></tbody>
             </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════════════════════════════════════════
+           CRM PAGES
+           ═══════════════════════════════════════════════ -->
+
+      <!-- CRM DASHBOARD -->
+      <div class="page" id="page-crm">
+        <div class="page-title">CRM Dashboard</div>
+        <div class="page-sub">Overview of your venue relationships, pipeline, and recent activity.</div>
+
+        <div class="crm-kpi-grid" id="crm-kpi-grid">
+          <div class="crm-kpi">
+            <div class="crm-kpi-label">Total Contacts</div>
+            <div class="crm-kpi-value" id="crm-kpi-contacts">—</div>
+          </div>
+          <div class="crm-kpi">
+            <div class="crm-kpi-label">Active Pipeline</div>
+            <div class="crm-kpi-value" id="crm-kpi-pipeline">—</div>
+            <div class="crm-kpi-sub">Open deals</div>
+          </div>
+          <div class="crm-kpi">
+            <div class="crm-kpi-label">Won This Month</div>
+            <div class="crm-kpi-value" id="crm-kpi-won">—</div>
+          </div>
+          <div class="crm-kpi">
+            <div class="crm-kpi-label">Conversion Rate</div>
+            <div class="crm-kpi-value" id="crm-kpi-conversion">—</div>
+          </div>
+          <div class="crm-kpi">
+            <div class="crm-kpi-label">Avg Days to Close</div>
+            <div class="crm-kpi-value" id="crm-kpi-avg-days">—</div>
+          </div>
+          <div class="crm-kpi">
+            <div class="crm-kpi-label">Lost This Month</div>
+            <div class="crm-kpi-value" id="crm-kpi-lost">—</div>
+          </div>
+        </div>
+
+        <div class="crm-section">
+          <div class="crm-section-title">Pipeline Snapshot</div>
+          <div class="crm-pipeline" id="crm-dash-pipeline"></div>
+        </div>
+
+        <div class="crm-section">
+          <div class="crm-section-title">Recent Activity</div>
+          <div class="crm-timeline" id="crm-dash-timeline"></div>
+        </div>
+      </div>
+
+      <!-- CRM CONTACTS -->
+      <div class="page" id="page-crm-contacts">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:10px">
+          <div class="page-title" style="margin-bottom:0">Contacts</div>
+          <button class="crm-btn-primary" onclick="openAddContactModal()" style="white-space:nowrap">+ Add Contact</button>
+        </div>
+        <div class="page-sub">Manage venue contacts, track deal stages, and add notes.</div>
+
+        <div class="crm-contact-filters">
+          <input class="crm-contact-search" id="crm-contact-search" type="text" placeholder="Search contacts, venues, emails…" oninput="filterCrmContacts()" autocomplete="off">
+          <select class="crm-filter-select" id="crm-stage-filter" onchange="filterCrmContacts()">
+            <option value="">All Stages</option>
+            <option value="lead">Lead</option>
+            <option value="contacted">Contacted</option>
+            <option value="demo">Demo</option>
+            <option value="proposal">Proposal</option>
+            <option value="won">Won</option>
+            <option value="lost">Lost</option>
+          </select>
+          <select class="crm-filter-select" id="crm-city-filter" onchange="filterCrmContacts()">
+            <option value="">All Cities</option>
+            <option value="san-diego">San Diego</option>
+            <option value="los-angeles">Los Angeles</option>
+            <option value="new-york">New York</option>
+            <option value="chicago">Chicago</option>
+            <option value="austin">Austin</option>
+            <option value="miami">Miami</option>
+            <option value="orange-county">Orange County</option>
+          </select>
+        </div>
+
+        <div id="crm-contacts-count" style="font-family:'DM Sans',sans-serif;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:14px"></div>
+        <div id="crm-contacts-list"></div>
+      </div>
+
+      <!-- CRM PIPELINE (KANBAN) -->
+      <div class="page" id="page-crm-pipeline">
+        <div class="page-title">Pipeline</div>
+        <div class="page-sub">Drag-free kanban view of your deal stages. Click a card to manage.</div>
+        <div class="crm-pipeline" id="crm-pipeline-board" style="min-height:400px"></div>
+      </div>
+
+      <!-- CRM ACTIVITY LOG -->
+      <div class="page" id="page-crm-activity">
+        <div class="page-title">Activity Log</div>
+        <div class="page-sub">Complete timeline of all CRM actions — notes, stage changes, and new contacts.</div>
+        <div class="crm-timeline" id="crm-full-timeline" style="min-height:300px">
+          <div class="empty-state"><div class="empty-icon">⏳</div><h3>Loading…</h3></div>
+        </div>
+      </div>
+
+      <!-- CRM CONTACT DETAIL MODAL -->
+      <div class="modal-overlay" id="crmDetailModal">
+        <div class="modal-box" style="max-width:580px;max-height:90vh;overflow-y:auto">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
+            <div style="flex:1"></div>
+            <button onclick="closeCrmDetail()" style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;width:30px;height:30px;cursor:pointer;color:var(--muted);font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0">✕</button>
+          </div>
+          <div id="crm-detail-content"></div>
+        </div>
+      </div>
+
+      <!-- CRM ADD CONTACT MODAL -->
+      <div class="modal-overlay" id="crmAddModal">
+        <div class="modal-box" style="max-width:520px">
+          <div class="modal-title">Add Contact</div>
+          <div class="modal-sub">Create a new CRM contact. Optionally link to an existing venue.</div>
+          <div id="crm-add-form">
+            <div class="crm-add-row">
+              <div>
+                <label class="crm-add-label">Contact Name *</label>
+                <input class="modal-input" id="crm-add-name" placeholder="e.g. John Smith">
+              </div>
+              <div>
+                <label class="crm-add-label">Business / Venue Name</label>
+                <input class="modal-input" id="crm-add-business" placeholder="e.g. The Grass Skirt">
+              </div>
+            </div>
+            <div class="crm-add-row">
+              <div>
+                <label class="crm-add-label">Email</label>
+                <input class="modal-input" id="crm-add-email" type="email" placeholder="john@bar.com">
+              </div>
+              <div>
+                <label class="crm-add-label">Phone</label>
+                <input class="modal-input" id="crm-add-phone" type="tel" placeholder="(619) 555-1234">
+              </div>
+            </div>
+            <div class="crm-add-row">
+              <div>
+                <label class="crm-add-label">City</label>
+                <select class="modal-input" id="crm-add-city">
+                  <option value="">Select city</option>
+                  <option value="san-diego">San Diego</option>
+                  <option value="los-angeles">Los Angeles</option>
+                  <option value="new-york">New York</option>
+                  <option value="chicago">Chicago</option>
+                  <option value="austin">Austin</option>
+                  <option value="miami">Miami</option>
+                  <option value="orange-county">Orange County</option>
+                </select>
+              </div>
+              <div>
+                <label class="crm-add-label">Stage</label>
+                <select class="modal-input" id="crm-add-stage">
+                  <option value="lead">Lead</option>
+                  <option value="contacted">Contacted</option>
+                  <option value="demo">Demo</option>
+                  <option value="proposal">Proposal</option>
+                  <option value="won">Won</option>
+                  <option value="lost">Lost</option>
+                </select>
+              </div>
+            </div>
+            <div class="crm-add-row full">
+              <div>
+                <label class="crm-add-label">Link to Venue (optional)</label>
+                <select class="modal-input" id="crm-add-venue-id">
+                  <option value="">— No linked venue —</option>
+                </select>
+              </div>
+            </div>
+            <div class="crm-add-row full">
+              <div>
+                <label class="crm-add-label">Initial Note</label>
+                <textarea class="crm-note-input" id="crm-add-note" placeholder="Any context about this contact…" rows="2"></textarea>
+              </div>
+            </div>
+          </div>
+          <div class="modal-actions">
+            <button class="btn-cancel" onclick="closeCrmAddModal()">Cancel</button>
+            <button class="btn-confirm" onclick="saveCrmContact()">Add Contact →</button>
           </div>
         </div>
       </div>
@@ -1806,7 +2117,7 @@ Roundup</textarea>
   const PAGE_TITLES = {
     requests: 'Venue Requests', venues: 'All Venues', heroes: 'Hero Picker', users: 'User Analytics',
     churn: 'Churned Users', 'venues-top': 'Top Venues', cities: 'City Breakdown',
-    pipeline: 'Revenue Pipeline', feedback: 'User Feedback', push: 'Push Notifications', cms: 'Site Copy', board: 'Project Board', demo: 'Demo Data', assets: 'Asset Generator'
+    pipeline: 'Revenue Pipeline', crm: 'CRM Dashboard', 'crm-contacts': 'Contacts', 'crm-pipeline': 'Pipeline', 'crm-activity': 'Activity Log', feedback: 'User Feedback', push: 'Push Notifications', cms: 'Site Copy', board: 'Project Board', demo: 'Demo Data', assets: 'Asset Generator'
   };
 
   function showPage(page) {
@@ -1836,6 +2147,10 @@ Roundup</textarea>
         iframe.dataset.loaded = '1';
       }
     }
+    if (page === 'crm')            loadCrmDashboard();
+    if (page === 'crm-contacts')   loadCrmContacts();
+    if (page === 'crm-pipeline')   loadCrmPipelineBoard();
+    if (page === 'crm-activity')   loadCrmActivityLog();
     if (page === 'assets' && window._assetPreviewUpdate) {
       setTimeout(window._assetPreviewUpdate, 100);
     }
@@ -3045,6 +3360,522 @@ Roundup</textarea>
       wrap.style.transform = prevTransform;
       if (window._assetPreviewUpdate) window._assetPreviewUpdate();
     }
+  }
+
+  // ═══════════════════════════════════════════════════════
+  // CRM MODULE
+  // ═══════════════════════════════════════════════════════
+
+  const CRM_STAGES = ['lead','contacted','demo','proposal','won','lost'];
+  const CRM_STAGE_LABELS = { lead:'Lead', contacted:'Contacted', demo:'Demo', proposal:'Proposal', won:'Won', lost:'Lost' };
+  const CRM_STAGE_COLORS = { lead:'warn', contacted:'contacted', demo:'demo', proposal:'proposal', won:'won', lost:'lost' };
+
+  let crmContacts = [];
+  let crmActivities = [];
+
+  // ── TABLE INIT (auto-create if needed) ──
+  async function ensureCrmTables() {
+    // Check if crm_contacts table exists by trying a lightweight query
+    try {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/crm_contacts?select=id&limit=1`, { headers: svcHeaders() });
+      if (r.ok) return true;
+    } catch(e) {}
+    // Tables don't exist — create them via SQL
+    try {
+      const sql = `
+        CREATE TABLE IF NOT EXISTS crm_contacts (
+          id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+          contact_name text NOT NULL,
+          business_name text,
+          email text,
+          phone text,
+          city_slug text,
+          stage text DEFAULT 'lead' CHECK (stage IN ('lead','contacted','demo','proposal','won','lost')),
+          venue_id uuid REFERENCES venues(id),
+          source text DEFAULT 'manual',
+          created_at timestamptz DEFAULT now(),
+          updated_at timestamptz DEFAULT now()
+        );
+        CREATE TABLE IF NOT EXISTS crm_notes (
+          id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+          contact_id uuid NOT NULL REFERENCES crm_contacts(id) ON DELETE CASCADE,
+          note text NOT NULL,
+          author text,
+          created_at timestamptz DEFAULT now()
+        );
+        CREATE TABLE IF NOT EXISTS crm_activities (
+          id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+          contact_id uuid REFERENCES crm_contacts(id) ON DELETE CASCADE,
+          activity_type text NOT NULL,
+          description text NOT NULL,
+          meta jsonb DEFAULT '{}',
+          created_at timestamptz DEFAULT now()
+        );
+        CREATE INDEX IF NOT EXISTS idx_crm_contacts_stage ON crm_contacts(stage);
+        CREATE INDEX IF NOT EXISTS idx_crm_notes_contact ON crm_notes(contact_id);
+        CREATE INDEX IF NOT EXISTS idx_crm_activities_contact ON crm_activities(contact_id);
+      `;
+      await fetch(`${SUPABASE_URL}/rest/v1/rpc/exec_sql`, {
+        method: 'POST',
+        headers: { ...svcHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: sql })
+      });
+    } catch(e) {
+      console.warn('CRM table init via RPC failed (tables may already exist):', e);
+    }
+    return true;
+  }
+
+  // ── FETCH ALL CRM DATA ──
+  async function fetchCrmContacts() {
+    try {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/crm_contacts?select=*&order=updated_at.desc`, { headers: svcHeaders() });
+      if (!r.ok) { crmContacts = []; return; }
+      crmContacts = await r.json();
+    } catch(e) { crmContacts = []; }
+  }
+
+  async function fetchCrmActivities(limit = 50) {
+    try {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/crm_activities?select=*&order=created_at.desc&limit=${limit}`, { headers: svcHeaders() });
+      if (!r.ok) { crmActivities = []; return; }
+      crmActivities = await r.json();
+    } catch(e) { crmActivities = []; }
+  }
+
+  async function fetchCrmNotes(contactId) {
+    try {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/crm_notes?contact_id=eq.${contactId}&select=*&order=created_at.desc`, { headers: svcHeaders() });
+      if (!r.ok) return [];
+      return await r.json();
+    } catch(e) { return []; }
+  }
+
+  // ── DASHBOARD ──
+  async function loadCrmDashboard() {
+    await ensureCrmTables();
+    await Promise.all([fetchCrmContacts(), fetchCrmActivities()]);
+    renderCrmKpis();
+    renderCrmDashPipeline();
+    renderCrmDashTimeline();
+  }
+
+  function renderCrmKpis() {
+    const total = crmContacts.length;
+    const open = crmContacts.filter(c => !['won','lost'].includes(c.stage)).length;
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const won = crmContacts.filter(c => c.stage === 'won' && new Date(c.updated_at) >= monthStart).length;
+    const lost = crmContacts.filter(c => c.stage === 'lost' && new Date(c.updated_at) >= monthStart).length;
+    const closed = crmContacts.filter(c => ['won','lost'].includes(c.stage));
+    const wonAll = crmContacts.filter(c => c.stage === 'won');
+    const rate = closed.length ? Math.round((wonAll.length / closed.length) * 100) : 0;
+
+    // Avg days to close for won deals
+    let avgDays = '—';
+    if (wonAll.length) {
+      const totalDays = wonAll.reduce((sum, c) => {
+        const created = new Date(c.created_at);
+        const updated = new Date(c.updated_at);
+        return sum + Math.max(1, Math.round((updated - created) / 86400000));
+      }, 0);
+      avgDays = Math.round(totalDays / wonAll.length);
+    }
+
+    document.getElementById('crm-kpi-contacts').textContent = total;
+    document.getElementById('crm-kpi-pipeline').textContent = open;
+    document.getElementById('crm-kpi-won').textContent = won;
+    document.getElementById('crm-kpi-lost').textContent = lost;
+    document.getElementById('crm-kpi-conversion').textContent = rate + '%';
+    document.getElementById('crm-kpi-avg-days').textContent = avgDays;
+  }
+
+  function renderCrmDashPipeline() {
+    const el = document.getElementById('crm-dash-pipeline');
+    const activeStages = CRM_STAGES.filter(s => s !== 'lost');
+    el.innerHTML = activeStages.map(stage => {
+      const items = crmContacts.filter(c => c.stage === stage);
+      return `
+        <div class="crm-pipeline-col">
+          <div class="crm-pipeline-col-head">
+            <span class="crm-pipeline-col-title">${CRM_STAGE_LABELS[stage]}</span>
+            <span class="crm-pipeline-col-count">${items.length}</span>
+          </div>
+          ${items.slice(0, 5).map(c => `
+            <div class="crm-pipeline-card" onclick="openCrmDetail('${c.id}')">
+              <div class="crm-pipeline-card-name">${esc(c.contact_name)}</div>
+              <div class="crm-pipeline-card-meta">${esc(c.business_name || '—')}${c.city_slug ? ' · ' + esc(c.city_slug) : ''}</div>
+            </div>
+          `).join('')}
+          ${items.length > 5 ? `<div style="font-size:11px;color:var(--muted);text-align:center;padding:4px">+${items.length - 5} more</div>` : ''}
+          ${items.length === 0 ? '<div style="font-size:12px;color:var(--muted);text-align:center;padding:16px 0">Empty</div>' : ''}
+        </div>`;
+    }).join('');
+  }
+
+  function renderCrmDashTimeline() {
+    const el = document.getElementById('crm-dash-timeline');
+    if (!crmActivities.length) {
+      el.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:20px 0">No activity yet. Add a contact to get started.</div>';
+      return;
+    }
+    el.innerHTML = crmActivities.slice(0, 15).map(a => `
+      <div class="crm-timeline-item type-${a.activity_type}">
+        <div class="crm-timeline-text">${esc(a.description)}</div>
+        <div class="crm-timeline-date">${formatDate(a.created_at)}</div>
+      </div>
+    `).join('');
+  }
+
+  // ── CONTACTS LIST ──
+  async function loadCrmContacts() {
+    await ensureCrmTables();
+    await fetchCrmContacts();
+    filterCrmContacts();
+  }
+
+  function filterCrmContacts() {
+    const q = (document.getElementById('crm-contact-search')?.value || '').toLowerCase();
+    const stage = document.getElementById('crm-stage-filter')?.value || '';
+    const city = document.getElementById('crm-city-filter')?.value || '';
+
+    let list = crmContacts;
+    if (q) list = list.filter(c =>
+      (c.contact_name || '').toLowerCase().includes(q) ||
+      (c.business_name || '').toLowerCase().includes(q) ||
+      (c.email || '').toLowerCase().includes(q) ||
+      (c.phone || '').includes(q)
+    );
+    if (stage) list = list.filter(c => c.stage === stage);
+    if (city) list = list.filter(c => c.city_slug === city);
+
+    document.getElementById('crm-contacts-count').textContent = `${list.length} contact${list.length !== 1 ? 's' : ''}`;
+
+    const el = document.getElementById('crm-contacts-list');
+    if (!list.length) {
+      el.innerHTML = '<div class="empty-state"><div class="empty-icon">👤</div><h3>No contacts found</h3><p style="color:var(--muted);font-size:13px">Add your first contact to start tracking relationships.</p></div>';
+      return;
+    }
+    el.innerHTML = list.map(c => {
+      const initials = (c.contact_name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+      return `
+        <div class="crm-contact-row" onclick="openCrmDetail('${c.id}')">
+          <div class="crm-contact-avatar">${initials}</div>
+          <div class="crm-contact-info">
+            <div class="crm-contact-name">${esc(c.contact_name)}</div>
+            <div class="crm-contact-venue">${esc(c.business_name || '—')}${c.email ? ' · ' + esc(c.email) : ''}${c.city_slug ? ' · ' + esc(c.city_slug) : ''}</div>
+          </div>
+          <div class="crm-contact-stage">
+            <span class="crm-tag crm-tag-${c.stage}">${CRM_STAGE_LABELS[c.stage] || c.stage}</span>
+          </div>
+          <div class="crm-contact-actions">
+            <button class="crm-btn-sm" onclick="event.stopPropagation();openCrmDetail('${c.id}')">View</button>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  // ── PIPELINE BOARD ──
+  async function loadCrmPipelineBoard() {
+    await ensureCrmTables();
+    await fetchCrmContacts();
+    renderCrmPipelineBoard();
+  }
+
+  function renderCrmPipelineBoard() {
+    const el = document.getElementById('crm-pipeline-board');
+    el.innerHTML = CRM_STAGES.map(stage => {
+      const items = crmContacts.filter(c => c.stage === stage);
+      return `
+        <div class="crm-pipeline-col">
+          <div class="crm-pipeline-col-head">
+            <span class="crm-pipeline-col-title">${CRM_STAGE_LABELS[stage]}</span>
+            <span class="crm-pipeline-col-count">${items.length}</span>
+          </div>
+          ${items.map(c => `
+            <div class="crm-pipeline-card" onclick="openCrmDetail('${c.id}')">
+              <div class="crm-pipeline-card-name">${esc(c.contact_name)}</div>
+              <div class="crm-pipeline-card-meta">${esc(c.business_name || '—')}</div>
+              <div class="crm-pipeline-card-tags">
+                ${c.city_slug ? `<span class="crm-tag crm-tag-lead">${esc(c.city_slug)}</span>` : ''}
+                ${c.email ? '<span class="crm-tag crm-tag-contacted" style="text-transform:none">Has email</span>' : ''}
+              </div>
+            </div>
+          `).join('')}
+          ${items.length === 0 ? '<div style="font-size:12px;color:var(--muted);text-align:center;padding:24px 0">No contacts</div>' : ''}
+        </div>`;
+    }).join('');
+  }
+
+  // ── ACTIVITY LOG ──
+  async function loadCrmActivityLog() {
+    await ensureCrmTables();
+    await fetchCrmActivities(200);
+    const el = document.getElementById('crm-full-timeline');
+    if (!crmActivities.length) {
+      el.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><h3>No activity yet</h3><p style="color:var(--muted);font-size:13px">Actions like adding contacts, changing stages, and writing notes will appear here.</p></div>';
+      return;
+    }
+    el.innerHTML = crmActivities.map(a => `
+      <div class="crm-timeline-item type-${a.activity_type}">
+        <div class="crm-timeline-text">${esc(a.description)}</div>
+        <div class="crm-timeline-date">${formatDate(a.created_at)}</div>
+      </div>
+    `).join('');
+  }
+
+  // ── CONTACT DETAIL MODAL ──
+  async function openCrmDetail(id) {
+    const c = crmContacts.find(x => x.id === id);
+    if (!c) return;
+    const notes = await fetchCrmNotes(id);
+    const el = document.getElementById('crm-detail-content');
+    const initials = (c.contact_name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+
+    el.innerHTML = `
+      <div class="crm-detail-header">
+        <div class="crm-detail-avatar">${initials}</div>
+        <div class="crm-detail-info">
+          <div class="crm-detail-name">${esc(c.contact_name)}</div>
+          <div class="crm-detail-venue">${esc(c.business_name || 'No business name')}</div>
+        </div>
+      </div>
+
+      <div class="crm-stage-bar" id="crm-detail-stage-bar">
+        ${CRM_STAGES.map(s => `<button class="crm-stage-btn ${c.stage === s ? 'active' : ''}" onclick="changeCrmStage('${id}','${s}')">${CRM_STAGE_LABELS[s]}</button>`).join('')}
+      </div>
+
+      <div class="crm-detail-meta-grid">
+        <div class="crm-detail-meta-item">
+          <div class="crm-detail-meta-label">Email</div>
+          <div class="crm-detail-meta-value">${c.email ? `<a href="mailto:${esc(c.email)}">${esc(c.email)}</a>` : '—'}</div>
+        </div>
+        <div class="crm-detail-meta-item">
+          <div class="crm-detail-meta-label">Phone</div>
+          <div class="crm-detail-meta-value">${c.phone ? `<a href="tel:${esc(c.phone)}">${esc(c.phone)}</a>` : '—'}</div>
+        </div>
+        <div class="crm-detail-meta-item">
+          <div class="crm-detail-meta-label">City</div>
+          <div class="crm-detail-meta-value">${esc(c.city_slug || '—')}</div>
+        </div>
+        <div class="crm-detail-meta-item">
+          <div class="crm-detail-meta-label">Source</div>
+          <div class="crm-detail-meta-value">${esc(c.source || 'manual')}</div>
+        </div>
+        <div class="crm-detail-meta-item">
+          <div class="crm-detail-meta-label">Created</div>
+          <div class="crm-detail-meta-value">${formatDate(c.created_at)}</div>
+        </div>
+        <div class="crm-detail-meta-item">
+          <div class="crm-detail-meta-label">Last Updated</div>
+          <div class="crm-detail-meta-value">${formatDate(c.updated_at)}</div>
+        </div>
+      </div>
+
+      <div class="crm-section">
+        <div class="crm-section-title">Notes <span class="crm-count">(${notes.length})</span></div>
+        <div class="crm-notes-list" id="crm-notes-list-${id}">
+          ${notes.length ? notes.map(n => `
+            <div class="crm-note">
+              <div class="crm-note-text">${esc(n.note)}</div>
+              <div class="crm-note-meta">${n.author ? esc(n.author) + ' · ' : ''}${formatDate(n.created_at)}</div>
+            </div>
+          `).join('') : '<div style="color:var(--muted);font-size:13px;padding:8px 0">No notes yet.</div>'}
+        </div>
+        <textarea class="crm-note-input" id="crm-new-note-${id}" placeholder="Add a note…"></textarea>
+        <div class="crm-note-actions">
+          <button class="crm-btn-primary" onclick="addCrmNote('${id}')">Save Note</button>
+          <button class="btn-cancel" style="padding:9px 14px" onclick="closeCrmDetail()">Close</button>
+        </div>
+      </div>
+    `;
+
+    document.getElementById('crmDetailModal').classList.add('open');
+  }
+
+  function closeCrmDetail() {
+    document.getElementById('crmDetailModal').classList.remove('open');
+  }
+
+  // ── STAGE CHANGE ──
+  async function changeCrmStage(id, newStage) {
+    const c = crmContacts.find(x => x.id === id);
+    if (!c || c.stage === newStage) return;
+    const oldStage = c.stage;
+    // Update contact
+    await fetch(`${SUPABASE_URL}/rest/v1/crm_contacts?id=eq.${id}`, {
+      method: 'PATCH',
+      headers: { ...svcHeaders(), 'Prefer': 'return=minimal', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stage: newStage, updated_at: new Date().toISOString() })
+    });
+    // Log activity
+    await fetch(`${SUPABASE_URL}/rest/v1/crm_activities`, {
+      method: 'POST',
+      headers: { ...svcHeaders(), 'Prefer': 'return=minimal', 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contact_id: id,
+        activity_type: 'stage',
+        description: `${c.contact_name}: ${CRM_STAGE_LABELS[oldStage]} → ${CRM_STAGE_LABELS[newStage]}`
+      })
+    });
+    c.stage = newStage;
+    c.updated_at = new Date().toISOString();
+    showToast(`Moved to ${CRM_STAGE_LABELS[newStage]}`);
+    // Update stage bar buttons
+    document.querySelectorAll('#crm-detail-stage-bar .crm-stage-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.textContent.trim() === CRM_STAGE_LABELS[newStage]);
+    });
+  }
+
+  // ── ADD NOTE ──
+  async function addCrmNote(contactId) {
+    const textarea = document.getElementById(`crm-new-note-${contactId}`);
+    const text = textarea?.value?.trim();
+    if (!text) return;
+    const c = crmContacts.find(x => x.id === contactId);
+    const author = _adminUser?.email || 'Admin';
+    // Insert note
+    await fetch(`${SUPABASE_URL}/rest/v1/crm_notes`, {
+      method: 'POST',
+      headers: { ...svcHeaders(), 'Prefer': 'return=minimal', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contact_id: contactId, note: text, author })
+    });
+    // Log activity
+    await fetch(`${SUPABASE_URL}/rest/v1/crm_activities`, {
+      method: 'POST',
+      headers: { ...svcHeaders(), 'Prefer': 'return=minimal', 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contact_id: contactId,
+        activity_type: 'note',
+        description: `Note added for ${c?.contact_name || 'contact'}: "${text.slice(0, 80)}${text.length > 80 ? '…' : ''}"`
+      })
+    });
+    // Update contact timestamp
+    await fetch(`${SUPABASE_URL}/rest/v1/crm_contacts?id=eq.${contactId}`, {
+      method: 'PATCH',
+      headers: { ...svcHeaders(), 'Prefer': 'return=minimal', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ updated_at: new Date().toISOString() })
+    });
+    showToast('Note saved');
+    openCrmDetail(contactId); // refresh
+  }
+
+  // ── ADD CONTACT ──
+  function openAddContactModal() {
+    // Populate venue dropdown
+    const sel = document.getElementById('crm-add-venue-id');
+    sel.innerHTML = '<option value="">— No linked venue —</option>';
+    if (allVenues?.length) {
+      allVenues.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+      allVenues.forEach(v => {
+        sel.innerHTML += `<option value="${v.id}">${esc(v.name)} (${esc(v.city_slug || '')})</option>`;
+      });
+    }
+    // Clear form
+    ['crm-add-name','crm-add-business','crm-add-email','crm-add-phone','crm-add-note'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.value = '';
+    });
+    document.getElementById('crm-add-city').value = '';
+    document.getElementById('crm-add-stage').value = 'lead';
+    document.getElementById('crmAddModal').classList.add('open');
+  }
+  function closeCrmAddModal() { document.getElementById('crmAddModal').classList.remove('open'); }
+
+  async function saveCrmContact() {
+    const name = document.getElementById('crm-add-name').value.trim();
+    if (!name) { showToast('Contact name is required'); return; }
+    const data = {
+      contact_name: name,
+      business_name: document.getElementById('crm-add-business').value.trim() || null,
+      email: document.getElementById('crm-add-email').value.trim() || null,
+      phone: document.getElementById('crm-add-phone').value.trim() || null,
+      city_slug: document.getElementById('crm-add-city').value || null,
+      stage: document.getElementById('crm-add-stage').value || 'lead',
+      venue_id: document.getElementById('crm-add-venue-id').value || null,
+      source: 'manual'
+    };
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/crm_contacts`, {
+      method: 'POST',
+      headers: { ...svcHeaders(), 'Prefer': 'return=representation', 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    const result = await r.json();
+    const contactId = Array.isArray(result) ? result[0]?.id : result?.id;
+
+    // Log activity
+    await fetch(`${SUPABASE_URL}/rest/v1/crm_activities`, {
+      method: 'POST',
+      headers: { ...svcHeaders(), 'Prefer': 'return=minimal', 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contact_id: contactId,
+        activity_type: 'create',
+        description: `New contact added: ${name}${data.business_name ? ' (' + data.business_name + ')' : ''}`
+      })
+    });
+
+    // Add initial note if provided
+    const note = document.getElementById('crm-add-note').value.trim();
+    if (note && contactId) {
+      await fetch(`${SUPABASE_URL}/rest/v1/crm_notes`, {
+        method: 'POST',
+        headers: { ...svcHeaders(), 'Prefer': 'return=minimal', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contact_id: contactId, note, author: _adminUser?.email || 'Admin' })
+      });
+      await fetch(`${SUPABASE_URL}/rest/v1/crm_activities`, {
+        method: 'POST',
+        headers: { ...svcHeaders(), 'Prefer': 'return=minimal', 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contact_id: contactId,
+          activity_type: 'note',
+          description: `Initial note for ${name}: "${note.slice(0, 80)}${note.length > 80 ? '…' : ''}"`
+        })
+      });
+    }
+
+    closeCrmAddModal();
+    showToast(`Contact "${name}" added`);
+    await fetchCrmContacts();
+    filterCrmContacts();
+  }
+
+  // ── IMPORT VENUE CLAIMS AS CRM CONTACTS ──
+  async function importVenueClaimsAsCrm() {
+    try {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/venue_claims?select=*`, { headers: svcHeaders() });
+      if (!r.ok) return;
+      const claims = await r.json();
+      if (!claims.length) return;
+      // Check which are already imported (by matching on contact_name + business)
+      const existingNames = new Set(crmContacts.map(c => (c.contact_name || '').toLowerCase()));
+      const toImport = claims.filter(cl => cl.contact_name && !existingNames.has(cl.contact_name.toLowerCase()));
+      for (const cl of toImport) {
+        const data = {
+          contact_name: cl.contact_name,
+          email: cl.contact_email || null,
+          phone: cl.contact_phone || null,
+          venue_id: cl.venue_id || null,
+          stage: cl.status === 'approved' ? 'won' : 'lead',
+          source: 'venue_claim'
+        };
+        // Get venue info for business name
+        if (cl.venue_id) {
+          const v = allVenues?.find(v => v.id === cl.venue_id);
+          if (v) {
+            data.business_name = v.name;
+            data.city_slug = v.city_slug;
+          }
+        }
+        await fetch(`${SUPABASE_URL}/rest/v1/crm_contacts`, {
+          method: 'POST',
+          headers: { ...svcHeaders(), 'Prefer': 'return=minimal', 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+      }
+      if (toImport.length) {
+        showToast(`Imported ${toImport.length} venue claim(s) as contacts`);
+        await fetchCrmContacts();
+      }
+    } catch(e) { console.warn('Venue claim import failed:', e); }
   }
 
 </script>
