@@ -148,8 +148,12 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // Let form fields handle taps natively (preventDefault kills iOS keyboard/focus)
-    if (e.target.closest('input, select, textarea')) return;
+    // Form fields: explicitly focus on iOS (native focus is unreliable in WKWebView overlays)
+    const formEl = e.target.closest('input, select, textarea');
+    if (formEl) {
+      if (formEl.type !== 'file') formEl.focus();
+      return;
+    }
 
     // Everything else — find the nearest clickable element and fire .click()
     const clickable = e.target.closest('button, a, [onclick], [role="button"], label');
@@ -378,7 +382,11 @@ function openAddSpotForm() {
 
       <div class="p-section">
         <div class="p-section-title">Venue Name</div>
-        <input class="field" id="addSpotName" type="text" placeholder="e.g. The Rooftop Bar" style="width:100%;box-sizing:border-box">
+        <div class="add-spot-search-wrap">
+          <input class="field" id="addSpotName" type="text" placeholder="Search or type a venue name…" autocomplete="off" style="width:100%;box-sizing:border-box" oninput="_addSpotVenueSearch(this.value)">
+          <div class="add-spot-results" id="addSpotResults" style="display:none"></div>
+        </div>
+        <div class="add-spot-linked" id="addSpotLinked" style="display:none"></div>
       </div>
 
       <div class="p-section">
@@ -424,6 +432,83 @@ function openAddSpotForm() {
       <button class="btn-save-sm" id="addSpotBtn" style="width:100%;padding:14px;margin-top:8px" onclick="submitSpotExperience()">Share with the feed</button>
     </div>`;
   presentOverlay(overlay);
+}
+
+// ── Add-a-Spot venue autocomplete ──
+window._addSpotVenueId = null;
+let _addSpotSearchTimer = null;
+
+function _addSpotVenueSearch(query) {
+  const results = document.getElementById('addSpotResults');
+  if (!results) return;
+  clearTimeout(_addSpotSearchTimer);
+  const q = query.trim().toLowerCase();
+
+  // If user edits after selecting, clear the linked venue
+  if (window._addSpotVenueId) {
+    window._addSpotVenueId = null;
+    const linked = document.getElementById('addSpotLinked');
+    if (linked) linked.style.display = 'none';
+  }
+
+  if (q.length < 2) { results.style.display = 'none'; return; }
+
+  _addSpotSearchTimer = setTimeout(() => {
+    const allVenues = [...(state.venues || []), ...(state.events || [])];
+    const matches = allVenues.filter(v => v.name && v.name.toLowerCase().includes(q)).slice(0, 6);
+
+    if (!matches.length) { results.style.display = 'none'; return; }
+
+    results.innerHTML = matches.map(v => {
+      const rating = v.google_rating ? `<span style="color:var(--muted);font-size:12px"> · ${ICN.star} ${v.google_rating}</span>` : '';
+      return `<div class="add-spot-result" onclick="_addSpotSelectVenue('${v.id}')">
+        <div class="add-spot-result-name">${esc(v.name)}${rating}</div>
+        <div class="add-spot-result-hood">${esc(v.neighborhood || v.city_slug || '')}</div>
+      </div>`;
+    }).join('') +
+    `<div class="add-spot-result add-spot-result--custom" onclick="document.getElementById('addSpotResults').style.display='none'">
+      <div class="add-spot-result-name" style="color:var(--muted)">Not listed? Keep typing to add a new spot</div>
+    </div>`;
+    results.style.display = 'block';
+  }, 150);
+}
+
+function _addSpotSelectVenue(venueId) {
+  const allVenues = [...(state.venues || []), ...(state.events || [])];
+  const v = allVenues.find(x => String(x.id) === String(venueId));
+  if (!v) return;
+
+  window._addSpotVenueId = v.id;
+
+  // Fill form fields
+  const nameInput = document.getElementById('addSpotName');
+  const hoodInput = document.getElementById('addSpotHood');
+  if (nameInput) nameInput.value = v.name;
+  if (hoodInput && v.neighborhood) hoodInput.value = v.neighborhood;
+
+  // Hide results
+  document.getElementById('addSpotResults').style.display = 'none';
+
+  // Show linked venue badge
+  const linked = document.getElementById('addSpotLinked');
+  if (linked) {
+    linked.style.display = 'flex';
+    linked.innerHTML = `
+      <div class="add-spot-linked-info">
+        <span class="add-spot-linked-icon">${ICN.pin}</span>
+        <span class="add-spot-linked-name">${esc(v.name)}</span>
+        ${v.neighborhood ? `<span class="add-spot-linked-hood">${esc(v.neighborhood)}</span>` : ''}
+      </div>
+      <button class="add-spot-linked-clear" onclick="_addSpotClearVenue()">✕</button>`;
+  }
+}
+
+function _addSpotClearVenue() {
+  window._addSpotVenueId = null;
+  const linked = document.getElementById('addSpotLinked');
+  if (linked) linked.style.display = 'none';
+  const nameInput = document.getElementById('addSpotName');
+  if (nameInput) { nameInput.value = ''; nameInput.focus(); }
 }
 
 function handleAddSpotMedia(input) {
@@ -679,14 +764,42 @@ async function submitSpotExperience() {
       if (window._pendingCoverDataUrl) meta.video_poster = window._pendingCoverDataUrl;
     }
 
+    const linkedVenueId = window._addSpotVenueId || null;
+
     await db.from('activity_feed').insert({
       user_id: currentUser.id,
       activity_type: 'check_in',
-      venue_id: null,
+      venue_id: linkedVenueId,
       venue_name: name,
       neighborhood: hood || null,
       meta,
     });
+
+    // If linked to a real venue, also create a check-in and review
+    if (linkedVenueId) {
+      const today = new Date().toISOString().slice(0, 10);
+      // Add check-in (ignore if duplicate)
+      await db.from('check_ins').upsert({
+        user_id: currentUser.id,
+        venue_id: linkedVenueId,
+        city_slug: citySlug,
+        date: today,
+        note: note || null,
+      }, { onConflict: 'user_id, venue_id, date', ignoreDuplicates: true }).catch(() => {});
+
+      // Add review if they gave a rating
+      if (rating) {
+        await db.from('reviews').insert({
+          venue_id: linkedVenueId,
+          user_id: currentUser.id,
+          rating,
+          text: note || null,
+          name: currentUser.user_metadata?.full_name || 'Anonymous',
+        }).catch(() => {});
+      }
+    }
+
+    window._addSpotVenueId = null;
 
     window._pendingAddSpotPhoto = null;
     window._pendingAddSpotVideo = null;
@@ -802,7 +915,38 @@ function renderSocialTab(tab) {
     return;
   }
 
-  container.innerHTML = filtered.map(item => renderSocialItem(item)).join('');
+  // ── Modular masonry layout ──
+  // Photo/video posts → full-width hero cards
+  // Text-only posts → batched into 2-up compact rows with occasional full-width singles
+  let html = '';
+  let textBatch = [];
+  let batchIdx = 0;
+
+  const flushTextBatch = () => {
+    if (!textBatch.length) return;
+    // Every 3rd batch, let the first item be full-width for rhythm
+    while (textBatch.length > 0) {
+      if (textBatch.length >= 2 && batchIdx % 3 !== 2) {
+        html += `<div class="sf-compact-row">${renderSocialItem(textBatch.shift(), 'compact')}${renderSocialItem(textBatch.shift(), 'compact')}</div>`;
+      } else {
+        html += renderSocialItem(textBatch.shift(), 'wide');
+      }
+      batchIdx++;
+    }
+  };
+
+  filtered.forEach(item => {
+    const hasMedia = item.type === 'photo' || (item.type === 'check_in' && (item.meta?.photo_url || item.meta?.video_url));
+    if (hasMedia) {
+      flushTextBatch();
+      html += renderSocialItem(item, 'hero');
+    } else {
+      textBatch.push(item);
+    }
+  });
+  flushTextBatch();
+
+  container.innerHTML = html;
   observeFeedVideos();
 }
 
@@ -813,7 +957,7 @@ function shareSpotsWithFriend() {
   else { window.open(`sms:?body=${encodeURIComponent(msg)}`, '_blank'); }
 }
 
-function renderSocialItem(item) {
+function renderSocialItem(item, variant) {
   const allItems = [...(state.venues || []), ...(state.events || [])];
   const venue = item.venue_id ? allItems.find(v => String(v.id) === String(item.venue_id)) : null;
   const venueName = venue?.name || item.venue_name || 'a spot';
@@ -823,8 +967,6 @@ function renderSocialItem(item) {
   const avatarHtml = initialsAvatar(displayName, '', profile.avatar_emoji, profile.avatar_url);
   const isMe = item.user_id === currentUser?.id;
   const timeAgo = fmtDate(item.created_at);
-  const followBadge = item.isFollowing && !isMe
-    ? '<span class="social-follow-badge">Following</span>' : '';
 
   const profileClick = !isMe
     ? `onclick="openPublicProfile('${item.user_id}')" style="cursor:pointer"` : '';
@@ -836,225 +978,156 @@ function renderSocialItem(item) {
   const likeCount = item._likeCount || 0;
   const isLiked = item._liked || false;
   const commentCount = item._commentCount || 0;
-  // Store meta in a global map so we don't need to serialize it into onclick attributes
   if (!window._socialPostMeta) window._socialPostMeta = {};
   window._socialPostMeta[postId] = item.meta || null;
-  const reportBtn = `<button class="social-report-btn" onclick="event.stopPropagation();openReportMenu('${postType}','${postId}','${item.user_id}',${isMe})" title="${isMe ? 'Options' : 'Report'}">···</button>`;
-  const commentSection = `
-    <div class="social-actions-bar" id="actions-${postId}">
-      <button class="social-like-btn${isLiked ? ' liked' : ''}" id="like-${postId}" onclick="doToggleLike('${postId}','${postType}',this)">
-        ${isLiked ? ICN.heartFill : ICN.heart} <span class="like-count">${likeCount || ''}</span>
+
+  // ── Action type labels ──
+  const actionVerbs = { photo: 'checked in at', check_in: 'checked in at', review: 'reviewed', favorite: 'saved', going_tonight: 'is going to', tagged_at: 'was tagged at' };
+  const actionVerb = actionVerbs[item.type] || 'visited';
+  const actionSuffix = item.type === 'going_tonight' ? ' tonight' : '';
+
+  // ── Rating display ──
+  const rating = item.meta?.rating || 0;
+  const ratingHtml = rating ? `<span class="sf-stars">${'★'.repeat(rating)}${'☆'.repeat(5-rating)}</span>` : '';
+
+  // ── Caption / note ──
+  const caption = item.caption || item.meta?.note || item.meta?.text || '';
+
+  // ── Photo URL ──
+  const photoUrl = item.photo_url || item.meta?.photo_url || '';
+  const videoUrl = item.meta?.video_url || '';
+  const videoPoster = item.meta?.video_poster || '';
+
+  // ── Action buttons (shared) — orange gradient pills ──
+  const actionBtns = `
+    <div class="sf-actions">
+      <button class="sf-action-btn${isLiked ? ' sf-liked' : ''}" id="like-${postId}" onclick="event.stopPropagation();doToggleLike('${postId}','${postType}',this)">
+        ${isLiked ? ICN.heartFill : ICN.heart}${likeCount ? `<span>${likeCount}</span>` : ''}
       </button>
-      <button class="social-comments-toggle" onclick="toggleComments('${postId}','${postType}',this)">
-        ${ICN.comment} Comments${commentCount ? ` (${commentCount})` : ''}
+      <button class="sf-action-btn" onclick="event.stopPropagation();openCommentsSheet('${postId}','${postType}')">
+        ${ICN.comment}${commentCount ? `<span>${commentCount}</span>` : ''}
       </button>
+      <button class="sf-action-btn sf-more" onclick="event.stopPropagation();openReportMenu('${postType}','${postId}','${item.user_id}',${isMe})" title="${isMe ? 'Options' : 'Report'}">···</button>
+    </div>`;
+
+  // ═══════════════════════════════════════════
+  // HERO VARIANT — full-bleed photo/video card
+  // ═══════════════════════════════════════════
+  if (variant === 'hero') {
+    const mediaInner = videoUrl
+      ? `<div class="sf-hero-media" onclick="toggleFeedVideo(this)">
+          <video class="social-video" data-src="${esc(videoUrl)}" playsinline muted loop preload="none"
+            ${videoPoster ? `poster="${esc(videoPoster)}"` : ''}
+            onerror="this.closest('.sf-hero-media').remove()"></video>
+          <div class="social-video-play-overlay">${ICN.play || '▶'}</div>
+          <div class="social-video-mute-btn" onclick="event.stopPropagation();toggleFeedVideoMute(this)">${ICN.volumeOff || '🔇'}</div>
+          <div class="sf-hero-grad"></div>
+        </div>`
+      : `<div class="sf-hero-media" ${venueClick}>
+          <img class="sf-hero-img" src="${esc(photoUrl)}" alt="${esc(venueName)}" loading="lazy"
+            onerror="this.closest('.sf-hero').style.background='linear-gradient(135deg,#2A1F14,#1A1208)';this.remove()">
+          <div class="sf-hero-grad"></div>
+        </div>`;
+
+    return `<div class="sf-hero">
+      ${mediaInner}
+      <div class="sf-hero-info">
+        <div class="sf-hero-user" ${profileClick}>
+          <div class="sf-hero-avatar">${avatarHtml}</div>
+          <span class="sf-hero-name">${esc(displayName)}</span>
+        </div>
+        <div class="sf-hero-venue" ${venueClick}>${esc(venueName)}</div>
+        <div class="sf-hero-meta">${neighborhood ? `<span>${esc(neighborhood)}</span><span class="sf-dot"></span>` : ''}<span>${timeAgo}</span></div>
+        ${caption ? `<div class="sf-hero-caption">${esc(caption)}</div>` : ''}
+        ${ratingHtml ? `<div class="sf-hero-rating">${ratingHtml}</div>` : ''}
+      </div>
+      ${actionBtns}
+    </div>`;
+  }
+
+  // ═══════════════════════════════════════════
+  // COMPACT VARIANT — small card for 2-up grid
+  // ═══════════════════════════════════════════
+  if (variant === 'compact') {
+    return `<div class="sf-compact">
+      <div class="sf-compact-header" ${profileClick}>
+        <div class="sf-compact-avatar">${avatarHtml}</div>
+        <span class="sf-compact-name">${esc(displayName)}</span>
+      </div>
+      <div class="sf-compact-body" ${venueClick}>
+        <div class="sf-compact-venue">${esc(venueName)}</div>
+        ${ratingHtml ? `<div class="sf-compact-rating">${ratingHtml}</div>` : ''}
+        ${caption ? `<div class="sf-compact-caption">${esc(caption)}</div>` : ''}
+        <div class="sf-compact-meta">${esc(neighborhood || timeAgo)}</div>
+      </div>
+      <div class="sf-compact-actions">
+        <button class="sf-action-btn${isLiked ? ' sf-liked' : ''}" id="like-${postId}" onclick="event.stopPropagation();doToggleLike('${postId}','${postType}',this)">
+          ${isLiked ? ICN.heartFill : ICN.heart}${likeCount ? `<span>${likeCount}</span>` : ''}
+        </button>
+        <button class="sf-action-btn" onclick="event.stopPropagation();openCommentsSheet('${postId}','${postType}')">
+          ${ICN.comment}${commentCount ? `<span>${commentCount}</span>` : ''}
+        </button>
+      </div>
+    </div>`;
+  }
+
+  // ═══════════════════════════════════════════
+  // WIDE VARIANT — full-width text card
+  // ═══════════════════════════════════════════
+  return `<div class="sf-wide">
+    <div class="sf-wide-header" ${profileClick}>
+      <div class="sf-wide-avatar">${avatarHtml}</div>
+      <span class="sf-wide-hname">${esc(displayName)}</span>
     </div>
-    <div class="social-comments-section" id="comments-${postId}" style="display:none">
-      <div class="social-comments-body">
-        <div class="social-comments-list" id="clist-${postId}"></div>
-        ${currentUser ? `<div class="social-comment-compose">
-          <input class="social-comment-input" id="cinput-${postId}" type="text" placeholder="Add a comment..." maxlength="280"
-            onkeydown="if(event.key==='Enter')submitComment('${postId}','${postType}')">
-          <button class="social-comment-send" onclick="submitComment('${postId}','${postType}')">→</button>
-        </div>` : ''}
+    <div class="sf-wide-body" ${venueClick}>
+      <div class="sf-wide-headline">
+        <span class="sf-wide-name" ${profileClick}>${esc(displayName)}</span>
+        <span class="sf-wide-verb">${actionVerb}</span>
+        <span class="sf-wide-venue">${esc(venueName)}</span>${actionSuffix}
       </div>
-    </div>`;
-
-  // ── Photo post — full card with image ──
-  if (item.type === 'photo') {
-    return `<div class="social-card social-card--photo">
-      <div class="social-card-header">
-        <div class="social-avatar" ${profileClick}>${avatarHtml}</div>
-        <div class="social-card-meta" style="flex:1">
-          ${followBadge ? `<div class="social-follow-badge-row">${followBadge}</div>` : ''}
-          <div class="social-card-name" ${profileClick}>${esc(displayName)}</div>
-          <div class="social-card-action">checked in at <span class="social-venue-link" ${venueClick}>${esc(venueName)}</span></div>
-          <div class="social-card-time">${neighborhood ? neighborhood + ' · ' : ''}${timeAgo}</div>
-        </div>
-        ${reportBtn}
-      </div>
-      <div class="social-photo-wrap" ${venueClick}>
-        <img class="social-photo" src="${esc(item.photo_url)}" alt="${esc(venueName)}" loading="lazy"
-          onerror="this.closest('.social-card').remove()">
-      </div>
-      ${item.caption ? `<div class="social-caption">${esc(item.caption)}</div>` : ''}
-      ${commentSection}
-    </div>`;
-  }
-
-  // ── Check-in with photo (from manual post) ──
-  if (item.type === 'check_in' && item.meta?.photo_url) {
-    return `<div class="social-card social-card--photo">
-      <div class="social-card-header">
-        <div class="social-avatar" ${profileClick}>${avatarHtml}</div>
-        <div class="social-card-meta" style="flex:1">
-          ${followBadge ? `<div class="social-follow-badge-row">${followBadge}</div>` : ''}
-          <div class="social-card-name" ${profileClick}>${esc(displayName)}</div>
-          <div class="social-card-action">checked in at <span class="social-venue-link" ${venueClick}>${esc(venueName)}</span></div>
-          <div class="social-card-time">${neighborhood ? neighborhood + ' · ' : ''}${timeAgo}</div>
-        </div>
-        ${reportBtn}
-      </div>
-      <div class="social-photo-wrap">
-        <img class="social-photo" src="${esc(item.meta.photo_url)}" alt="${esc(venueName)}" loading="lazy"
-          onerror="this.closest('.social-photo-wrap').remove()">
-      </div>
-      ${item.meta?.note ? `<div class="social-caption">${esc(item.meta.note)}</div>` : ''}
-      ${item.meta?.rating ? `<div style="font-size:12px;color:var(--coral);padding:0 16px 8px">${'★'.repeat(item.meta.rating)}${'☆'.repeat(5-item.meta.rating)}</div>` : ''}
-      ${commentSection}
-    </div>`;
-  }
-
-  // ── Check-in with video (from manual post) ──
-  if (item.type === 'check_in' && item.meta?.video_url) {
-    return `<div class="social-card social-card--video">
-      <div class="social-card-header">
-        <div class="social-avatar" ${profileClick}>${avatarHtml}</div>
-        <div class="social-card-meta" style="flex:1">
-          ${followBadge ? `<div class="social-follow-badge-row">${followBadge}</div>` : ''}
-          <div class="social-card-name" ${profileClick}>${esc(displayName)}</div>
-          <div class="social-card-action">checked in at <span class="social-venue-link" ${venueClick}>${esc(venueName)}</span></div>
-          <div class="social-card-time">${neighborhood ? neighborhood + ' · ' : ''}${timeAgo}</div>
-        </div>
-        ${reportBtn}
-      </div>
-      <div class="social-video-wrap" onclick="toggleFeedVideo(this)">
-        <video class="social-video" data-src="${esc(item.meta.video_url)}" playsinline muted loop preload="none"
-          ${item.meta.video_poster ? `poster="${esc(item.meta.video_poster)}"` : ''}
-          onerror="this.closest('.social-video-wrap').remove()"></video>
-        <div class="social-video-play-overlay">${ICN.play || '▶'}</div>
-        <div class="social-video-mute-btn" onclick="event.stopPropagation();toggleFeedVideoMute(this)">
-          ${ICN.volumeOff || '🔇'}
-        </div>
-      </div>
-      ${item.meta?.note ? `<div class="social-caption">${esc(item.meta.note)}</div>` : ''}
-      ${item.meta?.rating ? `<div style="font-size:12px;color:var(--coral);padding:0 16px 8px">${'★'.repeat(item.meta.rating)}${'☆'.repeat(5-item.meta.rating)}</div>` : ''}
-      ${commentSection}
-    </div>`;
-  }
-
-  // ── Check-in (no photo) ──
-  if (item.type === 'check_in') {
-    return `<div class="social-card social-card--row">
-      <div class="social-row">
-        <div class="social-avatar" ${profileClick}>${avatarHtml}</div>
-        <div class="social-row-body">
-          ${followBadge ? `<div class="social-follow-badge-row">${followBadge}</div>` : ''}
-          <div class="social-row-text">
-            <span class="social-row-name" ${profileClick}>${esc(displayName)}</span>
-            checked in at <span class="social-venue-link" ${venueClick}>${esc(venueName)}</span>
-          </div>
-          <div class="social-row-meta">${neighborhood ? neighborhood + ' · ' : ''}${timeAgo}</div>
-          ${item.meta?.note ? `<div class="social-row-note">"${esc(item.meta.note)}"</div>` : ''}
-          ${item.meta?.rating ? `<div style="font-size:12px;color:var(--coral);margin-top:2px">${'★'.repeat(item.meta.rating)}${'☆'.repeat(5-item.meta.rating)}</div>` : ''}
-        </div>
-        <div class="social-row-icon"><span class="social-report-btn" onclick="event.stopPropagation();openReportMenu('${postType}','${postId}','${item.user_id}',${isMe})" title="${isMe ? 'Options' : 'Report'}">···</span></div>
-      </div>
-      ${commentSection}
-    </div>`;
-  }
-
-  // ── Review ──
-  if (item.type === 'review') {
-    const stars = item.meta?.rating ? '●'.repeat(item.meta.rating) + '○'.repeat(5 - item.meta.rating) : '';
-    return `<div class="social-card social-card--row">
-      <div class="social-row" ${venueClick}>
-        <div class="social-avatar" ${profileClick}>${avatarHtml}</div>
-        <div class="social-row-body">
-          ${followBadge ? `<div class="social-follow-badge-row">${followBadge}</div>` : ''}
-          <div class="social-row-text">
-            <span class="social-row-name" ${profileClick}>${esc(displayName)}</span>
-            reviewed <span class="social-venue-link" ${venueClick}>${esc(venueName)}</span>
-          </div>
-          ${stars ? `<div class="social-row-stars">${stars}</div>` : ''}
-          ${item.meta?.text ? `<div class="social-row-note">"${esc(item.meta.text)}"</div>` : ''}
-          <div class="social-row-meta">${neighborhood ? neighborhood + ' · ' : ''}${timeAgo}</div>
-        </div>
-        <span class="social-report-btn" onclick="event.stopPropagation();openReportMenu('review','${postId}','${item.user_id}',${isMe})" title="${isMe ? 'Options' : 'Report'}">···</span>
-      </div>
-      ${commentSection}
-    </div>`;
-  }
-
-  // ── Favorite ──
-  if (item.type === 'favorite') {
-    return `<div class="social-card social-card--row">
-      <div class="social-row" ${venueClick}>
-        <div class="social-avatar" ${profileClick}>${avatarHtml}</div>
-        <div class="social-row-body">
-          ${followBadge ? `<div class="social-follow-badge-row">${followBadge}</div>` : ''}
-          <div class="social-row-text">
-            <span class="social-row-name" ${profileClick}>${esc(displayName)}</span>
-            saved <span class="social-venue-link" ${venueClick}>${esc(venueName)}</span>
-          </div>
-          <div class="social-row-meta">${neighborhood ? neighborhood + ' · ' : ''}${timeAgo}</div>
-        </div>
-      </div>
-      ${commentSection}
-    </div>`;
-  }
-
-  // ── Going tonight ──
-  if (item.type === 'going_tonight') {
-    return `<div class="social-card social-card--row">
-      <div class="social-row" ${venueClick}>
-        <div class="social-avatar" ${profileClick}>${avatarHtml}</div>
-        <div class="social-row-body">
-          ${followBadge ? `<div class="social-follow-badge-row">${followBadge}</div>` : ''}
-          <div class="social-row-text">
-            <span class="social-row-name" ${profileClick}>${esc(displayName)}</span>
-            is going to <span class="social-venue-link" ${venueClick}>${esc(venueName)}</span> tonight
-          </div>
-          <div class="social-row-meta">${neighborhood ? neighborhood + ' · ' : ''}${timeAgo}</div>
-        </div>
-      </div>
-      ${commentSection}
-    </div>`;
-  }
-
-  // ── Tagged at (friend tag) ──
-  if (item.type === 'tagged_at') {
-    return `<div class="social-card social-card--row">
-      <div class="social-row" ${venueClick}>
-        <div class="social-avatar" ${profileClick}>${avatarHtml}</div>
-        <div class="social-row-body">
-          ${followBadge ? `<div class="social-follow-badge-row">${followBadge}</div>` : ''}
-          <div class="social-row-text">
-            <span class="social-row-name" ${profileClick}>${esc(displayName)}</span>
-            was tagged at <span class="social-venue-link" ${venueClick}>${esc(venueName)}</span>
-          </div>
-          <div class="social-row-meta">${neighborhood ? neighborhood + ' · ' : ''}${timeAgo}</div>
-        </div>
-      </div>
-      ${commentSection}
-    </div>`;
-  }
-
-  return '';
+      ${ratingHtml ? `<div class="sf-wide-rating">${ratingHtml}</div>` : ''}
+      ${caption ? `<div class="sf-wide-caption">"${esc(caption)}"</div>` : ''}
+      <div class="sf-wide-meta">${neighborhood ? `${esc(neighborhood)} · ` : ''}${timeAgo}</div>
+    </div>
+    ${actionBtns}
+  </div>`;
 }
-// ── SOCIAL COMMENTS ──
-async function toggleComments(postId, postType, btn) {
-  const section = document.getElementById('comments-' + postId);
-  if (!section) return;
-  const visible = section.style.display !== 'none';
-  section.style.display = visible ? 'none' : 'block';
-  if (!visible) {
-    const list = document.getElementById('clist-' + postId);
-    if (list && !list.dataset.loaded) {
-      list.innerHTML = '<div style="padding:8px;color:var(--muted);font-size:12px">Loading...</div>';
-      const comments = await fetchComments(postId, postType);
-      list.dataset.loaded = '1';
-      list.innerHTML = comments.length
-        ? comments.map(c => `<div class="social-comment">
-            <span class="social-comment-name">${esc(c.profile?.display_name || 'User')}</span>
-            <span class="social-comment-text">${esc(c.text)}</span>
-          </div>`).join('')
-        : '<div style="padding:8px 0;color:var(--muted);font-size:12px">No comments yet</div>';
-    }
-  }
+// ── COMMENTS BOTTOM SHEET ──
+async function openCommentsSheet(postId, postType) {
+  if(typeof haptic==='function')haptic('light');
+  const overlay = document.createElement('div');
+  overlay.className = 'overlay';
+  overlay.onclick = e => { if (e.target === overlay) dismissOverlay(overlay); };
+  overlay.innerHTML = `
+    <div class="sheet" style="max-height:70vh">
+      <div class="sheet-handle"></div>
+      <div style="font-weight:800;font-size:17px;margin-bottom:16px">Comments</div>
+      <div class="sf-comments-list" id="clist-sheet-${postId}">
+        <div style="padding:20px 0;text-align:center;color:var(--muted);font-size:13px">Loading...</div>
+      </div>
+      ${currentUser ? `<div class="sf-comment-compose">
+        <input class="field" id="cinput-sheet-${postId}" type="text" placeholder="Add a comment..." maxlength="280"
+          onkeydown="if(event.key==='Enter')submitCommentSheet('${postId}','${postType}')" style="flex:1">
+        <button class="sf-comment-send-btn" onclick="submitCommentSheet('${postId}','${postType}')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>` : ''}
+    </div>`;
+  presentOverlay(overlay);
+
+  const list = document.getElementById('clist-sheet-' + postId);
+  const comments = await fetchComments(postId, postType);
+  list.innerHTML = comments.length
+    ? comments.map(c => `<div class="sf-comment-row">
+        <span class="sf-comment-author">${esc(c.profile?.display_name || 'User')}</span>
+        <span class="sf-comment-text">${esc(c.text)}</span>
+        <span class="sf-comment-time">${fmtDate(c.created_at)}</span>
+      </div>`).join('')
+    : '<div style="padding:24px 0;text-align:center;color:var(--muted);font-size:13px">No comments yet — be the first</div>';
 }
-async function submitComment(postId, postType) {
-  const input = document.getElementById('cinput-' + postId);
+
+async function submitCommentSheet(postId, postType) {
+  const input = document.getElementById('cinput-sheet-' + postId);
   if (!input || !currentUser) return;
   const text = input.value.trim();
   if (!text) return;
@@ -1062,15 +1135,23 @@ async function submitComment(postId, postType) {
   input.value = '';
   const result = await addComment(postId, postType, currentUser.id, text);
   if (result) {
-    const list = document.getElementById('clist-' + postId);
+    const list = document.getElementById('clist-sheet-' + postId);
     const name = currentUser.user_metadata?.full_name || 'You';
+    // Remove "No comments" placeholder
+    const placeholder = list?.querySelector('div[style*="text-align:center"]');
+    if (placeholder) placeholder.remove();
     const el = document.createElement('div');
-    el.className = 'social-comment';
-    el.innerHTML = `<span class="social-comment-name">${esc(name)}</span><span class="social-comment-text">${esc(text)}</span>`;
-    // Remove "No comments yet" placeholder if present
-    const placeholder = list?.querySelector('[style*="color:var(--muted)"]');
-    if (placeholder && placeholder.textContent.includes('No comments')) placeholder.remove();
+    el.className = 'sf-comment-row';
+    el.innerHTML = `<span class="sf-comment-author">${esc(name)}</span><span class="sf-comment-text">${esc(text)}</span><span class="sf-comment-time">Just now</span>`;
     list?.appendChild(el);
+    // Update comment count on the card button
+    const btn = document.querySelectorAll(`[onclick*="openCommentsSheet('${postId}"]`);
+    btn.forEach(b => {
+      const countEl = b.querySelector('span');
+      const c = parseInt(countEl?.textContent || '0', 10) || 0;
+      if (countEl) countEl.textContent = c + 1;
+      else b.innerHTML += `<span>1</span>`;
+    });
   }
 }
 
@@ -1139,15 +1220,15 @@ async function doToggleLike(postId, postType, btn) {
   if(typeof haptic==='function')haptic('light');
   const result = await toggleLike(postId, postType, currentUser.id);
   if (!result) return;
-  const countEl = btn.querySelector('.like-count');
+  const countEl = btn.querySelector('span');
   const currentCount = parseInt(countEl?.textContent || '0', 10) || 0;
   if (result.liked) {
-    btn.classList.add('liked');
-    btn.innerHTML = `${ICN.heartFill} <span class="like-count">${currentCount + 1}</span>`;
+    btn.classList.add('liked', 'sf-liked');
+    btn.innerHTML = `${ICN.heartFill}<span>${currentCount + 1}</span>`;
   } else {
-    btn.classList.remove('liked');
+    btn.classList.remove('liked', 'sf-liked');
     const newCount = Math.max(0, currentCount - 1);
-    btn.innerHTML = `${ICN.heart} <span class="like-count">${newCount || ''}</span>`;
+    btn.innerHTML = `${ICN.heart}${newCount ? `<span>${newCount}</span>` : ''}`;
   }
 }
 
@@ -1360,6 +1441,17 @@ async function enterCity(slug, name, stateCode) {
   }
 
   initMap();
+
+  // ── Push notification prompt (after location dialog settles) ──
+  // Show soft push prompt ~3s after entering city for the first time
+  if (!localStorage.getItem('spotd-push-prompted')) {
+    localStorage.setItem('spotd-push-prompted', '1');
+    setTimeout(() => {
+      if (typeof promptPushIfAppropriate === 'function') {
+        promptPushIfAppropriate(true);
+      }
+    }, 3000);
+  }
 }
 
 // ── SHOW FILTER ────────────────────────────────────────
@@ -1835,8 +1927,7 @@ function heroCardHTML(v, delay) {
         <span class="dot"></span>
         <span>${esc(v.cuisine || '')}</span>
         ${todayH ? `<span class="dot"></span><span>${esc(todayH)}</span>` : ''}
-        <span class="dot"></span>
-        <span>★ ${avg.toFixed(1)}</span>
+        ${v.yelp_rating ? `<span class="dot"></span><span>★ ${v.yelp_rating}</span>` : avg > 0 ? `<span class="dot"></span><span>★ ${avg.toFixed(1)}</span>` : ''}
       </div>
       <div class="card-hero-deals">${deals}</div>
       ${goingBar}
@@ -1873,7 +1964,7 @@ function compactCardHTML(v, delay) {
     ${badge}
     <div class="card-compact-info">
       <div class="card-compact-name">${esc(v.name)}</div>
-      <div class="card-compact-sub">${esc(v.cuisine || '')} · ★ ${avg.toFixed(1)}${count > 0 ? ` · 🔥 ${count}` : ''}</div>
+      <div class="card-compact-sub">${esc(v.cuisine || '')}${v.yelp_rating ? ` · ★ ${v.yelp_rating}` : avg > 0 ? ` · ★ ${avg.toFixed(1)}` : ''}${count > 0 ? ` · 🔥 ${count}` : ''}</div>
       ${dealsHtml}
     </div>
   </div>`;
@@ -1898,7 +1989,8 @@ function standardCardHTML(v, delay) {
         onerror="this.outerHTML='<div class=\\'card-std-nophoto\\'>🍺</div>'">`
     : `<div class="card-std-nophoto">🍺</div>`;
 
-  const starsEl = `<div class="card-std-stars">${
+  const yelpEl = v.yelp_rating ? `<div class="card-std-stars"><span class="s-lit">★</span> ${v.yelp_rating}${v.yelp_review_count ? `<span class="s-count">(${v.yelp_review_count})</span>` : ''}</div>` : '';
+  const starsEl = yelpEl || `<div class="card-std-stars">${
     Array.from({length:5},(_,i) =>
       `<span class="${i < Math.round(avg) ? 's-lit' : 's-unlit'}">★</span>`
     ).join('')}<span class="s-count">(${cached.length || '—'})</span></div>`;
@@ -2157,7 +2249,13 @@ function renderModal(v, type, reviews) {
       ${isVenue ? `<div id="ugc-photos-${v.id}"></div>` : ''}
       <div class="s-div"></div>
       <div class="modal-section-label">Reviews</div>
-      ${cached.length ? `<div class="modal-rating-summary">
+      ${v.yelp_rating ? `<div class="modal-rating-summary">
+        <div class="modal-rating-big">${v.yelp_rating}</div>
+        <div class="modal-rating-detail">
+          <div class="modal-rating-stars">${starHTML(v.yelp_rating, 5, 14)}</div>
+          <div class="modal-rating-count">${v.yelp_review_count ? `${v.yelp_review_count.toLocaleString()} review${v.yelp_review_count !== 1 ? 's' : ''}` : ''}</div>
+        </div>
+      </div>` : cached.length ? `<div class="modal-rating-summary">
         <div class="modal-rating-big">${avg.toFixed(1)}</div>
         <div class="modal-rating-detail">
           <div class="modal-rating-stars">${starHTML(avg, 5, 14)}</div>
@@ -2173,6 +2271,7 @@ function renderModal(v, type, reviews) {
         <button class="btn-submit" onclick="submitReview('${v.id}','${type}')">Post Review</button>
       </div>
       <div class="reviews-list" id="rlist-${v.id}">${reviews.length ? renderReviewList(reviews, v.id, type) : '<div class="no-reviews">Loading…</div>'}</div>
+      ${v.yelp_rating ? '<div class="modal-yelp-attr">Some rating data provided by Yelp</div>' : ''}
     </div>`;
 }
 
@@ -2218,6 +2317,7 @@ async function submitReview(itemId, type) {
   const te = document.getElementById(`rtext-${itemId}`); if (te) te.value = '';
   await refreshReviews(itemId, type);
   showToast('Review posted!');
+  if (typeof promptPushIfAppropriate === 'function') setTimeout(() => promptPushIfAppropriate(), 500);
 }
 function closeModal(e) { if (e && e.target !== document.getElementById('modalOverlay')) return; closeOverlay('modalOverlay'); }
 
@@ -3345,6 +3445,8 @@ function attachSwipeDismiss(sheet, overlayId) {
   const DISMISS_THRESHOLD = 100; // px needed to dismiss
 
   sheet._swipeHandler = (e) => {
+    // Don't intercept touches on form fields (iOS needs native handling for focus/keyboard)
+    if (e.target.closest('input, select, textarea')) return;
     // Only start drag if at the very top of the sheet scroll
     if (sheet.scrollTop > 4) return;
     startY = e.touches[0].clientY;
@@ -3395,13 +3497,13 @@ function fmtDate(iso)      { return new Date(iso).toLocaleDateString('en-US',{mo
 function showToast(msg)    { document.querySelectorAll('.toast').forEach(t=>t.remove()); const t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),2600); }
 function shareSpotd() {
   if(typeof haptic==='function')haptic('light');
-  const text = 'Discover the best spots near you';
-  const url  = 'https://spotd.biz';
+  const text = 'Check out Spotd — find the best happy hours, events & nightlife near you!';
+  const url  = 'https://apps.apple.com/us/app/spotd/id6760452388';
   if (navigator.share) {
     navigator.share({ title: 'Spotd', text, url }).catch(() => {});
   } else {
     navigator.clipboard?.writeText(url).then(() => showToast('Link copied!')).catch(() => {
-      showToast('spotd.biz');
+      showToast('Link copied!');
     });
   }
 }
@@ -4569,7 +4671,7 @@ function dmShowScreen(name) {
   if (name === 'inbox') {
     backBtn.style.display    = 'none';
     newBtn.style.display     = '';
-    title.innerHTML          = '<img src="/spotd_logo_v5.png" alt="Spotd" class="header-logo-img" onerror="this.style.display=\'none\'">';
+    title.textContent        = 'Messages';
     title.style.textAlign    = 'left';
   } else {
     backBtn.style.display    = '';
@@ -4595,16 +4697,16 @@ async function openDmInbox() {
 }
 
 const DM_EMPTY_HTML = `<div class="dm-empty-state">
-  <div class="dm-empty-icon">${icn('comment',32)}</div>
-  <div class="dm-empty-title">No messages yet</div>
-  <div class="dm-empty-sub">Chat with fellow Spotd users<br>about your favorite spots</div>
+  <div class="dm-empty-icon">💬</div>
+  <div class="dm-empty-title">Your inbox is empty</div>
+  <div class="dm-empty-sub">Share spots, plan nights out, and chat with friends on Spotd</div>
   <button class="dm-invite-btn" onclick="shareSpotd()">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
       <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
       <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
       <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
     </svg>
-    Invite a Friend to Spotd
+    Invite a Friend
   </button>
 </div>`;
 
@@ -4658,7 +4760,7 @@ async function dmLoadInbox() {
     if (otherIds.length) {
       try {
         const res = await Promise.race([
-          db.from('profiles').select('id, display_name, avatar_emoji').in('id', otherIds),
+          db.from('profiles').select('id, display_name, avatar_emoji, avatar_url').in('id', otherIds),
           new Promise(res => setTimeout(() => res({ data: [] }), 2000))
         ]);
         (res.data || []).forEach(p => { pMap[p.id] = p; });
@@ -4689,7 +4791,7 @@ async function dmLoadInbox() {
         const time     = last ? fmtDate(last.created_at) : '';
         const safeName = (name || '').replace(/'/g, '&#39;');
 
-        return `<div class="dm-thread-row" id="dmrow-${c.id}">
+        return `<div class="dm-thread-row${unread ? ' dm-thread-row--unread' : ''}" id="dmrow-${c.id}">
           <div class="dm-thread-swipe-wrap"
             ontouchstart="dmSwipeStart(event,this)"
             ontouchmove="dmSwipeMove(event,this)"
@@ -4697,10 +4799,13 @@ async function dmLoadInbox() {
             <div class="dm-thread-main" onclick="dmOpenConvo('${c.id}','${safeName}',${!!c.is_group})">
               <div class="dm-thread-avatar">${avatar}</div>
               <div class="dm-thread-info">
-                <div class="dm-thread-name">${esc(name)}${unread ? `<span class="dm-unread-dot">${unread}</span>` : ''}</div>
+                <div class="dm-thread-name">${esc(name)}</div>
                 <div class="dm-thread-preview">${esc(preview)}</div>
               </div>
-              <div class="dm-thread-time">${time}</div>
+              <div class="dm-thread-right">
+                <div class="dm-thread-time">${time}</div>
+                ${unread ? `<span class="dm-unread-dot">${unread}</span>` : ''}
+              </div>
             </div>
             <button class="dm-swipe-delete" onclick="dmDeleteConvo('${c.id}')">Delete</button>
           </div>
@@ -4783,7 +4888,7 @@ async function dmOpenConvo(convoId, name, isGroup, knownMembers) {
         try {
           const { data: parts } = await db.from('conversation_participants').select('user_id').eq('conversation_id', convoId);
           const ids = (parts || []).map(p => p.user_id);
-          const { data: profs } = ids.length ? await db.from('profiles').select('id, display_name, avatar_emoji').in('id', ids) : { data: [] };
+          const { data: profs } = ids.length ? await db.from('profiles').select('id, display_name, avatar_emoji, avatar_url').in('id', ids) : { data: [] };
           renderMembers(profs);
         } catch(e) { bar.style.display = 'none'; }
       })();
@@ -4884,7 +4989,7 @@ async function dmStartNewConvo() {
   const { data: following } = await db.from('user_follows').select('following_id').eq('follower_id', currentUser.id);
   const followIds = (following || []).map(f => f.following_id);
   const { data: profiles } = followIds.length
-    ? await db.from('profiles').select('id, display_name, avatar_emoji').in('id', followIds) : { data: [] };
+    ? await db.from('profiles').select('id, display_name, avatar_emoji, avatar_url').in('id', followIds) : { data: [] };
   dmShowPicker(profiles || [], false);
 }
 
@@ -4910,9 +5015,9 @@ function dmShowPicker(users, isGroup) {
       ${users.length
         ? users.map(u => `
           <div class="dm-picker-row" id="dpick-${u.id}" onclick="dmPickerToggle('${u.id}',${isGroup})">
-            <div class="dm-thread-avatar" style="width:36px;height:36px">${initialsAvatar(u.display_name||'User', '', u.avatar_emoji, u.avatar_url)}</div>
-            <div style="flex:1">${esc(u.display_name||'User')}</div>
-            <div class="dm-pick-check" id="dcheck-${u.id}">○</div>
+            <div class="dm-thread-avatar" style="width:40px;height:40px">${initialsAvatar(u.display_name||'User', '', u.avatar_emoji, u.avatar_url)}</div>
+            <div style="flex:1;font-weight:600;font-size:15px">${esc(u.display_name||'User')}</div>
+            <div class="dm-pick-check"></div>
           </div>`).join('')
         : '<div class="dm-empty">Follow people to message them</div>'
       }
@@ -4927,11 +5032,11 @@ function dmFilterPicker(q) {
 }
 
 function dmPickerToggle(userId, isGroup) {
-  const sel = window._dmPickerSelected, check = document.getElementById(`dcheck-${userId}`), row = document.getElementById(`dpick-${userId}`);
-  if (sel.has(userId)) { sel.delete(userId); check.textContent = '○'; row.classList.remove('dm-picker-row--selected'); }
+  const sel = window._dmPickerSelected, row = document.getElementById(`dpick-${userId}`);
+  if (sel.has(userId)) { sel.delete(userId); row.classList.remove('dm-picker-row--selected'); }
   else {
-    if (!isGroup) { sel.forEach(id => { document.getElementById(`dcheck-${id}`).textContent = '○'; document.getElementById(`dpick-${id}`)?.classList.remove('dm-picker-row--selected'); }); sel.clear(); }
-    sel.add(userId); check.textContent = '●'; row.classList.add('dm-picker-row--selected');
+    if (!isGroup) { sel.forEach(id => { document.getElementById(`dpick-${id}`)?.classList.remove('dm-picker-row--selected'); }); sel.clear(); }
+    sel.add(userId); row.classList.add('dm-picker-row--selected');
   }
 }
 
@@ -5150,11 +5255,16 @@ async function dmRefreshBadge() {
 setInterval(() => { if (currentUser) dmRefreshBadge(); }, 120000);
 
 function dmUpdateBadge(count) {
-  // Update badge on profile DM button (moved from nav)
+  // Update badge on profile DM button
   const badge = document.getElementById('pfDmBadge');
   if (badge) {
     if (count > 0) { badge.textContent = count > 9 ? '9+' : count; badge.style.display = ''; }
     else badge.style.display = 'none';
+  }
+  // Update badge on social feed header DM button
+  const socialDmDot = document.getElementById('socialDmDot');
+  if (socialDmDot) {
+    socialDmDot.style.display = count > 0 ? '' : 'none';
   }
   // Also show indicator on profile nav tab when there are unread DMs
   const navBadge = document.getElementById('bnProfileBadge');
