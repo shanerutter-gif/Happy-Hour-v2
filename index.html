@@ -750,8 +750,10 @@ if (window.spotdNative) {
       </div>
     </div>
     <div class="social-sub-tabs" id="socialSubTabs">
-      <button class="social-sub-tab active" id="socialSubFollowing" onclick="switchSocialTab('following')">Following</button>
-      <button class="social-sub-tab" id="socialSubPublic" onclick="switchSocialTab('public')">Public</button>
+      <div class="social-sub-tabs-inner">
+        <button class="social-sub-tab active" id="socialSubFollowing" onclick="switchSocialTab('following')">Following</button>
+        <button class="social-sub-tab" id="socialSubPublic" onclick="switchSocialTab('public')">Public</button>
+      </div>
     </div>
     <div id="socialFeedContent" class="social-feed-content"></div>
   </div>

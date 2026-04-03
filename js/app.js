@@ -986,10 +986,6 @@ function renderSocialItem(item, variant) {
   const actionVerb = actionVerbs[item.type] || 'visited';
   const actionSuffix = item.type === 'going_tonight' ? ' tonight' : '';
 
-  // ── Type icons ──
-  const typeIcons = { check_in: '📍', review: '★', favorite: '♥', going_tonight: '🔥', tagged_at: '🏷' };
-  const typeIcon = typeIcons[item.type] || '📍';
-
   // ── Rating display ──
   const rating = item.meta?.rating || 0;
   const ratingHtml = rating ? `<span class="sf-stars">${'★'.repeat(rating)}${'☆'.repeat(5-rating)}</span>` : '';
@@ -1002,68 +998,40 @@ function renderSocialItem(item, variant) {
   const videoUrl = item.meta?.video_url || '';
   const videoPoster = item.meta?.video_poster || '';
 
-  // ── Follow badge (glass pill) ──
-  const followPill = (item.isFollowing && !isMe)
-    ? '<span class="sf-follow-pill">Following</span>' : '';
-
-  // ── Comment section (shared across all variants) ──
-  const actionBar = `
-    <div class="sf-actions" id="actions-${postId}">
-      <button class="sf-action-btn${isLiked ? ' sf-liked' : ''}" id="like-${postId}" onclick="doToggleLike('${postId}','${postType}',this)">
+  // ── Action buttons (shared) — orange gradient pills ──
+  const actionBtns = `
+    <div class="sf-actions">
+      <button class="sf-action-btn${isLiked ? ' sf-liked' : ''}" id="like-${postId}" onclick="event.stopPropagation();doToggleLike('${postId}','${postType}',this)">
         ${isLiked ? ICN.heartFill : ICN.heart}${likeCount ? `<span>${likeCount}</span>` : ''}
       </button>
-      <button class="sf-action-btn" onclick="toggleComments('${postId}','${postType}',this)">
+      <button class="sf-action-btn" onclick="event.stopPropagation();openCommentsSheet('${postId}','${postType}')">
         ${ICN.comment}${commentCount ? `<span>${commentCount}</span>` : ''}
       </button>
       <button class="sf-action-btn sf-more" onclick="event.stopPropagation();openReportMenu('${postType}','${postId}','${item.user_id}',${isMe})" title="${isMe ? 'Options' : 'Report'}">···</button>
-    </div>
-    <div class="social-comments-section" id="comments-${postId}" style="display:none">
-      <div class="social-comments-body">
-        <div class="social-comments-list" id="clist-${postId}"></div>
-        ${currentUser ? `<div class="social-comment-compose">
-          <input class="social-comment-input" id="cinput-${postId}" type="text" placeholder="Add a comment..." maxlength="280"
-            onkeydown="if(event.key==='Enter')submitComment('${postId}','${postType}')">
-          <button class="social-comment-send" onclick="submitComment('${postId}','${postType}')">→</button>
-        </div>` : ''}
-      </div>
     </div>`;
 
   // ═══════════════════════════════════════════
   // HERO VARIANT — full-bleed photo/video card
   // ═══════════════════════════════════════════
   if (variant === 'hero') {
-    if (videoUrl) {
-      return `<div class="sf-hero">
-        <div class="sf-hero-media" onclick="toggleFeedVideo(this)">
+    const mediaInner = videoUrl
+      ? `<div class="sf-hero-media" onclick="toggleFeedVideo(this)">
           <video class="social-video" data-src="${esc(videoUrl)}" playsinline muted loop preload="none"
             ${videoPoster ? `poster="${esc(videoPoster)}"` : ''}
             onerror="this.closest('.sf-hero-media').remove()"></video>
           <div class="social-video-play-overlay">${ICN.play || '▶'}</div>
           <div class="social-video-mute-btn" onclick="event.stopPropagation();toggleFeedVideoMute(this)">${ICN.volumeOff || '🔇'}</div>
           <div class="sf-hero-grad"></div>
-        </div>
-        <div class="sf-hero-info">
-          <div class="sf-hero-top">${followPill}</div>
-          <div class="sf-hero-user" ${profileClick}>
-            <div class="sf-hero-avatar">${avatarHtml}</div>
-            <span class="sf-hero-name">${esc(displayName)}</span>
-          </div>
-          <div class="sf-hero-venue" ${venueClick}>${esc(venueName)}</div>
-          <div class="sf-hero-meta">${neighborhood ? `<span>${esc(neighborhood)}</span><span class="sf-dot"></span>` : ''}<span>${timeAgo}</span></div>
-          ${caption ? `<div class="sf-hero-caption">${esc(caption)}</div>` : ''}
-          ${ratingHtml ? `<div class="sf-hero-rating">${ratingHtml}</div>` : ''}
-        </div>
-        ${actionBar}
-      </div>`;
-    }
+        </div>`
+      : `<div class="sf-hero-media" ${venueClick}>
+          <img class="sf-hero-img" src="${esc(photoUrl)}" alt="${esc(venueName)}" loading="lazy"
+            onerror="this.closest('.sf-hero').style.background='linear-gradient(135deg,#2A1F14,#1A1208)';this.remove()">
+          <div class="sf-hero-grad"></div>
+        </div>`;
+
     return `<div class="sf-hero">
-      <div class="sf-hero-media" ${venueClick}>
-        <img class="sf-hero-img" src="${esc(photoUrl)}" alt="${esc(venueName)}" loading="lazy"
-          onerror="this.closest('.sf-hero').style.background='linear-gradient(135deg,#2A1F14,#1A1208)';this.remove()">
-        <div class="sf-hero-grad"></div>
-      </div>
+      ${mediaInner}
       <div class="sf-hero-info">
-        <div class="sf-hero-top">${followPill}</div>
         <div class="sf-hero-user" ${profileClick}>
           <div class="sf-hero-avatar">${avatarHtml}</div>
           <span class="sf-hero-name">${esc(displayName)}</span>
@@ -1073,7 +1041,7 @@ function renderSocialItem(item, variant) {
         ${caption ? `<div class="sf-hero-caption">${esc(caption)}</div>` : ''}
         ${ratingHtml ? `<div class="sf-hero-rating">${ratingHtml}</div>` : ''}
       </div>
-      ${actionBar}
+      ${actionBtns}
     </div>`;
   }
 
@@ -1081,32 +1049,24 @@ function renderSocialItem(item, variant) {
   // COMPACT VARIANT — small card for 2-up grid
   // ═══════════════════════════════════════════
   if (variant === 'compact') {
-    return `<div class="sf-compact" ${venueClick}>
-      <div class="sf-compact-accent"></div>
-      <div class="sf-compact-icon">${typeIcon}</div>
-      <div class="sf-compact-user" ${profileClick}>
+    return `<div class="sf-compact">
+      <div class="sf-compact-header" ${profileClick}>
         <div class="sf-compact-avatar">${avatarHtml}</div>
         <span class="sf-compact-name">${esc(displayName)}</span>
       </div>
-      <div class="sf-compact-venue">${esc(venueName)}</div>
-      ${ratingHtml ? `<div class="sf-compact-rating">${ratingHtml}</div>` : ''}
-      ${caption ? `<div class="sf-compact-caption">${esc(caption)}</div>` : ''}
-      <div class="sf-compact-meta">${esc(neighborhood || timeAgo)}</div>
-      <div class="sf-compact-actions">
-        <button class="sf-pill-btn${isLiked ? ' sf-liked' : ''}" id="like-${postId}" onclick="event.stopPropagation();doToggleLike('${postId}','${postType}',this)">
-          ${isLiked ? ICN.heartFill : ICN.heart}${likeCount ? ` ${likeCount}` : ''}
-        </button>
-        ${commentCount ? `<button class="sf-pill-btn" onclick="event.stopPropagation();toggleComments('${postId}','${postType}',this)">${ICN.comment} ${commentCount}</button>` : ''}
+      <div class="sf-compact-body" ${venueClick}>
+        <div class="sf-compact-venue">${esc(venueName)}</div>
+        ${ratingHtml ? `<div class="sf-compact-rating">${ratingHtml}</div>` : ''}
+        ${caption ? `<div class="sf-compact-caption">${esc(caption)}</div>` : ''}
+        <div class="sf-compact-meta">${esc(neighborhood || timeAgo)}</div>
       </div>
-      <div class="social-comments-section" id="comments-${postId}" style="display:none">
-        <div class="social-comments-body">
-          <div class="social-comments-list" id="clist-${postId}"></div>
-          ${currentUser ? `<div class="social-comment-compose">
-            <input class="social-comment-input" id="cinput-${postId}" type="text" placeholder="Comment..." maxlength="280"
-              onkeydown="if(event.key==='Enter')submitComment('${postId}','${postType}')">
-            <button class="social-comment-send" onclick="submitComment('${postId}','${postType}')">→</button>
-          </div>` : ''}
-        </div>
+      <div class="sf-compact-actions">
+        <button class="sf-action-btn${isLiked ? ' sf-liked' : ''}" id="like-${postId}" onclick="event.stopPropagation();doToggleLike('${postId}','${postType}',this)">
+          ${isLiked ? ICN.heartFill : ICN.heart}${likeCount ? `<span>${likeCount}</span>` : ''}
+        </button>
+        <button class="sf-action-btn" onclick="event.stopPropagation();openCommentsSheet('${postId}','${postType}')">
+          ${ICN.comment}${commentCount ? `<span>${commentCount}</span>` : ''}
+        </button>
       </div>
     </div>`;
   }
@@ -1114,51 +1074,60 @@ function renderSocialItem(item, variant) {
   // ═══════════════════════════════════════════
   // WIDE VARIANT — full-width text card
   // ═══════════════════════════════════════════
-  return `<div class="sf-wide" ${venueClick}>
-    <div class="sf-wide-accent"></div>
-    <div class="sf-wide-main">
-      <div class="sf-wide-left">
-        <div class="sf-wide-avatar" ${profileClick}>${avatarHtml}</div>
-      </div>
-      <div class="sf-wide-body">
-        <div class="sf-wide-headline">
-          ${followPill}
-          <span class="sf-wide-name" ${profileClick}>${esc(displayName)}</span>
-          <span class="sf-wide-verb">${actionVerb}</span>
-          <span class="sf-wide-venue">${esc(venueName)}</span>${actionSuffix}
-        </div>
-        ${ratingHtml ? `<div class="sf-wide-rating">${ratingHtml}</div>` : ''}
-        ${caption ? `<div class="sf-wide-caption">"${esc(caption)}"</div>` : ''}
-        <div class="sf-wide-meta">${neighborhood ? `${esc(neighborhood)} · ` : ''}${timeAgo}</div>
-      </div>
-      <div class="sf-wide-icon">${typeIcon}</div>
+  return `<div class="sf-wide">
+    <div class="sf-wide-header" ${profileClick}>
+      <div class="sf-wide-avatar">${avatarHtml}</div>
+      <span class="sf-wide-hname">${esc(displayName)}</span>
     </div>
-    ${actionBar}
+    <div class="sf-wide-body" ${venueClick}>
+      <div class="sf-wide-headline">
+        <span class="sf-wide-name" ${profileClick}>${esc(displayName)}</span>
+        <span class="sf-wide-verb">${actionVerb}</span>
+        <span class="sf-wide-venue">${esc(venueName)}</span>${actionSuffix}
+      </div>
+      ${ratingHtml ? `<div class="sf-wide-rating">${ratingHtml}</div>` : ''}
+      ${caption ? `<div class="sf-wide-caption">"${esc(caption)}"</div>` : ''}
+      <div class="sf-wide-meta">${neighborhood ? `${esc(neighborhood)} · ` : ''}${timeAgo}</div>
+    </div>
+    ${actionBtns}
   </div>`;
 }
-// ── SOCIAL COMMENTS ──
-async function toggleComments(postId, postType, btn) {
-  const section = document.getElementById('comments-' + postId);
-  if (!section) return;
-  const visible = section.style.display !== 'none';
-  section.style.display = visible ? 'none' : 'block';
-  if (!visible) {
-    const list = document.getElementById('clist-' + postId);
-    if (list && !list.dataset.loaded) {
-      list.innerHTML = '<div style="padding:8px;color:var(--muted);font-size:12px">Loading...</div>';
-      const comments = await fetchComments(postId, postType);
-      list.dataset.loaded = '1';
-      list.innerHTML = comments.length
-        ? comments.map(c => `<div class="social-comment">
-            <span class="social-comment-name">${esc(c.profile?.display_name || 'User')}</span>
-            <span class="social-comment-text">${esc(c.text)}</span>
-          </div>`).join('')
-        : '<div style="padding:8px 0;color:var(--muted);font-size:12px">No comments yet</div>';
-    }
-  }
+// ── COMMENTS BOTTOM SHEET ──
+async function openCommentsSheet(postId, postType) {
+  if(typeof haptic==='function')haptic('light');
+  const overlay = document.createElement('div');
+  overlay.className = 'overlay';
+  overlay.onclick = e => { if (e.target === overlay) dismissOverlay(overlay); };
+  overlay.innerHTML = `
+    <div class="sheet" style="max-height:70vh">
+      <div class="sheet-handle"></div>
+      <div style="font-weight:800;font-size:17px;margin-bottom:16px">Comments</div>
+      <div class="sf-comments-list" id="clist-sheet-${postId}">
+        <div style="padding:20px 0;text-align:center;color:var(--muted);font-size:13px">Loading...</div>
+      </div>
+      ${currentUser ? `<div class="sf-comment-compose">
+        <input class="field" id="cinput-sheet-${postId}" type="text" placeholder="Add a comment..." maxlength="280"
+          onkeydown="if(event.key==='Enter')submitCommentSheet('${postId}','${postType}')" style="flex:1">
+        <button class="sf-comment-send-btn" onclick="submitCommentSheet('${postId}','${postType}')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>` : ''}
+    </div>`;
+  presentOverlay(overlay);
+
+  const list = document.getElementById('clist-sheet-' + postId);
+  const comments = await fetchComments(postId, postType);
+  list.innerHTML = comments.length
+    ? comments.map(c => `<div class="sf-comment-row">
+        <span class="sf-comment-author">${esc(c.profile?.display_name || 'User')}</span>
+        <span class="sf-comment-text">${esc(c.text)}</span>
+        <span class="sf-comment-time">${fmtDate(c.created_at)}</span>
+      </div>`).join('')
+    : '<div style="padding:24px 0;text-align:center;color:var(--muted);font-size:13px">No comments yet — be the first</div>';
 }
-async function submitComment(postId, postType) {
-  const input = document.getElementById('cinput-' + postId);
+
+async function submitCommentSheet(postId, postType) {
+  const input = document.getElementById('cinput-sheet-' + postId);
   if (!input || !currentUser) return;
   const text = input.value.trim();
   if (!text) return;
@@ -1166,15 +1135,23 @@ async function submitComment(postId, postType) {
   input.value = '';
   const result = await addComment(postId, postType, currentUser.id, text);
   if (result) {
-    const list = document.getElementById('clist-' + postId);
+    const list = document.getElementById('clist-sheet-' + postId);
     const name = currentUser.user_metadata?.full_name || 'You';
+    // Remove "No comments" placeholder
+    const placeholder = list?.querySelector('div[style*="text-align:center"]');
+    if (placeholder) placeholder.remove();
     const el = document.createElement('div');
-    el.className = 'social-comment';
-    el.innerHTML = `<span class="social-comment-name">${esc(name)}</span><span class="social-comment-text">${esc(text)}</span>`;
-    // Remove "No comments yet" placeholder if present
-    const placeholder = list?.querySelector('[style*="color:var(--muted)"]');
-    if (placeholder && placeholder.textContent.includes('No comments')) placeholder.remove();
+    el.className = 'sf-comment-row';
+    el.innerHTML = `<span class="sf-comment-author">${esc(name)}</span><span class="sf-comment-text">${esc(text)}</span><span class="sf-comment-time">Just now</span>`;
     list?.appendChild(el);
+    // Update comment count on the card button
+    const btn = document.querySelectorAll(`[onclick*="openCommentsSheet('${postId}"]`);
+    btn.forEach(b => {
+      const countEl = b.querySelector('span');
+      const c = parseInt(countEl?.textContent || '0', 10) || 0;
+      if (countEl) countEl.textContent = c + 1;
+      else b.innerHTML += `<span>1</span>`;
+    });
   }
 }
 
