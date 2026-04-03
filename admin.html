@@ -388,6 +388,42 @@
     .asset-gen-btn-primary { background:var(--coral); color:white; }
     .asset-gen-btn-primary:hover { background:var(--coral2); }
 
+    /* ── EMAIL BUILDER ───────────────────────────────── */
+    .eb-layout { display:flex; gap:20px; height:calc(100vh - 160px); }
+    .eb-sidebar { width:340px; flex-shrink:0; overflow-y:auto; display:flex; flex-direction:column; gap:12px; }
+    .eb-preview-wrap { flex:1; background:var(--bg2); border:1px solid var(--border); border-radius:14px; overflow:auto; display:flex; justify-content:center; padding:24px; }
+    .eb-preview-frame { width:600px; min-height:400px; background:#EDE7DD; border-radius:8px; box-shadow:0 4px 24px rgba(0,0,0,.08); overflow:hidden; }
+    .eb-panel { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px; }
+    .eb-panel-title { font-family:'Cabinet Grotesk',sans-serif; font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:.5px; color:var(--coral); margin-bottom:10px; display:flex; align-items:center; justify-content:space-between; }
+    .eb-field { margin-bottom:10px; }
+    .eb-field label { display:block; font-size:9px; text-transform:uppercase; letter-spacing:1.2px; color:var(--muted); font-weight:700; margin-bottom:3px; font-family:'DM Sans',sans-serif; }
+    .eb-field input, .eb-field select, .eb-field textarea { width:100%; padding:8px 10px; background:var(--bg); border:1px solid var(--border); border-radius:7px; font-size:13px; color:var(--text); font-family:'DM Sans',sans-serif; outline:none; }
+    .eb-field input:focus, .eb-field select:focus, .eb-field textarea:focus { border-color:var(--coral); }
+    .eb-field textarea { min-height:50px; resize:vertical; }
+    .eb-section-list { display:flex; flex-direction:column; gap:8px; }
+    .eb-section-card { background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:12px; }
+    .eb-section-card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; cursor:pointer; }
+    .eb-section-card-title { font-family:'Cabinet Grotesk',sans-serif; font-size:13px; font-weight:700; }
+    .eb-section-card-actions { display:flex; gap:4px; }
+    .eb-section-card-actions button { background:none; border:none; cursor:pointer; font-size:14px; padding:2px 6px; border-radius:4px; color:var(--muted); }
+    .eb-section-card-actions button:hover { background:rgba(255,107,74,.1); color:var(--coral); }
+    .eb-section-body { display:none; }
+    .eb-section-card.open .eb-section-body { display:block; }
+    .eb-add-section { width:100%; padding:10px; border:2px dashed var(--border); border-radius:10px; background:transparent; cursor:pointer; font-family:'DM Sans',sans-serif; font-size:13px; font-weight:600; color:var(--muted); transition:border-color .15s,color .15s; }
+    .eb-add-section:hover { border-color:var(--coral); color:var(--coral); }
+    .eb-btn-row { display:flex; gap:8px; margin-top:12px; }
+    .eb-btn { padding:10px 18px; border:none; border-radius:10px; font-family:'Cabinet Grotesk',sans-serif; font-size:14px; font-weight:700; cursor:pointer; transition:background .15s; }
+    .eb-btn-primary { background:var(--coral); color:#fff; }
+    .eb-btn-primary:hover { background:var(--coral2); }
+    .eb-btn-secondary { background:var(--bg2); color:var(--text); border:1px solid var(--border); }
+    .eb-btn-secondary:hover { background:var(--border); }
+    @media(max-width:900px) {
+      .eb-layout { flex-direction:column; height:auto; }
+      .eb-sidebar { width:100%; }
+      .eb-preview-wrap { min-height:500px; }
+      .eb-preview-frame { width:100%; }
+    }
+
     .asset-preview-area {
       display:flex; justify-content:center; align-items:flex-start;
       padding:20px; overflow:auto; background:var(--bg2);
@@ -678,6 +714,7 @@
     <button class="drawer-item" onclick="showPage('board');closeMobileMenu()" id="mob-nav-board">🗂️ Project Board</button>
     <button class="drawer-item" onclick="showPage('demo');closeMobileMenu()" id="mob-nav-demo">🎭 Demo Data</button>
     <button class="drawer-item" onclick="showPage('assets');closeMobileMenu()" id="mob-nav-assets">🎨 Asset Generator</button>
+    <button class="drawer-item" onclick="showPage('email-builder');closeMobileMenu()" id="mob-nav-email-builder">📧 Email Builder</button>
     <div class="drawer-footer">
       <button class="drawer-signout" onclick="handleLogout()">👋 Sign Out</button>
     </div>
@@ -749,6 +786,9 @@
       </div>
       <div class="sidebar-item" onclick="showPage('assets')" id="nav-assets">
         🎨 Asset Generator
+      </div>
+      <div class="sidebar-item" onclick="showPage('email-builder')" id="nav-email-builder">
+        📧 Email Builder
       </div>
     </div>
 
@@ -1534,6 +1574,66 @@ Roundup</textarea>
         </div>
       </div>
 
+      <!-- EMAIL BUILDER PAGE -->
+      <div class="page" id="page-email-builder">
+        <div class="page-title">📧 Email Builder</div>
+        <div class="page-sub">Build branded Spotd emails. Add sections, customize content, preview live, and export MJML for Loops.</div>
+
+        <div class="eb-layout">
+          <!-- LEFT: Controls -->
+          <div class="eb-sidebar">
+            <!-- Global settings -->
+            <div class="eb-panel">
+              <div class="eb-panel-title">Email Settings</div>
+              <div class="eb-field"><label>Subject line</label><input type="text" id="eb-subject" value="3 deals you haven't tried yet" oninput="ebRender()"></div>
+              <div class="eb-field"><label>Preview text</label><input type="text" id="eb-preview" value="Today's happy hour picks — fresh deals, new spots, zero effort." oninput="ebRender()"></div>
+              <div class="eb-field"><label>Header badge text</label><input type="text" id="eb-badge" value="Daily Deals" oninput="ebRender()"></div>
+            </div>
+
+            <!-- Hero -->
+            <div class="eb-panel">
+              <div class="eb-panel-title">Hero Section</div>
+              <div class="eb-field"><label>Eyebrow</label><input type="text" id="eb-hero-eyebrow" value="{{date_formatted}}" oninput="ebRender()"></div>
+              <div class="eb-field"><label>Headline</label><input type="text" id="eb-hero-headline" value="3 deals you haven't tried yet." oninput="ebRender()"></div>
+              <div class="eb-field"><label>Body</label><textarea id="eb-hero-body" oninput="ebRender()">Every day we surface 3 happy hour spots from the Spotd database. New picks, zero effort from you.</textarea></div>
+            </div>
+
+            <!-- Content sections -->
+            <div class="eb-panel">
+              <div class="eb-panel-title">Content Sections <button class="eb-add-section" onclick="ebAddSection()" style="padding:4px 10px;width:auto;border:1px solid var(--border);font-size:11px;margin:0">+ Add</button></div>
+              <div class="eb-section-list" id="eb-sections">
+                <!-- Sections rendered by JS -->
+              </div>
+            </div>
+
+            <!-- CTA -->
+            <div class="eb-panel">
+              <div class="eb-panel-title">Call to Action</div>
+              <div class="eb-field"><label>CTA headline</label><input type="text" id="eb-cta-headline" value="See all deals on the map. Find your spot tonight." oninput="ebRender()"></div>
+              <div class="eb-field"><label>Button text</label><input type="text" id="eb-cta-btn" value="Open Spotd" oninput="ebRender()"></div>
+              <div class="eb-field"><label>Button URL</label><input type="text" id="eb-cta-url" value="https://spotd.biz" oninput="ebRender()"></div>
+            </div>
+
+            <!-- Footer -->
+            <div class="eb-panel">
+              <div class="eb-panel-title">Footer</div>
+              <div class="eb-field"><label>Tagline</label><input type="text" id="eb-footer-tagline" value="3 fresh deals, every single day." oninput="ebRender()"></div>
+            </div>
+
+            <!-- Actions -->
+            <div class="eb-btn-row">
+              <button class="eb-btn eb-btn-primary" onclick="ebExportMjml()">⬇ Export MJML (.zip)</button>
+              <button class="eb-btn eb-btn-secondary" onclick="ebCopyHtml()">📋 Copy HTML</button>
+            </div>
+          </div>
+
+          <!-- RIGHT: Live preview -->
+          <div class="eb-preview-wrap">
+            <div class="eb-preview-frame" id="eb-preview-frame"></div>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -2149,7 +2249,7 @@ Roundup</textarea>
   const PAGE_TITLES = {
     requests: 'Venue Requests', venues: 'All Venues', heroes: 'Hero Picker', users: 'User Analytics',
     churn: 'Churned Users', 'venues-top': 'Top Venues', cities: 'City Breakdown',
-    pipeline: 'Revenue Pipeline', crm: 'CRM Dashboard', 'crm-contacts': 'Contacts', 'crm-pipeline': 'Pipeline', 'crm-activity': 'Activity Log', feedback: 'User Feedback', push: 'Push Notifications', cms: 'Site Copy', board: 'Project Board', demo: 'Demo Data', assets: 'Asset Generator'
+    pipeline: 'Revenue Pipeline', crm: 'CRM Dashboard', 'crm-contacts': 'Contacts', 'crm-pipeline': 'Pipeline', 'crm-activity': 'Activity Log', feedback: 'User Feedback', push: 'Push Notifications', cms: 'Site Copy', board: 'Project Board', demo: 'Demo Data', assets: 'Asset Generator', 'email-builder': 'Email Builder'
   };
 
   function showPage(page) {
@@ -3996,6 +4096,338 @@ Roundup</textarea>
       }
     } catch(e) { console.warn('Venue claim import failed:', e); }
   }
+
+  // ── EMAIL BUILDER ─────────────────────────────────────
+  let _ebSections = [
+    { label: 'Spot #1', title: '{{venue1_name}}', meta: '{{venue1_neighborhood}} · {{venue1_city}} · {{venue1_hours}}', deal1: '{{venue1_deal1}}', deal2: '{{venue1_deal2}}' },
+    { label: 'Spot #2', title: '{{venue2_name}}', meta: '{{venue2_neighborhood}} · {{venue2_city}} · {{venue2_hours}}', deal1: '{{venue2_deal1}}', deal2: '{{venue2_deal2}}' },
+    { label: 'Spot #3', title: '{{venue3_name}}', meta: '{{venue3_neighborhood}} · {{venue3_city}} · {{venue3_hours}}', deal1: '{{venue3_deal1}}', deal2: '{{venue3_deal2}}' },
+  ];
+
+  function ebInitSections() {
+    ebRenderSectionList();
+    ebRender();
+  }
+
+  function ebRenderSectionList() {
+    const el = document.getElementById('eb-sections');
+    el.innerHTML = _ebSections.map((s, i) => `
+      <div class="eb-section-card${i === 0 ? ' open' : ''}" id="eb-sec-${i}">
+        <div class="eb-section-card-header" onclick="document.getElementById('eb-sec-${i}').classList.toggle('open')">
+          <span class="eb-section-card-title">${escHtml(s.label || 'Section ' + (i+1))}</span>
+          <div class="eb-section-card-actions">
+            ${i > 0 ? `<button onclick="event.stopPropagation();ebMoveSection(${i},-1)" title="Move up">↑</button>` : ''}
+            ${i < _ebSections.length-1 ? `<button onclick="event.stopPropagation();ebMoveSection(${i},1)" title="Move down">↓</button>` : ''}
+            <button onclick="event.stopPropagation();ebRemoveSection(${i})" title="Remove">✕</button>
+          </div>
+        </div>
+        <div class="eb-section-body">
+          <div class="eb-field"><label>Label</label><input type="text" value="${escHtml(s.label)}" oninput="_ebSections[${i}].label=this.value;ebRenderSectionList();ebRender()"></div>
+          <div class="eb-field"><label>Title</label><input type="text" value="${escHtml(s.title)}" oninput="_ebSections[${i}].title=this.value;ebRender()"></div>
+          <div class="eb-field"><label>Meta (neighborhood, city, hours)</label><input type="text" value="${escHtml(s.meta)}" oninput="_ebSections[${i}].meta=this.value;ebRender()"></div>
+          <div class="eb-field"><label>Deal 1</label><input type="text" value="${escHtml(s.deal1)}" oninput="_ebSections[${i}].deal1=this.value;ebRender()"></div>
+          <div class="eb-field"><label>Deal 2</label><input type="text" value="${escHtml(s.deal2)}" oninput="_ebSections[${i}].deal2=this.value;ebRender()"></div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function ebAddSection() {
+    const n = _ebSections.length + 1;
+    _ebSections.push({ label: `Spot #${n}`, title: 'Venue Name', meta: 'Neighborhood · City', deal1: '$5 Margaritas', deal2: 'Half-off appetizers' });
+    ebRenderSectionList();
+    ebRender();
+  }
+
+  function ebRemoveSection(i) {
+    if (_ebSections.length <= 1) return;
+    _ebSections.splice(i, 1);
+    ebRenderSectionList();
+    ebRender();
+  }
+
+  function ebMoveSection(i, dir) {
+    const j = i + dir;
+    if (j < 0 || j >= _ebSections.length) return;
+    [_ebSections[i], _ebSections[j]] = [_ebSections[j], _ebSections[i]];
+    ebRenderSectionList();
+    ebRender();
+  }
+
+  function ebRender() {
+    const subject = document.getElementById('eb-subject')?.value || '';
+    const badge = document.getElementById('eb-badge')?.value || '';
+    const heroEyebrow = document.getElementById('eb-hero-eyebrow')?.value || '';
+    const heroHeadline = document.getElementById('eb-hero-headline')?.value || '';
+    const heroBody = document.getElementById('eb-hero-body')?.value || '';
+    const ctaHeadline = document.getElementById('eb-cta-headline')?.value || '';
+    const ctaBtn = document.getElementById('eb-cta-btn')?.value || '';
+    const ctaUrl = document.getElementById('eb-cta-url')?.value || '';
+    const footerTagline = document.getElementById('eb-footer-tagline')?.value || '';
+
+    const sectionsHtml = _ebSections.map((s, i) => {
+      const bg = i % 2 === 0 ? '#FFF0EC' : '#FFFCF8';
+      return `<div style="background:${bg};padding:28px 40px">
+        <div style="font-size:11px;font-weight:700;color:#E8943A;text-transform:uppercase;letter-spacing:1.2px;margin-bottom:6px;font-family:'DM Sans',Arial,sans-serif">${escHtml(s.label)}</div>
+        <div style="font-size:22px;font-weight:700;color:#2A1F14;margin-bottom:4px;font-family:'DM Sans',Arial,sans-serif">${escHtml(s.title)}</div>
+        <div style="font-size:13px;color:#9E8E7E;margin-bottom:12px;font-family:'DM Sans',Arial,sans-serif">${escHtml(s.meta)}</div>
+        ${s.deal1 ? `<div style="font-size:15px;color:#5A4A3A;line-height:24px;font-family:'DM Sans',Arial,sans-serif">&#127866; ${escHtml(s.deal1)}</div>` : ''}
+        ${s.deal2 ? `<div style="font-size:15px;color:#5A4A3A;line-height:24px;margin-top:2px;font-family:'DM Sans',Arial,sans-serif">&#127860; ${escHtml(s.deal2)}</div>` : ''}
+      </div>`;
+    }).join('');
+
+    const html = `
+      <div style="background:#2A1F14;padding:20px 32px;display:flex;justify-content:space-between;align-items:center">
+        <div style="font-size:24px;font-weight:700;color:#FF6B4A;font-family:'DM Sans',Arial,sans-serif">Spot'd</div>
+        <div style="font-size:12px;color:#9E8E7E;font-family:'DM Sans',Arial,sans-serif">${escHtml(badge)}</div>
+      </div>
+      <div style="background:#FFFCF8;padding:48px 40px 32px">
+        <div style="font-size:12px;font-weight:700;color:#FF6B4A;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px;font-family:'DM Sans',Arial,sans-serif">${escHtml(heroEyebrow)}</div>
+        <div style="font-size:36px;line-height:44px;font-weight:700;color:#2A1F14;margin-bottom:20px;font-family:'DM Sans',Arial,sans-serif">${escHtml(heroHeadline)}</div>
+        <div style="font-size:16px;line-height:26px;color:#5A4A3A;font-family:'DM Sans',Arial,sans-serif">${escHtml(heroBody)}</div>
+      </div>
+      ${sectionsHtml}
+      <div style="background:#2A1F14;padding:40px;text-align:center">
+        <div style="font-size:18px;line-height:28px;font-weight:700;color:#fff;margin-bottom:20px;font-family:'DM Sans',Arial,sans-serif">${escHtml(ctaHeadline)}</div>
+        <a href="${escHtml(ctaUrl)}" style="display:inline-block;background:#FF6B4A;color:#fff;padding:16px 40px;border-radius:60px;font-size:15px;font-weight:700;text-decoration:none;font-family:'DM Sans',Arial,sans-serif">${escHtml(ctaBtn)}</a>
+      </div>
+      <div style="background:#EDE7DD;padding:24px 32px;text-align:center">
+        <div style="font-size:12px;color:#9E8E7E;line-height:18px;margin-bottom:8px;font-family:'DM Sans',Arial,sans-serif">You're receiving this because you signed up for Spotd.<br>Spotd &bull; San Diego, CA &bull; <a href="#" style="color:#9E8E7E;text-decoration:underline">Unsubscribe</a></div>
+        <div style="font-size:11px;color:#BDB0A4;font-family:'DM Sans',Arial,sans-serif">&copy; 2026 Spotd Inc. ${escHtml(footerTagline)}</div>
+      </div>
+    `;
+    document.getElementById('eb-preview-frame').innerHTML = html;
+  }
+
+  function ebGenerateMjml() {
+    const subject = document.getElementById('eb-subject')?.value || '';
+    const preview = document.getElementById('eb-preview')?.value || '';
+    const badge = document.getElementById('eb-badge')?.value || '';
+    const heroEyebrow = document.getElementById('eb-hero-eyebrow')?.value || '';
+    const heroHeadline = document.getElementById('eb-hero-headline')?.value || '';
+    const heroBody = document.getElementById('eb-hero-body')?.value || '';
+    const ctaHeadline = document.getElementById('eb-cta-headline')?.value || '';
+    const ctaBtn = document.getElementById('eb-cta-btn')?.value || '';
+    const ctaUrl = document.getElementById('eb-cta-url')?.value || '';
+    const footerTagline = document.getElementById('eb-footer-tagline')?.value || '';
+
+    const sectionsMjml = _ebSections.map((s, i) => {
+      const bg = i % 2 === 0 ? '#FFF0EC' : '#FFFCF8';
+      let mjml = `
+    <!-- ${escHtml(s.label)} -->
+    <mj-section background-color="${bg}" padding="28px 40px">
+      <mj-column>
+        <mj-text align="left" font-size="11px" font-weight="700" color="#E8943A" padding-bottom="6px" padding-top="0" padding-left="0" padding-right="0">
+          <span style="mso-line-height-rule:exactly;font-size:11px;font-family:'DM Sans',Arial,sans-serif;font-weight:700;color:#E8943A;text-transform:uppercase;letter-spacing:1.2px;">${escHtml(s.label)}</span>
+        </mj-text>
+        <mj-text align="left" font-size="22px" font-weight="700" color="#2A1F14" padding-bottom="4px" padding-top="0" padding-left="0" padding-right="0">
+          <span style="mso-line-height-rule:exactly;font-size:22px;font-family:'DM Sans',Arial,sans-serif;font-weight:700;color:#2A1F14;">${escHtml(s.title)}</span>
+        </mj-text>
+        <mj-text align="left" font-size="13px" color="#9E8E7E" padding-bottom="12px" padding-top="0" padding-left="0" padding-right="0">
+          <span style="mso-line-height-rule:exactly;font-size:13px;font-family:'DM Sans',Arial,sans-serif;color:#9E8E7E;">${escHtml(s.meta)}</span>
+        </mj-text>`;
+      if (s.deal1) mjml += `
+        <mj-text align="left" font-size="15px" line-height="24px" color="#5A4A3A" padding="0">
+          <span style="mso-line-height-rule:exactly;font-size:15px;line-height:24px;font-family:'DM Sans',Arial,sans-serif;color:#5A4A3A;">&#127866; ${escHtml(s.deal1)}</span>
+        </mj-text>`;
+      if (s.deal2) mjml += `
+        <mj-text align="left" font-size="15px" line-height="24px" color="#5A4A3A" padding-top="2px" padding-bottom="0" padding-left="0" padding-right="0">
+          <span style="mso-line-height-rule:exactly;font-size:15px;line-height:24px;font-family:'DM Sans',Arial,sans-serif;color:#5A4A3A;">&#127860; ${escHtml(s.deal2)}</span>
+        </mj-text>`;
+      mjml += `
+      </mj-column>
+    </mj-section>`;
+      return mjml;
+    }).join('\n');
+
+    return `<mjml lang="en">
+  <mj-head>
+    <mj-title>${escHtml(subject)}</mj-title>
+    <mj-preview>${escHtml(preview)}</mj-preview>
+    <mj-font name="DM Sans" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap"></mj-font>
+    <mj-style>
+      u + .emailify a, #MessageViewBody a, a[x-apple-data-detectors] {
+        color: inherit !important; text-decoration: none !important;
+        font-size: inherit !important; font-family: inherit !important;
+        font-weight: inherit !important; line-height: inherit !important;
+      }
+      span.MsoHyperlink { mso-style-priority:99; color:inherit; }
+      @media only screen and (max-width:599px) {
+        .emailify { height:100% !important; margin:0 !important; padding:0 !important; width:100% !important; }
+        .hero-text { font-size:30px!important; line-height:38px!important; }
+      }
+    </mj-style>
+    <mj-attributes>
+      <mj-all font-family="'DM Sans', Arial, sans-serif"></mj-all>
+      <mj-text font-size="16px" line-height="26px" color="#2A1F14"></mj-text>
+    </mj-attributes>
+    <mj-breakpoint width="599px"></mj-breakpoint>
+    <mj-raw>
+      <meta name="color-scheme" content="light">
+      <meta name="supported-color-schemes" content="light">
+    </mj-raw>
+  </mj-head>
+
+  <mj-body background-color="#EDE7DD" width="600px" css-class="emailify">
+
+    <!-- Logo bar -->
+    <mj-section background-color="#2A1F14" padding="20px 32px">
+      <mj-column>
+        <mj-text align="left" font-size="24px" font-weight="700" color="#FF6B4A" padding="0">
+          <span style="mso-line-height-rule:exactly;font-size:24px;font-family:'DM Sans',Arial,sans-serif;font-weight:700;color:#FF6B4A;">Spot'd</span>
+        </mj-text>
+      </mj-column>
+      <mj-column>
+        <mj-text align="right" font-size="12px" color="#9E8E7E" padding="0">
+          <span style="mso-line-height-rule:exactly;font-size:12px;font-family:'DM Sans',Arial,sans-serif;color:#9E8E7E;">${escHtml(badge)}</span>
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <!-- Hero -->
+    <mj-section background-color="#FFFCF8" padding="48px 40px 32px">
+      <mj-column>
+        <mj-text align="left" font-size="12px" font-weight="700" color="#FF6B4A" padding-bottom="12px" padding-top="0" padding-left="0" padding-right="0">
+          <span style="mso-line-height-rule:exactly;font-size:12px;font-family:'DM Sans',Arial,sans-serif;font-weight:700;color:#FF6B4A;text-transform:uppercase;letter-spacing:1.5px;">${escHtml(heroEyebrow)}</span>
+        </mj-text>
+        <mj-text align="left" css-class="hero-text" font-size="40px" line-height="48px" font-weight="700" color="#2A1F14" padding-bottom="20px" padding-top="0" padding-left="0" padding-right="0">
+          <span style="mso-line-height-rule:exactly;font-size:40px;line-height:48px;font-family:'DM Sans',Arial,sans-serif;font-weight:700;color:#2A1F14;">${escHtml(heroHeadline)}</span>
+        </mj-text>
+        <mj-text align="left" font-size="16px" line-height="26px" color="#5A4A3A" padding="0">
+          <span style="mso-line-height-rule:exactly;font-size:16px;line-height:26px;font-family:'DM Sans',Arial,sans-serif;color:#5A4A3A;">${escHtml(heroBody)}</span>
+        </mj-text>
+      </mj-column>
+    </mj-section>
+${sectionsMjml}
+
+    <!-- CTA -->
+    <mj-section background-color="#2A1F14" padding="40px">
+      <mj-column>
+        <mj-text align="center" font-size="18px" line-height="28px" font-weight="700" color="#FFFFFF" padding-bottom="20px" padding-top="0" padding-left="0" padding-right="0">
+          <span style="mso-line-height-rule:exactly;font-size:18px;line-height:28px;font-family:'DM Sans',Arial,sans-serif;font-weight:700;color:#FFFFFF;">${escHtml(ctaHeadline)}</span>
+        </mj-text>
+        <mj-button align="center" background-color="#FF6B4A" color="#FFFFFF" border-radius="60px" font-size="15px" font-weight="700" inner-padding="16px 40px" href="${escHtml(ctaUrl)}" padding="0">
+          <span style="mso-line-height-rule:exactly;font-size:15px;font-family:'DM Sans',Arial,sans-serif;font-weight:700;color:#FFFFFF;">${escHtml(ctaBtn)}</span>
+        </mj-button>
+      </mj-column>
+    </mj-section>
+
+    <!-- Footer -->
+    <mj-section background-color="#EDE7DD" padding="24px 32px">
+      <mj-column>
+        <mj-text align="center" font-size="12px" line-height="18px" color="#9E8E7E" padding-bottom="8px" padding-top="0" padding-left="0" padding-right="0">
+          <span style="mso-line-height-rule:exactly;font-size:12px;line-height:18px;font-family:'DM Sans',Arial,sans-serif;color:#9E8E7E;">You're receiving this because you signed up for Spotd.<br>Spotd &bull; San Diego, CA &bull; <a href="{unsubscribe_link}" style="color:#9E8E7E;text-decoration:underline;">Unsubscribe</a></span>
+        </mj-text>
+        <mj-text align="center" font-size="11px" color="#BDB0A4" padding="0">
+          <span style="mso-line-height-rule:exactly;font-size:11px;font-family:'DM Sans',Arial,sans-serif;color:#BDB0A4;">&copy; 2026 Spotd Inc. ${escHtml(footerTagline)}</span>
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+  </mj-body>
+</mjml>`;
+  }
+
+  async function ebExportMjml() {
+    const mjml = ebGenerateMjml();
+    const subject = (document.getElementById('eb-subject')?.value || 'email').replace(/[^a-zA-Z0-9-_ ]/g, '').trim().replace(/\s+/g, '-').toLowerCase() || 'email';
+
+    // Use JSZip-like approach with manual zip creation via Blob
+    // Simple approach: create a zip with one file using compression-less zip
+    const filename = `${subject}.mjml`;
+    const zipBlob = createSimpleZip(filename, mjml);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(zipBlob);
+    a.download = `${subject}.zip`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    showToast('MJML exported as .zip');
+  }
+
+  function createSimpleZip(filename, content) {
+    // Minimal ZIP file creator (store-only, no compression)
+    const enc = new TextEncoder();
+    const data = enc.encode(content);
+    const nameBytes = enc.encode(filename);
+    const crc = crc32(data);
+    const now = new Date();
+    const dosTime = ((now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1)) & 0xFFFF;
+    const dosDate = (((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate()) & 0xFFFF;
+
+    // Local file header
+    const lfh = new Uint8Array(30 + nameBytes.length);
+    const lfhView = new DataView(lfh.buffer);
+    lfhView.setUint32(0, 0x04034b50, true); // signature
+    lfhView.setUint16(4, 20, true); // version needed
+    lfhView.setUint16(6, 0, true);  // flags
+    lfhView.setUint16(8, 0, true);  // compression (store)
+    lfhView.setUint16(10, dosTime, true);
+    lfhView.setUint16(12, dosDate, true);
+    lfhView.setUint32(14, crc, true);
+    lfhView.setUint32(18, data.length, true); // compressed size
+    lfhView.setUint32(22, data.length, true); // uncompressed size
+    lfhView.setUint16(26, nameBytes.length, true);
+    lfhView.setUint16(28, 0, true); // extra field length
+    lfh.set(nameBytes, 30);
+
+    // Central directory header
+    const cdh = new Uint8Array(46 + nameBytes.length);
+    const cdhView = new DataView(cdh.buffer);
+    cdhView.setUint32(0, 0x02014b50, true);
+    cdhView.setUint16(4, 20, true); // version made by
+    cdhView.setUint16(6, 20, true); // version needed
+    cdhView.setUint16(8, 0, true);  // flags
+    cdhView.setUint16(10, 0, true); // compression
+    cdhView.setUint16(12, dosTime, true);
+    cdhView.setUint16(14, dosDate, true);
+    cdhView.setUint32(16, crc, true);
+    cdhView.setUint32(20, data.length, true);
+    cdhView.setUint32(24, data.length, true);
+    cdhView.setUint16(28, nameBytes.length, true);
+    cdhView.setUint16(30, 0, true); // extra
+    cdhView.setUint16(32, 0, true); // comment
+    cdhView.setUint16(34, 0, true); // disk
+    cdhView.setUint16(36, 0, true); // internal attr
+    cdhView.setUint32(38, 0, true); // external attr
+    cdhView.setUint32(42, 0, true); // offset of local header
+    cdh.set(nameBytes, 46);
+
+    // End of central directory
+    const cdOffset = lfh.length + data.length;
+    const eocd = new Uint8Array(22);
+    const eocdView = new DataView(eocd.buffer);
+    eocdView.setUint32(0, 0x06054b50, true);
+    eocdView.setUint16(4, 0, true); // disk
+    eocdView.setUint16(6, 0, true); // disk with CD
+    eocdView.setUint16(8, 1, true); // entries on disk
+    eocdView.setUint16(10, 1, true); // total entries
+    eocdView.setUint32(12, cdh.length, true); // CD size
+    eocdView.setUint32(16, cdOffset, true); // CD offset
+    eocdView.setUint16(20, 0, true); // comment
+
+    return new Blob([lfh, data, cdh, eocd], { type: 'application/zip' });
+  }
+
+  function crc32(buf) {
+    let crc = -1;
+    for (let i = 0; i < buf.length; i++) {
+      let byte = buf[i];
+      for (let j = 0; j < 8; j++) {
+        if ((crc ^ byte) & 1) crc = (crc >>> 1) ^ 0xEDB88320;
+        else crc >>>= 1;
+        byte >>>= 1;
+      }
+    }
+    return (crc ^ -1) >>> 0;
+  }
+
+  function ebCopyHtml() {
+    const html = document.getElementById('eb-preview-frame').innerHTML;
+    navigator.clipboard.writeText(html).then(() => showToast('HTML copied to clipboard'));
+  }
+
+  // Initialize sections on first load
+  setTimeout(() => { ebInitSections(); }, 100);
 
 </script>
 </body>
