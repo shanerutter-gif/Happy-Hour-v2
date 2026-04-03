@@ -1,7 +1,8 @@
 {
   "version": 2,
   "crons": [
-    { "path": "/api/loops-inactive", "schedule": "0 14 * * *" }
+    { "path": "/api/loops-inactive", "schedule": "0 14 * * *" },
+    { "path": "/api/daily-deals", "schedule": "0 14 * * *" }
   ],
   "redirects": [
     { "source": "/app-download", "destination": "https://apps.apple.com/us/app/spotd/id6760452388", "permanent": false }
@@ -11,6 +12,7 @@
     { "src": "/api/loops-onboarding",      "dest": "/api/loops-onboarding.js" },
     { "src": "/api/loops-event",           "dest": "/api/loops-event.js" },
     { "src": "/api/loops-inactive",        "dest": "/api/loops-inactive.js" },
+    { "src": "/api/daily-deals",           "dest": "/api/daily-deals.js" },
     { "src": "/api/stripe-checkout",       "dest": "/api/stripe-checkout.js" },
     { "src": "/api/stripe-billing-portal", "dest": "/api/stripe-billing-portal.js" },
     { "src": "/api/stripe-webhook",        "dest": "/api/stripe-webhook.js" },

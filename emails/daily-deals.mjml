@@ -1,0 +1,150 @@
+<mjml lang="en">
+  <mj-head>
+    <mj-title>3 deals you haven't tried yet</mj-title>
+    <mj-preview>Today's happy hour picks — fresh deals, new spots, zero effort.</mj-preview>
+    <mj-font name="DM Sans" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap"></mj-font>
+    <mj-style>
+      u + .emailify a, #MessageViewBody a, a[x-apple-data-detectors] {
+        color: inherit !important; text-decoration: none !important;
+        font-size: inherit !important; font-family: inherit !important;
+        font-weight: inherit !important; line-height: inherit !important;
+      }
+      span.MsoHyperlink { mso-style-priority:99; color:inherit; }
+      span.MsoHyperlinkFollowed { mso-style-priority:99; color:inherit; }
+      @media only screen and (max-width:599px) {
+        .emailify { height:100% !important; margin:0 !important; padding:0 !important; width:100% !important; }
+        .hero-text { font-size:30px!important; line-height:38px!important; }
+      }
+    </mj-style>
+    <mj-attributes>
+      <mj-all font-family="'DM Sans', Arial, sans-serif"></mj-all>
+      <mj-text font-size="16px" line-height="26px" color="#2A1F14"></mj-text>
+    </mj-attributes>
+    <mj-breakpoint width="599px"></mj-breakpoint>
+    <mj-raw>
+      <meta name="color-scheme" content="light">
+      <meta name="supported-color-schemes" content="light">
+      <!--[if gte mso 9]><style>li { text-indent: -1em; }</style><![endif]-->
+    </mj-raw>
+  </mj-head>
+
+  <mj-body background-color="#EDE7DD" width="600px" css-class="emailify">
+
+    <!-- Logo bar -->
+    <mj-section background-color="#2A1F14" padding="20px 32px">
+      <mj-column>
+        <mj-text align="left" font-size="24px" font-weight="700" color="#FF6B4A" padding="0">
+          <span style="mso-line-height-rule:exactly;font-size:24px;font-family:'DM Sans',Arial,sans-serif;font-weight:700;color:#FF6B4A;">Spot'd</span>
+        </mj-text>
+      </mj-column>
+      <mj-column>
+        <mj-text align="right" font-size="12px" color="#9E8E7E" padding="0">
+          <span style="mso-line-height-rule:exactly;font-size:12px;font-family:'DM Sans',Arial,sans-serif;color:#9E8E7E;">Daily Deals</span>
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <!-- Hero -->
+    <mj-section background-color="#FFFCF8" padding="48px 40px 32px">
+      <mj-column>
+        <mj-text align="left" font-size="12px" font-weight="700" color="#FF6B4A" padding-bottom="12px" padding-top="0" padding-left="0" padding-right="0">
+          <span style="mso-line-height-rule:exactly;font-size:12px;font-family:'DM Sans',Arial,sans-serif;font-weight:700;color:#FF6B4A;text-transform:uppercase;letter-spacing:1.5px;">{{date_formatted}}</span>
+        </mj-text>
+        <mj-text align="left" css-class="hero-text" font-size="40px" line-height="48px" font-weight="700" color="#2A1F14" padding-bottom="20px" padding-top="0" padding-left="0" padding-right="0">
+          <span style="mso-line-height-rule:exactly;font-size:40px;line-height:48px;font-family:'DM Sans',Arial,sans-serif;font-weight:700;color:#2A1F14;">3 deals you haven't tried yet.</span>
+        </mj-text>
+        <mj-text align="left" font-size="16px" line-height="26px" color="#5A4A3A" padding="0">
+          <span style="mso-line-height-rule:exactly;font-size:16px;line-height:26px;font-family:'DM Sans',Arial,sans-serif;color:#5A4A3A;">Every day we surface 3 happy hour spots from the Spotd database. New picks, zero effort from you.</span>
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <!-- Venue 1 -->
+    <mj-section background-color="#FFF0EC" padding="28px 40px" border-radius="0">
+      <mj-column>
+        <mj-text align="left" font-size="11px" font-weight="700" color="#E8943A" padding-bottom="6px" padding-top="0" padding-left="0" padding-right="0">
+          <span style="mso-line-height-rule:exactly;font-size:11px;font-family:'DM Sans',Arial,sans-serif;font-weight:700;color:#E8943A;text-transform:uppercase;letter-spacing:1.2px;">Spot #1</span>
+        </mj-text>
+        <mj-text align="left" font-size="22px" font-weight="700" color="#2A1F14" padding-bottom="4px" padding-top="0" padding-left="0" padding-right="0">
+          <span style="mso-line-height-rule:exactly;font-size:22px;font-family:'DM Sans',Arial,sans-serif;font-weight:700;color:#2A1F14;">{{venue1_name}}</span>
+        </mj-text>
+        <mj-text align="left" font-size="13px" color="#9E8E7E" padding-bottom="12px" padding-top="0" padding-left="0" padding-right="0">
+          <span style="mso-line-height-rule:exactly;font-size:13px;font-family:'DM Sans',Arial,sans-serif;color:#9E8E7E;">{{venue1_neighborhood}} &bull; {{venue1_city}} &bull; {{venue1_hours}}</span>
+        </mj-text>
+        <mj-text align="left" font-size="15px" line-height="24px" color="#5A4A3A" padding="0">
+          <span style="mso-line-height-rule:exactly;font-size:15px;line-height:24px;font-family:'DM Sans',Arial,sans-serif;color:#5A4A3A;">&#127866; {{venue1_deal1}}</span>
+        </mj-text>
+        <mj-text align="left" font-size="15px" line-height="24px" color="#5A4A3A" padding-top="2px" padding-bottom="0" padding-left="0" padding-right="0">
+          <span style="mso-line-height-rule:exactly;font-size:15px;line-height:24px;font-family:'DM Sans',Arial,sans-serif;color:#5A4A3A;">&#127860; {{venue1_deal2}}</span>
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <!-- Venue 2 -->
+    <mj-section background-color="#FFFCF8" padding="28px 40px">
+      <mj-column>
+        <mj-text align="left" font-size="11px" font-weight="700" color="#E8943A" padding-bottom="6px" padding-top="0" padding-left="0" padding-right="0">
+          <span style="mso-line-height-rule:exactly;font-size:11px;font-family:'DM Sans',Arial,sans-serif;font-weight:700;color:#E8943A;text-transform:uppercase;letter-spacing:1.2px;">Spot #2</span>
+        </mj-text>
+        <mj-text align="left" font-size="22px" font-weight="700" color="#2A1F14" padding-bottom="4px" padding-top="0" padding-left="0" padding-right="0">
+          <span style="mso-line-height-rule:exactly;font-size:22px;font-family:'DM Sans',Arial,sans-serif;font-weight:700;color:#2A1F14;">{{venue2_name}}</span>
+        </mj-text>
+        <mj-text align="left" font-size="13px" color="#9E8E7E" padding-bottom="12px" padding-top="0" padding-left="0" padding-right="0">
+          <span style="mso-line-height-rule:exactly;font-size:13px;font-family:'DM Sans',Arial,sans-serif;color:#9E8E7E;">{{venue2_neighborhood}} &bull; {{venue2_city}} &bull; {{venue2_hours}}</span>
+        </mj-text>
+        <mj-text align="left" font-size="15px" line-height="24px" color="#5A4A3A" padding="0">
+          <span style="mso-line-height-rule:exactly;font-size:15px;line-height:24px;font-family:'DM Sans',Arial,sans-serif;color:#5A4A3A;">&#127866; {{venue2_deal1}}</span>
+        </mj-text>
+        <mj-text align="left" font-size="15px" line-height="24px" color="#5A4A3A" padding-top="2px" padding-bottom="0" padding-left="0" padding-right="0">
+          <span style="mso-line-height-rule:exactly;font-size:15px;line-height:24px;font-family:'DM Sans',Arial,sans-serif;color:#5A4A3A;">&#127860; {{venue2_deal2}}</span>
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <!-- Venue 3 -->
+    <mj-section background-color="#FFF0EC" padding="28px 40px">
+      <mj-column>
+        <mj-text align="left" font-size="11px" font-weight="700" color="#E8943A" padding-bottom="6px" padding-top="0" padding-left="0" padding-right="0">
+          <span style="mso-line-height-rule:exactly;font-size:11px;font-family:'DM Sans',Arial,sans-serif;font-weight:700;color:#E8943A;text-transform:uppercase;letter-spacing:1.2px;">Spot #3</span>
+        </mj-text>
+        <mj-text align="left" font-size="22px" font-weight="700" color="#2A1F14" padding-bottom="4px" padding-top="0" padding-left="0" padding-right="0">
+          <span style="mso-line-height-rule:exactly;font-size:22px;font-family:'DM Sans',Arial,sans-serif;font-weight:700;color:#2A1F14;">{{venue3_name}}</span>
+        </mj-text>
+        <mj-text align="left" font-size="13px" color="#9E8E7E" padding-bottom="12px" padding-top="0" padding-left="0" padding-right="0">
+          <span style="mso-line-height-rule:exactly;font-size:13px;font-family:'DM Sans',Arial,sans-serif;color:#9E8E7E;">{{venue3_neighborhood}} &bull; {{venue3_city}} &bull; {{venue3_hours}}</span>
+        </mj-text>
+        <mj-text align="left" font-size="15px" line-height="24px" color="#5A4A3A" padding="0">
+          <span style="mso-line-height-rule:exactly;font-size:15px;line-height:24px;font-family:'DM Sans',Arial,sans-serif;color:#5A4A3A;">&#127866; {{venue3_deal1}}</span>
+        </mj-text>
+        <mj-text align="left" font-size="15px" line-height="24px" color="#5A4A3A" padding-top="2px" padding-bottom="0" padding-left="0" padding-right="0">
+          <span style="mso-line-height-rule:exactly;font-size:15px;line-height:24px;font-family:'DM Sans',Arial,sans-serif;color:#5A4A3A;">&#127860; {{venue3_deal2}}</span>
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <!-- CTA -->
+    <mj-section background-color="#2A1F14" padding="40px">
+      <mj-column>
+        <mj-text align="center" font-size="18px" line-height="28px" font-weight="700" color="#FFFFFF" padding-bottom="20px" padding-top="0" padding-left="0" padding-right="0">
+          <span style="mso-line-height-rule:exactly;font-size:18px;line-height:28px;font-family:'DM Sans',Arial,sans-serif;font-weight:700;color:#FFFFFF;">See all deals on the map. Find your spot tonight.</span>
+        </mj-text>
+        <mj-button align="center" background-color="#FF6B4A" color="#FFFFFF" border-radius="60px" font-size="15px" font-weight="700" inner-padding="16px 40px" href="https://spotd.biz" padding="0">
+          <span style="mso-line-height-rule:exactly;font-size:15px;font-family:'DM Sans',Arial,sans-serif;font-weight:700;color:#FFFFFF;">Open Spotd</span>
+        </mj-button>
+      </mj-column>
+    </mj-section>
+
+    <!-- Footer -->
+    <mj-section background-color="#EDE7DD" padding="24px 32px">
+      <mj-column>
+        <mj-text align="center" font-size="12px" line-height="18px" color="#9E8E7E" padding-bottom="8px" padding-top="0" padding-left="0" padding-right="0">
+          <span style="mso-line-height-rule:exactly;font-size:12px;line-height:18px;font-family:'DM Sans',Arial,sans-serif;color:#9E8E7E;">You're receiving this because you signed up for Spotd.<br>Spotd &bull; San Diego, CA &bull; <a href="{unsubscribe_link}" style="color:#9E8E7E;text-decoration:underline;">Unsubscribe</a></span>
+        </mj-text>
+        <mj-text align="center" font-size="11px" color="#BDB0A4" padding="0">
+          <span style="mso-line-height-rule:exactly;font-size:11px;font-family:'DM Sans',Arial,sans-serif;color:#BDB0A4;">&copy; 2026 Spotd Inc. 3 fresh deals, every single day.</span>
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+  </mj-body>
+</mjml>
