@@ -771,7 +771,62 @@
               </div>
 
               <div id="not-listed-note" style="margin-bottom:16px; display:none;">
-                <p style="color:var(--muted); font-size:13px;">Can't find your venue? <a href="#" onclick="showAddNew()" style="color:var(--teal);">Submit it for addition →</a></p>
+                <p style="color:var(--muted); font-size:13px;">Can't find your venue? <a href="#" onclick="document.getElementById('add-venue-form').style.display='block';this.parentElement.parentElement.style.display='none';" style="color:var(--teal);">Submit it for addition →</a></p>
+              </div>
+
+              <!-- ADD NEW VENUE FORM -->
+              <div id="add-venue-form" style="display:none;">
+                <div style="background:linear-gradient(135deg,rgba(255,107,74,0.06),rgba(232,148,58,0.04)); border:1px solid rgba(255,107,74,0.15); border-radius:14px; padding:24px; margin-bottom:20px;">
+                  <h3 style="font-family:'Cabinet Grotesk',sans-serif; font-size:18px; font-weight:800; margin-bottom:4px;">Submit a New Venue</h3>
+                  <p style="color:var(--muted); font-size:13px;">Tell us about your business and we'll add it to Spotd within 24 hours.</p>
+                </div>
+                <div id="add-venue-msg" class="msg"></div>
+                <div class="form-group">
+                  <label>Venue name *</label>
+                  <input type="text" id="new-venue-name" placeholder="e.g. The Tipsy Crow" />
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Neighborhood</label>
+                    <input type="text" id="new-venue-neighborhood" placeholder="e.g. Gaslamp Quarter" />
+                  </div>
+                  <div class="form-group">
+                    <label>City *</label>
+                    <select id="new-venue-city">
+                      <option value="">Select city...</option>
+                      <option value="san-diego">San Diego</option>
+                      <option value="los-angeles">Los Angeles</option>
+                      <option value="new-york">New York</option>
+                      <option value="chicago">Chicago</option>
+                      <option value="austin">Austin</option>
+                      <option value="miami">Miami</option>
+                      <option value="denver">Denver</option>
+                      <option value="nashville">Nashville</option>
+                      <option value="scottsdale">Scottsdale</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label>Address</label>
+                  <input type="text" id="new-venue-address" placeholder="e.g. 770 Fifth Ave, San Diego, CA 92101" />
+                </div>
+                <div class="form-group">
+                  <label>Your email *</label>
+                  <input type="email" id="new-venue-email" placeholder="you@yourbar.com" />
+                </div>
+                <div class="form-group">
+                  <label>Happy hour details (optional)</label>
+                  <textarea id="new-venue-reason" placeholder="e.g. Happy hour Mon–Fri 3–6pm, $5 margaritas, half-off apps..." style="min-height:80px;"></textarea>
+                </div>
+                <div style="display:flex; gap:12px;">
+                  <button class="btn-outline" onclick="document.getElementById('add-venue-form').style.display='none';document.getElementById('not-listed-note').style.display='block';">← Back</button>
+                  <button class="btn" style="flex:1;" onclick="submitNewVenue()">Submit venue →</button>
+                </div>
+                <div id="add-venue-success" style="display:none; text-align:center; padding:40px 0;">
+                  <div style="font-size:48px; margin-bottom:16px;">🎉</div>
+                  <h3 style="font-family:'Cabinet Grotesk',sans-serif; font-size:24px; font-weight:800; margin-bottom:8px;">Venue submitted!</h3>
+                  <p style="color:var(--muted); max-width:380px; margin:0 auto;">We'll review your submission and add it to Spotd within 24 hours. We'll notify you at <span id="new-venue-success-email" style="color:var(--white);"></span>.</p>
+                </div>
               </div>
             </div>
 
@@ -1410,8 +1465,54 @@
     clearVenueSelection();
   }
 
-  function showAddNew() {
-    showMsg('claim-msg', 'To add a new venue, email us at hello@spotd.com with your venue name, address, and happy hour info.', 'warn');
+  async function submitNewVenue() {
+    const name = document.getElementById('new-venue-name').value.trim();
+    const city = document.getElementById('new-venue-city').value;
+    const email = document.getElementById('new-venue-email').value.trim();
+    const neighborhood = document.getElementById('new-venue-neighborhood').value.trim();
+    const address = document.getElementById('new-venue-address').value.trim();
+    const reason = document.getElementById('new-venue-reason').value.trim();
+
+    if (!name || !city || !email) {
+      return showMsg('add-venue-msg', 'Please fill in venue name, city, and your email.', 'error');
+    }
+    showMsg('add-venue-msg', 'Submitting...', 'warn');
+
+    try {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/venue_requests`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_ANON,
+          'Authorization': `Bearer ${getToken() || SUPABASE_ANON}`,
+          'Prefer': 'return=representation'
+        },
+        body: JSON.stringify({
+          venue_name: name,
+          city_slug: city,
+          neighborhood: neighborhood || null,
+          address: address || null,
+          user_email: email,
+          reason: reason || null,
+          user_id: currentUser?.id || null,
+          status: 'pending'
+        })
+      });
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        throw new Error(err.message || 'Submission failed');
+      }
+      // Show success
+      hideMsg('add-venue-msg');
+      document.getElementById('new-venue-success-email').textContent = email;
+      document.getElementById('add-venue-success').style.display = 'block';
+      // Hide the form fields
+      document.querySelectorAll('#add-venue-form .form-group, #add-venue-form .form-row, #add-venue-form > div:first-child, #add-venue-form > div:last-of-type:not(#add-venue-success)').forEach(el => {
+        if (el.id !== 'add-venue-success') el.style.display = 'none';
+      });
+    } catch(e) {
+      showMsg('add-venue-msg', e.message || 'Something went wrong. Please try again or email support@spotd.biz.', 'error');
+    }
   }
 
   // ─────────────────────────────────────────────
