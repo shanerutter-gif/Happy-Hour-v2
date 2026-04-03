@@ -107,11 +107,33 @@ async function initAuth() {
     // Load favorites in background — don't block city entry
     loadFavorites().catch(() => {});
     if (typeof onAuthChange === 'function') onAuthChange(currentUser);
+
+    // Fire-and-forget: update last_seen timestamp on profile
+    _updateLastSeen();
   } catch(e) {
     console.warn('[initAuth] error', e);
     // If we had a user but hit an error, still try to enter
     if (currentUser && typeof onAuthChange === 'function') onAuthChange(currentUser);
   }
+}
+
+// Update last_seen on profiles table (fire-and-forget, throttled to once per hour)
+function _updateLastSeen() {
+  if (!currentUser?.id || !_accessToken) return;
+  const key = `last_seen_ping_${currentUser.id}`;
+  const lastPing = parseInt(localStorage.getItem(key) || '0', 10);
+  if (Date.now() - lastPing < 3600000) return; // throttle: once per hour
+  localStorage.setItem(key, String(Date.now()));
+  fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${currentUser.id}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_ANON_KEY,
+      'Authorization': `Bearer ${_accessToken}`,
+      'Prefer': 'return=minimal',
+    },
+    body: JSON.stringify({ last_seen: new Date().toISOString() }),
+  }).catch(() => {});
 }
 
 // Re-validate session when app returns from background (iOS/Android)
