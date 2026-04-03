@@ -3338,10 +3338,23 @@ function getCityCenter(slug) {
   return centers[slug] || [39.5, -98.35];
 }
 function updateMapMarkers() {
-  // Use a layer group for efficient batch add/remove
   if (state._markerLayer) { state._markerLayer.clearLayers(); }
-  else { state._markerLayer = L.layerGroup().addTo(state.map); }
+  else {
+    state._markerLayer = L.markerClusterGroup({
+      maxClusterRadius: 45,
+      spiderfyOnMaxZoom: true,
+      showCoverageOnHover: false,
+      zoomToBoundsOnClick: true,
+      disableClusteringAtZoom: 17,
+      animate: true,
+      animateAddingMarkers: false,
+      chunkedLoading: true,
+      chunkInterval: 100,
+      chunkDelay: 10,
+    }).addTo(state.map);
+  }
   state.markers = {};
+  const markers = [];
   state.filtered.forEach(v => {
     if (!v.lat || !v.lng) return;
     const isEvent = !!v.event_type;
@@ -3350,11 +3363,13 @@ function updateMapMarkers() {
     const label = v.name.length > 16 ? v.name.slice(0, 15) + '\u2026' : v.name;
     const iconHtml = `<div class="map-pin-wrap"><div class="map-pin-dot" style="background:${bg};box-shadow:0 0 0 3px ${bg}22"></div><div class="map-pin-label" style="border-color:${bg}33;color:${bg}">${label}</div></div>`;
     const icon = L.divIcon({ className: '', html: iconHtml, iconSize: [10, 10], iconAnchor: [5, 5], popupAnchor: [0, -14] });
-    const marker = L.marker([v.lat, v.lng], { icon }).bindPopup(popupHTML(v), { maxWidth: 260 });
+    const marker = L.marker([v.lat, v.lng], { icon });
+    marker.bindPopup(popupHTML(v), { maxWidth: 260 });
     marker.on('click', () => hlMapCard(v.id));
-    state._markerLayer.addLayer(marker);
+    markers.push(marker);
     state.markers[v.id] = marker;
   });
+  state._markerLayer.addLayers(markers);
 }
 function popupHTML(v) {
   return `<div class="popup-body"><div class="popup-name">${esc(v.name)}</div><div class="popup-hood">${esc(v.neighborhood||'')}</div><div class="popup-when">${esc(getTodayHours(v))}</div>${(v.deals||[]).slice(0,2).map(d=>`<div class="popup-deal">${esc(d)}</div>`).join('')}<div class="popup-actions"><button class="popup-btn" onclick="openModal('${v.id}','${v.event_type?'event':'venue'}')">Details</button><button class="popup-directions" onclick="getDirections(${v.lat},${v.lng},'${esc(v.name).replace(/'/g,"\\'")}')">Directions</button><button class="popup-share" onclick="shareItem('${v.id}','${v.event_type?'event':'venue'}')">Share</button></div></div>`;
@@ -3368,8 +3383,15 @@ function flyTo(id) {
   const all = [...state.venues, ...state.events];
   const v   = all.find(x => String(x.id) === String(id));
   if (!v || !v.lat || !state.map) return;
-  state.map.flyTo([v.lat, v.lng], 15, { animate: true, duration: 1.1, easeLinearity: 0.15 });
-  if (state.markers[id]) setTimeout(() => state.markers[id].openPopup(), 900);
+  const marker = state.markers[id];
+  if (marker && state._markerLayer && state._markerLayer.zoomToShowLayer) {
+    state._markerLayer.zoomToShowLayer(marker, () => {
+      setTimeout(() => marker.openPopup(), 300);
+    });
+  } else {
+    state.map.flyTo([v.lat, v.lng], 17, { animate: true, duration: 1.1, easeLinearity: 0.15 });
+    if (marker) setTimeout(() => marker.openPopup(), 900);
+  }
   hlMapCard(id);
 }
 function hlMapCard(id) {

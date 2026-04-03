@@ -2182,6 +2182,20 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 .leaflet-popup-tip{background:#FFFFFF!important;box-shadow:none!important}
 .popup-btn{background:var(--teal);color:#fff!important}
 
+/* ── Marker Clusters ── */
+.marker-cluster-small,.marker-cluster-medium,.marker-cluster-large{background:none!important}
+.marker-cluster-small div,.marker-cluster-medium div,.marker-cluster-large div{
+  background:linear-gradient(135deg,#FF6B4A,#E8943A);
+  color:#fff;width:36px;height:36px;margin:0;
+  border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-family:'Cabinet Grotesk',sans-serif;font-weight:800;font-size:14px;
+  box-shadow:0 2px 10px rgba(255,107,74,0.35),0 0 0 4px rgba(255,107,74,0.15);
+  border:2px solid #fff;
+}
+.marker-cluster-medium div{width:42px;height:42px;font-size:15px;box-shadow:0 3px 14px rgba(255,107,74,0.4),0 0 0 5px rgba(255,107,74,0.12)}
+.marker-cluster-large div{width:50px;height:50px;font-size:16px;box-shadow:0 4px 18px rgba(255,107,74,0.45),0 0 0 6px rgba(255,107,74,0.1)}
+.leaflet-cluster-anim .leaflet-marker-icon,.leaflet-cluster-anim .leaflet-marker-shadow{transition:transform .3s ease-out,opacity .3s ease-in}
+
 /* ═══════════════════════════════════════════════════════
    BTF — BELOW THE FOLD LANDING SECTIONS
    ═══════════════════════════════════════════════════════ */
