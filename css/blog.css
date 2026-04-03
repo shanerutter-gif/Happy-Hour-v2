@@ -68,6 +68,28 @@
 }
 .blog-nav-cta:hover { opacity: 0.85; }
 
+/* ── IN-APP (standalone / PWA) NAV ── */
+.blog-nav-back {
+  display: none;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--coral, #FF6B4A);
+  text-decoration: none;
+  padding: 6px 0;
+  gap: 4px;
+  align-items: center;
+}
+.blog-nav-back svg { width: 18px; height: 18px; stroke: var(--coral, #FF6B4A); }
+
+@media (display-mode: standalone) {
+  .blog-nav-links { display: none !important; }
+  .blog-nav-back { display: flex !important; }
+}
+/* iOS standalone fallback via JS class */
+.standalone .blog-nav-links { display: none !important; }
+.standalone .blog-nav-back { display: flex !important; }
+
 /* ── BLOG HERO ── */
 .blog-hero {
   background: var(--bg);
