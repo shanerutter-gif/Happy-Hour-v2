@@ -1959,8 +1959,7 @@ function heroCardHTML(v, delay) {
         <span class="dot"></span>
         <span>${esc(v.cuisine || '')}</span>
         ${todayH ? `<span class="dot"></span><span>${esc(todayH)}</span>` : ''}
-        <span class="dot"></span>
-        <span>★ ${avg.toFixed(1)}</span>
+        ${v.yelp_rating ? `<span class="dot"></span><span>★ ${v.yelp_rating}</span>` : avg > 0 ? `<span class="dot"></span><span>★ ${avg.toFixed(1)}</span>` : ''}
       </div>
       <div class="card-hero-deals">${deals}</div>
       ${goingBar}
@@ -1997,7 +1996,7 @@ function compactCardHTML(v, delay) {
     ${badge}
     <div class="card-compact-info">
       <div class="card-compact-name">${esc(v.name)}</div>
-      <div class="card-compact-sub">${esc(v.cuisine || '')} · ★ ${avg.toFixed(1)}${count > 0 ? ` · 🔥 ${count}` : ''}</div>
+      <div class="card-compact-sub">${esc(v.cuisine || '')}${v.yelp_rating ? ` · ★ ${v.yelp_rating}` : avg > 0 ? ` · ★ ${avg.toFixed(1)}` : ''}${count > 0 ? ` · 🔥 ${count}` : ''}</div>
       ${dealsHtml}
     </div>
   </div>`;
@@ -2022,7 +2021,8 @@ function standardCardHTML(v, delay) {
         onerror="this.outerHTML='<div class=\\'card-std-nophoto\\'>🍺</div>'">`
     : `<div class="card-std-nophoto">🍺</div>`;
 
-  const starsEl = `<div class="card-std-stars">${
+  const yelpEl = v.yelp_rating ? `<div class="card-std-stars"><span class="s-lit">★</span> ${v.yelp_rating}${v.yelp_review_count ? `<span class="s-count">(${v.yelp_review_count})</span>` : ''}</div>` : '';
+  const starsEl = yelpEl || `<div class="card-std-stars">${
     Array.from({length:5},(_,i) =>
       `<span class="${i < Math.round(avg) ? 's-lit' : 's-unlit'}">★</span>`
     ).join('')}<span class="s-count">(${cached.length || '—'})</span></div>`;
@@ -2281,7 +2281,13 @@ function renderModal(v, type, reviews) {
       ${isVenue ? `<div id="ugc-photos-${v.id}"></div>` : ''}
       <div class="s-div"></div>
       <div class="modal-section-label">Reviews</div>
-      ${cached.length ? `<div class="modal-rating-summary">
+      ${v.yelp_rating ? `<div class="modal-rating-summary">
+        <div class="modal-rating-big">${v.yelp_rating}</div>
+        <div class="modal-rating-detail">
+          <div class="modal-rating-stars">${starHTML(v.yelp_rating, 5, 14)}</div>
+          <div class="modal-rating-count">${v.yelp_review_count ? `${v.yelp_review_count.toLocaleString()} review${v.yelp_review_count !== 1 ? 's' : ''}` : ''}</div>
+        </div>
+      </div>` : cached.length ? `<div class="modal-rating-summary">
         <div class="modal-rating-big">${avg.toFixed(1)}</div>
         <div class="modal-rating-detail">
           <div class="modal-rating-stars">${starHTML(avg, 5, 14)}</div>
@@ -2297,6 +2303,7 @@ function renderModal(v, type, reviews) {
         <button class="btn-submit" onclick="submitReview('${v.id}','${type}')">Post Review</button>
       </div>
       <div class="reviews-list" id="rlist-${v.id}">${reviews.length ? renderReviewList(reviews, v.id, type) : '<div class="no-reviews">Loading…</div>'}</div>
+      ${v.yelp_rating ? '<div class="modal-yelp-attr">Some rating data provided by Yelp</div>' : ''}
     </div>`;
 }
 

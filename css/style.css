@@ -475,6 +475,7 @@ textarea.field{border-radius:var(--r-sm);resize:vertical;min-height:80px}
 .review-act.del{border-color:rgba(200,80,60,.18);color:rgba(200,80,60,.4)}
 .review-act.del:hover{border-color:rgba(200,80,60,.55);color:rgba(220,100,80,.75)}
 .no-reviews{font-size:13px;color:rgba(42,31,20,0.35);padding:14px 0;font-style:italic}
+.modal-yelp-attr{font-size:9px;color:rgba(42,31,20,0.25);text-align:center;margin-top:24px;padding:12px 0 4px;letter-spacing:.02em}
 
 /* AUTH */
 .auth-title{font-family:'Cabinet Grotesk',sans-serif;font-weight:800;font-size:24px;color:var(--ink);margin-bottom:4px}
