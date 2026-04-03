@@ -59,7 +59,7 @@
     .sidebar-count.zero { background:var(--bg2); color:var(--muted); }
 
     /* MAIN */
-    .main-content { flex:1; padding:32px 40px; max-width:900px; }
+    .main-content { flex:1; padding:32px 40px; max-width:1100px; }
     .page { display:none; }
     .page.active { display:block; }
     .page-title { font-family:'Cabinet Grotesk',sans-serif; font-size:28px; font-weight:900; letter-spacing:-0.5px; margin-bottom:6px; }
@@ -870,11 +870,16 @@
             <thead>
               <tr>
                 <th>User</th>
+                <th>Username</th>
                 <th>Type</th>
                 <th>Phone</th>
                 <th>SMS</th>
                 <th>Check-ins</th>
                 <th>Reviews</th>
+                <th>Followers</th>
+                <th>Following</th>
+                <th>Bio</th>
+                <th>Public</th>
                 <th>Joined</th>
               </tr>
             </thead>
@@ -1194,6 +1199,19 @@
             <div class="kpi-value" id="push-kpi-ios">—</div>
             <div class="kpi-sub">Apple devices</div>
           </div>
+        </div>
+
+        <!-- Opted-in Users -->
+        <div class="section-header" style="margin-top:8px">
+          <div class="section-title">Opted-in Users</div>
+        </div>
+        <div class="users-table-wrap" style="margin-bottom:28px">
+          <table class="users-table" id="push-users-table">
+            <thead><tr>
+              <th>User</th><th>Platform</th><th>Registered</th>
+            </tr></thead>
+            <tbody id="push-users-tbody"><tr><td colspan="3" class="table-empty">Loading…</td></tr></tbody>
+          </table>
         </div>
 
         <!-- Compose -->
@@ -2312,12 +2330,12 @@ Roundup</textarea>
 
   async function loadUsers() {
     const tbody = document.getElementById('users-tbody');
-    tbody.innerHTML = '<tr><td colspan="7" class="table-empty">Loading…</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" class="table-empty">Loading…</td></tr>';
 
     try {
       // Parallel fetches
       const [profiles, bizReqs, checkins, reviews] = await Promise.all([
-        sb.get('profiles', 'select=id,display_name,avatar_emoji,phone,sms_consent,created_at&limit=2000'),
+        sb.get('profiles', 'select=id,display_name,username,avatar_emoji,avatar_url,bio,phone,sms_consent,is_public,follower_count,following_count,check_in_count,created_at&limit=2000'),
         sb.get('venue_requests', 'select=user_id&limit=2000'),
         sb.get('check_ins', 'select=user_id&limit=10000'),
         sb.get('reviews', 'select=user_id&limit=10000'),
@@ -2360,7 +2378,7 @@ Roundup</textarea>
     const type    = document.getElementById('user-type-filter')?.value || '';
     const smsF    = document.getElementById('user-sms-filter')?.value || '';
     return _allUsers.filter(u => {
-      if (search && !((u.display_name||'').toLowerCase().includes(search))) return false;
+      if (search && !((u.display_name||'').toLowerCase().includes(search) || (u.username||'').toLowerCase().includes(search) || (u.phone||'').includes(search))) return false;
       if (type === 'business' && !u.isBusiness) return false;
       if (type === 'consumer' && u.isBusiness)  return false;
       if (smsF === 'sms'   && !u.sms_consent)  return false;
@@ -2380,7 +2398,7 @@ Roundup</textarea>
 
     const tbody = document.getElementById('users-tbody');
     if (!slice.length) {
-      tbody.innerHTML = '<tr><td colspan="7" class="table-empty">No users match your filters</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="12" class="table-empty">No users match your filters</td></tr>';
     } else {
       tbody.innerHTML = slice.map(u => {
         const joined = u.created_at ? new Date(u.created_at).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }) : '—';
@@ -2390,6 +2408,10 @@ Roundup</textarea>
         const smsBadge = u.sms_consent
           ? '<span class="badge-sms-on">✓ Yes</span>'
           : '<span class="badge-sms-off">—</span>';
+        const publicBadge = u.is_public !== false
+          ? '<span style="color:var(--success);font-size:11px;font-weight:600">Yes</span>'
+          : '<span style="color:var(--muted);font-size:11px">No</span>';
+        const bioSnippet = u.bio ? escHtml(u.bio.slice(0, 40)) + (u.bio.length > 40 ? '…' : '') : '<span style="color:var(--muted)">—</span>';
         return `<tr>
           <td><div class="user-cell">
             <div class="user-avatar">${u.avatar_emoji || '🍺'}</div>
@@ -2397,12 +2419,17 @@ Roundup</textarea>
               <div class="user-name">${escHtml(u.display_name || 'Unnamed')}</div>
             </div>
           </div></td>
+          <td style="font-size:12px;color:var(--muted)">${u.username ? '@'+escHtml(u.username) : '—'}</td>
           <td>${typeBadge}</td>
           <td style="font-family:'DM Mono',monospace;font-size:12px">${u.phone ? escHtml(u.phone) : '<span style="color:var(--muted)">—</span>'}</td>
           <td>${smsBadge}</td>
           <td style="font-weight:600">${u.checkins}</td>
           <td style="font-weight:600">${u.reviews}</td>
-          <td style="color:var(--muted);font-size:12px">${joined}</td>
+          <td style="font-weight:600;text-align:center">${u.follower_count || 0}</td>
+          <td style="font-weight:600;text-align:center">${u.following_count || 0}</td>
+          <td style="font-size:11px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${bioSnippet}</td>
+          <td>${publicBadge}</td>
+          <td style="color:var(--muted);font-size:12px;white-space:nowrap">${joined}</td>
         </tr>`;
       }).join('');
     }
@@ -3040,14 +3067,52 @@ Roundup</textarea>
   }
 
   async function loadPushPage() {
-    // Load token stats
+    // Load token stats + user details
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/push_tokens?select=platform`, { headers: svcHeaders() });
-      const tokens = await res.json();
+      const [tokensRes, profilesRes] = await Promise.all([
+        fetch(`${SUPABASE_URL}/rest/v1/push_tokens?select=user_id,platform,created_at&order=created_at.desc`, { headers: svcHeaders() }),
+        fetch(`${SUPABASE_URL}/rest/v1/profiles?select=id,display_name,avatar_emoji,username&limit=5000`, { headers: svcHeaders() })
+      ]);
+      const tokens = await tokensRes.json();
+      const profiles = await profilesRes.json();
+      const profileMap = {};
+      (Array.isArray(profiles) ? profiles : []).forEach(p => { profileMap[p.id] = p; });
+
       if (Array.isArray(tokens)) {
         document.getElementById('push-kpi-total').textContent = tokens.length;
         document.getElementById('push-kpi-web').textContent = tokens.filter(t => t.platform === 'web').length;
         document.getElementById('push-kpi-ios').textContent = tokens.filter(t => t.platform === 'ios' || t.platform === 'native').length;
+
+        // Dedupe by user_id — show one row per user with all platforms
+        const userMap = {};
+        tokens.forEach(t => {
+          if (!userMap[t.user_id]) userMap[t.user_id] = { platforms: new Set(), earliest: t.created_at };
+          userMap[t.user_id].platforms.add(t.platform === 'native' ? 'ios' : t.platform);
+          if (t.created_at < userMap[t.user_id].earliest) userMap[t.user_id].earliest = t.created_at;
+        });
+
+        const tbody = document.getElementById('push-users-tbody');
+        const rows = Object.entries(userMap).sort((a,b) => b[1].earliest > a[1].earliest ? 1 : -1);
+        if (!rows.length) {
+          tbody.innerHTML = '<tr><td colspan="3" class="table-empty">No opted-in users yet</td></tr>';
+        } else {
+          tbody.innerHTML = rows.map(([uid, data]) => {
+            const p = profileMap[uid];
+            const name = p?.display_name || 'Unknown';
+            const emoji = p?.avatar_emoji || '🍺';
+            const platforms = [...data.platforms].map(pl => {
+              const cls = pl === 'ios' ? 'badge-business' : 'badge-consumer';
+              const label = pl === 'ios' ? '🍎 iOS' : '🌐 Web';
+              return `<span class="badge-type ${cls}">${label}</span>`;
+            }).join(' ');
+            const date = new Date(data.earliest).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+            return `<tr>
+              <td><div class="user-cell"><div class="user-avatar">${emoji}</div><div><div class="user-name">${escHtml(name)}</div>${p?.username ? '<div style="font-size:11px;color:var(--muted)">@'+escHtml(p.username)+'</div>' : ''}</div></div></td>
+              <td>${platforms}</td>
+              <td style="color:var(--muted);font-size:12px">${date}</td>
+            </tr>`;
+          }).join('');
+        }
       }
     } catch(e) {
       console.warn('Failed to load push tokens:', e);
