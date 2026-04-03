@@ -504,6 +504,156 @@
       border:1px solid var(--border); vertical-align:middle; margin-left:8px;
     }
 
+    /* ── TOP 5 LIST ── */
+    .asset-tpl-top5 {
+      position:absolute; left:72px; right:72px;
+      top:50%; transform:translateY(-48%);
+    }
+    .asset-top5-title {
+      font-size:56px; font-weight:1000; line-height:1.05;
+      margin-bottom:48px; letter-spacing:-1px;
+    }
+    .asset-top5-list { display:flex; flex-direction:column; gap:16px; }
+    .asset-top5-item {
+      display:flex; align-items:center; gap:28px; padding:20px 0;
+      border-bottom:3px solid rgba(128,128,128,0.12);
+    }
+    .asset-top5-num {
+      font-size:64px; font-weight:1000; color:#FF6B4A;
+      width:80px; text-align:center; flex-shrink:0; line-height:1;
+    }
+    .asset-top5-name { font-size:42px; font-weight:800; line-height:1.1; }
+
+    .asset-theme-charcoal .asset-top5-title { color:#F5EFE6; }
+    .asset-theme-charcoal .asset-top5-name { color:#F5EFE6; }
+    .asset-theme-cream .asset-top5-title { color:#2A1F14; }
+    .asset-theme-cream .asset-top5-name { color:#2A1F14; }
+    .asset-theme-coral .asset-top5-title { color:#F5EFE6; }
+    .asset-theme-coral .asset-top5-name { color:#F5EFE6; }
+    .asset-theme-coral .asset-top5-num { color:#2A1F14; }
+
+    /* ── QUOTE / TIP ── */
+    .asset-tpl-quote {
+      position:absolute; left:72px; right:72px;
+      top:50%; transform:translateY(-45%);
+    }
+    .asset-quote-mark {
+      font-size:240px; font-weight:900; line-height:0.6;
+      color:#FF6B4A; opacity:0.3; margin-bottom:-20px;
+      font-family:Georgia,'Times New Roman',serif;
+    }
+    .asset-quote-text {
+      font-size:64px; font-weight:800; line-height:1.15;
+      margin-bottom:40px; letter-spacing:-1px;
+    }
+    .asset-quote-attr {
+      font-size:32px; font-weight:500; font-style:italic; opacity:0.55;
+    }
+    .asset-theme-charcoal .asset-quote-text { color:#F5EFE6; }
+    .asset-theme-charcoal .asset-quote-attr { color:#F5EFE6; }
+    .asset-theme-cream .asset-quote-text { color:#2A1F14; }
+    .asset-theme-cream .asset-quote-attr { color:#2A1F14; }
+    .asset-theme-coral .asset-quote-text { color:#F5EFE6; }
+    .asset-theme-coral .asset-quote-attr { color:#F5EFE6; }
+    .asset-theme-coral .asset-quote-mark { color:#2A1F14; }
+
+    /* ── EVENT PROMO ── */
+    .asset-tpl-event {
+      position:absolute; inset:0;
+      display:flex; flex-direction:column;
+      justify-content:flex-end; padding:72px;
+    }
+    .asset-event-bg {
+      position:absolute; inset:0;
+      background-size:cover; background-position:center;
+    }
+    .asset-event-overlay {
+      position:absolute; inset:0;
+      background:linear-gradient(180deg, rgba(42,31,20,0.1) 0%, rgba(42,31,20,0.85) 60%);
+    }
+    .asset-event-date {
+      position:relative; z-index:1;
+      display:inline-block; background:#FF6B4A; color:#fff;
+      font-size:36px; font-weight:900; letter-spacing:3px;
+      padding:16px 32px; border-radius:16px;
+      margin-bottom:32px; align-self:flex-start;
+    }
+    .asset-event-title {
+      position:relative; z-index:1;
+      font-size:80px; font-weight:1000; color:#F5EFE6;
+      line-height:0.95; margin-bottom:20px; letter-spacing:-2px;
+    }
+    .asset-event-venue {
+      position:relative; z-index:1;
+      font-size:32px; font-weight:600; color:#E8943A;
+      margin-bottom:8px;
+    }
+    .asset-event-detail {
+      position:relative; z-index:1;
+      font-size:30px; font-weight:500; color:rgba(245,239,230,0.7);
+    }
+
+    /* ── STAT / DID YOU KNOW ── */
+    .asset-tpl-stat {
+      position:absolute; left:72px; right:72px;
+      top:50%; transform:translateY(-45%);
+      text-align:center;
+    }
+    .asset-stat-number {
+      font-size:200px; font-weight:1000; line-height:1;
+      color:#FF6B4A; margin-bottom:16px; letter-spacing:-6px;
+    }
+    .asset-stat-label {
+      font-size:48px; font-weight:700; line-height:1.2;
+      margin-bottom:48px;
+    }
+    .asset-stat-divider {
+      width:80px; height:5px; background:#FF6B4A; border-radius:4px;
+      margin:0 auto 40px;
+    }
+    .asset-stat-context {
+      font-size:30px; font-weight:500; font-style:italic; opacity:0.5;
+    }
+    .asset-theme-charcoal .asset-stat-label { color:#F5EFE6; }
+    .asset-theme-charcoal .asset-stat-context { color:#F5EFE6; }
+    .asset-theme-cream .asset-stat-label { color:#2A1F14; }
+    .asset-theme-cream .asset-stat-context { color:#2A1F14; }
+    .asset-theme-coral .asset-stat-label { color:#F5EFE6; }
+    .asset-theme-coral .asset-stat-context { color:#F5EFE6; }
+    .asset-theme-coral .asset-stat-number { color:#2A1F14; }
+
+    /* ── CAROUSEL COVER ── */
+    .asset-tpl-carousel {
+      position:absolute; inset:0;
+      display:flex; flex-direction:column;
+      justify-content:center; align-items:center;
+      text-align:center; padding:72px;
+    }
+    .asset-carousel-bg {
+      position:absolute; inset:0;
+      background-size:cover; background-position:center;
+    }
+    .asset-carousel-overlay {
+      position:absolute; inset:0;
+      background:rgba(42,31,20,0.65);
+    }
+    .asset-carousel-pre {
+      position:relative; z-index:1;
+      font-size:28px; font-weight:900; letter-spacing:6px;
+      text-transform:uppercase; color:#FF6B4A; margin-bottom:28px;
+    }
+    .asset-carousel-main {
+      position:relative; z-index:1;
+      font-size:100px; font-weight:1000; color:#F5EFE6;
+      line-height:0.95; margin-bottom:48px; letter-spacing:-3px;
+    }
+    .asset-carousel-cta {
+      position:relative; z-index:1;
+      display:inline-block; background:#FF6B4A; color:#fff;
+      font-size:28px; font-weight:800; padding:20px 48px;
+      border-radius:60px;
+    }
+
     /* Theme colors for This-or-That */
     .asset-theme-charcoal .asset-tot-or { color:#FF6B4A; }
     .asset-theme-cream .asset-tot-or { color:#FF6B4A; }
@@ -1452,6 +1602,11 @@
             <select id="ag-type" onchange="switchAssetType()">
               <option value="standard" selected>Standard</option>
               <option value="this-or-that">This or That</option>
+              <option value="top5">Top 5 List</option>
+              <option value="quote">Quote / Tip</option>
+              <option value="event">Event Promo</option>
+              <option value="stat">Stat / Did You Know</option>
+              <option value="carousel">Carousel Cover</option>
             </select>
           </div>
           <div class="asset-gen-field">
@@ -1489,6 +1644,86 @@ Roundup</textarea>
             <input type="file" id="ag-file2" accept="image/*" style="display:none" onchange="handleAssetImgUpload(2,this)">
             <img id="ag-img2-preview" class="ag-upload-preview" style="display:none"></div>
           </div>
+          <!-- Top 5 List fields -->
+          <div class="asset-gen-field" id="ag-field-list-title" style="display:none">
+            <label>List Title</label>
+            <input type="text" id="ag-list-title" value="Top 5 Happy Hours in North Park">
+          </div>
+          <div class="asset-gen-field" id="ag-field-list-items" style="display:none">
+            <label>Items (one per line)</label>
+            <textarea id="ag-list-items" style="min-height:120px">Polite Provisions
+Coin-Op Game Room
+Waypoint Public
+The Smoking Goat
+Ritual Tavern</textarea>
+          </div>
+          <!-- Quote / Tip fields -->
+          <div class="asset-gen-field" id="ag-field-quote-text" style="display:none">
+            <label>Quote / Tip text</label>
+            <textarea id="ag-quote-text" style="min-height:80px">The best happy hour is the one you actually show up to.</textarea>
+          </div>
+          <div class="asset-gen-field" id="ag-field-quote-attr" style="display:none">
+            <label>Attribution</label>
+            <input type="text" id="ag-quote-attr" value="— The Spotd Team">
+          </div>
+          <!-- Event Promo fields -->
+          <div class="asset-gen-field" id="ag-field-event-date" style="display:none">
+            <label>Date badge</label>
+            <input type="text" id="ag-event-date" value="APR 5">
+          </div>
+          <div class="asset-gen-field" id="ag-field-event-title" style="display:none">
+            <label>Event name</label>
+            <input type="text" id="ag-event-title" value="Taco Tuesday Crawl">
+          </div>
+          <div class="asset-gen-field" id="ag-field-event-venue" style="display:none">
+            <label>Venue / Location</label>
+            <input type="text" id="ag-event-venue" value="North Park · 5 Stops">
+          </div>
+          <div class="asset-gen-field" id="ag-field-event-detail" style="display:none">
+            <label>Details</label>
+            <input type="text" id="ag-event-detail" value="$3 Tacos · $5 Margs · Live DJ">
+          </div>
+          <div class="asset-gen-field" id="ag-field-event-img" style="display:none">
+            <label>Background image</label>
+            <div><button class="ag-upload-btn" onclick="document.getElementById('ag-file-event').click()">Upload</button>
+            <input type="file" id="ag-file-event" accept="image/*" style="display:none" onchange="handleAssetImgUpload('event',this)">
+            <img id="ag-imgevent-preview" class="ag-upload-preview" style="display:none"></div>
+          </div>
+          <!-- Stat / Did You Know fields -->
+          <div class="asset-gen-field" id="ag-field-stat-number" style="display:none">
+            <label>Big number / stat</label>
+            <input type="text" id="ag-stat-number" value="1,247">
+          </div>
+          <div class="asset-gen-field" id="ag-field-stat-label" style="display:none">
+            <label>Stat label</label>
+            <input type="text" id="ag-stat-label" value="happy hours spotted this week">
+          </div>
+          <div class="asset-gen-field" id="ag-field-stat-context" style="display:none">
+            <label>Context line</label>
+            <input type="text" id="ag-stat-context" value="That's a 34% increase from last week">
+          </div>
+          <!-- Carousel Cover fields -->
+          <div class="asset-gen-field" id="ag-field-carousel-pre" style="display:none">
+            <label>Pre-headline</label>
+            <input type="text" id="ag-carousel-pre" value="SWIPE FOR">
+          </div>
+          <div class="asset-gen-field" id="ag-field-carousel-main" style="display:none">
+            <label>Main headline</label>
+            <textarea id="ag-carousel-main">The 5 Best
+Rooftop Bars
+in San Diego</textarea>
+          </div>
+          <div class="asset-gen-field" id="ag-field-carousel-cta" style="display:none">
+            <label>CTA text</label>
+            <input type="text" id="ag-carousel-cta" value="Save this post →">
+          </div>
+          <div class="asset-gen-field" id="ag-field-carousel-img" style="display:none">
+            <label>Background image</label>
+            <div><button class="ag-upload-btn" onclick="document.getElementById('ag-file-carousel').click()">Upload</button>
+            <input type="file" id="ag-file-carousel" accept="image/*" style="display:none" onchange="handleAssetImgUpload('carousel',this)">
+            <img id="ag-imgcarousel-preview" class="ag-upload-preview" style="display:none"></div>
+          </div>
+
           <div class="asset-gen-field">
             <label>Background</label>
             <select id="ag-bg">
@@ -1567,6 +1802,44 @@ Roundup</textarea>
                     <img id="ag-render-img2" style="display:none" alt="">
                   </div>
                 </div>
+              </div>
+              <!-- Top 5 List template -->
+              <div class="asset-tpl-top5" id="ag-tpl-top5" style="display:none">
+                <div class="asset-tag-text" id="ag-render-tag-top5">TOP 5</div>
+                <div class="asset-top5-title" id="ag-render-top5-title">Top 5 Happy Hours in North Park</div>
+                <div class="asset-top5-list" id="ag-render-top5-list"></div>
+              </div>
+              <!-- Quote / Tip template -->
+              <div class="asset-tpl-quote" id="ag-tpl-quote" style="display:none">
+                <div class="asset-tag-text" id="ag-render-tag-quote">SPOTD TIP</div>
+                <div class="asset-quote-mark">"</div>
+                <div class="asset-quote-text" id="ag-render-quote-text">The best happy hour is the one you actually show up to.</div>
+                <div class="asset-quote-attr" id="ag-render-quote-attr">— The Spotd Team</div>
+              </div>
+              <!-- Event Promo template -->
+              <div class="asset-tpl-event" id="ag-tpl-event" style="display:none">
+                <div class="asset-event-bg" id="ag-render-event-bg"></div>
+                <div class="asset-event-overlay"></div>
+                <div class="asset-event-date" id="ag-render-event-date">APR 5</div>
+                <div class="asset-event-title" id="ag-render-event-title">Taco Tuesday Crawl</div>
+                <div class="asset-event-venue" id="ag-render-event-venue">North Park · 5 Stops</div>
+                <div class="asset-event-detail" id="ag-render-event-detail">$3 Tacos · $5 Margs · Live DJ</div>
+              </div>
+              <!-- Stat / Did You Know template -->
+              <div class="asset-tpl-stat" id="ag-tpl-stat" style="display:none">
+                <div class="asset-tag-text" id="ag-render-tag-stat">DID YOU KNOW</div>
+                <div class="asset-stat-number" id="ag-render-stat-number">1,247</div>
+                <div class="asset-stat-label" id="ag-render-stat-label">happy hours spotted this week</div>
+                <div class="asset-stat-divider"></div>
+                <div class="asset-stat-context" id="ag-render-stat-context">That's a 34% increase from last week</div>
+              </div>
+              <!-- Carousel Cover template -->
+              <div class="asset-tpl-carousel" id="ag-tpl-carousel" style="display:none">
+                <div class="asset-carousel-bg" id="ag-render-carousel-bg"></div>
+                <div class="asset-carousel-overlay"></div>
+                <div class="asset-carousel-pre" id="ag-render-carousel-pre">SWIPE FOR</div>
+                <div class="asset-carousel-main" id="ag-render-carousel-main">The 5 Best<br>Rooftop Bars<br>in San Diego</div>
+                <div class="asset-carousel-cta" id="ag-render-carousel-cta">Save this post →</div>
               </div>
               <div class="asset-logo-wrap"><img id="ag-logo-img" src="https://opcskuzbdfrlnyhraysk.supabase.co/storage/v1/object/public/spotd-content/brand/spotd-logo.png" alt="Spotd"></div>
             </div>
@@ -3396,42 +3669,53 @@ Roundup</textarea>
     img.src = AG_LOGO_SRC;
   })();
 
-  function handleAssetImgUpload(num, input) {
+  function handleAssetImgUpload(key, input) {
     const file = input.files[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = function(e) {
-      _agImgData[num] = e.target.result;
+      _agImgData[key] = e.target.result;
       // Show toolbar preview
-      const prev = document.getElementById('ag-img' + num + '-preview');
-      prev.src = e.target.result;
-      prev.style.display = 'inline';
+      const prev = document.getElementById('ag-img' + key + '-preview');
+      if (prev) { prev.src = e.target.result; prev.style.display = 'inline'; }
       updateAssetPreview();
     };
     reader.readAsDataURL(file);
   }
 
+  const AG_ALL_TEMPLATES = ['standard','this-or-that','top5','quote','event','stat','carousel'];
+  const AG_TPL_IDS = { 'standard':'ag-tpl-standard', 'this-or-that':'ag-tpl-tot', 'top5':'ag-tpl-top5', 'quote':'ag-tpl-quote', 'event':'ag-tpl-event', 'stat':'ag-tpl-stat', 'carousel':'ag-tpl-carousel' };
+  const AG_DEFAULT_TAGS = { 'standard':'THIS WEEKEND', 'this-or-that':'THIS OR THAT', 'top5':'TOP 5', 'quote':'SPOTD TIP', 'event':'EVENT', 'stat':'DID YOU KNOW', 'carousel':'SWIPE FOR' };
+
+  // Field visibility map: which toolbar fields each template shows
+  const AG_FIELD_MAP = {
+    'standard': ['ag-fields-standard','ag-field-subtitle'],
+    'this-or-that': ['ag-field-option1','ag-field-option2','ag-field-img1','ag-field-img2','ag-field-tag-size','ag-field-or-size'],
+    'top5': ['ag-field-list-title','ag-field-list-items'],
+    'quote': ['ag-field-quote-text','ag-field-quote-attr'],
+    'event': ['ag-field-event-date','ag-field-event-title','ag-field-event-venue','ag-field-event-detail','ag-field-event-img'],
+    'stat': ['ag-field-stat-number','ag-field-stat-label','ag-field-stat-context'],
+    'carousel': ['ag-field-carousel-pre','ag-field-carousel-main','ag-field-carousel-cta','ag-field-carousel-img'],
+  };
+
+  // All toggle-able field IDs
+  const AG_ALL_FIELDS = Object.values(AG_FIELD_MAP).flat();
+
   function switchAssetType() {
     const type = document.getElementById('ag-type').value;
-    const isStandard = type === 'standard';
-    // Toggle toolbar fields
-    document.getElementById('ag-fields-standard').style.display = isStandard ? '' : 'none';
-    document.getElementById('ag-field-subtitle').style.display = isStandard ? '' : 'none';
-    document.getElementById('ag-field-option1').style.display = isStandard ? 'none' : '';
-    document.getElementById('ag-field-option2').style.display = isStandard ? 'none' : '';
-    document.getElementById('ag-field-img1').style.display = isStandard ? 'none' : '';
-    document.getElementById('ag-field-img2').style.display = isStandard ? 'none' : '';
-    document.getElementById('ag-field-tag-size').style.display = isStandard ? 'none' : '';
-    document.getElementById('ag-field-or-size').style.display = isStandard ? 'none' : '';
-    // Toggle canvas templates
-    document.getElementById('ag-tpl-standard').style.display = isStandard ? '' : 'none';
-    document.getElementById('ag-tpl-tot').style.display = isStandard ? 'none' : '';
-    // Set default tag for this-or-that
-    if (!isStandard && document.getElementById('ag-tag').value === 'THIS WEEKEND') {
-      document.getElementById('ag-tag').value = 'THIS OR THAT';
-    }
-    if (isStandard && document.getElementById('ag-tag').value === 'THIS OR THAT') {
-      document.getElementById('ag-tag').value = 'THIS WEEKEND';
+    // Hide all toggle-able toolbar fields
+    AG_ALL_FIELDS.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+    // Show fields for this type
+    (AG_FIELD_MAP[type] || []).forEach(id => { const el = document.getElementById(id); if (el) el.style.display = ''; });
+    // Hide all canvas templates, show the active one
+    Object.values(AG_TPL_IDS).forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+    const tplEl = document.getElementById(AG_TPL_IDS[type]);
+    if (tplEl) tplEl.style.display = '';
+    // Set default tag
+    const tagEl = document.getElementById('ag-tag');
+    const oldTag = tagEl.value;
+    if (Object.values(AG_DEFAULT_TAGS).includes(oldTag) || !oldTag) {
+      tagEl.value = AG_DEFAULT_TAGS[type] || '';
     }
     updateAssetPreview();
   }
@@ -3452,18 +3736,17 @@ Roundup</textarea>
     window.updateAssetPreview = function updateAssetPreview() {
       const type = document.getElementById('ag-type').value;
       agCanvas.className = 'asset-canvas asset-theme-' + agBg.value;
-      var fc = agFontColor.value; // empty string = auto
+      var fc = agFontColor.value;
 
       if (type === 'standard') {
         document.getElementById('ag-render-tag').textContent = agTag.value;
         document.getElementById('ag-render-headline').innerHTML = agHeadline.value.replace(/\n/g, '<br>');
         document.getElementById('ag-render-subtitle').textContent = agSubtitle.value;
         agCanvas.querySelector('.asset-h1').style.fontSize = agSize.value + 'px';
-        // Apply font color override
         document.getElementById('ag-render-tag').style.color = fc;
         document.getElementById('ag-render-headline').style.color = fc;
         document.getElementById('ag-render-subtitle').style.color = fc;
-      } else {
+      } else if (type === 'this-or-that') {
         document.getElementById('ag-render-tag-tot').textContent = agTag.value;
         document.getElementById('ag-render-tag-tot').style.fontSize = agTagSize.value + 'px';
         document.getElementById('ag-render-tot1').textContent = agOpt1.value;
@@ -3471,27 +3754,73 @@ Roundup</textarea>
         document.getElementById('ag-render-tot1').style.fontSize = agSize.value + 'px';
         document.getElementById('ag-render-tot2').style.fontSize = agSize.value + 'px';
         agCanvas.querySelector('.asset-tot-or').style.fontSize = agOrSize.value + 'px';
-        // Apply font color override
         document.getElementById('ag-render-tag-tot').style.color = fc;
         document.getElementById('ag-render-tot1').style.color = fc;
         document.getElementById('ag-render-tot2').style.color = fc;
         agCanvas.querySelector('.asset-tot-or').style.color = fc;
-        // Render uploaded images
         for (var n = 1; n <= 2; n++) {
           var img = document.getElementById('ag-render-img' + n);
           var ph = document.getElementById('ag-render-img' + n + '-ph');
-          if (_agImgData[n]) {
-            img.src = _agImgData[n];
-            img.style.display = '';
-            ph.style.display = 'none';
-          } else {
-            img.style.display = 'none';
-            ph.style.display = '';
-          }
+          if (_agImgData[n]) { img.src = _agImgData[n]; img.style.display = ''; ph.style.display = 'none'; }
+          else { img.style.display = 'none'; ph.style.display = ''; }
         }
+      } else if (type === 'top5') {
+        document.getElementById('ag-render-tag-top5').textContent = agTag.value;
+        document.getElementById('ag-render-tag-top5').style.color = fc;
+        var listTitle = document.getElementById('ag-list-title').value;
+        document.getElementById('ag-render-top5-title').textContent = listTitle;
+        if (fc) document.getElementById('ag-render-top5-title').style.color = fc;
+        else document.getElementById('ag-render-top5-title').style.color = '';
+        var items = document.getElementById('ag-list-items').value.split('\n').filter(function(l) { return l.trim(); });
+        var listEl = document.getElementById('ag-render-top5-list');
+        listEl.innerHTML = items.map(function(item, idx) {
+          return '<div class="asset-top5-item"><div class="asset-top5-num">' + (idx+1) + '</div><div class="asset-top5-name"' + (fc ? ' style="color:'+fc+'"' : '') + '>' + escHtml(item.trim()) + '</div></div>';
+        }).join('');
+      } else if (type === 'quote') {
+        document.getElementById('ag-render-tag-quote').textContent = agTag.value;
+        document.getElementById('ag-render-tag-quote').style.color = fc;
+        document.getElementById('ag-render-quote-text').textContent = document.getElementById('ag-quote-text').value;
+        document.getElementById('ag-render-quote-attr').textContent = document.getElementById('ag-quote-attr').value;
+        if (fc) {
+          document.getElementById('ag-render-quote-text').style.color = fc;
+          document.getElementById('ag-render-quote-attr').style.color = fc;
+        } else {
+          document.getElementById('ag-render-quote-text').style.color = '';
+          document.getElementById('ag-render-quote-attr').style.color = '';
+        }
+      } else if (type === 'event') {
+        document.getElementById('ag-render-event-date').textContent = document.getElementById('ag-event-date').value;
+        document.getElementById('ag-render-event-title').textContent = document.getElementById('ag-event-title').value;
+        document.getElementById('ag-render-event-venue').textContent = document.getElementById('ag-event-venue').value;
+        document.getElementById('ag-render-event-detail').textContent = document.getElementById('ag-event-detail').value;
+        document.getElementById('ag-render-event-title').style.fontSize = agSize.value + 'px';
+        var eventBg = document.getElementById('ag-render-event-bg');
+        if (_agImgData['event']) { eventBg.style.backgroundImage = 'url(' + _agImgData['event'] + ')'; }
+        else { eventBg.style.backgroundImage = 'none'; }
+      } else if (type === 'stat') {
+        document.getElementById('ag-render-tag-stat').textContent = agTag.value;
+        document.getElementById('ag-render-tag-stat').style.color = fc;
+        document.getElementById('ag-render-stat-number').textContent = document.getElementById('ag-stat-number').value;
+        document.getElementById('ag-render-stat-label').textContent = document.getElementById('ag-stat-label').value;
+        document.getElementById('ag-render-stat-context').textContent = document.getElementById('ag-stat-context').value;
+        if (fc) {
+          document.getElementById('ag-render-stat-label').style.color = fc;
+          document.getElementById('ag-render-stat-context').style.color = fc;
+        } else {
+          document.getElementById('ag-render-stat-label').style.color = '';
+          document.getElementById('ag-render-stat-context').style.color = '';
+        }
+      } else if (type === 'carousel') {
+        document.getElementById('ag-render-carousel-pre').textContent = document.getElementById('ag-carousel-pre').value;
+        document.getElementById('ag-render-carousel-main').innerHTML = document.getElementById('ag-carousel-main').value.replace(/\n/g, '<br>');
+        document.getElementById('ag-render-carousel-cta').textContent = document.getElementById('ag-carousel-cta').value;
+        document.getElementById('ag-render-carousel-main').style.fontSize = agSize.value + 'px';
+        var carBg = document.getElementById('ag-render-carousel-bg');
+        if (_agImgData['carousel']) { carBg.style.backgroundImage = 'url(' + _agImgData['carousel'] + ')'; }
+        else { carBg.style.backgroundImage = 'none'; }
       }
 
-      // Swap logo based on theme (white for charcoal/coral, original for cream)
+      // Swap logo based on theme
       var logoEl = document.getElementById('ag-logo-img');
       var theme = agBg.value;
       if ((theme === 'charcoal' || theme === 'coral') && _agWhiteLogoSrc) {
@@ -3507,9 +3836,18 @@ Roundup</textarea>
       wrap.style.transform = 'scale(' + scale + ')';
     };
 
-    [agTag, agHeadline, agSubtitle, agBg, agSize, agOpt1, agOpt2, agTagSize, agOrSize, agFontColor].forEach(function(el) {
-      el.addEventListener('input', updateAssetPreview);
-      el.addEventListener('change', updateAssetPreview);
+    // Bind inputs — all template fields
+    var allInputIds = ['ag-tag','ag-headline','ag-subtitle','ag-bg','ag-size','ag-tot-option1','ag-tot-option2','ag-tag-size','ag-or-size','ag-font-color',
+      'ag-list-title','ag-list-items','ag-quote-text','ag-quote-attr',
+      'ag-event-date','ag-event-title','ag-event-venue','ag-event-detail',
+      'ag-stat-number','ag-stat-label','ag-stat-context',
+      'ag-carousel-pre','ag-carousel-main','ag-carousel-cta'];
+    allInputIds.forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) {
+        el.addEventListener('input', updateAssetPreview);
+        el.addEventListener('change', updateAssetPreview);
+      }
     });
 
     setTimeout(updateAssetPreview, 200);
