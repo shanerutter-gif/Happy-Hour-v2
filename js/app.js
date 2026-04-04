@@ -2609,55 +2609,58 @@ async function renderProfile(user) {
   const headerUrl = profile?.header_url || '';
 
   document.getElementById('profileContent').innerHTML = `
-    <div class="pf-logo-bar"><img src="/spotd_logo_v5.png" alt="Spotd" class="header-logo-img" onerror="this.style.display='none'"></div>
-    <div class="pf-hero-wrap">
-      <div class="pf-hero" id="myBannerHero" ${headerUrl ? `style="background:url('${esc(headerUrl)}') center/cover no-repeat"` : ''}>
-        ${!headerUrl ? `<div class="pf-hero-burst"></div><div class="pf-hero-grid"></div>
-        <div class="pf-ring pf-ring-1"></div><div class="pf-ring pf-ring-2"></div><div class="pf-ring pf-ring-3"></div>` : ''}
-        <div class="pf-avatar-zone">
-          <div class="pf-avatar" id="myAvatar">
-            ${avatarUrl ? `<img src="${esc(avatarUrl)}" alt="Profile" style="width:100%;height:100%;border-radius:50%;object-fit:cover">` : initialsAvatar(displayName, 'initials-avatar--lg', profile?.avatar_emoji)}
-          </div>
-        </div>
-        <input type="file" id="headerPhotoInput" accept="image/*" style="display:none" onchange="handleHeaderPhoto(this)">
-        <input type="file" id="profilePhotoInput" accept="image/*" style="display:none" onchange="handleProfilePhoto(this)">
-      </div>
-      <div class="pf-hero-actions">
-        <button class="pf-dm-btn" onclick="closeProfile();openDmInbox()" title="Messages">
+    <div class="pf-header">
+      <img src="/spotd_logo_v5.png" alt="Spotd" class="header-logo-img" onerror="this.style.display='none'">
+      <div class="pf-header-actions">
+        <button class="pf-header-btn" onclick="closeProfile();openDmInbox()" title="Messages">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-          <span class="pf-dm-badge" id="pfDmBadge" style="display:none"></span>
+          <span class="social-notif-dot" id="pfDmBadge" style="display:none"></span>
         </button>
-        <button class="pf-hamburger-btn" onclick="toggleProfileMenu(event)" title="Menu" id="pfMenuBtn">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
-        </button>
-        <div class="pf-dropdown" id="pfDropdown">
-          <button class="pf-dropdown-item" id="themeToggleBtn" onclick="toggleTheme();closeProfileMenu()">
-            ${document.documentElement.getAttribute('data-theme') === 'dark' ? icn('sun',16) : icn('moon',16)}
-            <span>${document.documentElement.getAttribute('data-theme') === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+        <div class="pf-menu-anchor">
+          <button class="pf-header-btn" onclick="toggleProfileMenu(event)" title="Menu" id="pfMenuBtn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
           </button>
-          <button class="pf-dropdown-item" onclick="shareSpotd();closeProfileMenu()">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-            <span>Share Spotd</span>
-          </button>
-          <div class="pf-dropdown-sep"></div>
-          <button class="pf-dropdown-item" onclick="pickProfilePhoto();closeProfileMenu()">
-            ${icn('camera',16)}
-            <span>Change Profile Photo</span>
-          </button>
-          <button class="pf-dropdown-item" onclick="pickHeaderPhoto();closeProfileMenu()">
-            ${icn('camera',16)}
-            <span>Change Header Photo</span>
-          </button>
-          <div class="pf-dropdown-sep"></div>
-          <button class="pf-dropdown-item" onclick="openProfileSettings();closeProfileMenu()">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-            <span>Settings</span>
-          </button>
+          <div class="pf-dropdown" id="pfDropdown">
+            <button class="pf-dropdown-item" id="themeToggleBtn" onclick="toggleTheme();closeProfileMenu()">
+              ${document.documentElement.getAttribute('data-theme') === 'dark' ? icn('sun',16) : icn('moon',16)}
+              <span>${document.documentElement.getAttribute('data-theme') === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+            </button>
+            <button class="pf-dropdown-item" onclick="shareSpotd();closeProfileMenu()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+              <span>Share Spotd</span>
+            </button>
+            <div class="pf-dropdown-sep"></div>
+            <button class="pf-dropdown-item" onclick="pickProfilePhoto();closeProfileMenu()">
+              ${icn('camera',16)}
+              <span>Change Profile Photo</span>
+            </button>
+            <button class="pf-dropdown-item" onclick="pickHeaderPhoto();closeProfileMenu()">
+              ${icn('camera',16)}
+              <span>Change Header Photo</span>
+            </button>
+            <div class="pf-dropdown-sep"></div>
+            <button class="pf-dropdown-item" onclick="openProfileSettings();closeProfileMenu()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              <span>Settings</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
 
-    <div class="pf-body">
+    ${headerUrl ? `
+    <div class="pf-banner" onclick="pickHeaderPhoto()" id="myBannerHero">
+      <img src="${esc(headerUrl)}" alt="Banner">
+      <button class="pf-banner-edit" onclick="event.stopPropagation();pickHeaderPhoto()">
+        ${icn('camera',13)}
+      </button>
+    </div>` : ''}
+
+    <div class="pf-card${headerUrl ? ' pf-card--with-banner' : ''}">
+      <div class="pf-avatar" id="myAvatar" onclick="pickProfilePhoto()">
+        ${avatarUrl ? `<img src="${esc(avatarUrl)}" alt="Profile">` : initialsAvatar(displayName, 'initials-avatar--lg', profile?.avatar_emoji)}
+        <div class="pf-avatar-cam">${icn('camera',11)}</div>
+      </div>
       <div class="pf-name">${esc(displayName)}</div>
       ${profile?.bio
         ? `<div class="pf-bio">${esc(profile.bio)}</div>`
@@ -2666,6 +2669,29 @@ async function renderProfile(user) {
         const def = BADGE_DEFS[b.badge_key] || {};
         return `<span class="pf-badge" onclick="showBadgeInfo('${b.badge_key}')">${icn(def.icon||'medal',16)} ${def.label||b.badge_key}</span>`;
       }).join('')}</div>` : ''}
+    </div>
+    <div class="pf-file-inputs">
+      <input type="file" id="headerPhotoInput" accept="image/*" onchange="handleHeaderPhoto(this)">
+      <input type="file" id="profilePhotoInput" accept="image/*" onchange="handleProfilePhoto(this)">
+    </div>
+
+    <div class="pf-stats">
+      <div class="pf-stat" onclick="openActivityFeed()">
+        <div class="pf-snum">${checkIns.length}</div>
+        <div class="pf-slbl">Check-ins</div>
+      </div>
+      <div class="pf-stat">
+        <div class="pf-snum">${myReviews.length}</div>
+        <div class="pf-slbl">Reviews</div>
+      </div>
+      <div class="pf-stat" onclick="openFindPeople()">
+        <div class="pf-snum" id="stat-following">${following.length}</div>
+        <div class="pf-slbl">Following</div>
+      </div>
+      <div class="pf-stat" onclick="showFollowersList()">
+        <div class="pf-snum" id="stat-followers">${followers.length}</div>
+        <div class="pf-slbl">Followers</div>
+      </div>
     </div>
 
     ${!localStorage.getItem('spotd-idea-banner-dismissed') ? `
@@ -2677,33 +2703,12 @@ async function renderProfile(user) {
       </div>
     </div>` : ''}
 
-    <div class="pf-stat-grid">
-      <div class="pf-stat-card" onclick="openActivityFeed()" style="cursor:pointer">
-        <div class="pf-snum">${checkIns.length}</div>
-        <div class="pf-slbl">Check-ins</div>
-        <div class="pf-sbar"><div class="pf-sbar-fill" style="width:${Math.min(100,checkIns.length*2)}%"></div></div>
-      </div>
-      <div class="pf-stat-card">
-        <div class="pf-snum">${myReviews.length}</div>
-        <div class="pf-slbl">Reviews</div>
-        <div class="pf-sbar"><div class="pf-sbar-fill" style="width:${Math.min(100,myReviews.length*4)}%"></div></div>
-      </div>
-      <div class="pf-stat-card" onclick="openFindPeople()" style="cursor:pointer">
-        <div class="pf-snum" id="stat-following">${following.length}</div>
-        <div class="pf-slbl">Following</div>
-        <div class="pf-sbar"><div class="pf-sbar-fill" style="width:${Math.min(100,following.length*5)}%"></div></div>
-      </div>
-      <div class="pf-stat-card" onclick="showFollowersList()" style="cursor:pointer">
-        <div class="pf-snum" id="stat-followers">${followers.length}</div>
-        <div class="pf-slbl">Followers</div>
-        <div class="pf-sbar"><div class="pf-sbar-fill" style="width:${Math.min(100,followers.length*5)}%"></div></div>
-      </div>
-    </div>
-
     <div class="pf-tabs">
-      <button class="pf-tab on" onclick="selectProfileTab('checkins',this)">Check-ins</button>
-      <button class="pf-tab" onclick="selectProfileTab('reviews',this)">Reviews</button>
-      <button class="pf-tab" onclick="selectProfileTab('saved',this)">Saved</button>
+      <div class="pf-tabs-inner">
+        <button class="pf-tab on" onclick="selectProfileTab('checkins',this)">Check-ins</button>
+        <button class="pf-tab" onclick="selectProfileTab('reviews',this)">Reviews</button>
+        <button class="pf-tab" onclick="selectProfileTab('saved',this)">Saved</button>
+      </div>
     </div>
 
     <div class="pf-content">
@@ -2711,13 +2716,15 @@ async function renderProfile(user) {
         ${checkIns.length ? checkIns.slice(0,30).map(c => {
           const v = allItems.find(x => String(x.id) === String(c.venue_id));
           return `<div class="pf-row"${v ? ` onclick="closeProfile();openModal('${c.venue_id}','venue')"` : ''}>
-            <div class="pf-row-dot"></div>
+            <div class="pf-row-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            </div>
             <div class="pf-row-body">
               <div class="pf-row-name">${v ? esc(v.name) : esc(c.venue_name||'A spot')}</div>
               <div class="pf-row-meta">${c.neighborhood||''} · ${fmtDate(c.created_at||c.date)}</div>
             </div>
           </div>`;
-        }).join('') : '<div class="pf-empty">No check-ins yet — go explore!</div>'}
+        }).join('') : '<div class="pf-empty"><div class="pf-empty-icon">📍</div>No check-ins yet — go explore!</div>'}
       </div>
 
       <div id="my-tab-reviews" style="display:none">
@@ -2725,7 +2732,9 @@ async function renderProfile(user) {
           const item = allItems.find(x => String(x.id) === String(r.venue_id || r.event_id));
           const itype = r.venue_id ? 'venue' : 'event';
           return `<div class="pf-row">
-            <div class="pf-row-dot"></div>
+            <div class="pf-row-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            </div>
             <div class="pf-row-body" style="flex:1">
               <div class="pf-row-name" onclick="closeProfile();openModal('${r.venue_id||r.event_id}','${itype}')" style="cursor:pointer">${item ? esc(item.name) : 'Unknown Spot'}</div>
               <div class="pf-row-meta">${starHTML(r.rating,5,11)} · ${fmtDate(r.created_at)}</div>
@@ -2736,19 +2745,21 @@ async function renderProfile(user) {
               </div>
             </div>
           </div>`;
-        }).join('') : '<div class="pf-empty">No reviews yet</div>'}
+        }).join('') : '<div class="pf-empty"><div class="pf-empty-icon">⭐</div>No reviews yet</div>'}
       </div>
 
       <div id="my-tab-saved" style="display:none">
         ${favSpots.length ? favSpots.map(v =>
           `<div class="pf-row" onclick="closeProfile();openModal('${v.id}','${v.event_type?'event':'venue'}')">
-            <div class="pf-row-dot"></div>
+            <div class="pf-row-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+            </div>
             <div class="pf-row-body">
               <div class="pf-row-name">${esc(v.name)}</div>
               <div class="pf-row-meta">${esc(v.neighborhood||'')} · ${esc(v.hours||'')}</div>
             </div>
           </div>`
-        ).join('') : '<div class="pf-empty">No saved spots yet — tap ★ on any venue</div>'}
+        ).join('') : '<div class="pf-empty"><div class="pf-empty-icon">🔖</div>No saved spots yet — tap ★ on any venue</div>'}
       </div>
 
       <div id="my-tab-hoods" style="display:none">
@@ -3709,20 +3720,17 @@ async function renderPublicProfile(userId) {
   const headerUrl = profile.header_url || '';
 
   document.getElementById('pubProfileContent').innerHTML = `
-    <div class="pf-hero" ${headerUrl ? `style="background:url('${esc(headerUrl)}') center/cover no-repeat"` : ''}>
-      ${!headerUrl ? `<div class="pf-hero-burst"></div><div class="pf-hero-grid"></div>
-      <div class="pf-ring pf-ring-1"></div><div class="pf-ring pf-ring-2"></div><div class="pf-ring pf-ring-3"></div>` : ''}
-      <div class="pf-hero-overlay"></div>
-      <div class="pf-avatar-zone">
-        <div class="pf-avatar">
-          ${avatarUrl ? `<img src="${esc(avatarUrl)}" alt="Profile" style="width:100%;height:100%;border-radius:50%;object-fit:cover">` : initialsAvatar(displayName, 'initials-avatar--lg', profile.avatar_emoji)}
-        </div>
-      </div>
-    </div>
+    ${headerUrl ? `
+    <div class="pf-banner">
+      <img src="${esc(headerUrl)}" alt="Banner">
+    </div>` : ''}
 
-    <div class="pf-body">
+    <div class="pf-card${headerUrl ? ' pf-card--with-banner' : ''}">
+      <div class="pf-avatar">
+        ${avatarUrl ? `<img src="${esc(avatarUrl)}" alt="Profile">` : initialsAvatar(displayName, 'initials-avatar--lg', profile.avatar_emoji)}
+      </div>
       <div class="pf-name">${esc(displayName)}</div>
-      ${profile.username ? `<div style="text-align:center;font-size:13px;color:var(--muted);margin-top:-4px;margin-bottom:4px">@${esc(profile.username)}</div>` : ''}
+      ${profile.username ? `<div style="font-size:13px;color:var(--muted);margin-bottom:4px">@${esc(profile.username)}</div>` : ''}
       ${profile.bio ? `<div class="pf-bio">${esc(profile.bio)}</div>` : ''}
       ${badges.length ? `<div class="pf-badges">${badges.map(b => {
         const def = BADGE_DEFS[b.badge_key] || {};
@@ -3730,26 +3738,22 @@ async function renderPublicProfile(userId) {
       }).join('')}</div>` : ''}
     </div>
 
-    <div class="pf-stat-grid">
-      <div class="pf-stat-card">
+    <div class="pf-stats">
+      <div class="pf-stat">
         <div class="pf-snum">${checkIns.length}</div>
         <div class="pf-slbl">Check-ins</div>
-        <div class="pf-sbar"><div class="pf-sbar-fill" style="width:${Math.min(100,checkIns.length*2)}%"></div></div>
       </div>
-      <div class="pf-stat-card">
+      <div class="pf-stat">
         <div class="pf-snum">${reviews.length}</div>
         <div class="pf-slbl">Reviews</div>
-        <div class="pf-sbar"><div class="pf-sbar-fill" style="width:${Math.min(100,reviews.length*4)}%"></div></div>
       </div>
-      <div class="pf-stat-card">
+      <div class="pf-stat">
         <div class="pf-snum">${following.length}</div>
         <div class="pf-slbl">Following</div>
-        <div class="pf-sbar"><div class="pf-sbar-fill" style="width:${Math.min(100,following.length*5)}%"></div></div>
       </div>
-      <div class="pf-stat-card">
+      <div class="pf-stat">
         <div class="pf-snum">${followers.length}</div>
         <div class="pf-slbl">Followers</div>
-        <div class="pf-sbar"><div class="pf-sbar-fill" style="width:${Math.min(100,followers.length*5)}%"></div></div>
       </div>
     </div>
 
@@ -3765,9 +3769,11 @@ async function renderPublicProfile(userId) {
     </div>` : ''}
 
     <div class="pf-tabs" id="pub-pf-tabs">
-      <button class="pf-tab on" onclick="switchPubTab('checkins', this)">Check-ins</button>
-      <button class="pf-tab" onclick="switchPubTab('reviews', this)">Reviews</button>
-      <button class="pf-tab" onclick="switchPubTab('favorites', this)">Saved</button>
+      <div class="pf-tabs-inner">
+        <button class="pf-tab on" onclick="switchPubTab('checkins', this)">Check-ins</button>
+        <button class="pf-tab" onclick="switchPubTab('reviews', this)">Reviews</button>
+        <button class="pf-tab" onclick="switchPubTab('favorites', this)">Saved</button>
+      </div>
     </div>
 
     <div class="pf-content">
@@ -3775,37 +3781,43 @@ async function renderPublicProfile(userId) {
         ${recentCheckIns.length ? recentCheckIns.map(c => {
           const v = allItems.find(x => String(x.id) === String(c.venue_id));
           return `<div class="pf-row"${v ? ` onclick="closeSubPage('pubProfilePage');openModal('${c.venue_id}','venue')"` : ''}>
-            <div class="pf-row-dot"></div>
+            <div class="pf-row-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            </div>
             <div class="pf-row-body">
               <div class="pf-row-name">${v ? esc(v.name) : esc(c.venue_name || 'A spot')}</div>
               <div class="pf-row-meta">${c.neighborhood || ''} · ${fmtDate(c.created_at || c.date)}</div>
               ${c.note ? `<div class="pf-row-note">"${esc(c.note)}"</div>` : ''}
             </div>
           </div>`;
-        }).join('') : '<div class="pf-empty">No check-ins yet</div>'}
+        }).join('') : '<div class="pf-empty"><div class="pf-empty-icon">📍</div>No check-ins yet</div>'}
       </div>
       <div id="pub-tab-reviews" style="display:none">
         ${reviews.length ? reviews.map(r => {
           const item = allItems.find(x => String(x.id) === String(r.venue_id || r.event_id));
           return `<div class="pf-row"${item ? ` onclick="closeSubPage('pubProfilePage');openModal('${r.venue_id||r.event_id}','${r.venue_id?'venue':'event'}')"` : ''}>
-            <div class="pf-row-dot"></div>
+            <div class="pf-row-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            </div>
             <div class="pf-row-body">
               <div class="pf-row-name">${item ? esc(item.name) : 'A spot'}</div>
               <div class="pf-row-meta">${starHTML(r.rating,5,11)} · ${fmtDate(r.created_at)}</div>
               ${r.text ? `<div class="pf-row-note">"${esc(r.text)}"</div>` : ''}
             </div>
           </div>`;
-        }).join('') : '<div class="pf-empty">No reviews yet</div>'}
+        }).join('') : '<div class="pf-empty"><div class="pf-empty-icon">⭐</div>No reviews yet</div>'}
       </div>
       <div id="pub-tab-favorites" style="display:none">
         ${favSpots.length ? favSpots.map(v => `
           <div class="pf-row" onclick="closeSubPage('pubProfilePage');openModal('${v.id}','${v.event_type?'event':'venue'}')">
-            <div class="pf-row-dot"></div>
+            <div class="pf-row-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+            </div>
             <div class="pf-row-body">
               <div class="pf-row-name">${esc(v.name)}</div>
               <div class="pf-row-meta">${esc(v.neighborhood||'')} · ${esc(v.hours||'')}</div>
             </div>
-          </div>`).join('') : '<div class="pf-empty">No saved spots</div>'}
+          </div>`).join('') : '<div class="pf-empty"><div class="pf-empty-icon">🔖</div>No saved spots</div>'}
       </div>
     </div>`;
 }
