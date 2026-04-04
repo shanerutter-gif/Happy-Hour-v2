@@ -50,8 +50,8 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans
 .btn-fab:active{background:var(--coral2);transform:scale(0.95)}
 
 /* ── BOARD ── */
-.board{display:flex;gap:12px;padding:16px;height:calc(100% - 60px);overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
-@media(max-width:640px){.board{padding:10px 8px;gap:8px;height:calc(100dvh - 110px)}}
+.board{display:flex;gap:12px;padding:16px;height:calc(100% - 100px);overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
+@media(max-width:640px){.board{padding:10px 8px;gap:8px;height:calc(100dvh - 150px)}}
 .board::-webkit-scrollbar{height:6px}
 .board::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
 
@@ -136,6 +136,12 @@ select.field-input{cursor:pointer;-webkit-appearance:none;appearance:none;backgr
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--text);color:#fff;padding:10px 20px;border-radius:50px;font-size:13px;font-weight:600;z-index:9000;box-shadow:var(--shadow-lg);animation:toastIn .2s ease;pointer-events:none;white-space:nowrap}
 @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
 .empty-col{text-align:center;padding:24px 12px;color:var(--muted2);font-size:12px;font-weight:500}
+.board-tabs{display:flex;gap:2px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:0 16px;background:var(--bg2);border-bottom:1px solid var(--border)}
+.board-tabs::-webkit-scrollbar{display:none}
+.board-tab{padding:10px 16px;font-family:'Cabinet Grotesk',sans-serif;font-size:13px;font-weight:700;color:var(--muted);background:none;border:none;border-bottom:2.5px solid transparent;cursor:pointer;white-space:nowrap;transition:all .12s;flex-shrink:0}
+.board-tab:hover{color:var(--text)}
+.board-tab.active{color:var(--coral);border-bottom-color:var(--coral)}
+@media(max-width:640px){.board-tabs{padding:0 8px}.board-tab{padding:8px 12px;font-size:12px}}
 .card:focus-visible{outline:2px solid var(--coral);outline-offset:2px}
 </style>
 
@@ -155,6 +161,8 @@ select.field-input{cursor:pointer;-webkit-appearance:none;appearance:none;backgr
   </div>
   <button class="btn-new" onclick="openModal()">+ New</button>
 </div>
+
+<div class="board-tabs" id="boardTabs"></div>
 
 <div class="board" id="board"></div>
 <button class="btn-fab" onclick="openModal()">+</button>
@@ -200,12 +208,22 @@ const COLS=[
 ];
 const TYPE_CLS={feature:'badge-feature',bug:'badge-bug',chore:'badge-chore',idea:'badge-idea',design:'badge-design'};
 
+const BOARDS=[
+  {id:'product',name:'Product / Engineering'},
+  {id:'marketing',name:'Marketing'},
+  {id:'sales',name:'Sales'},
+  {id:'operations',name:'Operations'},
+  {id:'analytics',name:'Analytics'},
+];
+let activeBoard='product';
+
 let cards=[],currentFilter='all',searchQuery='',editingId=null,editSubtasks=[];
 let dragCard=null,dragGhost=null,dragOffX=0,dragOffY=0,holdTimer=null,isDragging=false,startX=0,startY=0;
 const HOLD_MS=150;
 
 // ── INIT ──
 async function init(){
+  renderBoardTabs();
   buildColumns();
   await loadCards();
   document.getElementById('searchInput').addEventListener('input',e=>{searchQuery=e.target.value.toLowerCase().trim();renderAll()});
@@ -267,9 +285,22 @@ function buildColumns(){
   });
 }
 
+function renderBoardTabs(){
+  document.getElementById('boardTabs').innerHTML=BOARDS.map(b=>
+    `<button class="board-tab${b.id===activeBoard?' active':''}" onclick="switchBoard('${b.id}')">${b.name}</button>`
+  ).join('');
+}
+function switchBoard(id){activeBoard=id;renderBoardTabs();loadCards()}
+
 // ── DATA ──
 async function loadCards(){
-  const{data,error}=await sb.from('board_cards').select('*').order('position',{ascending:true});
+  let q=sb.from('board_cards').select('*').order('position',{ascending:true});
+  if(activeBoard==='product'){
+    q=q.or('board.eq.product,board.is.null');
+  }else{
+    q=q.eq('board',activeBoard);
+  }
+  const{data,error}=await q;
   if(error){console.error(error);return}
   cards=data||[];renderAll();
 }
@@ -398,7 +429,7 @@ async function saveCard(){
   const title=document.getElementById('fTitle').value.trim();
   if(!title){toast('Title required');return}
   const subs=editSubtasks.filter(s=>s.text.trim());
-  const data={title,description:document.getElementById('fDesc').value.trim()||null,col:document.getElementById('fCol').value,type:document.getElementById('fType').value,priority:document.getElementById('fPriority').value,due_date:document.getElementById('fDue').value||null,assignee:document.getElementById('fAssignee').value.trim()||null,subtasks:subs.length?subs:null};
+  const data={title,description:document.getElementById('fDesc').value.trim()||null,col:document.getElementById('fCol').value,type:document.getElementById('fType').value,priority:document.getElementById('fPriority').value,due_date:document.getElementById('fDue').value||null,assignee:document.getElementById('fAssignee').value.trim()||null,subtasks:subs.length?subs:null,board:activeBoard};
   if(editingId){
     const{error}=await sb.from('board_cards').update(data).eq('id',editingId);
     if(error){toast('Save failed');console.error(error);return}
