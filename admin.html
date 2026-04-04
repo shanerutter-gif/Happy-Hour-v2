@@ -2855,7 +2855,7 @@ in San Diego</textarea>
     document.getElementById('screen-app').style.display = 'block';
     document.getElementById('admin-user').textContent = _adminUser?.email || '';
     document.getElementById('btn-logout').style.display = 'block';
-    loadDashboard();
+    showPage('dashboard');
     loadFeedbackCount();
   }
 
@@ -6685,7 +6685,7 @@ ${sectionsMjml}
       if (recentUsers.length) {
         signupsEl.innerHTML = recentUsers.map(u => {
           const name = u.display_name || u.username || 'Anonymous';
-          const when = u.created_at ? timeAgo(u.created_at) : '';
+          const when = u.created_at ? formatRelativeTime(u.created_at) : '';
           return `<div class="dash-row">
             <div class="dash-row-main">
               <span class="dash-row-title">${esc(name)}</span>
@@ -6704,7 +6704,7 @@ ${sectionsMjml}
         reqsEl.innerHTML = pendingReqs.map(r => {
           const vd = r.venue_data || {};
           const name = vd.name || vd.venue_name || 'Unknown Venue';
-          const when = r.created_at ? timeAgo(r.created_at) : '';
+          const when = r.created_at ? formatRelativeTime(r.created_at) : '';
           return `<div class="dash-row">
             <div class="dash-row-main">
               <span class="dash-row-title">${esc(name)}</span>
@@ -6722,7 +6722,7 @@ ${sectionsMjml}
       if (feedback.length) {
         fbEl.innerHTML = feedback.map(f => {
           const txt = (f.text || '').length > 80 ? f.text.slice(0, 80) + '…' : (f.text || 'No text');
-          const when = f.created_at ? timeAgo(f.created_at) : '';
+          const when = f.created_at ? formatRelativeTime(f.created_at) : '';
           const statusCls = f.status === 'resolved' ? 'dash-status-done' : 'dash-status-draft';
           return `<div class="dash-row">
             <div class="dash-row-main">
