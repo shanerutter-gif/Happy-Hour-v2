@@ -36,7 +36,16 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans
 .chip:hover:not(.active){border-color:var(--border2);color:var(--text)}
 .btn-new{padding:7px 16px;background:var(--coral);color:#fff;border:none;border-radius:20px;font-family:‘Cabinet Grotesk’,sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:background .15s;white-space:nowrap}
 .btn-new:hover{background:var(--coral2)}
-@media(max-width:640px){.toolbar-title{display:none}.toolbar .btn-new{display:none}.btn-fab{display:flex}.tb-search{width:100%;order:10}.chip-row{order:9;width:100%;overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch}}
+@media(max-width:640px){
+.toolbar{padding:8px 12px;gap:8px}
+.toolbar-title{display:none}
+.toolbar .btn-new{display:none}
+.btn-fab{display:flex}
+.tb-search{width:100%;order:10;padding:6px 12px 6px 28px;font-size:12px}
+.chip-row{width:100%;overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;scrollbar-width:none;order:9}
+.chip-row::-webkit-scrollbar{display:none}
+.chip{padding:4px 9px;font-size:10px}
+}
 .btn-fab{display:none;position:fixed;bottom:24px;right:20px;width:56px;height:56px;border-radius:50%;background:var(--coral);color:#fff;border:none;font-size:28px;font-weight:400;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(255,107,74,0.4);cursor:pointer;z-index:100;line-height:1}
 .btn-fab:active{background:var(--coral2);transform:scale(0.95)}
 
