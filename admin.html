@@ -14,6 +14,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@400;500;700;800;900&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&family=DM+Mono:wght@400;500&family=Nunito:wght@400;700;800;900;1000&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -1024,6 +1025,79 @@
       .crm-stage-bar { flex-wrap:wrap; }
       .crm-stage-btn { flex:0 0 calc(33.33% - 2px); }
     }
+
+    /* ── BLOG EDITOR ──────────────────────────────────── */
+    .blog-toolbar-row { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:20px; }
+    .blog-btn { padding:10px 20px; border:none; border-radius:10px; font-family:'Cabinet Grotesk',sans-serif; font-size:14px; font-weight:700; cursor:pointer; transition:background .15s; }
+    .blog-btn-primary { background:var(--coral); color:#fff; }
+    .blog-btn-primary:hover { background:var(--coral2); }
+    .blog-btn-secondary { background:var(--bg2); color:var(--text); border:1px solid var(--border); }
+    .blog-btn-secondary:hover { background:var(--border); }
+    .blog-btn-danger { background:rgba(192,57,43,0.08); color:var(--error); border:1px solid rgba(192,57,43,0.18); }
+    .blog-btn-danger:hover { background:rgba(192,57,43,0.14); }
+
+    .blog-table-wrap { overflow-x:auto; border:1px solid var(--border); border-radius:14px; background:var(--card); }
+    .blog-table { width:100%; border-collapse:collapse; font-size:13px; }
+    .blog-table thead { background:var(--bg2); }
+    .blog-table th { padding:11px 14px; text-align:left; font-size:10px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); font-weight:700; white-space:nowrap; border-bottom:1px solid var(--border); }
+    .blog-table td { padding:12px 14px; border-bottom:1px solid var(--border); vertical-align:middle; }
+    .blog-table tbody tr:last-child td { border-bottom:none; }
+    .blog-table tbody tr:hover { background:var(--bg2); }
+    .blog-status-badge { display:inline-block; padding:3px 10px; border-radius:100px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; }
+    .blog-status-badge.published { background:rgba(42,122,90,0.1); color:var(--success); border:1px solid rgba(42,122,90,0.2); }
+    .blog-status-badge.draft { background:var(--bg2); color:var(--muted); border:1px solid var(--border); }
+    .blog-action-btn { background:rgba(255,107,74,0.08); border:1px solid rgba(255,107,74,0.2); color:var(--coral); border-radius:6px; padding:5px 12px; font-size:12px; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all .15s; margin-right:4px; }
+    .blog-action-btn:hover { background:rgba(255,107,74,0.15); }
+    .blog-action-btn.delete { background:rgba(192,57,43,0.06); border-color:rgba(192,57,43,0.15); color:var(--error); }
+    .blog-action-btn.delete:hover { background:rgba(192,57,43,0.12); }
+
+    .blog-editor-layout { display:grid; grid-template-columns:1fr 1fr; gap:24px; min-height:calc(100vh - 200px); }
+    .blog-editor-left { display:flex; flex-direction:column; gap:14px; overflow-y:auto; max-height:calc(100vh - 160px); padding-right:8px; }
+    .blog-editor-right { position:sticky; top:0; overflow-y:auto; max-height:calc(100vh - 160px); }
+    .blog-field { display:flex; flex-direction:column; gap:5px; }
+    .blog-field-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    .blog-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--muted); font-family:'DM Sans',sans-serif; }
+    .blog-char-count { font-size:11px; color:var(--muted); text-align:right; margin-top:-2px; }
+    .blog-char-count.over { color:var(--error); font-weight:700; }
+
+    .blog-md-toolbar { display:flex; gap:4px; flex-wrap:wrap; padding:8px; background:var(--bg2); border:1px solid var(--border); border-bottom:none; border-radius:10px 10px 0 0; }
+    .blog-md-btn { padding:5px 10px; border:1px solid var(--border); border-radius:6px; background:var(--card); cursor:pointer; font-size:12px; font-weight:600; color:var(--text); font-family:'DM Mono',monospace; transition:all .12s; }
+    .blog-md-btn:hover { background:rgba(255,107,74,0.08); border-color:var(--coral); color:var(--coral); }
+    #blog-content-editor { border-radius:0 0 10px 10px !important; border-top:none !important; font-family:'DM Mono',monospace !important; font-size:13px !important; line-height:1.7 !important; min-height:500px !important; resize:vertical; }
+
+    .blog-preview-pane { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:32px 28px; }
+    .blog-preview-pane h1 { font-family:'Cabinet Grotesk',sans-serif; font-size:32px; font-weight:900; line-height:1.15; margin-bottom:8px; letter-spacing:-0.5px; }
+    .blog-preview-pane h2 { font-family:'Cabinet Grotesk',sans-serif; font-size:24px; font-weight:800; margin:28px 0 12px; letter-spacing:-0.3px; }
+    .blog-preview-pane h3 { font-family:'Cabinet Grotesk',sans-serif; font-size:19px; font-weight:700; margin:22px 0 10px; }
+    .blog-preview-pane p { margin:0 0 16px; line-height:1.75; font-size:15px; }
+    .blog-preview-pane a { color:var(--coral); text-decoration:underline; }
+    .blog-preview-pane img { max-width:100%; border-radius:10px; margin:16px 0; }
+    .blog-preview-pane blockquote { border-left:3px solid var(--coral); padding:12px 18px; margin:16px 0; background:var(--bg2); border-radius:0 8px 8px 0; font-style:italic; color:var(--muted); }
+    .blog-preview-pane ul, .blog-preview-pane ol { margin:0 0 16px 24px; }
+    .blog-preview-pane li { margin-bottom:6px; line-height:1.6; }
+    .blog-preview-pane code { background:var(--bg2); padding:2px 6px; border-radius:4px; font-family:'DM Mono',monospace; font-size:13px; }
+    .blog-preview-pane pre { background:var(--bg2); padding:16px; border-radius:10px; overflow-x:auto; margin:16px 0; }
+    .blog-preview-pane pre code { background:none; padding:0; }
+    .blog-preview-meta { font-size:12px; color:var(--muted); margin-bottom:20px; padding-bottom:16px; border-bottom:1px solid var(--border); }
+    .blog-preview-featured { width:100%; border-radius:12px; margin-bottom:20px; object-fit:cover; max-height:300px; }
+    .blog-preview-excerpt { font-size:16px; color:var(--muted); font-style:italic; margin-bottom:20px; line-height:1.6; }
+
+    .blog-mobile-toggle { display:none; }
+
+    @media(max-width:900px) {
+      .blog-editor-layout { grid-template-columns:1fr; }
+      .blog-editor-left { max-height:none; padding-right:0; }
+      .blog-editor-right { position:static; max-height:none; }
+      .blog-field-row { grid-template-columns:1fr; }
+      .blog-mobile-toggle { display:flex; gap:4px; background:var(--bg2); padding:4px; border-radius:10px; margin-bottom:16px; }
+      .blog-mobile-toggle button { flex:1; padding:8px; border-radius:7px; font-size:13px; font-weight:600; cursor:pointer; text-align:center; color:var(--muted); border:none; background:transparent; font-family:'DM Sans',sans-serif; }
+      .blog-mobile-toggle button.active { background:var(--card); color:var(--text); box-shadow:0 1px 4px rgba(42,31,20,0.1); }
+    }
+    @media(max-width:680px) {
+      .blog-table th:nth-child(3), .blog-table td:nth-child(3),
+      .blog-table th:nth-child(4), .blog-table td:nth-child(4),
+      .blog-table th:nth-child(6), .blog-table td:nth-child(6) { display:none; }
+    }
   </style>
 </head>
 <body>
@@ -1107,6 +1181,7 @@
     <button class="drawer-item" onclick="showPage('assets');closeMobileMenu()" id="mob-nav-assets">🎨 Asset Generator</button>
     <button class="drawer-item" onclick="showPage('email-builder');closeMobileMenu()" id="mob-nav-email-builder">📧 Email Builder</button>
     <button class="drawer-item" onclick="showPage('content-calendar');closeMobileMenu()" id="mob-nav-content-calendar">📅 Content Calendar</button>
+    <button class="drawer-item" onclick="showPage('blog');closeMobileMenu()" id="mob-nav-blog">✍️ Blog Manager</button>
     <div class="drawer-footer">
       <button class="drawer-signout" onclick="handleLogout()">👋 Sign Out</button>
     </div>
@@ -1184,6 +1259,9 @@
       </div>
       <div class="sidebar-item" onclick="showPage('content-calendar')" id="nav-content-calendar">
         📅 Content Calendar
+      </div>
+      <div class="sidebar-item" onclick="showPage('blog')" id="nav-blog">
+        ✍️ Blog Manager
       </div>
     </div>
 
@@ -2219,6 +2297,174 @@ in San Diego</textarea>
         </div>
       </div>
 
+      <!-- BLOG MANAGEMENT PAGE -->
+      <div class="page" id="page-blog">
+        <div class="page-title">✍️ Blog Manager</div>
+        <div class="page-sub">Create, edit, and manage blog posts. Write in Markdown with live preview.</div>
+
+        <!-- LIST VIEW -->
+        <div id="blog-list-view">
+          <div class="blog-toolbar-row">
+            <div style="display:flex;gap:8px;align-items:center">
+              <select class="cms-input" id="blog-filter-status" onchange="loadBlogPosts()" style="width:auto;padding:8px 12px;font-size:13px">
+                <option value="">All Status</option>
+                <option value="published">Published</option>
+                <option value="draft">Draft</option>
+              </select>
+              <select class="cms-input" id="blog-filter-city" onchange="loadBlogPosts()" style="width:auto;padding:8px 12px;font-size:13px">
+                <option value="">All Cities</option>
+                <option value="san-diego">San Diego</option>
+                <option value="los-angeles">Los Angeles</option>
+                <option value="austin">Austin</option>
+                <option value="new-york">New York</option>
+                <option value="miami">Miami</option>
+                <option value="chicago">Chicago</option>
+                <option value="orange-county">Orange County</option>
+                <option value="all">All Cities (General)</option>
+              </select>
+            </div>
+            <button class="blog-btn blog-btn-primary" onclick="blogOpenEditor()">+ New Post</button>
+          </div>
+          <div class="blog-table-wrap">
+            <table class="blog-table">
+              <thead>
+                <tr>
+                  <th>Title</th>
+                  <th>Author</th>
+                  <th>Tag</th>
+                  <th>City</th>
+                  <th>Status</th>
+                  <th>Date</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="blog-table-body">
+                <tr><td colspan="7" class="table-empty">Loading blog posts...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- EDITOR VIEW -->
+        <div id="blog-editor-view" style="display:none">
+          <div class="blog-toolbar-row">
+            <button class="blog-btn blog-btn-secondary" onclick="blogBackToList()">← Back to Posts</button>
+            <div style="display:flex;gap:8px">
+              <button class="blog-btn blog-btn-secondary" onclick="blogSave()">Save Draft</button>
+              <button class="blog-btn blog-btn-primary" onclick="blogSave('published')">Publish</button>
+            </div>
+          </div>
+
+          <!-- Mobile toggle -->
+          <div class="blog-mobile-toggle" id="blog-mobile-toggle">
+            <button class="active" onclick="blogMobileView('edit',this)">Edit</button>
+            <button onclick="blogMobileView('preview',this)">Preview</button>
+          </div>
+
+          <div class="blog-editor-layout">
+            <!-- LEFT: Editor -->
+            <div class="blog-editor-left" id="blog-editor-left">
+              <div class="blog-field">
+                <div class="blog-label">Title</div>
+                <input type="text" class="cms-input" id="blog-title" placeholder="Post title..." oninput="blogAutoSlug();blogUpdatePreview()">
+              </div>
+
+              <div class="blog-field">
+                <div class="blog-label">Slug</div>
+                <input type="text" class="cms-input" id="blog-slug" placeholder="auto-generated-slug" oninput="blogUpdatePreview()">
+              </div>
+
+              <div class="blog-field-row">
+                <div class="blog-field">
+                  <div class="blog-label">Author</div>
+                  <input type="text" class="cms-input" id="blog-author" value="Spotd" oninput="blogUpdatePreview()">
+                </div>
+                <div class="blog-field">
+                  <div class="blog-label">Tag / Category</div>
+                  <select class="cms-input" id="blog-tag" onchange="blogUpdatePreview()">
+                    <option value="City Guide">City Guide</option>
+                    <option value="Events">Events</option>
+                    <option value="Niche Guide">Niche Guide</option>
+                    <option value="Tips">Tips</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="blog-field-row">
+                <div class="blog-field">
+                  <div class="blog-label">City</div>
+                  <select class="cms-input" id="blog-city" onchange="blogUpdatePreview()">
+                    <option value="san-diego">San Diego</option>
+                    <option value="los-angeles">Los Angeles</option>
+                    <option value="austin">Austin</option>
+                    <option value="new-york">New York</option>
+                    <option value="miami">Miami</option>
+                    <option value="chicago">Chicago</option>
+                    <option value="orange-county">Orange County</option>
+                    <option value="all">All Cities</option>
+                  </select>
+                </div>
+                <div class="blog-field">
+                  <div class="blog-label">Status</div>
+                  <select class="cms-input" id="blog-status">
+                    <option value="draft">Draft</option>
+                    <option value="published">Published</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="blog-field">
+                <div class="blog-label">Excerpt</div>
+                <textarea class="cms-input cms-textarea" id="blog-excerpt" placeholder="Short summary (max 200 chars)..." maxlength="200" oninput="blogUpdatePreview()" style="min-height:60px"></textarea>
+                <div class="blog-char-count"><span id="blog-excerpt-count">0</span>/200</div>
+              </div>
+
+              <div class="blog-field">
+                <div class="blog-label">Meta Description</div>
+                <textarea class="cms-input cms-textarea" id="blog-meta-desc" placeholder="SEO meta description (max 160 chars)..." maxlength="160" oninput="blogMetaCount()" style="min-height:54px"></textarea>
+                <div class="blog-char-count" id="blog-meta-char-wrap"><span id="blog-meta-count">0</span>/160</div>
+              </div>
+
+              <div class="blog-field">
+                <div class="blog-label">Keywords (comma-separated)</div>
+                <input type="text" class="cms-input" id="blog-keywords" placeholder="happy hour, san diego, rooftop bars...">
+              </div>
+
+              <div class="blog-field">
+                <div class="blog-label">Featured Image URL</div>
+                <input type="text" class="cms-input" id="blog-featured-img" placeholder="https://..." oninput="blogUpdatePreview()">
+              </div>
+
+              <div class="blog-field">
+                <div class="blog-label">Content (Markdown)</div>
+                <div class="blog-md-toolbar">
+                  <button class="blog-md-btn" onclick="blogInsertMarkdown('bold')" title="Bold"><b>B</b></button>
+                  <button class="blog-md-btn" onclick="blogInsertMarkdown('italic')" title="Italic"><i>I</i></button>
+                  <button class="blog-md-btn" onclick="blogInsertMarkdown('h2')" title="Heading 2">H2</button>
+                  <button class="blog-md-btn" onclick="blogInsertMarkdown('h3')" title="Heading 3">H3</button>
+                  <button class="blog-md-btn" onclick="blogInsertMarkdown('link')" title="Link">🔗</button>
+                  <button class="blog-md-btn" onclick="blogInsertMarkdown('image')" title="Image">🖼️</button>
+                  <button class="blog-md-btn" onclick="blogInsertMarkdown('list')" title="List">• List</button>
+                  <button class="blog-md-btn" onclick="blogInsertMarkdown('quote')" title="Quote">❝ Quote</button>
+                </div>
+                <textarea class="cms-input cms-textarea" id="blog-content-editor" placeholder="Write your post in Markdown..." oninput="blogUpdatePreview()"></textarea>
+              </div>
+            </div>
+
+            <!-- RIGHT: Preview -->
+            <div class="blog-editor-right" id="blog-editor-right">
+              <div class="blog-preview-pane" id="blog-preview-pane">
+                <div style="text-align:center;padding:60px 24px;color:var(--muted)">
+                  <div style="font-size:36px;margin-bottom:12px">📝</div>
+                  <h3 style="font-family:'Cabinet Grotesk',sans-serif;font-size:18px;font-weight:700;color:var(--text);margin-bottom:6px">Live Preview</h3>
+                  <p style="font-size:13px">Start typing to see your post rendered here.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -2927,7 +3173,7 @@ in San Diego</textarea>
   const PAGE_TITLES = {
     requests: 'Venue Requests', venues: 'All Venues', heroes: 'Hero Picker', users: 'User Analytics',
     churn: 'Churned Users', 'venues-top': 'Top Venues', cities: 'City Breakdown',
-    pipeline: 'Revenue Pipeline', crm: 'CRM Dashboard', 'crm-contacts': 'Contacts', 'crm-pipeline': 'Pipeline', 'crm-activity': 'Activity Log', feedback: 'User Feedback', push: 'Push Notifications', cms: 'Site Copy', board: 'Project Board', demo: 'Demo Data', assets: 'Asset Generator', 'email-builder': 'Email Builder', 'content-calendar': 'Content Calendar'
+    pipeline: 'Revenue Pipeline', crm: 'CRM Dashboard', 'crm-contacts': 'Contacts', 'crm-pipeline': 'Pipeline', 'crm-activity': 'Activity Log', feedback: 'User Feedback', push: 'Push Notifications', cms: 'Site Copy', board: 'Project Board', demo: 'Demo Data', assets: 'Asset Generator', 'email-builder': 'Email Builder', 'content-calendar': 'Content Calendar', blog: 'Blog Manager'
   };
 
   function showPage(page) {
@@ -2964,6 +3210,7 @@ in San Diego</textarea>
     if (page === 'assets' && window._assetPreviewUpdate) {
       setTimeout(window._assetPreviewUpdate, 100);
     }
+    if (page === 'blog') loadBlogPosts();
   }
 
   // ── HERO PICKER ──────────────────────────────────────
@@ -5712,6 +5959,385 @@ ${sectionsMjml}
 
   // Initialize sections on first load
   setTimeout(() => { ebInitSections(); }, 100);
+
+  // ── BLOG MANAGER ──────────────────────────────────────────────────────
+  /*
+   * SQL Schema for blog_posts table:
+   *
+   * CREATE TABLE blog_posts (
+   *   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+   *   title TEXT NOT NULL,
+   *   slug TEXT UNIQUE NOT NULL,
+   *   author TEXT DEFAULT 'Spotd',
+   *   tag TEXT,
+   *   city_slug TEXT,
+   *   excerpt TEXT,
+   *   meta_description TEXT,
+   *   keywords TEXT,
+   *   featured_image_url TEXT,
+   *   content TEXT,
+   *   status TEXT DEFAULT 'draft' CHECK (status IN ('draft','published')),
+   *   created_at TIMESTAMPTZ DEFAULT now(),
+   *   updated_at TIMESTAMPTZ DEFAULT now()
+   * );
+   *
+   * -- Enable RLS
+   * ALTER TABLE blog_posts ENABLE ROW LEVEL SECURITY;
+   * -- Allow service role full access
+   * CREATE POLICY "Service role full access" ON blog_posts FOR ALL USING (true) WITH CHECK (true);
+   */
+
+  let _blogPosts = [];
+  let _blogEditingId = null;
+  let _blogUseLocalStorage = false;
+  const BLOG_LS_KEY = 'spotd_blog_posts';
+
+  function _blogLocalGet() {
+    try { return JSON.parse(localStorage.getItem(BLOG_LS_KEY) || '[]'); } catch { return []; }
+  }
+  function _blogLocalSet(posts) {
+    localStorage.setItem(BLOG_LS_KEY, JSON.stringify(posts));
+  }
+
+  async function loadBlogPosts() {
+    const tbody = document.getElementById('blog-table-body');
+    tbody.innerHTML = '<tr><td colspan="7" class="table-empty">Loading...</td></tr>';
+
+    const statusFilter = document.getElementById('blog-filter-status').value;
+    const cityFilter = document.getElementById('blog-filter-city').value;
+
+    try {
+      let filters = 'select=*';
+      if (statusFilter) filters += `&status=eq.${statusFilter}`;
+      if (cityFilter) filters += `&city_slug=eq.${cityFilter}`;
+
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/blog_posts?${filters}&order=created_at.desc`, { headers: svcHeaders() });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const data = await r.json();
+      if (data.code || data.message) throw new Error(data.message || 'Table may not exist');
+      _blogPosts = data;
+      _blogUseLocalStorage = false;
+    } catch(e) {
+      console.warn('Blog: Supabase failed, using localStorage.', e.message);
+      _blogUseLocalStorage = true;
+      let posts = _blogLocalGet();
+      if (statusFilter) posts = posts.filter(p => p.status === statusFilter);
+      if (cityFilter) posts = posts.filter(p => p.city_slug === cityFilter);
+      posts.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+      _blogPosts = posts;
+    }
+
+    if (!_blogPosts.length) {
+      tbody.innerHTML = '<tr><td colspan="7" class="table-empty">No blog posts yet. Click "+ New Post" to create one.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = _blogPosts.map(p => {
+      const d = p.created_at ? new Date(p.created_at).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }) : '—';
+      const cityLabel = (p.city_slug || '').replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+      return `<tr>
+        <td style="font-weight:600;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.title || 'Untitled')}</td>
+        <td>${esc(p.author || '—')}</td>
+        <td>${esc(p.tag || '—')}</td>
+        <td>${esc(cityLabel || '—')}</td>
+        <td><span class="blog-status-badge ${p.status || 'draft'}">${p.status || 'draft'}</span></td>
+        <td style="white-space:nowrap">${d}</td>
+        <td style="white-space:nowrap">
+          <button class="blog-action-btn" onclick="blogOpenEditor('${p.id}')">Edit</button>
+          <button class="blog-action-btn delete" onclick="blogDelete('${p.id}')">Delete</button>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+  function blogOpenEditor(postId) {
+    _blogEditingId = postId || null;
+    document.getElementById('blog-list-view').style.display = 'none';
+    document.getElementById('blog-editor-view').style.display = '';
+
+    // Reset fields
+    document.getElementById('blog-title').value = '';
+    document.getElementById('blog-slug').value = '';
+    document.getElementById('blog-author').value = 'Spotd';
+    document.getElementById('blog-tag').value = 'City Guide';
+    document.getElementById('blog-city').value = 'san-diego';
+    document.getElementById('blog-status').value = 'draft';
+    document.getElementById('blog-excerpt').value = '';
+    document.getElementById('blog-meta-desc').value = '';
+    document.getElementById('blog-keywords').value = '';
+    document.getElementById('blog-featured-img').value = '';
+    document.getElementById('blog-content-editor').value = '';
+
+    if (postId) {
+      const post = _blogPosts.find(p => p.id === postId);
+      if (!post && _blogUseLocalStorage) {
+        const allPosts = _blogLocalGet();
+        const localPost = allPosts.find(p => p.id === postId);
+        if (localPost) _blogPopulateEditor(localPost);
+      } else if (post) {
+        _blogPopulateEditor(post);
+      }
+    }
+
+    blogUpdatePreview();
+    blogMetaCount();
+    document.getElementById('blog-excerpt').dispatchEvent(new Event('input'));
+  }
+
+  function _blogPopulateEditor(post) {
+    document.getElementById('blog-title').value = post.title || '';
+    document.getElementById('blog-slug').value = post.slug || '';
+    document.getElementById('blog-author').value = post.author || 'Spotd';
+    document.getElementById('blog-tag').value = post.tag || 'City Guide';
+    document.getElementById('blog-city').value = post.city_slug || 'san-diego';
+    document.getElementById('blog-status').value = post.status || 'draft';
+    document.getElementById('blog-excerpt').value = post.excerpt || '';
+    document.getElementById('blog-meta-desc').value = post.meta_description || '';
+    document.getElementById('blog-keywords').value = post.keywords || '';
+    document.getElementById('blog-featured-img').value = post.featured_image_url || '';
+    document.getElementById('blog-content-editor').value = post.content || '';
+  }
+
+  function blogBackToList() {
+    document.getElementById('blog-editor-view').style.display = 'none';
+    document.getElementById('blog-list-view').style.display = '';
+    _blogEditingId = null;
+    loadBlogPosts();
+  }
+
+  async function blogSave(forceStatus) {
+    const title = document.getElementById('blog-title').value.trim();
+    if (!title) { showToast('Title is required'); return; }
+
+    const slug = document.getElementById('blog-slug').value.trim() || blogMakeSlug(title);
+    const status = forceStatus || document.getElementById('blog-status').value;
+
+    const postData = {
+      title,
+      slug,
+      author: document.getElementById('blog-author').value.trim() || 'Spotd',
+      tag: document.getElementById('blog-tag').value,
+      city_slug: document.getElementById('blog-city').value,
+      excerpt: document.getElementById('blog-excerpt').value.trim(),
+      meta_description: document.getElementById('blog-meta-desc').value.trim(),
+      keywords: document.getElementById('blog-keywords').value.trim(),
+      featured_image_url: document.getElementById('blog-featured-img').value.trim(),
+      content: document.getElementById('blog-content-editor').value,
+      status,
+      updated_at: new Date().toISOString()
+    };
+
+    if (forceStatus) document.getElementById('blog-status').value = forceStatus;
+
+    if (_blogUseLocalStorage) {
+      let posts = _blogLocalGet();
+      if (_blogEditingId) {
+        posts = posts.map(p => p.id === _blogEditingId ? { ...p, ...postData } : p);
+      } else {
+        postData.id = crypto.randomUUID();
+        postData.created_at = new Date().toISOString();
+        posts.unshift(postData);
+        _blogEditingId = postData.id;
+      }
+      _blogLocalSet(posts);
+      showToast(status === 'published' ? 'Post published (localStorage)' : 'Draft saved (localStorage)');
+      return;
+    }
+
+    try {
+      let result;
+      if (_blogEditingId) {
+        result = await fetch(`${SUPABASE_URL}/rest/v1/blog_posts?id=eq.${_blogEditingId}`, {
+          method: 'PATCH',
+          headers: { ...svcHeaders(), 'Prefer': 'return=representation' },
+          body: JSON.stringify(postData)
+        });
+      } else {
+        postData.created_at = new Date().toISOString();
+        result = await fetch(`${SUPABASE_URL}/rest/v1/blog_posts`, {
+          method: 'POST',
+          headers: { ...svcHeaders(), 'Prefer': 'return=representation' },
+          body: JSON.stringify(postData)
+        });
+      }
+      const json = await result.json();
+      if (!result.ok) throw new Error(json.message || json.error || `HTTP ${result.status}`);
+      if (Array.isArray(json) && json[0]?.id) _blogEditingId = json[0].id;
+      showToast(status === 'published' ? 'Post published!' : 'Draft saved!');
+    } catch(e) {
+      console.error('Blog save error:', e);
+      // Fallback to localStorage
+      _blogUseLocalStorage = true;
+      let posts = _blogLocalGet();
+      if (_blogEditingId) {
+        posts = posts.map(p => p.id === _blogEditingId ? { ...p, ...postData } : p);
+      } else {
+        postData.id = crypto.randomUUID();
+        postData.created_at = new Date().toISOString();
+        posts.unshift(postData);
+        _blogEditingId = postData.id;
+      }
+      _blogLocalSet(posts);
+      showToast('Saved to localStorage (Supabase unavailable)');
+    }
+  }
+
+  async function blogDelete(id) {
+    if (!confirm('Delete this blog post? This cannot be undone.')) return;
+
+    if (_blogUseLocalStorage) {
+      let posts = _blogLocalGet();
+      posts = posts.filter(p => p.id !== id);
+      _blogLocalSet(posts);
+      showToast('Post deleted');
+      loadBlogPosts();
+      return;
+    }
+
+    try {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/blog_posts?id=eq.${id}`, {
+        method: 'DELETE',
+        headers: svcHeaders()
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      showToast('Post deleted');
+    } catch(e) {
+      console.error('Blog delete error:', e);
+      // Fallback
+      let posts = _blogLocalGet();
+      posts = posts.filter(p => p.id !== id);
+      _blogLocalSet(posts);
+      showToast('Post deleted (localStorage)');
+    }
+    loadBlogPosts();
+  }
+
+  function blogUpdatePreview() {
+    const pane = document.getElementById('blog-preview-pane');
+    const title = document.getElementById('blog-title').value.trim();
+    const content = document.getElementById('blog-content-editor').value;
+    const author = document.getElementById('blog-author').value.trim() || 'Spotd';
+    const tag = document.getElementById('blog-tag').value;
+    const excerpt = document.getElementById('blog-excerpt').value.trim();
+    const featuredImg = document.getElementById('blog-featured-img').value.trim();
+
+    // Update excerpt char count
+    const excerptCount = document.getElementById('blog-excerpt').value.length;
+    document.getElementById('blog-excerpt-count').textContent = excerptCount;
+
+    if (!title && !content) {
+      pane.innerHTML = `<div style="text-align:center;padding:60px 24px;color:var(--muted)">
+        <div style="font-size:36px;margin-bottom:12px">📝</div>
+        <h3 style="font-family:'Cabinet Grotesk',sans-serif;font-size:18px;font-weight:700;color:var(--text);margin-bottom:6px">Live Preview</h3>
+        <p style="font-size:13px">Start typing to see your post rendered here.</p>
+      </div>`;
+      return;
+    }
+
+    let html = '';
+    if (featuredImg) {
+      html += `<img class="blog-preview-featured" src="${esc(featuredImg)}" alt="${esc(title)}" onerror="this.style.display='none'">`;
+    }
+    html += `<span class="blog-status-badge ${document.getElementById('blog-status').value}" style="margin-bottom:12px;display:inline-block">${document.getElementById('blog-status').value}</span>`;
+    if (tag) html += ` <span style="font-size:11px;color:var(--coral);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-left:8px">${esc(tag)}</span>`;
+    html += `<h1>${esc(title || 'Untitled Post')}</h1>`;
+    html += `<div class="blog-preview-meta">By ${esc(author)} &middot; ${new Date().toLocaleDateString('en-US', { month:'long', day:'numeric', year:'numeric' })}</div>`;
+    if (excerpt) html += `<div class="blog-preview-excerpt">${esc(excerpt)}</div>`;
+
+    try {
+      html += marked.parse(content || '');
+    } catch(e) {
+      html += `<p>${esc(content || '')}</p>`;
+    }
+
+    pane.innerHTML = html;
+  }
+
+  function blogAutoSlug() {
+    const title = document.getElementById('blog-title').value;
+    document.getElementById('blog-slug').value = blogMakeSlug(title);
+  }
+
+  function blogMakeSlug(title) {
+    return title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').substring(0, 80);
+  }
+
+  function blogInsertMarkdown(syntax) {
+    const ta = document.getElementById('blog-content-editor');
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    const selected = ta.value.substring(start, end);
+    let before = '', after = '', insert = '';
+
+    switch(syntax) {
+      case 'bold':
+        before = '**'; after = '**';
+        insert = selected || 'bold text';
+        break;
+      case 'italic':
+        before = '*'; after = '*';
+        insert = selected || 'italic text';
+        break;
+      case 'h2':
+        before = '\n## '; after = '\n';
+        insert = selected || 'Heading';
+        break;
+      case 'h3':
+        before = '\n### '; after = '\n';
+        insert = selected || 'Heading';
+        break;
+      case 'link':
+        before = '['; after = '](url)';
+        insert = selected || 'link text';
+        break;
+      case 'image':
+        before = '!['; after = '](url)';
+        insert = selected || 'alt text';
+        break;
+      case 'list':
+        before = '\n- '; after = '\n';
+        insert = selected || 'list item';
+        break;
+      case 'quote':
+        before = '\n> '; after = '\n';
+        insert = selected || 'quote text';
+        break;
+    }
+
+    const replacement = before + insert + after;
+    ta.value = ta.value.substring(0, start) + replacement + ta.value.substring(end);
+    ta.focus();
+    const cursorPos = start + before.length + insert.length;
+    ta.selectionStart = start + before.length;
+    ta.selectionEnd = cursorPos;
+    blogUpdatePreview();
+  }
+
+  function blogMetaCount() {
+    const len = document.getElementById('blog-meta-desc').value.length;
+    const el = document.getElementById('blog-meta-count');
+    const wrap = document.getElementById('blog-meta-char-wrap');
+    el.textContent = len;
+    if (len > 160) wrap.classList.add('over');
+    else wrap.classList.remove('over');
+  }
+
+  function blogMobileView(view, btn) {
+    document.querySelectorAll('#blog-mobile-toggle button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const left = document.getElementById('blog-editor-left');
+    const right = document.getElementById('blog-editor-right');
+    if (view === 'edit') {
+      left.style.display = '';
+      right.style.display = 'none';
+    } else {
+      left.style.display = 'none';
+      right.style.display = '';
+      blogUpdatePreview();
+    }
+  }
 
 </script>
 </body>

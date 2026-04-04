@@ -9,6 +9,7 @@
   ],
   "routes": [
     { "src": "/spots/(.+)",                 "dest": "/api/spots.js?slug=$1" },
+    { "src": "/blog/([^.]+)$",              "dest": "/api/blog-post.js?slug=$1" },
     { "src": "/sitemap-venues.xml",         "dest": "/api/sitemap-venues.js" },
     { "src": "/api/auth",                  "dest": "/api/auth.js" },
     { "src": "/api/loops-onboarding",      "dest": "/api/loops-onboarding.js" },
