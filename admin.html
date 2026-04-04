@@ -1176,6 +1176,7 @@
     <div class="drawer-section-label">Engage</div>
     <button class="drawer-item" onclick="showPage('feedback');closeMobileMenu()" id="mob-nav-feedback">📬 User Feedback</button>
     <button class="drawer-item" onclick="showPage('push');closeMobileMenu()" id="mob-nav-push">🔔 Push Notifications</button>
+    <button class="drawer-item" onclick="showPage('newsletter');closeMobileMenu()" id="mob-nav-newsletter">📩 Newsletter Subs</button>
     <div class="drawer-section-label">Tools</div>
     <button class="drawer-item" onclick="showPage('cms');closeMobileMenu()" id="mob-nav-cms">✏️ Site Copy</button>
     <button class="drawer-item" onclick="showPage('board');closeMobileMenu()" id="mob-nav-board">🗂️ Project Board</button>
@@ -1242,6 +1243,9 @@
       </div>
       <div class="sidebar-item" onclick="showPage('push')" id="nav-push">
         🔔 Push Notifications
+      </div>
+      <div class="sidebar-item" onclick="showPage('newsletter')" id="nav-newsletter">
+        📩 Newsletter Subs
       </div>
       <div class="sidebar-label" style="margin-top:20px;margin-bottom:8px">Tools</div>
       <div class="sidebar-item" onclick="showPage('cms')" id="nav-cms">
@@ -1823,6 +1827,51 @@
             </div>
             <iframe id="cms-preview" src="https://spotd.biz" style="flex:1;border:none;width:100%;"></iframe>
           </div>
+        </div>
+      </div>
+
+      <!-- NEWSLETTER SUBSCRIBERS PAGE -->
+      <div class="page" id="page-newsletter">
+        <div class="page-title">📩 Newsletter Subscribers</div>
+        <div class="page-sub">Email subscribers from blog CTAs. Create the <code>newsletter_subscribers</code> table in Supabase with: <code>id (uuid, PK, default gen_random_uuid()), email (text, unique), source (text), subscribed_at (timestamptz, default now()), status (text, default 'active')</code></div>
+
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px">
+          <div class="stat-card" style="flex:1;min-width:140px">
+            <div class="stat-num" id="nl-total">—</div>
+            <div class="stat-label">Total Subscribers</div>
+          </div>
+          <div class="stat-card" style="flex:1;min-width:140px">
+            <div class="stat-num" id="nl-active">—</div>
+            <div class="stat-label">Active</div>
+          </div>
+          <div class="stat-card" style="flex:1;min-width:140px">
+            <div class="stat-num" id="nl-today">—</div>
+            <div class="stat-label">Today</div>
+          </div>
+          <div class="stat-card" style="flex:1;min-width:140px">
+            <div class="stat-num" id="nl-week">—</div>
+            <div class="stat-label">This Week</div>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="nlExportCSV()">📥 Export CSV</button>
+          <div style="flex:1"></div>
+          <input type="text" id="nl-search" placeholder="Search emails…" oninput="nlFilterList()" style="padding:8px 14px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--card);color:var(--text);outline:none;width:200px;font-family:'DM Sans',sans-serif">
+        </div>
+
+        <div style="overflow-x:auto;border:1px solid var(--border);border-radius:14px;background:var(--card)">
+          <table style="width:100%;border-collapse:collapse;font-size:13px" id="nl-table">
+            <thead style="background:var(--bg2)">
+              <tr>
+                <th style="padding:11px 14px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700;border-bottom:1px solid var(--border)">Email</th>
+                <th style="padding:11px 14px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700;border-bottom:1px solid var(--border)">Source</th>
+                <th style="padding:11px 14px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700;border-bottom:1px solid var(--border)">Date</th>
+                <th style="padding:11px 14px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700;border-bottom:1px solid var(--border)">Status</th>
+              </tr>
+            </thead>
+            <tbody id="nl-tbody"></tbody>
+          </table>
         </div>
       </div>
 
@@ -3175,7 +3224,7 @@ in San Diego</textarea>
   const PAGE_TITLES = {
     requests: 'Venue Requests', venues: 'All Venues', heroes: 'Hero Picker', users: 'User Analytics',
     churn: 'Churned Users', 'venues-top': 'Top Venues', cities: 'City Breakdown',
-    pipeline: 'Revenue Pipeline', crm: 'CRM Dashboard', 'crm-contacts': 'Contacts', 'crm-pipeline': 'Pipeline', 'crm-activity': 'Activity Log', feedback: 'User Feedback', push: 'Push Notifications', cms: 'Site Copy', board: 'Project Board', demo: 'Demo Data', assets: 'Asset Generator', 'email-builder': 'Email Builder', 'content-calendar': 'Content Calendar', blog: 'Blog Manager'
+    pipeline: 'Revenue Pipeline', crm: 'CRM Dashboard', 'crm-contacts': 'Contacts', 'crm-pipeline': 'Pipeline', 'crm-activity': 'Activity Log', feedback: 'User Feedback', push: 'Push Notifications', newsletter: 'Newsletter Subs', cms: 'Site Copy', board: 'Project Board', demo: 'Demo Data', assets: 'Asset Generator', 'email-builder': 'Email Builder', 'content-calendar': 'Content Calendar', blog: 'Blog Manager'
   };
 
   function showPage(page) {
@@ -3195,6 +3244,7 @@ in San Diego</textarea>
     if (page === 'churn')      loadChurn();
     if (page === 'pipeline')   loadPipeline();
     if (page === 'feedback')   loadFeedback();
+    if (page === 'newsletter') loadNewsletter();
     if (page === 'push')       loadPushPage();
     if (page === 'cms')        loadCms();
     if (page === 'board') {
@@ -6347,6 +6397,73 @@ ${sectionsMjml}
       right.style.display = '';
       blogUpdatePreview();
     }
+  }
+
+  // ── NEWSLETTER SUBSCRIBERS ───────────────────────────
+  let _nlSubs = [];
+
+  async function loadNewsletter() {
+    try {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/newsletter_subscribers?select=*&order=subscribed_at.desc`, { headers: svcHeaders() });
+      if (r.ok) _nlSubs = await r.json();
+      else _nlSubs = [];
+    } catch(e) { _nlSubs = []; }
+    nlRenderStats();
+    nlRenderTable(_nlSubs);
+  }
+
+  function nlRenderStats() {
+    const total = _nlSubs.length;
+    const active = _nlSubs.filter(s => s.status !== 'unsubscribed').length;
+    const now = new Date();
+    const todayStr = now.toISOString().slice(0, 10);
+    const weekAgo = new Date(now - 7 * 86400000).toISOString();
+    const today = _nlSubs.filter(s => (s.subscribed_at || '').slice(0, 10) === todayStr).length;
+    const week = _nlSubs.filter(s => (s.subscribed_at || '') >= weekAgo).length;
+    document.getElementById('nl-total').textContent = total;
+    document.getElementById('nl-active').textContent = active;
+    document.getElementById('nl-today').textContent = today;
+    document.getElementById('nl-week').textContent = week;
+  }
+
+  function nlRenderTable(list) {
+    const tbody = document.getElementById('nl-tbody');
+    if (!list.length) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:32px;color:var(--muted)">No subscribers yet. They\'ll appear here when people sign up from blog posts.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = list.map(s => {
+      const d = s.subscribed_at ? new Date(s.subscribed_at) : null;
+      const dateStr = d ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+      const source = (s.source || '—').replace(/^\/blog\//, '').replace(/\.html$/, '');
+      const statusClass = s.status === 'unsubscribed' ? 'color:var(--error)' : 'color:var(--success)';
+      return `<tr>
+        <td style="padding:12px 14px;border-bottom:1px solid var(--border);font-weight:500">${escHtml(s.email)}</td>
+        <td style="padding:12px 14px;border-bottom:1px solid var(--border);color:var(--muted)">${escHtml(source)}</td>
+        <td style="padding:12px 14px;border-bottom:1px solid var(--border);color:var(--muted)">${dateStr}</td>
+        <td style="padding:12px 14px;border-bottom:1px solid var(--border);${statusClass};font-weight:600;font-size:11px;text-transform:uppercase">${escHtml(s.status || 'active')}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  function nlFilterList() {
+    const q = (document.getElementById('nl-search').value || '').toLowerCase();
+    const filtered = q ? _nlSubs.filter(s => s.email.toLowerCase().includes(q)) : _nlSubs;
+    nlRenderTable(filtered);
+  }
+
+  function nlExportCSV() {
+    if (!_nlSubs.length) { showToast('No subscribers to export'); return; }
+    const rows = [['Email', 'Source', 'Subscribed At', 'Status']];
+    _nlSubs.forEach(s => rows.push([s.email, s.source || '', s.subscribed_at || '', s.status || 'active']));
+    const csv = rows.map(r => r.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'spotd-newsletter-subscribers.csv';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    showToast('CSV downloaded');
   }
 
 </script>
