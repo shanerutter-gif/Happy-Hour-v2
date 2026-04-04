@@ -36,7 +36,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans
 .chip:hover:not(.active){border-color:var(--border2);color:var(--text)}
 .btn-new{padding:7px 16px;background:var(--coral);color:#fff;border:none;border-radius:20px;font-family:‘Cabinet Grotesk’,sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:background .15s;white-space:nowrap}
 .btn-new:hover{background:var(--coral2)}
-@media(max-width:640px){.tb-search{width:100%;order:10}.chip-row{order:9;width:100%;overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch}}
+@media(max-width:640px){.toolbar-title{display:none}.btn-new{order:-1}.tb-search{width:100%;order:10}.chip-row{order:9;width:100%;overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch}}
 
 /* ── BOARD ── */
 .board{display:flex;gap:12px;padding:16px;height:calc(100% - 60px);overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
