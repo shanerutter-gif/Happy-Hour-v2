@@ -658,6 +658,8 @@
     .cc-stat-label { font-size:11px; color:var(--muted); margin-top:4px; text-transform:uppercase; letter-spacing:.5px; font-weight:600; }
 
     @media(max-width:680px) {
+      #cc-calendar-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+      .cc-grid { min-width:600px; }
       .cc-day { min-height:80px; padding:4px; }
       .cc-day-num { font-size:11px; }
       .cc-post-card { font-size:9px; padding:2px 4px; }
@@ -5127,7 +5129,15 @@ in San Diego</textarea>
     if (_ccUseSupabase) {
       try {
         const r = await fetch(`${SUPABASE_URL}/rest/v1/content_posts?select=*&order=scheduled_date.asc`, { headers: svcHeaders() });
-        if (r.ok) { _ccPosts = await r.json(); ccRender(); return; }
+        if (r.ok) {
+          _ccPosts = await r.json();
+          _ccPosts.forEach(p => {
+            if ((!p.platforms || !p.platforms.length) && p.platform) {
+              p.platforms = [p.platform];
+            }
+          });
+          ccRender(); return;
+        }
       } catch(e) {}
     }
     // Fallback to localStorage
@@ -5287,7 +5297,7 @@ in San Diego</textarea>
       const postsHtml = dayPosts.slice(0, 4).map(p => {
         const platDot = (p.platforms || [])[0];
         const dotClass = platDot ? CC_PLATFORM_DOTS[platDot] || '' : '';
-        const label = (p.caption || 'Untitled').slice(0, 30);
+        const label = (p.title || p.caption || 'Untitled').slice(0, 30);
         return `<div class="cc-post-card ${p.status || 'draft'}" onclick="event.stopPropagation();ccOpenCompose('${p.id}')">` +
           (dotClass ? `<span class="cc-post-dot ${dotClass}"></span>` : '') +
           `${escHtml(label)}</div>`;
@@ -5326,7 +5336,7 @@ in San Diego</textarea>
       const mon = CC_MONTHS[d.getMonth()]?.slice(0, 3) || '';
       const platforms = (p.platforms || []).map(pl => `<span class="cc-post-dot ${CC_PLATFORM_DOTS[pl] || ''}" title="${CC_PLATFORM_LABELS[pl] || pl}"></span>`).join('');
       const time = p.scheduled_time || '';
-      const caption = (p.caption || 'Untitled').slice(0, 60);
+      const caption = (p.title || p.caption || 'Untitled').slice(0, 60);
       const thumbHtml = (p.media_urls && p.media_urls.length)
         ? `<img class="cc-list-thumb" src="${escHtml(p.media_urls[0])}" alt="">`
         : '';
