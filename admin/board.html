@@ -37,7 +37,9 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans
 .chip:hover:not(.active){border-color:var(--border2);color:var(--text)}
 .btn-new{padding:7px 16px;background:var(--coral);color:#fff;border:none;border-radius:20px;font-family:‘Cabinet Grotesk’,sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:background .15s;white-space:nowrap}
 .btn-new:hover{background:var(--coral2)}
-@media(max-width:640px){.toolbar-title{display:none}.btn-new{order:-1}.tb-search{width:100%;order:10}.chip-row{order:9;width:100%;overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch}}
+@media(max-width:640px){.toolbar-title{display:none}.toolbar .btn-new{display:none}.btn-fab{display:flex}.tb-search{width:100%;order:10}.chip-row{order:9;width:100%;overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch}}
+.btn-fab{display:none;position:fixed;bottom:24px;right:20px;width:56px;height:56px;border-radius:50%;background:var(--coral);color:#fff;border:none;font-size:28px;font-weight:400;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(255,107,74,0.4);cursor:pointer;z-index:100;line-height:1}
+.btn-fab:active{background:var(--coral2);transform:scale(0.95)}
 
 /* ── BOARD ── */
 .board{display:flex;gap:12px;padding:16px;height:calc(100% - 60px);overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
@@ -147,6 +149,7 @@ select.field-input{cursor:pointer;-webkit-appearance:none;appearance:none;backgr
 </div>
 
 <div class="board" id="board"></div>
+<button class="btn-fab" onclick="openModal()">+</button>
 
 <div class="modal-bg" id="modalBg" onclick="if(event.target===this)closeModal()">
   <div class="modal">
