@@ -13,6 +13,11 @@ const _storageKey  = `sb-${_projectRef}-auth-token`;
 const { createClient } = supabase;
 const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+// ── ADMIN ─────────────────────────────────────────────
+// Add your admin email(s) here to enable in-app editing
+const ADMIN_EMAILS = ['shanerutter3@gmail.com'];
+function isAdmin() { return currentUser && ADMIN_EMAILS.includes(currentUser.email); }
+
 // ── AUTH STATE ─────────────────────────────────────────
 let currentUser   = null;
 let userFavorites = new Set();
