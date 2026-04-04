@@ -1611,7 +1611,7 @@ function updateDot() {
 function renderSuggestions() {
   const row = document.getElementById('suggestionsRow');
   if (!row) return;
-  row.innerHTML = SUGGESTIONS.map(s => `
+  row.innerHTML = '<span class="suggestions-label">Suggested</span>' + SUGGESTIONS.map(s => `
     <button class="suggestion-chip${_activeSuggestion === s.id ? ' suggestion-chip--active' : ''}"
             onclick="applySuggestion('${s.id}')">
       <span class="sg-emoji">${s.emoji}</span>${s.label}
