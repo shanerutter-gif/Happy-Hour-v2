@@ -350,7 +350,14 @@
     #page-board { padding: 0 !important; margin: -32px -40px !important; }
     #page-board.active { display: flex !important; flex-direction: column; height: calc(100vh - 56px); }
     @media(max-width:680px) {
-      #page-board.active { margin: -72px -16px -24px !important; margin-top: calc(-72px - env(safe-area-inset-top,0px)) !important; height: calc(100vh - 56px + env(safe-area-inset-top,0px)); }
+      #page-board.active {
+        position: fixed !important;
+        top: calc(56px + env(safe-area-inset-top, 0px));
+        left: 0; right: 0; bottom: 0;
+        margin: 0 !important;
+        height: auto !important;
+        z-index: 50;
+      }
     }
 
     /* CMS */
