@@ -2206,6 +2206,8 @@ function renderModal(v, type, reviews) {
       </div>`}
     </div>
 
+    ${isAdmin() && isVenue ? `<button class="admin-edit-btn" onclick="adminEditVenue('${v.id}')">✏️ Edit Venue</button>` : ''}
+
     <div class="modal-body-inner">
       <div class="modal-loc-row">
         <span class="modal-hood">${esc(v.neighborhood || '')}</span>
@@ -5664,6 +5666,108 @@ async function doAppleSignIn() {
   } catch(e) {
     showToast('Error: ' + e.message);
     return { error: { message: e.message } };
+  }
+}
+
+// ── ADMIN INLINE EDIT ────────────────────────────────
+function adminEditVenue(id) {
+  const v = state.venues.find(x => x.id === id);
+  if (!v || !isAdmin()) return;
+
+  const amenityKeys = ['has_happy_hour','has_sports_tv','is_dog_friendly','has_live_music','has_karaoke','has_trivia','has_bingo','has_comedy'];
+  const amenityLabels = { has_happy_hour:'Happy Hour', has_sports_tv:'Sports TV', is_dog_friendly:'Dog Friendly', has_live_music:'Live Music', has_karaoke:'Karaoke', has_trivia:'Trivia', has_bingo:'Bingo', has_comedy:'Comedy' };
+
+  document.getElementById('modalContent').innerHTML = `
+    <div class="admin-edit-form">
+      <div class="admin-edit-header">
+        <span class="admin-edit-title">Edit Venue</span>
+        <button class="admin-edit-cancel" onclick="openModal('${id}','venue')">Cancel</button>
+      </div>
+      <div class="admin-field"><label>Name</label><input id="ae-name" value="${esc(v.name || '')}"></div>
+      <div class="admin-field"><label>Neighborhood</label><input id="ae-neighborhood" value="${esc(v.neighborhood || '')}"></div>
+      <div class="admin-field"><label>Address</label><input id="ae-address" value="${esc(v.address || '')}"></div>
+      <div class="admin-field"><label>Cuisine</label><input id="ae-cuisine" value="${esc(v.cuisine || '')}"></div>
+      <div class="admin-field"><label>Hours</label><input id="ae-hours" value="${esc(v.hours || '')}" placeholder="e.g. 11am – 10pm"></div>
+      <div class="admin-field"><label>Website URL</label><input id="ae-url" value="${esc(v.url || '')}"></div>
+      <div class="admin-field">
+        <label>Days Open</label>
+        <div class="admin-days">${DAYS.map(d => `<button class="admin-day-btn${(v.days || []).includes(d) ? ' on' : ''}" onclick="this.classList.toggle('on')" data-day="${d}">${d}</button>`).join('')}</div>
+      </div>
+      <div class="admin-field">
+        <label>Deals (one per line)</label>
+        <textarea id="ae-deals" rows="4" placeholder="$5 margaritas Mon-Fri 4-6pm">${(v.deals || []).join('\n')}</textarea>
+      </div>
+      <div class="admin-field">
+        <label>Promo Code</label>
+        <input id="ae-promo" value="${esc(v.promo_code || '')}">
+      </div>
+      <div class="admin-field">
+        <label>Promo Description</label>
+        <input id="ae-promo-desc" value="${esc(v.promo_description || '')}">
+      </div>
+      <div class="admin-field">
+        <label>Photo URL</label>
+        <input id="ae-photo" value="${esc(v.photo_url || '')}">
+      </div>
+      <div class="admin-field">
+        <label>Amenities</label>
+        <div class="admin-amenities">${amenityKeys.map(k => `<label class="admin-amenity-check"><input type="checkbox" data-key="${k}" ${v[k] ? 'checked' : ''}><span>${amenityLabels[k]}</span></label>`).join('')}</div>
+      </div>
+      <button class="admin-save-btn" onclick="adminSaveVenue('${id}')">Save Changes</button>
+    </div>`;
+}
+
+async function adminSaveVenue(id) {
+  if (!isAdmin() || !_accessToken) return;
+  const btn = document.querySelector('.admin-save-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+
+  const days = [...document.querySelectorAll('.admin-day-btn.on')].map(b => b.dataset.day);
+  const dealsRaw = document.getElementById('ae-deals').value.trim();
+  const deals = dealsRaw ? dealsRaw.split('\n').map(d => d.trim()).filter(Boolean) : [];
+
+  const amenities = {};
+  document.querySelectorAll('.admin-amenities input[type=checkbox]').forEach(cb => {
+    amenities[cb.dataset.key] = cb.checked;
+  });
+
+  const payload = {
+    name: document.getElementById('ae-name').value.trim(),
+    neighborhood: document.getElementById('ae-neighborhood').value.trim() || null,
+    address: document.getElementById('ae-address').value.trim() || null,
+    cuisine: document.getElementById('ae-cuisine').value.trim() || null,
+    hours: document.getElementById('ae-hours').value.trim() || null,
+    url: document.getElementById('ae-url').value.trim() || null,
+    days: days,
+    deals: deals.length ? deals : null,
+    promo_code: document.getElementById('ae-promo').value.trim() || null,
+    promo_description: document.getElementById('ae-promo-desc').value.trim() || null,
+    photo_url: document.getElementById('ae-photo').value.trim() || null,
+    ...amenities
+  };
+
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/venues?id=eq.${id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${_accessToken}`,
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify(payload)
+    });
+    if (!r.ok) throw new Error('Save failed');
+
+    // Update local cache
+    const v = state.venues.find(x => x.id === id);
+    if (v) Object.assign(v, payload);
+
+    openModal(id, 'venue');
+    if (typeof haptic === 'function') haptic('success');
+  } catch (e) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Save Changes'; }
+    alert('Save failed: ' + e.message);
   }
 }
 
