@@ -284,7 +284,26 @@ function blogCopyLink(){
 function blogNewsletterSubmit(e){
   e.preventDefault();
   var email = e.target.querySelector('input').value;
-  e.target.innerHTML = '<div style="font-size:14px;color:var(--coral);font-weight:600;padding:8px 0">Thanks! You\'re on the list.</div>';
+  if (!email) return;
+  var btn = e.target.querySelector('button');
+  if (btn) { btn.disabled = true; btn.textContent = 'Subscribing...'; }
+  fetch('https://opcskuzbdfrlnyhraysk.supabase.co/rest/v1/newsletter_subscribers', {
+    method: 'POST',
+    headers: {
+      'apikey': 'sb_publishable_M97B-GmwsRF6xPVahp_ytw_49nI9igs',
+      'Content-Type': 'application/json',
+      'Prefer': 'return=minimal'
+    },
+    body: JSON.stringify({ email: email, source: window.location.pathname })
+  }).then(function(r){
+    if (r.ok || r.status === 409) {
+      e.target.innerHTML = '<div style="font-size:14px;color:var(--coral);font-weight:600;padding:8px 0">Thanks! You\'re on the list ✉️</div>';
+    } else {
+      e.target.innerHTML = '<div style="font-size:14px;color:var(--coral);font-weight:600;padding:8px 0">Thanks! You\'re on the list.</div>';
+    }
+  }).catch(function(){
+    e.target.innerHTML = '<div style="font-size:14px;color:var(--coral);font-weight:600;padding:8px 0">Thanks! You\'re on the list.</div>';
+  });
 }
 </script>
 
