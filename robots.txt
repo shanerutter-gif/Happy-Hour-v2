@@ -1,10 +1,11 @@
 User-agent: *
 Allow: /
-Allow: /blog
 Allow: /blog/
+Allow: /spots/
 
 Disallow: /api/
 Disallow: /admin.html
 Disallow: /business-portal.html
 
 Sitemap: https://spotd.biz/sitemap.xml
+Sitemap: https://spotd.biz/sitemap-venues.xml

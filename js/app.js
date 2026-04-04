@@ -199,7 +199,24 @@ document.addEventListener('DOMContentLoaded', () => {
   if (currentUser) {
     const lastSlug = localStorage.getItem('spotd-last-city') || 'san-diego';
     const city = CITIES.find(c => c.slug === lastSlug && c.active) || CITIES[0];
-    enterCity(city.slug, city.name, city.state_code);
+    enterCity(city.slug, city.name, city.state_code).then(() => {
+      // Deep-link: /?spot=<uuid> opens venue modal directly (used by SEO venue pages)
+      const spotId = new URLSearchParams(window.location.search).get('spot');
+      if (spotId) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+        openModal(spotId, 'venue');
+      }
+    });
+  } else {
+    // Guest deep-link: enter default city then open modal
+    const spotId = new URLSearchParams(window.location.search).get('spot');
+    if (spotId) {
+      const city = CITIES[0];
+      enterCity(city.slug, city.name, city.state_code).then(() => {
+        window.history.replaceState({}, document.title, window.location.pathname);
+        openModal(spotId, 'venue');
+      });
+    }
   }
 });
 
