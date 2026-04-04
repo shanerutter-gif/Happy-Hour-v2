@@ -74,6 +74,47 @@
     .page-title { font-family:'Cabinet Grotesk',sans-serif; font-size:28px; font-weight:900; letter-spacing:-0.5px; margin-bottom:6px; }
     .page-sub { color:var(--muted); font-size:14px; margin-bottom:28px; }
 
+    /* DASHBOARD */
+    .dash-kpis { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:28px; }
+    .dash-kpi { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:20px 18px; text-align:center; }
+    .dash-kpi-val { font-family:'Cabinet Grotesk',sans-serif; font-size:28px; font-weight:900; color:var(--text); line-height:1; margin-bottom:4px; }
+    .dash-kpi-label { font-family:'DM Sans',sans-serif; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); }
+    .dash-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    .dash-card { background:var(--card); border:1px solid var(--border); border-radius:14px; overflow:hidden; }
+    .dash-card-header { display:flex; align-items:center; justify-content:space-between; padding:16px 20px 12px; border-bottom:1px solid var(--border); }
+    .dash-card-title { font-family:'Cabinet Grotesk',sans-serif; font-size:15px; font-weight:800; color:var(--text); }
+    .dash-card-link { background:none; border:none; font-family:'DM Sans',sans-serif; font-size:12px; font-weight:600; color:var(--coral); cursor:pointer; padding:0; }
+    .dash-card-link:hover { text-decoration:underline; }
+    .dash-card-body { padding:8px 0; max-height:280px; overflow-y:auto; }
+    .dash-row { display:flex; align-items:center; justify-content:space-between; padding:10px 20px; gap:12px; transition:background .15s; }
+    .dash-row:hover { background:var(--bg2); }
+    .dash-row-main { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+    .dash-row-title { font-family:'DM Sans',sans-serif; font-size:13px; font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .dash-row-meta { font-family:'DM Sans',sans-serif; font-size:11px; color:var(--muted); display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+    .dash-row-time { font-family:'DM Mono',monospace; font-size:11px; color:var(--muted); white-space:nowrap; flex-shrink:0; }
+    .dash-row-rank { font-family:'DM Mono',monospace; font-size:12px; font-weight:700; color:var(--coral); margin-right:4px; }
+    .dash-tag { display:inline-block; padding:1px 7px; border-radius:20px; font-size:10px; font-weight:600; background:var(--bg2); color:var(--muted); text-transform:capitalize; }
+    .dash-status { font-family:'DM Sans',sans-serif; font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.5px; padding:3px 8px; border-radius:20px; white-space:nowrap; flex-shrink:0; }
+    .dash-status-draft { background:var(--bg2); color:var(--muted); }
+    .dash-status-scheduled { background:rgba(42,122,90,0.1); color:var(--success); }
+    .dash-status-done { background:rgba(42,122,90,0.15); color:var(--success); }
+    .dash-overdue { color:var(--error); font-weight:700; font-size:10px; }
+    .dash-prio-urgent { border-left:3px solid var(--error); }
+    .dash-prio-high { border-left:3px solid var(--warn); }
+    .dash-empty { padding:24px 20px; text-align:center; color:var(--muted); font-size:13px; font-family:'DM Sans',sans-serif; }
+    .dash-loading { padding:24px 20px; text-align:center; color:var(--muted); font-size:13px; font-family:'DM Sans',sans-serif; }
+    @media(max-width:900px) {
+      .dash-kpis { grid-template-columns:repeat(3,1fr); }
+      .dash-grid { grid-template-columns:1fr; }
+    }
+    @media(max-width:600px) {
+      .dash-kpis { grid-template-columns:repeat(2,1fr); gap:8px; }
+      .dash-kpi { padding:14px 12px; }
+      .dash-kpi-val { font-size:22px; }
+      .dash-kpi-label { font-size:10px; }
+      .dash-row { padding:8px 14px; }
+    }
+
     /* TABS */
     .status-tabs { display:flex; gap:4px; background:var(--bg2); padding:4px; border-radius:10px; margin-bottom:24px; max-width:400px; }
     .status-tab { flex:1; padding:8px 12px; border-radius:7px; font-size:13px; font-weight:500; cursor:pointer; text-align:center; color:var(--muted); transition:all .15s; border:none; background:transparent; font-family:'DM Sans',sans-serif; }
@@ -1162,6 +1203,7 @@
       <div class="drawer-logo">Spotd Admin</div>
       <button class="drawer-close" onclick="closeMobileMenu()">✕</button>
     </div>
+    <button class="drawer-item active" onclick="showPage('dashboard');closeMobileMenu()" id="mob-nav-dashboard">🏠 Dashboard</button>
     <div class="drawer-section-label">Review Queue</div>
     <button class="drawer-item" onclick="showPage('requests');closeMobileMenu()" id="mob-nav-requests">
       📋 Venue Requests <span class="mob-badge" id="mob-pending-badge"></span>
@@ -1201,8 +1243,11 @@
 
     <!-- SIDEBAR -->
     <div class="sidebar">
+      <div class="sidebar-item active" onclick="showPage('dashboard')" id="nav-dashboard" style="margin-bottom:12px;font-weight:700">
+        🏠 Dashboard
+      </div>
       <div class="sidebar-label" style="margin-bottom:8px">Review Queue</div>
-      <div class="sidebar-item active" onclick="showPage('requests')" id="nav-requests">
+      <div class="sidebar-item" onclick="showPage('requests')" id="nav-requests">
         Venue Requests
         <span class="sidebar-count" id="sidebar-pending-count">—</span>
       </div>
@@ -1281,8 +1326,82 @@
     <!-- MAIN -->
     <div class="main-content">
 
+      <!-- DASHBOARD PAGE -->
+      <div class="page active" id="page-dashboard">
+        <div class="page-title">Dashboard</div>
+        <div class="page-sub">Your Spotd command center — everything at a glance.</div>
+
+        <!-- KPI ROW -->
+        <div class="dash-kpis" id="dash-kpis">
+          <div class="dash-kpi"><div class="dash-kpi-val" id="dk-venues">—</div><div class="dash-kpi-label">Active Venues</div></div>
+          <div class="dash-kpi"><div class="dash-kpi-val" id="dk-users">—</div><div class="dash-kpi-label">Total Users</div></div>
+          <div class="dash-kpi"><div class="dash-kpi-val" id="dk-subs">—</div><div class="dash-kpi-label">Newsletter Subs</div></div>
+          <div class="dash-kpi"><div class="dash-kpi-val" id="dk-checkins">—</div><div class="dash-kpi-label">Check-ins (30d)</div></div>
+          <div class="dash-kpi"><div class="dash-kpi-val" id="dk-requests">—</div><div class="dash-kpi-label">Pending Requests</div></div>
+        </div>
+
+        <!-- WIDGET GRID -->
+        <div class="dash-grid">
+
+          <!-- Upcoming Social Posts -->
+          <div class="dash-card">
+            <div class="dash-card-header">
+              <span class="dash-card-title">Upcoming Social Posts</span>
+              <button class="dash-card-link" onclick="showPage('content-calendar')">View All →</button>
+            </div>
+            <div class="dash-card-body" id="dash-social"></div>
+          </div>
+
+          <!-- Due Board Tasks -->
+          <div class="dash-card">
+            <div class="dash-card-header">
+              <span class="dash-card-title">Due / Upcoming Tasks</span>
+              <button class="dash-card-link" onclick="showPage('board')">View Board →</button>
+            </div>
+            <div class="dash-card-body" id="dash-tasks"></div>
+          </div>
+
+          <!-- New Signups -->
+          <div class="dash-card">
+            <div class="dash-card-header">
+              <span class="dash-card-title">Recent Signups</span>
+              <button class="dash-card-link" onclick="showPage('users')">View All →</button>
+            </div>
+            <div class="dash-card-body" id="dash-signups"></div>
+          </div>
+
+          <!-- Pending Requests -->
+          <div class="dash-card">
+            <div class="dash-card-header">
+              <span class="dash-card-title">Pending Venue Requests</span>
+              <button class="dash-card-link" onclick="showPage('requests')">Review →</button>
+            </div>
+            <div class="dash-card-body" id="dash-requests"></div>
+          </div>
+
+          <!-- Recent Feedback -->
+          <div class="dash-card">
+            <div class="dash-card-header">
+              <span class="dash-card-title">Recent Feedback</span>
+              <button class="dash-card-link" onclick="showPage('feedback')">View All →</button>
+            </div>
+            <div class="dash-card-body" id="dash-feedback"></div>
+          </div>
+
+          <!-- Top Venues (7d) -->
+          <div class="dash-card">
+            <div class="dash-card-header">
+              <span class="dash-card-title">Trending Venues (7d)</span>
+              <button class="dash-card-link" onclick="showPage('venues-top')">View All →</button>
+            </div>
+            <div class="dash-card-body" id="dash-trending"></div>
+          </div>
+
+        </div>
+      </div>
+
       <!-- REQUESTS PAGE -->
-      <div class="page active" id="page-requests">
+      <div class="page" id="page-requests">
         <div class="page-title">Venue Requests</div>
         <div class="page-sub">Review user-submitted venue requests. Approve to create a draft venue, or reject to dismiss.</div>
 
@@ -2736,7 +2855,7 @@ in San Diego</textarea>
     document.getElementById('screen-app').style.display = 'block';
     document.getElementById('admin-user').textContent = _adminUser?.email || '';
     document.getElementById('btn-logout').style.display = 'block';
-    loadRequests();
+    loadDashboard();
     loadFeedbackCount();
   }
 
@@ -3229,7 +3348,7 @@ in San Diego</textarea>
     return formatDate(iso);
   }
   const PAGE_TITLES = {
-    requests: 'Venue Requests', venues: 'All Venues', heroes: 'Hero Picker', users: 'User Analytics',
+    dashboard: 'Dashboard', requests: 'Venue Requests', venues: 'All Venues', heroes: 'Hero Picker', users: 'User Analytics',
     churn: 'Churned Users', 'venues-top': 'Top Venues', cities: 'City Breakdown',
     pipeline: 'Revenue Pipeline', crm: 'CRM Dashboard', 'crm-contacts': 'Contacts', 'crm-pipeline': 'Pipeline', 'crm-activity': 'Activity Log', feedback: 'User Feedback', push: 'Push Notifications', newsletter: 'Newsletter Subs', cms: 'Site Copy', board: 'Project Board', demo: 'Demo Data', assets: 'Asset Generator', 'email-builder': 'Email Builder', 'content-calendar': 'Content Calendar', blog: 'Blog Manager'
   };
@@ -3243,6 +3362,7 @@ in San Diego</textarea>
     document.getElementById('mob-nav-'+page)?.classList.add('active');
     const titleEl = document.getElementById('mobilePageTitle');
     if (titleEl) titleEl.textContent = PAGE_TITLES[page] || page;
+    if (page === 'dashboard')  loadDashboard();
     if (page === 'venues')     loadVenues();
     if (page === 'heroes')     loadHeroes();
     if (page === 'users')      loadUsers();
@@ -6471,6 +6591,181 @@ ${sectionsMjml}
     a.click();
     URL.revokeObjectURL(a.href);
     showToast('CSV downloaded');
+  }
+
+  // ── DASHBOARD ─────────────────────────────────────────
+  let _dashLoaded = false;
+
+  async function loadDashboard() {
+    // Show loading state on first load
+    if (!_dashLoaded) {
+      document.querySelectorAll('.dash-card-body').forEach(el => {
+        el.innerHTML = '<div class="dash-loading">Loading…</div>';
+      });
+    }
+
+    const h = svcHeaders();
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString();
+    const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+    const today = new Date().toISOString().slice(0, 10);
+    const nextWeek = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+
+    try {
+      const [venues, users, subs, checkins30, pendingReqs, feedback, socialPosts, boardTasks, recentCheckins] = await Promise.all([
+        fetch(`${SUPABASE_URL}/rest/v1/venues?select=id,name,active&active=eq.true&limit=10000`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
+        fetch(`${SUPABASE_URL}/rest/v1/profiles?select=id,display_name,username,created_at&order=created_at.desc&limit=500`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
+        fetch(`${SUPABASE_URL}/rest/v1/newsletter_subscribers?select=id,email,subscribed_at,status&status=eq.active`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
+        fetch(`${SUPABASE_URL}/rest/v1/check_ins?select=id&created_at=gte.${thirtyDaysAgo}`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
+        fetch(`${SUPABASE_URL}/rest/v1/venue_requests?select=id,venue_data,created_at,user_id&status=eq.pending&order=created_at.desc&limit=5`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
+        fetch(`${SUPABASE_URL}/rest/v1/feedback?select=id,text,created_at,status&order=created_at.desc&limit=5`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
+        fetch(`${SUPABASE_URL}/rest/v1/content_posts?select=id,title,caption,scheduled_date,platforms,status&scheduled_date=gte.${today}&order=scheduled_date.asc&limit=6`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
+        fetch(`${SUPABASE_URL}/rest/v1/board_cards?select=id,title,status,priority,due_date,board&status=neq.done&order=due_date.asc.nullslast&limit=50`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
+        fetch(`${SUPABASE_URL}/rest/v1/check_ins?select=venue_id&created_at=gte.${sevenDaysAgo}`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
+      ]);
+
+      // ── KPIs ──
+      document.getElementById('dk-venues').textContent = venues.length.toLocaleString();
+      document.getElementById('dk-users').textContent = users.length.toLocaleString();
+      document.getElementById('dk-subs').textContent = subs.length.toLocaleString();
+      document.getElementById('dk-checkins').textContent = checkins30.length.toLocaleString();
+      document.getElementById('dk-requests').textContent = pendingReqs.length;
+      if (pendingReqs.length > 0) document.getElementById('dk-requests').style.color = 'var(--coral)';
+
+      // ── Upcoming Social Posts ──
+      const socialEl = document.getElementById('dash-social');
+      if (socialPosts.length) {
+        socialEl.innerHTML = socialPosts.map(p => {
+          const plats = (p.platforms || []).map(pl => `<span class="dash-tag">${esc(pl)}</span>`).join('');
+          const dateStr = p.scheduled_date ? new Date(p.scheduled_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+          const statusCls = p.status === 'published' ? 'dash-status-done' : p.status === 'scheduled' ? 'dash-status-scheduled' : 'dash-status-draft';
+          return `<div class="dash-row">
+            <div class="dash-row-main">
+              <span class="dash-row-title">${esc(p.title || p.caption || 'Untitled')}</span>
+              <span class="dash-row-meta">${dateStr} ${plats}</span>
+            </div>
+            <span class="dash-status ${statusCls}">${esc(p.status || 'draft')}</span>
+          </div>`;
+        }).join('');
+      } else {
+        socialEl.innerHTML = '<div class="dash-empty">No upcoming posts scheduled</div>';
+      }
+
+      // ── Due Board Tasks ──
+      const tasksEl = document.getElementById('dash-tasks');
+      // Sort: overdue first, then by due date, then no-date
+      const sortedTasks = boardTasks.sort((a, b) => {
+        if (a.due_date && !b.due_date) return -1;
+        if (!a.due_date && b.due_date) return 1;
+        if (a.due_date && b.due_date) return a.due_date.localeCompare(b.due_date);
+        return 0;
+      }).slice(0, 6);
+
+      if (sortedTasks.length) {
+        tasksEl.innerHTML = sortedTasks.map(t => {
+          const isOverdue = t.due_date && t.due_date < today;
+          const dueStr = t.due_date ? new Date(t.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'No date';
+          const prioClass = t.priority === 'urgent' ? 'dash-prio-urgent' : t.priority === 'high' ? 'dash-prio-high' : '';
+          const statusLabel = t.status === 'in_progress' ? 'In Progress' : t.status === 'todo' ? 'To Do' : t.status || 'To Do';
+          const boardLabel = t.board ? t.board.charAt(0).toUpperCase() + t.board.slice(1) : 'Product';
+          return `<div class="dash-row">
+            <div class="dash-row-main">
+              <span class="dash-row-title">${esc(t.title)}</span>
+              <span class="dash-row-meta"><span class="dash-tag">${esc(boardLabel)}</span> ${isOverdue ? '<span class="dash-overdue">Overdue</span>' : ''} ${dueStr}</span>
+            </div>
+            <span class="dash-status ${t.status === 'in_progress' ? 'dash-status-scheduled' : 'dash-status-draft'}">${esc(statusLabel)}</span>
+          </div>`;
+        }).join('');
+      } else {
+        tasksEl.innerHTML = '<div class="dash-empty">No open tasks</div>';
+      }
+
+      // ── Recent Signups ──
+      const signupsEl = document.getElementById('dash-signups');
+      const recentUsers = users.slice(0, 6);
+      if (recentUsers.length) {
+        signupsEl.innerHTML = recentUsers.map(u => {
+          const name = u.display_name || u.username || 'Anonymous';
+          const when = u.created_at ? timeAgo(u.created_at) : '';
+          return `<div class="dash-row">
+            <div class="dash-row-main">
+              <span class="dash-row-title">${esc(name)}</span>
+              <span class="dash-row-meta">${esc(u.username ? '@' + u.username : '')}</span>
+            </div>
+            <span class="dash-row-time">${when}</span>
+          </div>`;
+        }).join('');
+      } else {
+        signupsEl.innerHTML = '<div class="dash-empty">No users yet</div>';
+      }
+
+      // ── Pending Requests ──
+      const reqsEl = document.getElementById('dash-requests');
+      if (pendingReqs.length) {
+        reqsEl.innerHTML = pendingReqs.map(r => {
+          const vd = r.venue_data || {};
+          const name = vd.name || vd.venue_name || 'Unknown Venue';
+          const when = r.created_at ? timeAgo(r.created_at) : '';
+          return `<div class="dash-row">
+            <div class="dash-row-main">
+              <span class="dash-row-title">${esc(name)}</span>
+              <span class="dash-row-meta">${esc(vd.neighborhood || vd.city || '')}</span>
+            </div>
+            <span class="dash-row-time">${when}</span>
+          </div>`;
+        }).join('');
+      } else {
+        reqsEl.innerHTML = '<div class="dash-empty">No pending requests 🎉</div>';
+      }
+
+      // ── Recent Feedback ──
+      const fbEl = document.getElementById('dash-feedback');
+      if (feedback.length) {
+        fbEl.innerHTML = feedback.map(f => {
+          const txt = (f.text || '').length > 80 ? f.text.slice(0, 80) + '…' : (f.text || 'No text');
+          const when = f.created_at ? timeAgo(f.created_at) : '';
+          const statusCls = f.status === 'resolved' ? 'dash-status-done' : 'dash-status-draft';
+          return `<div class="dash-row">
+            <div class="dash-row-main">
+              <span class="dash-row-title" style="font-weight:400">${esc(txt)}</span>
+            </div>
+            <span class="dash-row-time">${when}</span>
+          </div>`;
+        }).join('');
+      } else {
+        fbEl.innerHTML = '<div class="dash-empty">No feedback yet</div>';
+      }
+
+      // ── Trending Venues ──
+      const trendEl = document.getElementById('dash-trending');
+      if (recentCheckins.length) {
+        // Count check-ins per venue
+        const counts = {};
+        recentCheckins.forEach(c => { counts[c.venue_id] = (counts[c.venue_id] || 0) + 1; });
+        const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+        // Build a name lookup from venues
+        const venueLookup = {};
+        venues.forEach(v => { venueLookup[v.id] = v.name; });
+        trendEl.innerHTML = sorted.map(([vid, cnt], i) => {
+          const name = venueLookup[vid] || 'Unknown';
+          return `<div class="dash-row">
+            <div class="dash-row-main">
+              <span class="dash-row-rank">#${i + 1}</span>
+              <span class="dash-row-title">${esc(name)}</span>
+            </div>
+            <span class="dash-row-time">${cnt} check-in${cnt !== 1 ? 's' : ''}</span>
+          </div>`;
+        }).join('');
+      } else {
+        trendEl.innerHTML = '<div class="dash-empty">No recent check-ins</div>';
+      }
+
+      _dashLoaded = true;
+    } catch (err) {
+      console.error('Dashboard load error:', err);
+      document.querySelectorAll('.dash-card-body').forEach(el => {
+        if (el.querySelector('.dash-loading')) el.innerHTML = '<div class="dash-empty">Failed to load</div>';
+      });
+    }
   }
 
 </script>
