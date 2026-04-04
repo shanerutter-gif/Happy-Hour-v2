@@ -15,7 +15,7 @@ const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ── ADMIN ─────────────────────────────────────────────
 // Add your admin email(s) here to enable in-app editing
-const ADMIN_EMAILS = ['shanerutter3@gmail.com'];
+const ADMIN_EMAILS = ['shanerutter@gmail.com'];
 function isAdmin() { return currentUser && ADMIN_EMAILS.includes(currentUser.email); }
 
 // ── AUTH STATE ─────────────────────────────────────────
