@@ -189,16 +189,16 @@
     <div class="home-eyebrow" id="copy-home-eyebrow">Happy Hours · Events · Trivia · Live Music</div>
     <h1 class="home-title" id="copy-home-title">Find today's<br><span class="home-accent">best spots</span></h1>
     <p class="home-sub">because 'where should we go?' deserves a better answer.</p>
-    <div class="app-store-badge">
+    <a href="https://apps.apple.com/us/app/spotd/id6760452388" target="_blank" rel="noopener" class="app-store-badge" style="text-decoration:none">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 53" width="150" height="44">
         <rect width="180" height="53" rx="10" fill="#000"/>
-        <text x="52" y="16" fill="#fff" font-family="'DM Sans',Helvetica,sans-serif" font-size="8" letter-spacing="0.5" text-anchor="start">COMING SOON ON THE</text>
+        <text x="52" y="16" fill="#fff" font-family="'DM Sans',Helvetica,sans-serif" font-size="8" letter-spacing="0.5" text-anchor="start">DOWNLOAD ON THE</text>
         <text x="52" y="37" fill="#fff" font-family="'Cabinet Grotesk','DM Sans',Helvetica,sans-serif" font-weight="700" font-size="18" text-anchor="start">App Store</text>
         <g transform="translate(14,8) scale(0.72)" fill="#fff">
           <path d="M24.769 20.3a4.95 4.95 0 0 1 2.357-4.152 5.07 5.07 0 0 0-3.992-2.157c-1.679-.176-3.307 1.004-4.164 1.004-.872 0-2.19-.988-3.608-.958a5.315 5.315 0 0 0-4.473 2.728c-1.934 3.348-.491 8.269 1.361 10.976.927 1.325 2.01 2.805 3.428 2.753 1.387-.058 1.905-.885 3.58-.885 1.658 0 2.144.885 3.59.852 1.489-.025 2.426-1.332 3.32-2.67a10.962 10.962 0 0 0 1.52-3.092 4.782 4.782 0 0 1-2.92-4.4zM22.037 12.21a4.872 4.872 0 0 0 1.115-3.49 4.957 4.957 0 0 0-3.208 1.66 4.636 4.636 0 0 0-1.144 3.36 4.1 4.1 0 0 0 3.237-1.53z"/>
         </g>
       </svg>
-    </div>
+    </a>
     <div class="home-auth-row" id="homeAuthRow">
       <button class="home-auth-btn" onclick="openAuth('signin')">Sign In</button>
       <button class="home-auth-btn home-auth-btn--accent" onclick="openAuth('signup')">Create Account</button>
@@ -715,7 +715,7 @@ if (window.spotdNative) {
     var el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
-  // Hide "Coming Soon on App Store" badge — they're already in the app
+  // Hide App Store badge — they're already in the app
   var badge = document.querySelector('.app-store-badge');
   if (badge) badge.style.display = 'none';
   // Hide BTF marketing sections on native (scrolling below fold in-app isn't needed)
