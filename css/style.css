@@ -3038,6 +3038,44 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 }
 
 /* ═══════════════════════════════════════
+   DESKTOP / TABLET — constrain feed width
+   ═══════════════════════════════════════ */
+@media (min-width: 640px) {
+  .cards-grid {
+    max-width: 640px;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 0 20px 120px;
+  }
+  .card-hero-img { aspect-ratio: 16 / 10; }
+  .card-compact-row {
+    gap: 12px;
+  }
+  .card-compact-img { aspect-ratio: 4 / 5; }
+  .card-std-img { width: 130px; min-height: 130px; }
+  .card-std-body { padding: 14px 18px; }
+  .skel-hero { aspect-ratio: 16 / 10; }
+}
+
+@media (min-width: 960px) {
+  .cards-grid {
+    max-width: 720px;
+    padding: 0 24px 120px;
+  }
+  .card-compact-row {
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 14px;
+  }
+  .skel-compact-row {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+  .card-std-img { width: 150px; min-height: 140px; }
+  .card-std-name { font-size: 16px; }
+  .card-std-meta { font-size: 12px; }
+  .card-std-deal { font-size: 13px; }
+}
+
+/* ═══════════════════════════════════════
    STAGGER DELAYS — applied via inline style
    ═══════════════════════════════════════ */
 /* Cards get animation-delay set inline by JS for precise stagger control */
