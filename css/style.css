@@ -3076,6 +3076,46 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 }
 
 /* ═══════════════════════════════════════
+   DESKTOP / TABLET — constrain Social tab
+   ═══════════════════════════════════════ */
+@media (min-width: 640px) {
+  .social-header,
+  .social-sub-tabs { max-width: 640px; margin-left: auto; margin-right: auto; width: 100%; }
+  .social-feed-content { padding-left: 0; padding-right: 0; }
+  .social-feed-content > * { max-width: 640px; margin-left: auto; margin-right: auto; }
+}
+@media (min-width: 960px) {
+  .social-header,
+  .social-sub-tabs { max-width: 720px; }
+  .social-feed-content > * { max-width: 720px; }
+}
+
+/* ═══════════════════════════════════════
+   DESKTOP / TABLET — constrain News/Blog tab
+   ═══════════════════════════════════════ */
+@media (min-width: 640px) {
+  .news-header { max-width: 640px; margin-left: auto; margin-right: auto; width: 100%; }
+  .news-feed { max-width: 640px; margin-left: auto; margin-right: auto; padding: 16px 20px 100px; }
+}
+@media (min-width: 960px) {
+  .news-header { max-width: 720px; }
+  .news-feed { max-width: 720px; padding: 16px 24px 100px; }
+  .news-grid { grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+}
+
+/* ═══════════════════════════════════════
+   DESKTOP / TABLET — constrain Profile page
+   ═══════════════════════════════════════ */
+@media (min-width: 640px) {
+  .pf-header { max-width: 640px; margin-left: auto; margin-right: auto; width: 100%; }
+  #profileContent { max-width: 640px; margin-left: auto; margin-right: auto; }
+}
+@media (min-width: 960px) {
+  .pf-header { max-width: 720px; }
+  #profileContent { max-width: 720px; }
+}
+
+/* ═══════════════════════════════════════
    STAGGER DELAYS — applied via inline style
    ═══════════════════════════════════════ */
 /* Cards get animation-delay set inline by JS for precise stagger control */
