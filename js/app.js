@@ -3,73 +3,6 @@
    Home · City View · Happy Hours · Events · Map · Auth
    ═══════════════════════════════════════════════════════ */
 
-// ── ONBOARDING ────────────────────────────────────────
-let _obSlide = 0;
-const OB_TOTAL = 5;
-
-function obShow() {
-  const el = document.getElementById('obOverlay');
-  if (el) { el.style.display = 'flex'; _obSlide = 0; obGoTo(0); }
-}
-
-function obNext() {
-  if (typeof haptic === 'function') haptic('light');
-  if (_obSlide < OB_TOTAL - 1) { obGoTo(_obSlide + 1); }
-  else { obFinish(); }
-}
-
-function obGoTo(idx) {
-  const slides = document.querySelectorAll('.ob-slide');
-  const dots = document.querySelectorAll('.ob-dot');
-  slides.forEach((s, i) => {
-    s.classList.remove('ob-slide--active', 'ob-slide--exit');
-    if (i === idx) s.classList.add('ob-slide--active');
-    else if (i < idx) s.classList.add('ob-slide--exit');
-  });
-  dots.forEach((d, i) => d.classList.toggle('ob-dot--active', i === idx));
-  _obSlide = idx;
-  const btn = document.getElementById('obNext');
-  if (btn) btn.textContent = idx === OB_TOTAL - 1 ? "Let's Go!" : 'Next';
-  const skip = document.getElementById('obSkip');
-  if (skip) skip.style.display = idx === OB_TOTAL - 1 ? 'none' : '';
-}
-
-function obFinish() {
-  if (typeof haptic === 'function') haptic('medium');
-  localStorage.setItem('spotd-onboarded', '1');
-  const el = document.getElementById('obOverlay');
-  if (el) {
-    el.style.transition = 'opacity .3s ease';
-    el.style.opacity = '0';
-    setTimeout(() => { el.style.display = 'none'; }, 300);
-  }
-}
-
-function obMaybeTrigger() {
-  if (!localStorage.getItem('spotd-onboarded')) {
-    obShow();
-  }
-}
-
-// Swipe support for onboarding
-(function() {
-  let sx = 0, sy = 0;
-  document.addEventListener('touchstart', function(e) {
-    const ob = document.getElementById('obOverlay');
-    if (!ob || ob.style.display === 'none') return;
-    sx = e.touches[0].clientX; sy = e.touches[0].clientY;
-  }, { passive: true });
-  document.addEventListener('touchend', function(e) {
-    const ob = document.getElementById('obOverlay');
-    if (!ob || ob.style.display === 'none') return;
-    const dx = e.changedTouches[0].clientX - sx;
-    const dy = e.changedTouches[0].clientY - sy;
-    if (Math.abs(dx) < 50 || Math.abs(dy) > Math.abs(dx)) return;
-    if (dx < 0 && _obSlide < OB_TOTAL - 1) obGoTo(_obSlide + 1);
-    if (dx > 0 && _obSlide > 0) obGoTo(_obSlide - 1);
-  }, { passive: true });
-})();
-
 const DAYS    = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const TODAY   = DAYS[new Date().getDay()];
 
@@ -1416,9 +1349,6 @@ async function enterCity(slug, name, stateCode) {
     const el = document.getElementById(id);
     if (el) el.classList.toggle('active', id === 'showAll');
   });
-
-  // Onboarding — show on first visit after city entry
-  setTimeout(obMaybeTrigger, 400);
 
   // Show loading
   document.getElementById('cardsGrid').innerHTML = `<div class="loading-state"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div>`;
