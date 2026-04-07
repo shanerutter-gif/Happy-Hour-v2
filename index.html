@@ -424,48 +424,46 @@
     <div class="filter-panel" id="filterPanel">
       <div class="fp-inner">
         <div class="fp-header">
-          <div class="fp-title">Find Your Spot</div>
-          <button class="fp-close" onclick="toggleFilters()">✕</button>
+          <div class="fp-title">Filters</div>
+          <div class="fp-header-right">
+            <button class="fp-clear-all" onclick="clearAllFilters()">Reset</button>
+            <button class="fp-done" onclick="toggleFilters()">Done</button>
+          </div>
         </div>
-        <div class="filter-group">
-          <div class="fg-label">Sort by</div>
+        <div class="fp-row-sort">
+          <div class="fg-label">Sort</div>
           <div class="filter-scroll" id="sortFilters">
             <button class="pill active" id="sort-name" onclick="setSort('name',this)">A–Z</button>
-            <button class="pill" id="sort-distance" onclick="setSort('distance',this)"><svg class="icn" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg> Nearest</button>
+            <button class="pill" id="sort-distance" onclick="setSort('distance',this)">Nearest</button>
             <button class="pill" id="sort-default" onclick="setSort('default',this)">Featured</button>
           </div>
         </div>
-        <div class="filter-group" id="fgDay">
-          <div class="fg-label">Day</div>
-          <select class="filter-select" id="dayFilters" onchange="setFilterFromSelect('day', this)">
-            <option value="">All days</option>
-          </select>
-        </div>
-        <div class="filter-group">
-          <div class="fg-label">Neighborhood</div>
-          <select class="filter-select" id="areaFilters" onchange="setFilterFromSelect('area', this)">
-            <option value="">All neighborhoods</option>
-          </select>
-        </div>
-        <div class="filter-group" id="fgType">
-          <div class="fg-label">Type</div>
-          <select class="filter-select" id="typeFilters" onchange="setFilterFromSelect('type', this)">
-            <option value="">All types</option>
-          </select>
-        </div>
-        <div class="filter-group">
-          <div class="fg-label">Amenities</div>
-          <div class="amenity-grid" id="amenityFilters"></div>
-        </div>
-        <div class="filter-group" id="favFilterGroup" style="display:none">
-          <div class="fg-label">My List</div>
-          <div class="filter-scroll">
-            <button class="pill" id="favFilterBtn" onclick="toggleFavFilter()">★ Saved</button>
+        <div class="fp-row-selects">
+          <div class="fp-select-col" id="fgDay">
+            <div class="fg-label">Day</div>
+            <select class="filter-select" id="dayFilters" onchange="setFilterFromSelect('day', this)">
+              <option value="">Any</option>
+            </select>
+          </div>
+          <div class="fp-select-col">
+            <div class="fg-label">Area</div>
+            <select class="filter-select" id="areaFilters" onchange="setFilterFromSelect('area', this)">
+              <option value="">Any</option>
+            </select>
+          </div>
+          <div class="fp-select-col" id="fgType">
+            <div class="fg-label">Type</div>
+            <select class="filter-select" id="typeFilters" onchange="setFilterFromSelect('type', this)">
+              <option value="">Any</option>
+            </select>
           </div>
         </div>
-        <div class="fp-footer">
-          <button class="fp-clear-all" onclick="clearAllFilters()">Clear all</button>
-          <button class="fp-done" onclick="toggleFilters()">Done</button>
+        <div class="fp-row-amenities">
+          <div class="fg-label">Amenities</div>
+          <div class="fp-amenity-scroll" id="amenityFilters"></div>
+        </div>
+        <div class="fp-row-saved" id="favFilterGroup" style="display:none">
+          <button class="pill" id="favFilterBtn" onclick="toggleFavFilter()">★ Saved Only</button>
         </div>
       </div>
     </div>
