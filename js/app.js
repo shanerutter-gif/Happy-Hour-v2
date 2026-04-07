@@ -96,7 +96,8 @@ const state = {
   map: null, markers: {},
   goingCounts: {},
   goingByMe: new Set(),
-  todayCheckInCount: 0   // tracked locally; enforces 5/day cap
+  todayCheckInCount: 0,  // tracked locally; enforces 5/day cap
+  descCache: {},         // top "Locals Say" per venue
 };
 
 const CACHE_MS = 60000;
@@ -1372,6 +1373,7 @@ async function enterCity(slug, name, stateCode) {
   // loadReviewAverages no longer calls renderCards() so it won't nuke the DOM
   loadGoingTonight(slug);
   loadReviewAverages(slug);
+  loadTopDescriptions(venues);
 
   // Build filter pills + suggestions
   buildFilterPills();
@@ -1469,6 +1471,9 @@ async function enterCity(slug, name, stateCode) {
       }
     }, 3000);
   }
+
+  // Tooltip walkthrough for first-time users (after cards render)
+  if (typeof ttStart === 'function') setTimeout(ttStart, 2000);
 }
 
 // ── SHOW FILTER ────────────────────────────────────────
@@ -1910,6 +1915,89 @@ function _renderCardsNow() {
   }
 }
 
+// ── LOCALS SAY ────────────────────────────────────────
+async function loadTopDescriptions(venues) {
+  if (!venues.length) return;
+  const ids = venues.map(v => v.id);
+  state.descCache = await fetchTopDescriptions(ids);
+  renderCards();
+}
+
+function localsSaySnippet(venueId) {
+  const d = state.descCache[venueId];
+  if (!d) return '';
+  const txt = d.description_text.length > 90 ? d.description_text.slice(0, 87) + '\u2026' : d.description_text;
+  return '<div class="locals-say"><span class="locals-say-label">Locals say</span> <span class="locals-say-text">\u201C' + esc(txt) + '\u201D</span></div>';
+}
+
+function localsSayInline(venueId) {
+  const d = state.descCache[venueId];
+  if (!d) return '';
+  const txt = d.description_text.length > 55 ? d.description_text.slice(0, 52) + '\u2026' : d.description_text;
+  return '<div class="locals-say-inline"><span class="locals-say-label">Locals say</span> \u201C' + esc(txt) + '\u201D</div>';
+}
+
+async function loadModalDescriptions(venueId) {
+  const [descs, myUpvotes] = await Promise.all([
+    fetchVenueDescriptions(venueId),
+    fetchMyUpvotedDescs(venueId),
+  ]);
+  const el = document.getElementById('locals-say-' + venueId);
+  if (!el || !descs.length) return;
+  el.innerHTML = '<div class="desc-list-section"><h3 class="desc-list-title">What people are saying</h3>' +
+    descs.map(function(d) {
+      const name = d.profiles?.display_name || 'Someone';
+      const voted = myUpvotes.has(d.id);
+      return '<div class="desc-card">' +
+        '<div class="desc-card-text">\u201C' + esc(d.description_text) + '\u201D</div>' +
+        '<div class="desc-card-meta"><span class="desc-card-author">' + esc(name) + '</span>' +
+        '<span class="desc-card-time">' + fmtDate(d.created_at) + '</span></div>' +
+        (d.tags && d.tags.length ? '<div class="desc-card-tags">' + d.tags.map(function(t) { return '<span class="desc-tag-sm">' + t + '</span>'; }).join('') + '</div>' : '') +
+        '<button class="desc-upvote-btn' + (voted ? ' upvoted' : '') + '" onclick="doToggleUpvote(\'' + d.id + '\',this)">\uD83D\uDC4D <span>' + (d.upvotes || 0) + '</span></button>' +
+        '</div>';
+    }).join('') + '</div>';
+}
+
+async function doSubmitDescription(venueId) {
+  if (!currentUser) { openAuth('signin'); return; }
+  var ta = document.getElementById('descTextInput-' + venueId);
+  if (!ta) return;
+  var text = ta.value.trim();
+  if (text.length < 10) { showToast('Write at least 10 characters'); return; }
+  var selectedTags = [];
+  document.querySelectorAll('#descTags-' + venueId + ' .desc-tag-pill.selected').forEach(function(b) {
+    selectedTags.push(b.dataset.tag);
+  });
+  var result = await submitVenueDescription(venueId, text, selectedTags);
+  if (result) {
+    showToast('Thanks for sharing!');
+    if (typeof haptic === 'function') haptic('medium');
+    ta.value = '';
+    document.getElementById('descCharCount-' + venueId).textContent = '0';
+    document.querySelectorAll('#descTags-' + venueId + ' .selected').forEach(function(b) { b.classList.remove('selected'); });
+    loadModalDescriptions(venueId);
+    // Update cache
+    state.descCache[venueId] = { description_text: text, profiles: { display_name: currentUser.user_metadata?.full_name || 'You' } };
+    renderCards();
+  } else {
+    showToast('Could not save — try again');
+  }
+}
+
+async function doToggleUpvote(descId, btn) {
+  if (!currentUser) { openAuth('signin'); return; }
+  var upvoted = await toggleDescUpvote(descId);
+  var span = btn.querySelector('span');
+  var count = parseInt(span.textContent) || 0;
+  if (upvoted) {
+    btn.classList.add('upvoted');
+    span.textContent = count + 1;
+  } else {
+    btn.classList.remove('upvoted');
+    span.textContent = Math.max(0, count - 1);
+  }
+  if (typeof haptic === 'function') haptic('light');
+}
 
 // ═══════════════════════════════════════
 // HERO CARD
@@ -1968,6 +2056,7 @@ function heroCardHTML(v, delay) {
         ${v.yelp_rating ? `<span class="dot"></span><span>★ ${v.yelp_rating}</span>` : avg > 0 ? `<span class="dot"></span><span>★ ${avg.toFixed(1)}</span>` : ''}
       </div>
       <div class="card-hero-deals">${deals}</div>
+      ${localsSaySnippet(v.id)}
       ${goingBar}
     </div>
   </div>`;
@@ -2004,6 +2093,7 @@ function compactCardHTML(v, delay) {
       <div class="card-compact-name">${esc(v.name)}</div>
       <div class="card-compact-sub">${esc(v.cuisine || '')}${v.yelp_rating ? ` · ★ ${v.yelp_rating}` : avg > 0 ? ` · ★ ${avg.toFixed(1)}` : ''}${count > 0 ? ` · 🔥 ${count}` : ''}</div>
       ${dealsHtml}
+      ${localsSayInline(v.id)}
     </div>
   </div>`;
 }
@@ -2040,6 +2130,7 @@ function standardCardHTML(v, delay) {
       <div class="card-std-name">${esc(v.name)}</div>
       <div class="card-std-meta">${esc(v.neighborhood || '')} · ${esc(v.cuisine || '')}${todayH ? ' · ' + esc(todayH) : ''}</div>
       ${deals.length ? deals.map(d => `<div class="card-std-deal">${esc(d)}</div>`).join('') : ''}
+      ${localsSayInline(v.id)}
       ${count > 0 ? `<div class="card-std-going">🔥 ${count} going tonight</div>` : starsEl}
     </div>
     <button class="card-std-fav${faved ? ' faved' : ''}"
@@ -2146,12 +2237,13 @@ async function openModal(id, type = 'venue') {
       }
     });
   }
-  // Load UGC check-in photos
+  // Load UGC check-in photos + Locals Say descriptions
   if (type === 'venue') {
     fetchCheckinPhotos(id).then(photos => {
       const el = document.getElementById(`ugc-photos-${id}`);
       if (el) el.innerHTML = renderCheckinPhotos(photos, id);
     });
+    loadModalDescriptions(id);
   }
 }
 
@@ -2225,6 +2317,10 @@ function renderModal(v, type, reviews) {
         <span class="modal-action-icon" style="background:var(--bg2);border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center">${icn('bell',20)}</span>
         <span class="modal-action-label">Alerts</span>
       </div>`}
+      ${isVenue ? `<div class="modal-action" onclick="openAddToList('${v.id}')">
+        <span class="modal-action-icon" style="background:var(--bg2);border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center">${icn('bookmark',20)}</span>
+        <span class="modal-action-label">Add to List</span>
+      </div>` : ''}
     </div>
 
     ${isAdmin() && isVenue ? `<button class="admin-edit-btn" onclick="adminEditVenue('${v.id}')">✏️ Edit Venue</button>` : ''}
@@ -2285,6 +2381,23 @@ function renderModal(v, type, reviews) {
         ${v.venue_name ? `<div style="margin-top:8px;font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em">At ${esc(v.venue_name)}</div>` : ''}
         ${v.price ? `<div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em">Entry: ${esc(v.price)}</div>` : ''}
       `}
+
+      ${isVenue ? `
+        <div class="s-div"></div>
+        <div id="locals-say-${v.id}"></div>
+        <div class="desc-prompt-section" id="desc-prompt-${v.id}">
+          <h3 class="desc-prompt-title">How would you describe ${esc(v.name)}?</h3>
+          <p class="desc-prompt-subtitle">Help others know what to expect</p>
+          <textarea id="descTextInput-${v.id}" class="desc-textarea" placeholder="e.g., great happy hour, strong pours, always a good crowd on Fridays..." maxlength="280" rows="3" oninput="document.getElementById('descCharCount-${v.id}').textContent=this.value.length"></textarea>
+          <div class="desc-char-count"><span id="descCharCount-${v.id}">0</span>/280</div>
+          <div class="desc-tags-row" id="descTags-${v.id}">
+            ${['chill','hype','divey','bougie','date-night','group-friendly','late-night','craft-cocktails','cheap-drinks','dance-floor','hidden-gem','locals-only'].map(t =>
+              '<button class="desc-tag-pill" data-tag="' + t + '" onclick="this.classList.toggle(\'selected\')">' + t + '</button>'
+            ).join('')}
+          </div>
+          <button class="desc-submit-btn" onclick="doSubmitDescription('${v.id}')">Share</button>
+        </div>
+      ` : ''}
 
       ${isVenue ? `<div id="ugc-photos-${v.id}"></div>` : ''}
       <div class="s-div"></div>
@@ -2748,6 +2861,7 @@ async function renderProfile(user) {
         <button class="pf-tab on" onclick="selectProfileTab('checkins',this)">Check-ins</button>
         <button class="pf-tab" onclick="selectProfileTab('reviews',this)">Reviews</button>
         <button class="pf-tab" onclick="selectProfileTab('saved',this)">Saved</button>
+        <button class="pf-tab" onclick="selectProfileTab('lists',this)">Lists</button>
       </div>
     </div>
 
@@ -2800,6 +2914,14 @@ async function renderProfile(user) {
             </div>
           </div>`
         ).join('') : '<div class="pf-empty"><div class="pf-empty-icon">🔖</div>No saved spots yet — tap ★ on any venue</div>'}
+      </div>
+
+      <div id="my-tab-lists" style="display:none">
+        <div style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:13px;color:var(--muted)">Your curated venue collections</span>
+          <button class="list-create-btn" onclick="openCreateListForm()">+ New List</button>
+        </div>
+        <div id="myListsGrid"></div>
       </div>
 
       <div id="my-tab-hoods" style="display:none">
@@ -3421,7 +3543,62 @@ function updateMapMarkers() {
     state.markers[v.id] = marker;
   });
   state._markerLayer.addLayers(markers);
+  // Overlay check-in users on map
+  loadMapCheckIns();
 }
+
+async function loadMapCheckIns() {
+  if (!state.city || !state.map) return;
+  var checkIns = await fetchTodayCheckInsWithProfiles(state.city.slug);
+  if (!checkIns.length) return;
+
+  // Group by venue
+  var byVenue = {};
+  checkIns.forEach(function(c) {
+    if (!byVenue[c.venue_id]) byVenue[c.venue_id] = [];
+    byVenue[c.venue_id].push(c);
+  });
+
+  // Remove old layer
+  if (state._checkinMarkerLayer) {
+    state.map.removeLayer(state._checkinMarkerLayer);
+  }
+  state._checkinMarkerLayer = L.layerGroup().addTo(state.map);
+
+  Object.keys(byVenue).forEach(function(venueId) {
+    var venue = state.venues.find(function(v) { return String(v.id) === String(venueId); });
+    if (!venue || !venue.lat || !venue.lng) return;
+    var users = byVenue[venueId];
+    var names = users.slice(0, 3).map(function(u) {
+      return u.profiles?.display_name || 'Someone';
+    });
+    var label = names.join(', ');
+    if (users.length > 3) label += ' +' + (users.length - 3);
+
+    var avatarHtml = '<div class="map-checkin-cluster" title="' + label + '">';
+    users.slice(0, 3).forEach(function(u, i) {
+      var name = u.profiles?.display_name || '?';
+      var initials = name.split(' ').map(function(w) { return w[0]; }).join('').toUpperCase().slice(0, 2);
+      avatarHtml += '<div class="map-checkin-av" style="z-index:' + (3 - i) + '">' + initials + '</div>';
+    });
+    if (users.length > 3) {
+      avatarHtml += '<div class="map-checkin-av map-checkin-more">+' + (users.length - 3) + '</div>';
+    }
+    avatarHtml += '</div>';
+
+    var icon = L.divIcon({
+      className: '',
+      html: avatarHtml,
+      iconSize: [users.length > 1 ? 60 : 28, 28],
+      iconAnchor: [users.length > 1 ? 30 : 14, -8],
+    });
+
+    var marker = L.marker([venue.lat, venue.lng], { icon: icon, interactive: true });
+    marker.bindPopup('<div style="font-size:13px;font-weight:600;color:var(--text)">' + label + '</div><div style="font-size:11px;color:var(--muted)">checked in at ' + esc(venue.name) + '</div>', { maxWidth: 200 });
+    state._checkinMarkerLayer.addLayer(marker);
+  });
+}
+
 function popupHTML(v) {
   return `<div class="popup-body"><div class="popup-name">${esc(v.name)}</div><div class="popup-hood">${esc(v.neighborhood||'')}</div><div class="popup-when">${esc(getTodayHours(v))}</div>${(v.deals||[]).slice(0,2).map(d=>`<div class="popup-deal">${esc(d)}</div>`).join('')}<div class="popup-actions"><button class="popup-btn" onclick="openModal('${v.id}','${v.event_type?'event':'venue'}')">Details</button><button class="popup-directions" onclick="getDirections(${v.lat},${v.lng},'${esc(v.name).replace(/'/g,"\\'")}')">Directions</button><button class="popup-share" onclick="shareItem('${v.id}','${v.event_type?'event':'venue'}')">Share</button></div></div>`;
 }
@@ -5376,7 +5553,7 @@ if (window.visualViewport) {
 function selectProfileTab(tab, btn) {
   if(typeof haptic==='function')haptic('light');
   // Hide all tab content panels
-  ['checkins','reviews','saved','hoods'].forEach(t => {
+  ['checkins','reviews','saved','lists','hoods'].forEach(t => {
     const el = document.getElementById('my-tab-' + t);
     if (el) el.style.display = 'none';
   });
@@ -5388,6 +5565,166 @@ function selectProfileTab(tab, btn) {
     b.classList.remove('active', 'on');
   });
   if (btn) { btn.classList.add('on'); btn.classList.add('active'); }
+  if (tab === 'lists') loadMyLists();
+}
+
+// ── CURATED LISTS ─────────────────────────────────────
+async function loadMyLists() {
+  if (!currentUser) return;
+  const grid = document.getElementById('myListsGrid');
+  if (!grid) return;
+  grid.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted)">Loading...</div>';
+  const lists = await fetchUserLists(currentUser.id);
+  if (!lists.length) {
+    grid.innerHTML = '<div class="pf-empty"><div class="pf-empty-icon">\uD83D\uDCCB</div>No lists yet \u2014 create one to curate your favorite spots!</div>';
+    return;
+  }
+  grid.innerHTML = lists.map(function(l) {
+    var count = l.list_items?.[0]?.count || 0;
+    return '<div class="list-card" onclick="openListDetail(\'' + l.id + '\')">' +
+      '<div class="list-card-emoji">' + (l.cover_emoji || '\uD83C\uDF78') + '</div>' +
+      '<div class="list-card-body">' +
+      '<div class="list-card-title">' + esc(l.title) + '</div>' +
+      '<div class="list-card-meta">' + count + ' spot' + (count !== 1 ? 's' : '') + '</div>' +
+      '</div>' +
+      '<button class="list-card-del" onclick="event.stopPropagation();doDeleteList(\'' + l.id + '\')" title="Delete">&times;</button>' +
+      '</div>';
+  }).join('');
+}
+
+function openCreateListForm() {
+  var emojis = ['\uD83C\uDF78','\uD83C\uDF7A','\uD83C\uDF77','\uD83C\uDF7B','\uD83C\uDF7E','\uD83E\uDD42','\uD83C\uDF79','\uD83C\uDF75','\uD83C\uDF2E','\uD83C\uDF55','\uD83C\uDF1F','\uD83D\uDD25','\u2764\uFE0F','\uD83C\uDF05','\uD83C\uDFB5','\uD83C\uDFC8','\uD83C\uDF34','\uD83D\uDC95','\uD83E\uDD29','\uD83C\uDF1E'];
+  var html = '<div class="list-form-overlay" id="listFormOverlay" onclick="if(event.target===this)closeListForm()">' +
+    '<div class="list-form-sheet">' +
+    '<div class="list-form-header"><span>New List</span><button onclick="closeListForm()">&times;</button></div>' +
+    '<input class="field list-form-title" id="listTitleInput" type="text" placeholder="List name (e.g. Date Night Gaslamp)" maxlength="80">' +
+    '<textarea class="field list-form-desc" id="listDescInput" placeholder="Description (optional)" rows="2" maxlength="280"></textarea>' +
+    '<div class="list-form-label">Cover emoji</div>' +
+    '<div class="list-emoji-grid" id="listEmojiGrid">' +
+    emojis.map(function(e) { return '<button class="list-emoji-btn' + (e === '\uD83C\uDF78' ? ' selected' : '') + '" data-emoji="' + e + '" onclick="pickListEmoji(this)">' + e + '</button>'; }).join('') +
+    '</div>' +
+    '<button class="desc-submit-btn" onclick="doCreateList()">Create List</button>' +
+    '</div></div>';
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function closeListForm() {
+  var el = document.getElementById('listFormOverlay');
+  if (el) el.remove();
+}
+
+function pickListEmoji(btn) {
+  document.querySelectorAll('#listEmojiGrid .list-emoji-btn').forEach(function(b) { b.classList.remove('selected'); });
+  btn.classList.add('selected');
+}
+
+async function doCreateList() {
+  var title = document.getElementById('listTitleInput').value.trim();
+  if (!title) { showToast('Enter a list name'); return; }
+  var desc = document.getElementById('listDescInput').value.trim();
+  var emojiBtn = document.querySelector('#listEmojiGrid .selected');
+  var emoji = emojiBtn ? emojiBtn.dataset.emoji : '\uD83C\uDF78';
+  var list = await createList(title, desc, emoji);
+  if (list) {
+    showToast('List created!');
+    if (typeof haptic === 'function') haptic('medium');
+    closeListForm();
+    loadMyLists();
+  } else {
+    showToast('Could not create list');
+  }
+}
+
+async function doDeleteList(listId) {
+  if (!confirm('Delete this list?')) return;
+  var ok = await deleteList(listId);
+  if (ok) { showToast('List deleted'); loadMyLists(); }
+}
+
+async function openListDetail(listId) {
+  var list = await fetchListDetail(listId);
+  if (!list) { showToast('List not found'); return; }
+  var isOwner = currentUser && list.user_id === currentUser.id;
+  var authorName = list.profiles?.display_name || 'Someone';
+  var items = list.items || [];
+
+  var html = '<div class="sub-page" id="listDetailPage" style="display:block">' +
+    '<button class="sub-page-back" onclick="closeSubPage(\'listDetailPage\')">' + icn('back', 20) + '</button>' +
+    '<div style="text-align:center;padding:20px 16px 0">' +
+    '<div style="font-size:48px;margin-bottom:8px">' + (list.cover_emoji || '\uD83C\uDF78') + '</div>' +
+    '<h2 style="font-family:\'Cabinet Grotesk\',sans-serif;font-weight:900;font-size:22px;color:var(--text);letter-spacing:-0.5px">' + esc(list.title) + '</h2>' +
+    (list.description ? '<p style="font-size:13px;color:var(--muted);margin-top:4px">' + esc(list.description) + '</p>' : '') +
+    '<div style="font-size:11px;color:var(--muted);margin-top:6px">by ' + esc(authorName) + ' \u00B7 ' + items.length + ' spot' + (items.length !== 1 ? 's' : '') + '</div>' +
+    '<button class="list-share-btn" onclick="shareList(\'' + listId + '\',\'' + esc(list.title) + '\')">Share list</button>' +
+    '</div>' +
+    '<div style="padding:12px 16px">' +
+    (items.length ? items.map(function(item) {
+      var v = item.venues;
+      if (!v) return '';
+      var todayH = v.days && v.days.includes(TODAY) ? 'Open today' : '';
+      return '<div class="list-venue-row" onclick="closeSubPage(\'listDetailPage\');openModal(\'' + v.id + '\',\'venue\')">' +
+        (v.photo_url ? '<img class="list-venue-img" src="' + esc(v.photo_url) + '" alt="" loading="lazy" onerror="this.style.display=\'none\'">' : '<div class="list-venue-img" style="background:var(--coral-dim);display:flex;align-items:center;justify-content:center;font-size:20px">\uD83C\uDF7A</div>') +
+        '<div class="list-venue-body">' +
+        '<div class="list-venue-name">' + esc(v.name) + '</div>' +
+        '<div class="list-venue-meta">' + esc(v.neighborhood || '') + (v.cuisine ? ' \u00B7 ' + esc(v.cuisine) : '') + (todayH ? ' \u00B7 ' + todayH : '') + '</div>' +
+        (item.note ? '<div class="list-venue-note">\u201C' + esc(item.note) + '\u201D</div>' : '') +
+        '</div>' +
+        (isOwner ? '<button class="list-venue-remove" onclick="event.stopPropagation();doRemoveFromList(\'' + listId + '\',\'' + v.id + '\',this)">&times;</button>' : '') +
+        '</div>';
+    }).join('') : '<div class="pf-empty"><div class="pf-empty-icon">\uD83D\uDCCD</div>No spots added yet \u2014 add venues from their detail page</div>') +
+    '</div></div>';
+
+  // Remove existing if any
+  var existing = document.getElementById('listDetailPage');
+  if (existing) existing.remove();
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+
+async function doRemoveFromList(listId, venueId, btn) {
+  var ok = await removeFromList(listId, venueId);
+  if (ok) {
+    var row = btn.closest('.list-venue-row');
+    if (row) { row.style.opacity = '0'; setTimeout(function() { row.remove(); }, 200); }
+    showToast('Removed from list');
+  }
+}
+
+function shareList(listId, title) {
+  var url = window.location.origin + '/list/' + listId;
+  if (navigator.share) {
+    navigator.share({ title: title + ' \u2014 Spotd', url: url }).catch(function() {});
+  } else {
+    navigator.clipboard.writeText(url).then(function() { showToast('Link copied!'); });
+  }
+}
+
+// "Add to List" from venue modal
+async function openAddToList(venueId) {
+  if (!currentUser) { openAuth('signin'); return; }
+  var lists = await fetchListsContainingVenue(venueId);
+  var html = '<div class="list-form-overlay" id="addToListOverlay" onclick="if(event.target===this)this.remove()">' +
+    '<div class="list-form-sheet">' +
+    '<div class="list-form-header"><span>Add to list</span><button onclick="document.getElementById(\'addToListOverlay\').remove()">&times;</button></div>' +
+    (lists.length ? lists.map(function(l) {
+      return '<button class="add-list-row' + (l.hasVenue ? ' in-list' : '') + '" onclick="doAddToList(\'' + l.id + '\',\'' + venueId + '\',this)">' +
+        '<span>' + (l.cover_emoji || '\uD83C\uDF78') + ' ' + esc(l.title) + '</span>' +
+        '<span class="add-list-check">' + (l.hasVenue ? '\u2713' : '+') + '</span>' +
+        '</button>';
+    }).join('') : '<div style="padding:16px;color:var(--muted);text-align:center;font-size:13px">No lists yet</div>') +
+    '<button class="add-list-new" onclick="document.getElementById(\'addToListOverlay\').remove();openCreateListForm()">+ Create new list</button>' +
+    '</div></div>';
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+
+async function doAddToList(listId, venueId, btn) {
+  var check = btn.querySelector('.add-list-check');
+  if (btn.classList.contains('in-list')) {
+    var ok = await removeFromList(listId, venueId);
+    if (ok) { btn.classList.remove('in-list'); if (check) check.textContent = '+'; showToast('Removed'); }
+  } else {
+    var ok2 = await addToList(listId, venueId);
+    if (ok2) { btn.classList.add('in-list'); if (check) check.textContent = '\u2713'; showToast('Added!'); if (typeof haptic === 'function') haptic('light'); }
+  }
 }
 
 // ── LEGAL PAGES ──────────────────────────────────────

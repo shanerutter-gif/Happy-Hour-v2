@@ -1265,3 +1265,202 @@ async function fetchSocialFeed(citySlug, followingIds = [], limit = 60) {
     return [];
   }
 }
+
+// ── VENUE DESCRIPTIONS ("Locals Say") ─────────────────
+async function fetchTopDescriptions(venueIds) {
+  if (!venueIds.length) return {};
+  try {
+    const { data } = await db.from('venue_descriptions')
+      .select('venue_id, description_text, profiles(display_name)')
+      .in('venue_id', venueIds)
+      .order('upvotes', { ascending: false })
+      .limit(200);
+    if (!data) return {};
+    // Keep only the top description per venue
+    const map = {};
+    data.forEach(d => { if (!map[d.venue_id]) map[d.venue_id] = d; });
+    return map;
+  } catch(e) { return {}; }
+}
+
+async function fetchVenueDescriptions(venueId) {
+  try {
+    const { data } = await db.from('venue_descriptions')
+      .select('*, profiles(display_name, avatar_url, avatar_emoji)')
+      .eq('venue_id', venueId)
+      .order('upvotes', { ascending: false });
+    return data || [];
+  } catch(e) { return []; }
+}
+
+async function submitVenueDescription(venueId, text, tags) {
+  if (!currentUser) return null;
+  const { data, error } = await db.from('venue_descriptions')
+    .upsert({
+      user_id: currentUser.id,
+      venue_id: venueId,
+      description_text: text,
+      tags: tags || [],
+    }, { onConflict: 'user_id,venue_id' })
+    .select()
+    .single();
+  if (error) { console.error('submitDesc error', error); return null; }
+  return data;
+}
+
+async function toggleDescUpvote(descId) {
+  if (!currentUser) return;
+  // Check if already upvoted
+  const { data: existing } = await db.from('description_upvotes')
+    .select('id')
+    .eq('user_id', currentUser.id)
+    .eq('description_id', descId)
+    .maybeSingle();
+  if (existing) {
+    await db.from('description_upvotes').delete().eq('id', existing.id);
+    await db.rpc('decrement_desc_upvotes', { desc_id: descId }).catch(() => {
+      // Fallback: manual decrement
+      db.from('venue_descriptions').select('upvotes').eq('id', descId).single().then(({ data }) => {
+        if (data) db.from('venue_descriptions').update({ upvotes: Math.max(0, (data.upvotes || 0) - 1) }).eq('id', descId);
+      });
+    });
+    return false;
+  } else {
+    await db.from('description_upvotes').insert({ user_id: currentUser.id, description_id: descId });
+    await db.rpc('increment_desc_upvotes', { desc_id: descId }).catch(() => {
+      db.from('venue_descriptions').select('upvotes').eq('id', descId).single().then(({ data }) => {
+        if (data) db.from('venue_descriptions').update({ upvotes: (data.upvotes || 0) + 1 }).eq('id', descId);
+      });
+    });
+    return true;
+  }
+}
+
+async function fetchMyUpvotedDescs(venueId) {
+  if (!currentUser) return new Set();
+  try {
+    const { data } = await db.from('description_upvotes')
+      .select('description_id')
+      .eq('user_id', currentUser.id);
+    return new Set((data || []).map(d => d.description_id));
+  } catch(e) { return new Set(); }
+}
+
+// ── CURATED LISTS ─────────────────────────────────────
+async function fetchUserLists(userId) {
+  try {
+    const { data } = await db.from('user_lists')
+      .select('*, list_items(count)')
+      .eq('user_id', userId)
+      .order('updated_at', { ascending: false });
+    return data || [];
+  } catch(e) { return []; }
+}
+
+async function createList(title, description, emoji) {
+  if (!currentUser) return null;
+  const { data, error } = await db.from('user_lists')
+    .insert({
+      user_id: currentUser.id,
+      title,
+      description: description || null,
+      cover_emoji: emoji || '\uD83C\uDF78',
+    })
+    .select()
+    .single();
+  if (error) { console.error('createList error', error); return null; }
+  return data;
+}
+
+async function fetchListDetail(listId) {
+  try {
+    const { data: list } = await db.from('user_lists')
+      .select('*, profiles(display_name, avatar_url)')
+      .eq('id', listId)
+      .single();
+    if (!list) return null;
+    const { data: items } = await db.from('list_items')
+      .select('*, venues(id, name, neighborhood, cuisine, photo_url, deals, days)')
+      .eq('list_id', listId)
+      .order('position');
+    list.items = items || [];
+    return list;
+  } catch(e) { return null; }
+}
+
+async function addToList(listId, venueId, note) {
+  const { data: items } = await db.from('list_items')
+    .select('position')
+    .eq('list_id', listId)
+    .order('position', { ascending: false })
+    .limit(1);
+  const nextPos = items?.length ? (items[0].position + 1) : 0;
+  const { error } = await db.from('list_items')
+    .insert({ list_id: listId, venue_id: venueId, note: note || null, position: nextPos });
+  if (!error) {
+    await db.from('user_lists').update({ updated_at: new Date().toISOString() }).eq('id', listId);
+  }
+  return !error;
+}
+
+async function removeFromList(listId, venueId) {
+  const { error } = await db.from('list_items')
+    .delete()
+    .eq('list_id', listId)
+    .eq('venue_id', venueId);
+  return !error;
+}
+
+async function fetchListsContainingVenue(venueId) {
+  if (!currentUser) return [];
+  try {
+    const { data: lists } = await db.from('user_lists')
+      .select('id, title, cover_emoji')
+      .eq('user_id', currentUser.id)
+      .order('updated_at', { ascending: false });
+    if (!lists?.length) return [];
+    const { data: items } = await db.from('list_items')
+      .select('list_id')
+      .eq('venue_id', venueId)
+      .in('list_id', lists.map(l => l.id));
+    const inSet = new Set((items || []).map(i => i.list_id));
+    return lists.map(l => ({ ...l, hasVenue: inSet.has(l.id) }));
+  } catch(e) { return []; }
+}
+
+async function toggleListSave(listId) {
+  if (!currentUser) return;
+  const { data: existing } = await db.from('list_saves')
+    .select('id')
+    .eq('user_id', currentUser.id)
+    .eq('list_id', listId)
+    .maybeSingle();
+  if (existing) {
+    await db.from('list_saves').delete().eq('id', existing.id);
+    return false;
+  } else {
+    await db.from('list_saves').insert({ user_id: currentUser.id, list_id: listId });
+    return true;
+  }
+}
+
+async function deleteList(listId) {
+  if (!currentUser) return false;
+  const { error } = await db.from('user_lists')
+    .delete()
+    .eq('id', listId)
+    .eq('user_id', currentUser.id);
+  return !error;
+}
+
+// ── CHECK-IN MAP DATA ─────────────────────────────────
+async function fetchTodayCheckInsWithProfiles(citySlug) {
+  const today = new Date().toISOString().slice(0, 10);
+  try {
+    const { data } = await db.from('check_ins')
+      .select('venue_id, user_id, profiles(display_name, avatar_url, avatar_emoji)')
+      .eq('city_slug', citySlug)
+      .eq('date', today);
+    return data || [];
+  } catch(e) { return []; }
+}
