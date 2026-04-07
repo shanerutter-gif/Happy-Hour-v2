@@ -1538,6 +1538,26 @@ function buildTypeFilters() {
 function mkPill(label, onclick) {
   const b = document.createElement('button'); b.className = 'pill'; b.textContent = label; b.onclick = onclick; return b;
 }
+function clearAllVisible() {
+  if(typeof haptic==='function')haptic('light');
+  state.filters = { day: null, area: null, type: null, search: '', amenities: [] };
+  state.favFilterOn = false;
+  _activeSuggestion = null;
+  document.getElementById('searchBox').value = '';
+  ['dayFilters','areaFilters','typeFilters'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el.tagName === 'SELECT') el.selectedIndex = 0;
+  });
+  document.querySelectorAll('#amenityFilters .amenity-card.active').forEach(b => b.classList.remove('active'));
+  document.getElementById('chipsRow').innerHTML = '';
+  document.getElementById('favFilterBtn')?.classList.remove('active');
+  applyFilters(); updateDot(); renderSuggestions(); updateClearBtn();
+}
+function updateClearBtn() {
+  const has = state.filters.day || state.filters.area || state.filters.type || state.filters.search || state.filters.amenities.length || state.favFilterOn;
+  const btn = document.getElementById('clearAllBtn');
+  if (btn) btn.style.display = has ? '' : 'none';
+}
 function clearAllFilters() {
   state.filters = { day: null, area: null, type: null, search: '', amenities: [] };
   state.favFilterOn = false;
@@ -1605,6 +1625,7 @@ function clearFilter(key) {
 function updateDot() {
   const has = state.filters.day || state.filters.area || state.filters.type || state.filters.amenities.length || state.favFilterOn;
   document.getElementById('filterDot').classList.toggle('show', !!has);
+  updateClearBtn();
   document.getElementById('filterToggle').classList.toggle('active', !!has);
 }
 // ── SMART SUGGESTIONS ────────────────────────────────
