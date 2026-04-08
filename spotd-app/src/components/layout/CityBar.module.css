@@ -1,0 +1,119 @@
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--nav-bg);
+  position: sticky;
+  top: 0;
+  z-index: 250;
+  box-shadow: 0 4px 12px rgba(42, 31, 20, 0.04), var(--clay-inset);
+}
+
+.pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--card);
+  border: none;
+  border-radius: 50px;
+  padding: 7px 14px;
+  cursor: pointer;
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--ink);
+  transition: background var(--duration-fast), transform var(--duration-fast), box-shadow var(--duration-fast);
+  box-shadow: var(--clay-sm);
+}
+
+.pill:active {
+  transform: scale(0.96);
+  box-shadow: var(--clay-pressed);
+}
+
+.arrow {
+  transition: transform var(--duration) ease;
+  flex-shrink: 0;
+  color: var(--muted);
+}
+
+.open .arrow {
+  transform: rotate(180deg);
+}
+
+.name {
+  white-space: nowrap;
+}
+
+.dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 16px;
+  min-width: 220px;
+  background: var(--card);
+  border: none;
+  border-radius: 20px;
+  padding: 8px;
+  z-index: 300;
+  box-shadow: var(--clay-lg);
+  animation: dropIn 0.2s var(--ease);
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px 14px;
+  border: none;
+  border-radius: 12px;
+  background: none;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  color: var(--text);
+  cursor: pointer;
+  transition: background var(--duration-fast);
+  text-align: left;
+}
+
+.item:active {
+  background: var(--bg2);
+}
+
+.current {
+  font-weight: 700;
+  color: var(--coral);
+}
+
+.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.check {
+  color: var(--coral);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.soon {
+  font-size: 9px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: var(--bg2);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+@keyframes dropIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

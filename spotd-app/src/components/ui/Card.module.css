@@ -1,0 +1,37 @@
+.card {
+  background: var(--card);
+  border: none;
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  box-shadow: var(--clay-md);
+  transition: transform var(--duration-fast), box-shadow var(--duration-fast);
+}
+
+.pressable {
+  cursor: pointer;
+}
+
+.pressable:active {
+  transform: scale(0.98);
+  box-shadow: var(--clay-pressed);
+}
+
+.pressable:hover {
+  box-shadow: var(--clay-lg);
+}
+
+/* Variants */
+.hero {
+  border-radius: 26px;
+  box-shadow: var(--clay-lg);
+}
+
+.compact {
+  border-radius: var(--r-lg);
+  box-shadow: var(--clay-md);
+}
+
+.flat {
+  box-shadow: var(--clay-sm);
+  border-radius: var(--r);
+}

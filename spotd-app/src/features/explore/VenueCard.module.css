@@ -1,0 +1,130 @@
+.card {
+  background: var(--card);
+  border: none;
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  box-shadow: var(--clay-md);
+  cursor: pointer;
+  transition: transform var(--duration-fast), box-shadow var(--duration-fast);
+  animation: cardIn 0.3s var(--ease) both;
+}
+
+.card:active {
+  transform: scale(0.98);
+  box-shadow: var(--clay-pressed);
+}
+
+.card:hover {
+  box-shadow: var(--clay-lg);
+}
+
+.photo {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+}
+
+.photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.badges {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: flex;
+  gap: 6px;
+}
+
+.badgeFire {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 9px;
+  border-radius: 50px;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: 'DM Sans', sans-serif;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--coral);
+  box-shadow: var(--clay-sm);
+}
+
+.badgeToday {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 9px;
+  border-radius: 50px;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: 'DM Sans', sans-serif;
+  background: rgba(255, 107, 74, 0.92);
+  color: #fff;
+  box-shadow: var(--clay-md);
+}
+
+.body {
+  padding: 14px 16px;
+}
+
+.header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.name {
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-weight: 800;
+  font-size: 17px;
+  color: var(--ink);
+  line-height: 1.2;
+}
+
+.rating {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--amber);
+  flex-shrink: 0;
+}
+
+.hood {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--coral);
+  opacity: 0.7;
+  margin-top: 2px;
+}
+
+.deal {
+  font-size: 13px;
+  color: var(--text);
+  margin-top: 6px;
+  line-height: 1.4;
+}
+
+.meta {
+  display: flex;
+  gap: 12px;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+@keyframes cardIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

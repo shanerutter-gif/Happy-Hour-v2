@@ -1,0 +1,129 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  position: relative;
+}
+
+.backBtn {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 400;
+  background: var(--card);
+  border: none;
+  border-radius: var(--r-sm);
+  color: var(--muted);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  cursor: pointer;
+  box-shadow: var(--clay-sm);
+  transition: transform var(--duration-fast), box-shadow var(--duration-fast);
+}
+
+.backBtn:active {
+  transform: scale(0.95);
+  box-shadow: var(--clay-pressed);
+}
+
+.map {
+  flex: 1;
+  min-height: 0;
+}
+
+.cards {
+  position: absolute;
+  bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  left: 0;
+  right: 0;
+  padding: 8px 8px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 40vh;
+  overflow-y: auto;
+  z-index: 300;
+  pointer-events: none;
+}
+
+.card {
+  background: var(--card2);
+  border: none;
+  border-radius: var(--r);
+  padding: 12px 14px;
+  cursor: pointer;
+  box-shadow: var(--clay-sm);
+  transition: transform var(--duration-fast), box-shadow var(--duration-fast);
+  text-align: left;
+  pointer-events: auto;
+}
+
+.card:active {
+  transform: scale(0.98);
+  box-shadow: var(--clay-pressed);
+}
+
+.cardName {
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  display: block;
+  margin-bottom: 2px;
+  color: var(--ink);
+}
+
+.cardHood {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--coral);
+  opacity: 0.6;
+  display: block;
+}
+
+.cardWhen {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 4px;
+  display: block;
+}
+
+/* Map markers */
+.pin {
+  background: var(--card);
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  box-shadow: var(--clay-md);
+  border: 2px solid #fff;
+}
+
+.pinHot {
+  background: linear-gradient(135deg, var(--coral), var(--amber));
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.clusterIcon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--coral), var(--amber));
+  color: #fff;
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-weight: 800;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid #fff;
+  box-shadow: var(--clay-md);
+}

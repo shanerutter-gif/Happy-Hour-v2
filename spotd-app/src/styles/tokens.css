@@ -1,0 +1,133 @@
+/* ═══════════════════════════════════════════════════════
+   SPOTD Design Tokens — Claymorphism System
+   ═══════════════════════════════════════════════════════ */
+
+/* ── LIGHT (default) ── */
+:root, [data-theme="light"] {
+  /* Surface colors */
+  --bg: #F7F1EA;
+  --bg2: #EEE6DA;
+  --card: #FFFFFF;
+  --card2: #FAF5EE;
+
+  /* Brand */
+  --coral: #FF6B4A;
+  --coral-dk: #E5543A;
+  --coral-lt: #FF8566;
+  --coral-dim: rgba(255, 107, 74, 0.10);
+  --coral-glow: rgba(255, 107, 74, 0.22);
+  --amber: #E8943A;
+
+  /* Text */
+  --ink: #1A1208;
+  --text: #2A1F14;
+  --muted: rgba(42, 31, 20, 0.45);
+
+  /* Borders (de-emphasized for clay) */
+  --border: rgba(255, 107, 74, 0.18);
+  --border2: rgba(42, 31, 20, 0.03);
+
+  /* Layout */
+  --tap: 44px;
+  --r: 14px;
+  --r-sm: 10px;
+  --r-lg: 20px;
+
+  /* Focus */
+  --ring: 0 0 0 3px rgba(255, 107, 74, 0.18);
+
+  /* Glass / Nav */
+  --glass: rgba(247, 241, 234, 0.85);
+  --nav-bg: rgba(247, 241, 234, 0.95);
+
+  /* ── Clay shadow system (directional light from top-left) ── */
+  --clay-highlight: -4px -4px 10px rgba(255, 255, 255, 0.75);
+  --clay-depth: 6px 6px 14px rgba(42, 31, 20, 0.10);
+  --clay-inset: inset 0 2px 0 rgba(255, 255, 255, 0.55);
+
+  --clay-sm: 3px 3px 8px rgba(42, 31, 20, 0.07),
+    -2px -2px 6px rgba(255, 255, 255, 0.65),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+
+  --clay-md: 5px 5px 14px rgba(42, 31, 20, 0.10),
+    -4px -4px 10px rgba(255, 255, 255, 0.7),
+    inset 0 2px 0 rgba(255, 255, 255, 0.55);
+
+  --clay-lg: 8px 8px 20px rgba(42, 31, 20, 0.12),
+    -6px -6px 16px rgba(255, 255, 255, 0.75),
+    inset 0 2px 0 rgba(255, 255, 255, 0.6);
+
+  --clay-pressed: inset 3px 3px 8px rgba(42, 31, 20, 0.10),
+    inset -2px -2px 6px rgba(255, 255, 255, 0.5);
+
+  --clay-input: inset 2px 2px 6px rgba(42, 31, 20, 0.06),
+    inset -1px -1px 4px rgba(255, 255, 255, 0.5);
+
+  /* Aliases */
+  --shadow: var(--clay-sm);
+  --shadow-md: var(--clay-md);
+  --shadow-lg: var(--clay-lg);
+  --card-shadow: var(--clay-md);
+  --card-shadow-hover: var(--clay-lg);
+
+  /* Motion */
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --duration-fast: 0.15s;
+  --duration: 0.2s;
+  --duration-slow: 0.32s;
+}
+
+/* ── DARK ── */
+[data-theme="dark"] {
+  --bg: #0E0B09;
+  --bg2: #161210;
+  --card: #1C1710;
+  --card2: #24200F;
+
+  --coral: #FF6B4A;
+  --coral-dk: #E5543A;
+  --coral-lt: #FF8566;
+  --coral-dim: rgba(255, 107, 74, 0.12);
+  --coral-glow: rgba(255, 107, 74, 0.25);
+  --amber: #F59E0B;
+
+  --ink: #F5EFE6;
+  --text: #EDE5D8;
+  --muted: rgba(245, 239, 230, 0.45);
+
+  --border: rgba(255, 107, 74, 0.18);
+  --border2: rgba(255, 255, 255, 0.05);
+
+  --glass: rgba(255, 255, 255, 0.04);
+  --nav-bg: rgba(14, 11, 9, 0.95);
+  --ring: 0 0 0 3px rgba(255, 107, 74, 0.25);
+
+  /* Clay — warm amber highlights */
+  --clay-highlight: -3px -3px 8px rgba(255, 200, 150, 0.04);
+  --clay-depth: 5px 5px 14px rgba(0, 0, 0, 0.35);
+  --clay-inset: inset 0 1px 0 rgba(255, 200, 150, 0.06);
+
+  --clay-sm: 3px 3px 8px rgba(0, 0, 0, 0.25),
+    -2px -2px 6px rgba(255, 200, 150, 0.03),
+    inset 0 1px 0 rgba(255, 200, 150, 0.05);
+
+  --clay-md: 5px 5px 14px rgba(0, 0, 0, 0.30),
+    -3px -3px 10px rgba(255, 200, 150, 0.04),
+    inset 0 1px 0 rgba(255, 200, 150, 0.06);
+
+  --clay-lg: 8px 8px 20px rgba(0, 0, 0, 0.40),
+    -4px -4px 14px rgba(255, 200, 150, 0.05),
+    inset 0 2px 0 rgba(255, 200, 150, 0.07);
+
+  --clay-pressed: inset 3px 3px 8px rgba(0, 0, 0, 0.30),
+    inset -2px -2px 6px rgba(255, 200, 150, 0.03);
+
+  --clay-input: inset 2px 2px 6px rgba(0, 0, 0, 0.2),
+    inset -1px -1px 4px rgba(255, 200, 150, 0.03);
+
+  --shadow: var(--clay-sm);
+  --shadow-lg: var(--clay-lg);
+  --card-shadow: var(--clay-md);
+  --card-shadow-hover: var(--clay-lg);
+}

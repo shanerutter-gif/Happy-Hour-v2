@@ -1,0 +1,94 @@
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: none;
+  border-radius: 50px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-family: 'DM Sans', sans-serif;
+  transition: background var(--duration-fast), color var(--duration-fast),
+    transform var(--duration-fast), box-shadow var(--duration-fast);
+}
+
+.pill:active {
+  transform: scale(0.95);
+  box-shadow: var(--clay-pressed);
+}
+
+/* Default pill */
+.default {
+  background: var(--card);
+  color: var(--muted);
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 500;
+  min-height: 36px;
+  box-shadow: var(--clay-sm);
+}
+
+.default.active {
+  background: var(--coral);
+  color: #fff;
+  font-weight: 700;
+  box-shadow: var(--clay-md);
+}
+
+/* Chip — active filter indicator */
+.chip {
+  background: var(--coral-dim);
+  color: var(--coral);
+  padding: 5px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: var(--clay-sm);
+}
+
+/* Amenity */
+.amenity {
+  background: var(--card);
+  color: var(--muted);
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  box-shadow: var(--clay-sm);
+}
+
+.amenity.active {
+  background: var(--coral);
+  color: #fff;
+  font-weight: 700;
+  box-shadow: var(--clay-md);
+}
+
+/* Day pill */
+.day {
+  background: var(--card);
+  color: var(--muted);
+  padding: 4px 10px;
+  font-size: 10px;
+  font-weight: 700;
+  box-shadow: var(--clay-sm);
+}
+
+.day.active {
+  background: linear-gradient(135deg, var(--coral), var(--amber));
+  color: #fff;
+}
+
+/* Badge */
+.badge {
+  padding: 4px 9px;
+  font-size: 10px;
+  font-weight: 700;
+  box-shadow: var(--clay-sm);
+  cursor: default;
+}
+
+.icon {
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  line-height: 1;
+}
