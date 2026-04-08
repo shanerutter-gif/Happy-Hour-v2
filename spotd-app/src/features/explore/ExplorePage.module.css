@@ -53,6 +53,26 @@
   box-shadow: var(--ring), var(--clay-sm);
 }
 
+.favBtn {
+  background: var(--card);
+  border: none;
+  border-radius: var(--r-lg);
+  color: var(--muted);
+  font-size: 16px;
+  padding: 10px 12px;
+  cursor: pointer;
+  min-height: var(--tap);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: var(--clay-sm);
+  transition: background var(--duration-fast), color var(--duration-fast),
+    transform var(--duration-fast), box-shadow var(--duration-fast);
+}
+.favBtn:active { transform: scale(0.96); box-shadow: var(--clay-pressed); }
+.favBtnActive { color: var(--amber); background: var(--coral-dim); box-shadow: var(--ring), var(--clay-sm); }
+
 /* Smart suggestion chips */
 .suggestions {
   display: flex;

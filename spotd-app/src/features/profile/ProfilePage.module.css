@@ -108,6 +108,65 @@
 .tabContent { padding: 16px; }
 .placeholder { font-size: 13px; color: var(--muted); font-style: italic; text-align: center; padding: 20px; }
 
+.followBtn { margin-top: 12px; }
+
+/* Activity tab */
+.activityList { display: flex; flex-direction: column; gap: 4px; }
+.activityRow {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; background: var(--card);
+  border-radius: var(--r); box-shadow: var(--clay-sm);
+}
+.activityEmoji { font-size: 18px; flex-shrink: 0; }
+.activityBody { flex: 1; min-width: 0; }
+.activityText {
+  display: block; font-size: 13px; color: var(--text);
+  text-transform: capitalize;
+}
+.activityTime {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; color: var(--muted);
+}
+
+/* Reviews tab */
+.reviewList { display: flex; flex-direction: column; gap: 4px; }
+.reviewRow {
+  padding: 12px; background: var(--card);
+  border-radius: var(--r); box-shadow: var(--clay-sm);
+}
+.reviewRowHead {
+  display: flex; align-items: center;
+  justify-content: space-between; gap: 6px;
+  margin-bottom: 4px;
+}
+.reviewStars { color: var(--amber); font-size: 14px; letter-spacing: 1px; }
+.reviewDate { font-size: 9px; color: var(--muted); }
+.reviewText { font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+/* Lists tab */
+.createListBtn {
+  display: block; margin-bottom: 12px;
+  background: none; border: none; color: var(--coral);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px; font-weight: 600;
+  cursor: pointer; padding: 4px 0;
+}
+.listGrid { display: flex; flex-direction: column; gap: 6px; }
+.listCard {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px; background: var(--card);
+  border-radius: var(--r); box-shadow: var(--clay-sm);
+  cursor: pointer;
+  transition: transform var(--duration-fast);
+}
+.listCard:active { transform: scale(0.97); }
+.listEmoji { font-size: 24px; flex-shrink: 0; }
+.listTitle { flex: 1; font-weight: 700; font-size: 15px; color: var(--ink); }
+.listCount {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px; color: var(--muted); flex-shrink: 0;
+}
+
 /* Badges grid */
 .badgeGrid {
   display: grid;

@@ -19,6 +19,7 @@ const SORT_OPTIONS = [
   { value: 'name', label: 'A-Z' },
   { value: 'going', label: '🔥 Hot' },
   { value: 'rating', label: '★ Rated' },
+  { value: 'distance', label: '📍 Near' },
 ] as const;
 
 export function FilterPanel({
@@ -54,7 +55,7 @@ export function FilterPanel({
             <Pill
               key={opt.value}
               active={sortBy === opt.value}
-              onClick={() => onSortChange(opt.value as 'name' | 'going' | 'rating')}
+              onClick={() => onSortChange(opt.value as 'name' | 'going' | 'rating' | 'distance')}
             >
               {opt.label}
             </Pill>

@@ -15,6 +15,7 @@ const NotificationsPage = lazy(() => import('./features/notifications/Notificati
 const AuthPage = lazy(() => import('./features/auth/AuthPage'));
 const FindPeoplePage = lazy(() => import('./features/social/FindPeoplePage'));
 const LeaderboardPage = lazy(() => import('./features/social/LeaderboardPage'));
+const ListDetailPage = lazy(() => import('./features/lists/ListDetailPage'));
 
 function PageLoader() {
   return (
@@ -43,6 +44,7 @@ export default function App() {
                 <Route path="/auth" element={<AuthPage />} />
                 <Route path="/find-people" element={<FindPeoplePage />} />
                 <Route path="/leaderboard" element={<LeaderboardPage />} />
+                <Route path="/lists/:listId" element={<ListDetailPage />} />
               </Routes>
             </Suspense>
             <BottomNav />

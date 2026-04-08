@@ -13,9 +13,11 @@ interface Props {
   venue: Venue;
   open: boolean;
   onClose: () => void;
+  isFavorite?: boolean;
+  onToggleFavorite?: () => void;
 }
 
-export function VenueSheet({ venue, open, onClose }: Props) {
+export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite }: Props) {
   const { user } = useAuth();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [isGoing, setIsGoing] = useState(false);
@@ -24,9 +26,19 @@ export function VenueSheet({ venue, open, onClose }: Props) {
   const [showDescForm, setShowDescForm] = useState(false);
   const [descText, setDescText] = useState('');
   const [submittingDesc, setSubmittingDesc] = useState(false);
+  // Review form state
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewText, setReviewText] = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
+  // Edit review state
+  const [editingReview, setEditingReview] = useState<Review | null>(null);
+  const [followingVenue, setFollowingVenue] = useState(false);
 
   const today = new Date().toISOString().slice(0, 10);
   const todayDay = new Date().toLocaleDateString('en-US', { weekday: 'short' }).toLowerCase();
+
+  const myReview = user ? reviews.find((r) => r.user_id === user.id) : null;
 
   const loadReviews = useCallback(async () => {
     const { data } = await supabase
@@ -69,14 +81,29 @@ export function VenueSheet({ venue, open, onClose }: Props) {
     setDescriptions((data as VenueDescription[]) || []);
   }, [venue.id]);
 
+  const checkVenueFollow = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('venue_follows')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('venue_id', venue.id);
+    setFollowingVenue((data?.length || 0) > 0);
+  }, [user, venue.id]);
+
   useEffect(() => {
     if (open) {
       loadReviews();
       checkGoing();
       loadGoingCount();
       loadDescriptions();
+      checkVenueFollow();
+      setShowReviewForm(false);
+      setEditingReview(null);
+      setReviewRating(0);
+      setReviewText('');
     }
-  }, [open, loadReviews, checkGoing, loadGoingCount, loadDescriptions]);
+  }, [open, loadReviews, checkGoing, loadGoingCount, loadDescriptions, checkVenueFollow]);
 
   const handleCheckIn = async () => {
     if (!user) {
@@ -127,7 +154,6 @@ export function VenueSheet({ venue, open, onClose }: Props) {
       showToast({ text: 'Sign in to upvote', type: 'error' });
       return;
     }
-    // Check if already upvoted
     const { data: existing } = await supabase
       .from('description_upvotes')
       .select('id')
@@ -157,13 +183,73 @@ export function VenueSheet({ venue, open, onClose }: Props) {
     showToast({ text: 'Description added!', type: 'success' });
   };
 
+  const toggleVenueFollow = async () => {
+    if (!user) { showToast({ text: 'Sign in to follow', type: 'error' }); return; }
+    if (followingVenue) {
+      await supabase.from('venue_follows').delete().eq('user_id', user.id).eq('venue_id', venue.id);
+      setFollowingVenue(false);
+      showToast({ text: 'Unfollowed venue' });
+    } else {
+      await supabase.from('venue_follows').insert({ user_id: user.id, venue_id: venue.id });
+      setFollowingVenue(true);
+      showToast({ text: 'Following — you\'ll get updates!', type: 'success' });
+    }
+  };
+
+  // --- Review CRUD ---
+  const submitReview = async () => {
+    if (!user || reviewRating === 0) {
+      showToast({ text: 'Select a star rating', type: 'error' });
+      return;
+    }
+    setSubmittingReview(true);
+    if (editingReview) {
+      await supabase.from('reviews').update({ rating: reviewRating, text: reviewText.trim() }).eq('id', editingReview.id);
+      showToast({ text: 'Review updated!', type: 'success' });
+    } else {
+      await supabase.from('reviews').insert({
+        venue_id: venue.id,
+        user_id: user.id,
+        rating: reviewRating,
+        text: reviewText.trim(),
+      });
+      showToast({ text: 'Review posted!', type: 'success' });
+    }
+    setSubmittingReview(false);
+    setShowReviewForm(false);
+    setEditingReview(null);
+    setReviewRating(0);
+    setReviewText('');
+    loadReviews();
+  };
+
+  const startEditReview = (r: Review) => {
+    setEditingReview(r);
+    setReviewRating(r.rating);
+    setReviewText(r.text || '');
+    setShowReviewForm(true);
+  };
+
+  const deleteReview = async (reviewId: string) => {
+    await supabase.from('reviews').delete().eq('id', reviewId);
+    showToast({ text: 'Review deleted' });
+    loadReviews();
+  };
+
   return (
     <Sheet open={open} onClose={onClose}>
       <div className={styles.content}>
-        {/* Tag */}
-        <span className={styles.tag}>
-          {venue.type === 'hh' ? '🍺 Happy Hour' : '🎉 Event'}
-        </span>
+        {/* Tag + Favorite */}
+        <div className={styles.topRow}>
+          <span className={styles.tag}>
+            {venue.type === 'hh' ? '🍺 Happy Hour' : '🎉 Event'}
+          </span>
+          {onToggleFavorite && (
+            <button className={styles.favBtn} onClick={onToggleFavorite}>
+              {isFavorite ? '★' : '☆'}
+            </button>
+          )}
+        </div>
 
         {/* Name & location */}
         <h2 className={styles.name}>{venue.name}</h2>
@@ -179,11 +265,7 @@ export function VenueSheet({ venue, open, onClose }: Props) {
           {venue.days && venue.days.length > 0 && (
             <div className={styles.days}>
               {venue.days.map((d) => (
-                <Pill
-                  key={d}
-                  variant="day"
-                  active={d.toLowerCase().startsWith(todayDay)}
-                >
+                <Pill key={d} variant="day" active={d.toLowerCase().startsWith(todayDay)}>
                   {d}
                 </Pill>
               ))}
@@ -218,7 +300,7 @@ export function VenueSheet({ venue, open, onClose }: Props) {
           </Button>
         </div>
 
-        {/* Actions — now functional */}
+        {/* Actions */}
         <div className={styles.actions}>
           <button className={styles.action} onClick={handleDirections}>
             <span className={styles.actionIcon}>📍</span>
@@ -228,19 +310,19 @@ export function VenueSheet({ venue, open, onClose }: Props) {
             <span className={styles.actionIcon}>📤</span>
             <span>Share</span>
           </button>
-          <button className={styles.action} onClick={() => showToast({ text: 'Lists coming soon!' })}>
-            <span className={styles.actionIcon}>📋</span>
-            <span>Add to List</span>
+          <button className={styles.action} onClick={onToggleFavorite || (() => {})}>
+            <span className={styles.actionIcon}>{isFavorite ? '★' : '☆'}</span>
+            <span>Save</span>
           </button>
-          <button className={styles.action} onClick={() => showToast({ text: '🔥 Fired!', type: 'success' })}>
-            <span className={styles.actionIcon}>🔥</span>
-            <span>Fire</span>
+          <button className={styles.action} onClick={toggleVenueFollow}>
+            <span className={styles.actionIcon}>{followingVenue ? '🔔' : '🔕'}</span>
+            <span>{followingVenue ? 'Following' : 'Follow'}</span>
           </button>
         </div>
 
         <div className={styles.divider} />
 
-        {/* Locals Say (venue descriptions) */}
+        {/* Locals Say */}
         <div className={styles.section}>
           <span className={styles.label}>Locals Say ({descriptions.length})</span>
           {descriptions.length === 0 && !showDescForm ? (
@@ -280,11 +362,53 @@ export function VenueSheet({ venue, open, onClose }: Props) {
 
         {/* Reviews */}
         <div className={styles.section}>
-          <span className={styles.label}>Reviews ({reviews.length})</span>
-          {reviews.length === 0 ? (
+          <div className={styles.reviewHeader}>
+            <span className={styles.label}>Reviews ({reviews.length})</span>
+            {user && !myReview && !showReviewForm && (
+              <button className={styles.addDescBtn} onClick={() => setShowReviewForm(true)}>
+                + Write Review
+              </button>
+            )}
+          </div>
+
+          {/* Review form */}
+          {showReviewForm && (
+            <div className={styles.reviewForm}>
+              <div className={styles.starPicker}>
+                {[1, 2, 3, 4, 5].map((s) => (
+                  <button
+                    key={s}
+                    className={[styles.starBtn, s <= reviewRating && styles.starActive].filter(Boolean).join(' ')}
+                    onClick={() => setReviewRating(s)}
+                  >
+                    {s <= reviewRating ? '★' : '☆'}
+                  </button>
+                ))}
+              </div>
+              <TextArea
+                placeholder="Write your review (optional)..."
+                value={reviewText}
+                onChange={(e) => setReviewText(e.target.value)}
+                rows={3}
+              />
+              <div className={styles.descFormActions}>
+                <Button size="sm" variant="ghost" onClick={() => {
+                  setShowReviewForm(false);
+                  setEditingReview(null);
+                  setReviewRating(0);
+                  setReviewText('');
+                }}>Cancel</Button>
+                <Button size="sm" onClick={submitReview} loading={submittingReview}>
+                  {editingReview ? 'Update' : 'Post'}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {reviews.length === 0 && !showReviewForm ? (
             <p className={styles.noReviews}>No reviews yet — be the first!</p>
           ) : (
-            reviews.slice(0, 5).map((r) => (
+            reviews.slice(0, 10).map((r) => (
               <div key={r.id} className={styles.review}>
                 <div className={styles.reviewHead}>
                   <span className={styles.reviewStars}>
@@ -295,6 +419,12 @@ export function VenueSheet({ venue, open, onClose }: Props) {
                   </span>
                 </div>
                 {r.text && <p className={styles.reviewText}>{r.text}</p>}
+                {user && r.user_id === user.id && (
+                  <div className={styles.reviewActions}>
+                    <button className={styles.reviewActionBtn} onClick={() => startEditReview(r)}>Edit</button>
+                    <button className={styles.reviewActionBtn} onClick={() => deleteReview(r.id)}>Delete</button>
+                  </div>
+                )}
               </div>
             ))
           )}

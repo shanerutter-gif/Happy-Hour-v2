@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { CityBar } from '../../components/layout/CityBar';
 import { Sheet } from '../../components/ui/Sheet';
+import { Lightbox } from '../../components/ui/Lightbox';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCity } from '../../contexts/CityContext';
 import { supabase } from '../../lib/supabase';
@@ -41,6 +42,7 @@ export default function SocialPage() {
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentInput, setCommentInput] = useState('');
   const [loadingComments, setLoadingComments] = useState(false);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
 
   const loadFeed = useCallback(async () => {
     if (!currentCity) return;
@@ -218,7 +220,14 @@ export default function SocialPage() {
                   {post.content || `${post.type.replace('_', ' ')} at ${post.venue_name || 'a venue'}`}
                 </p>
                 {post.photo_url && (
-                  <img src={post.photo_url} alt="" className={styles.photo} loading="lazy" />
+                  <img
+                    src={post.photo_url}
+                    alt=""
+                    className={styles.photo}
+                    loading="lazy"
+                    onClick={() => setLightboxSrc(post.photo_url)}
+                    style={{ cursor: 'pointer' }}
+                  />
                 )}
                 <div className={styles.postActions}>
                   <button
@@ -236,6 +245,10 @@ export default function SocialPage() {
           ))
         )}
       </div>
+
+      {lightboxSrc && (
+        <Lightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />
+      )}
 
       {/* Comments sheet */}
       <Sheet open={!!commentSheetPost} onClose={() => { setCommentSheetPost(null); setComments([]); }}>

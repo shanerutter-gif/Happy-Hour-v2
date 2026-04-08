@@ -6,9 +6,10 @@ interface VenueCardProps {
   goingCount: number;
   onClick: () => void;
   tier?: 'hero' | 'compact' | 'standard' | 'event';
+  isFavorite?: boolean;
 }
 
-export function VenueCard({ venue, goingCount, onClick, tier = 'standard' }: VenueCardProps) {
+export function VenueCard({ venue, goingCount, onClick, tier = 'standard', isFavorite }: VenueCardProps) {
   const today = new Date().toLocaleDateString('en-US', { weekday: 'short' }).toLowerCase();
   const isToday = venue.days?.some((d) => d.toLowerCase().startsWith(today));
   const deals = venue.deals || [];
@@ -23,6 +24,7 @@ export function VenueCard({ venue, goingCount, onClick, tier = 'standard' }: Ven
             <div className={styles.badges}>
               {goingCount > 0 && <span className={styles.badgeFire}>🔥 {goingCount}</span>}
               {isToday && <span className={styles.badgeToday}>Today</span>}
+              {isFavorite && <span className={styles.badgeFav}>★</span>}
             </div>
             <div className={styles.heroOverlay}>
               <h3 className={styles.heroName}>{venue.name}</h3>
@@ -47,15 +49,15 @@ export function VenueCard({ venue, goingCount, onClick, tier = 'standard' }: Ven
         <div className={styles.compactBody}>
           <h3 className={styles.compactName}>{venue.name}</h3>
           <p className={styles.hood}>{venue.neighborhood}</p>
-          {venue.avg_rating && (
-            <span className={styles.rating}>★ {venue.avg_rating.toFixed(1)}</span>
-          )}
+          <div className={styles.compactMeta}>
+            {venue.avg_rating && <span className={styles.rating}>★ {venue.avg_rating.toFixed(1)}</span>}
+            {isFavorite && <span className={styles.favStar}>★</span>}
+          </div>
         </div>
       </article>
     );
   }
 
-  // Standard card (default)
   return (
     <article className={styles.card} onClick={onClick}>
       {venue.photo_url && (
@@ -64,6 +66,7 @@ export function VenueCard({ venue, goingCount, onClick, tier = 'standard' }: Ven
           <div className={styles.badges}>
             {goingCount > 0 && <span className={styles.badgeFire}>🔥 {goingCount}</span>}
             {isToday && <span className={styles.badgeToday}>Today</span>}
+            {isFavorite && <span className={styles.badgeFav}>★</span>}
           </div>
         </div>
       )}

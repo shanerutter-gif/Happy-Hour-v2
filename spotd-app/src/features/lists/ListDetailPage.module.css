@@ -1,0 +1,82 @@
+.page {
+  display: flex; flex-direction: column;
+  min-height: 100dvh;
+  padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+}
+
+.header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 16px 16px 8px;
+}
+
+.backBtn {
+  background: var(--card); border: none;
+  border-radius: var(--r-sm); padding: 6px 12px;
+  cursor: pointer; box-shadow: var(--clay-sm);
+  font-size: 14px; color: var(--muted);
+}
+.backBtn:active { box-shadow: var(--clay-pressed); }
+
+.title {
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-weight: 800; font-size: 22px; color: var(--ink);
+}
+
+.desc {
+  font-size: 13px; color: var(--muted);
+  padding: 0 16px 8px; line-height: 1.4;
+}
+
+.actions {
+  display: flex; gap: 8px;
+  padding: 0 16px 12px;
+}
+
+.items {
+  display: flex; flex-direction: column;
+  gap: 4px; padding: 0 12px;
+}
+
+.skeleton { height: 60px; border-radius: var(--r); }
+
+.empty {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 8px; padding: 40px 20px; text-align: center;
+  color: var(--muted); font-size: 14px;
+}
+.empty span { font-size: 32px; }
+
+.itemRow {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px; background: var(--card);
+  border-radius: var(--r); box-shadow: var(--clay-sm);
+}
+
+.itemBody { flex: 1; min-width: 0; }
+
+.itemName {
+  display: block; font-weight: 700;
+  font-size: 15px; color: var(--ink);
+}
+
+.itemHood {
+  display: block; font-size: 9px;
+  text-transform: uppercase; letter-spacing: 1.5px;
+  color: var(--coral); opacity: 0.7; margin-top: 2px;
+}
+
+.itemNote {
+  display: block; font-size: 12px;
+  color: var(--muted); margin-top: 4px;
+  font-style: italic;
+}
+
+.removeBtn {
+  background: var(--bg); border: none;
+  border-radius: 50%; width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 14px; color: var(--muted);
+  box-shadow: var(--clay-sm); flex-shrink: 0;
+  transition: transform var(--duration-fast);
+}
+.removeBtn:active { transform: scale(0.9); }

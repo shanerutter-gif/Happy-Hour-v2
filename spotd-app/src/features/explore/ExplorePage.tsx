@@ -1,9 +1,11 @@
-import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useMemo, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CityBar } from '../../components/layout/CityBar';
 import { SearchBox } from '../../components/ui/Input';
 import { Pill } from '../../components/ui/Pill';
 import { useVenues, useEvents, useCheckInCounts } from '../../hooks/useVenues';
+import { useFavorites } from '../../hooks/useFavorites';
+import { useGeolocation } from '../../hooks/useGeolocation';
 import { VenueCard } from './VenueCard';
 import { FilterPanel } from './FilterPanel';
 import { VenueSheet } from '../venue/VenueSheet';
@@ -24,9 +26,12 @@ const SUGGESTIONS = [
 
 export default function ExplorePage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { venues, loading: venuesLoading } = useVenues();
   const { events, loading: eventsLoading } = useEvents();
   const checkInCounts = useCheckInCounts();
+  const { isFavorite, toggle: toggleFavorite } = useFavorites();
+  const geo = useGeolocation();
 
   const [viewType, setViewType] = useState<ViewType>('hh');
   const [search, setSearch] = useState('');
@@ -36,6 +41,15 @@ export default function ExplorePage() {
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
   const [selectedVenueId, setSelectedVenueId] = useState<string | null>(null);
   const [activeSuggestion, setActiveSuggestion] = useState<string | null>(null);
+  const [favFilterOn, setFavFilterOn] = useState(false);
+
+  // Deep linking: ?spot=VENUE_ID
+  useEffect(() => {
+    const spotId = searchParams.get('spot');
+    if (spotId && venues.length > 0) {
+      setSelectedVenueId(spotId);
+    }
+  }, [searchParams, venues]);
 
   const items = viewType === 'hh' ? venues : events;
   const loading = viewType === 'hh' ? venuesLoading : eventsLoading;
@@ -72,7 +86,6 @@ export default function ExplorePage() {
       );
     }
 
-    // Apply smart suggestion filter
     if (activeSuggestion) {
       const sug = SUGGESTIONS.find((s) => s.id === activeSuggestion);
       if (sug) {
@@ -82,27 +95,38 @@ export default function ExplorePage() {
       }
     }
 
+    if (favFilterOn) {
+      result = result.filter((v) => isFavorite(v.id));
+    }
+
     result = [...result].sort((a, b) => {
       switch (sortBy) {
         case 'going':
           return (checkInCounts[b.id] || 0) - (checkInCounts[a.id] || 0);
         case 'rating':
           return (b.avg_rating || 0) - (a.avg_rating || 0);
+        case 'distance': {
+          const dA = geo.distanceTo(a.lat, a.lng);
+          const dB = geo.distanceTo(b.lat, b.lng);
+          if (dA === null && dB === null) return 0;
+          if (dA === null) return 1;
+          if (dB === null) return -1;
+          return dA - dB;
+        }
         default:
           return a.name.localeCompare(b.name);
       }
     });
 
     return result;
-  }, [items, search, selectedNeighborhood, selectedAmenities, sortBy, checkInCounts, activeSuggestion]);
+  }, [items, search, selectedNeighborhood, selectedAmenities, sortBy, checkInCounts, activeSuggestion, favFilterOn, isFavorite, geo.lat, geo.lng]);
 
   const activeFilters: string[] = [];
   if (selectedNeighborhood) activeFilters.push(selectedNeighborhood);
   selectedAmenities.forEach((a) => activeFilters.push(a));
 
-  const selectedVenue = items.find((v) => v.id === selectedVenueId) || null;
+  const selectedVenue = [...venues, ...events].find((v) => v.id === selectedVenueId) || null;
 
-  // Assign card tiers: first featured = hero, next 4 = compact grid, rest = standard
   const assignTier = (venue: Venue, index: number): 'hero' | 'compact' | 'standard' => {
     if (index === 0 && venue.featured) return 'hero';
     if (index === 0 && venue.photo_url) return 'hero';
@@ -110,15 +134,10 @@ export default function ExplorePage() {
     return 'standard';
   };
 
-  const handleSuggestion = (id: string) => {
-    setActiveSuggestion(activeSuggestion === id ? null : id);
-  };
-
   return (
     <div className={styles.page}>
       <CityBar />
 
-      {/* Controls */}
       <div className={styles.controls}>
         <div className={styles.controlsTop}>
           <SearchBox
@@ -134,9 +153,12 @@ export default function ExplorePage() {
             ☰ Filter
           </button>
           <button
-            className={styles.mapBtn}
-            onClick={() => navigate('/map')}
+            className={[styles.favBtn, favFilterOn && styles.favBtnActive].filter(Boolean).join(' ')}
+            onClick={() => setFavFilterOn(!favFilterOn)}
           >
+            {favFilterOn ? '★' : '☆'}
+          </button>
+          <button className={styles.mapBtn} onClick={() => navigate('/map')}>
             🗺 Map
           </button>
         </div>
@@ -148,7 +170,7 @@ export default function ExplorePage() {
               key={s.id}
               variant="chip"
               active={activeSuggestion === s.id}
-              onClick={() => handleSuggestion(s.id)}
+              onClick={() => setActiveSuggestion(activeSuggestion === s.id ? null : s.id)}
             >
               {s.emoji} {s.label}
             </Pill>
@@ -165,7 +187,6 @@ export default function ExplorePage() {
           </Pill>
         </div>
 
-        {/* Active filter chips */}
         {activeFilters.length > 0 && (
           <div className={styles.chips}>
             {activeFilters.map((f) => (
@@ -184,7 +205,6 @@ export default function ExplorePage() {
         )}
       </div>
 
-      {/* Filter panel */}
       <FilterPanel
         open={filterOpen}
         neighborhoods={neighborhoods}
@@ -204,11 +224,11 @@ export default function ExplorePage() {
           setSelectedAmenities([]);
           setSortBy('name');
           setActiveSuggestion(null);
+          setFavFilterOn(false);
         }}
         onDone={() => setFilterOpen(false)}
       />
 
-      {/* Venue list — mixed layout */}
       <div className={styles.list}>
         {loading ? (
           Array.from({ length: 6 }).map((_, i) => (
@@ -221,7 +241,6 @@ export default function ExplorePage() {
           </div>
         ) : (
           <>
-            {/* Hero card */}
             {filtered.length > 0 && (
               <VenueCard
                 key={filtered[0].id}
@@ -229,44 +248,44 @@ export default function ExplorePage() {
                 goingCount={checkInCounts[filtered[0].id] || 0}
                 onClick={() => setSelectedVenueId(filtered[0].id)}
                 tier={assignTier(filtered[0], 0)}
+                isFavorite={isFavorite(filtered[0].id)}
               />
             )}
-
-            {/* Compact grid (2 columns) */}
             {filtered.length > 1 && (
               <div className={styles.compactGrid}>
-                {filtered.slice(1, 5).map((venue, i) => (
+                {filtered.slice(1, 5).map((venue) => (
                   <VenueCard
                     key={venue.id}
                     venue={venue}
                     goingCount={checkInCounts[venue.id] || 0}
                     onClick={() => setSelectedVenueId(venue.id)}
                     tier="compact"
+                    isFavorite={isFavorite(venue.id)}
                   />
                 ))}
               </div>
             )}
-
-            {/* Standard cards (remainder) */}
-            {filtered.slice(5).map((venue, i) => (
+            {filtered.slice(5).map((venue) => (
               <VenueCard
                 key={venue.id}
                 venue={venue}
                 goingCount={checkInCounts[venue.id] || 0}
                 onClick={() => setSelectedVenueId(venue.id)}
                 tier="standard"
+                isFavorite={isFavorite(venue.id)}
               />
             ))}
           </>
         )}
       </div>
 
-      {/* Venue detail sheet */}
       {selectedVenue && (
         <VenueSheet
           venue={selectedVenue}
           open={!!selectedVenueId}
           onClose={() => setSelectedVenueId(null)}
+          isFavorite={isFavorite(selectedVenue.id)}
+          onToggleFavorite={() => toggleFavorite(selectedVenue.id)}
         />
       )}
     </div>
