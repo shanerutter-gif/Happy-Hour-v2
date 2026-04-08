@@ -3563,8 +3563,28 @@ async function loadMapCheckIns() {
   if (state._checkinMarkerLayer) {
     state.map.removeLayer(state._checkinMarkerLayer);
   }
-  state._checkinMarkerLayer = L.layerGroup().addTo(state.map);
+  // Use MarkerCluster just like venue pins for proper clustering
+  state._checkinMarkerLayer = L.markerClusterGroup({
+    maxClusterRadius: 40,
+    spiderfyOnMaxZoom: true,
+    showCoverageOnHover: false,
+    zoomToBoundsOnClick: true,
+    disableClusteringAtZoom: 17,
+    animate: true,
+    animateAddingMarkers: false,
+    chunkedLoading: true,
+    iconCreateFunction: function(cluster) {
+      var count = cluster.getChildCount();
+      return L.divIcon({
+        className: '',
+        html: '<div class="map-checkin-cluster-icon">' + count + '</div>',
+        iconSize: [36, 36],
+        iconAnchor: [18, 18],
+      });
+    }
+  }).addTo(state.map);
 
+  var markers = [];
   Object.keys(byVenue).forEach(function(venueId) {
     var venue = state.venues.find(function(v) { return String(v.id) === String(venueId); });
     if (!venue || !venue.lat || !venue.lng) return;
@@ -3595,8 +3615,9 @@ async function loadMapCheckIns() {
 
     var marker = L.marker([venue.lat, venue.lng], { icon: icon, interactive: true });
     marker.bindPopup('<div style="font-size:13px;font-weight:600;color:var(--text)">' + label + '</div><div style="font-size:11px;color:var(--muted)">checked in at ' + esc(venue.name) + '</div>', { maxWidth: 200 });
-    state._checkinMarkerLayer.addLayer(marker);
+    markers.push(marker);
   });
+  state._checkinMarkerLayer.addLayers(markers);
 }
 
 function popupHTML(v) {
