@@ -5669,8 +5669,8 @@ async function openListDetail(listId) {
   var authorName = list.profiles?.display_name || 'Someone';
   var items = list.items || [];
 
-  var html = '<div class="sub-page" id="listDetailPage" style="display:block">' +
-    '<button class="sub-page-back" onclick="closeSubPage(\'listDetailPage\')">' + icn('back', 20) + '</button>' +
+  var html = '<div class="sub-page" id="listDetailPage">' +
+    '<div class="sub-page-header"><button class="sub-page-back" onclick="closeSubPage(\'listDetailPage\')">' + icn('back', 20) + '</button><span class="sub-page-title">List</span></div>' +
     '<div style="text-align:center;padding:20px 16px 0">' +
     '<div style="font-size:48px;margin-bottom:8px">' + (list.cover_emoji || '\uD83C\uDF78') + '</div>' +
     '<h2 style="font-family:\'Cabinet Grotesk\',sans-serif;font-weight:900;font-size:22px;color:var(--text);letter-spacing:-0.5px">' + esc(list.title) + '</h2>' +
@@ -5699,6 +5699,9 @@ async function openListDetail(listId) {
   var existing = document.getElementById('listDetailPage');
   if (existing) existing.remove();
   document.body.insertAdjacentHTML('beforeend', html);
+  var page = document.getElementById('listDetailPage');
+  page.style.display = 'block';
+  requestAnimationFrame(function() { requestAnimationFrame(function() { page.classList.add('sub-page--open'); }); });
 }
 
 async function doRemoveFromList(listId, venueId, btn) {

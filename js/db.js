@@ -1374,18 +1374,32 @@ async function createList(title, description, emoji) {
 
 async function fetchListDetail(listId) {
   try {
-    const { data: list } = await db.from('user_lists')
+    const { data: list, error: listErr } = await db.from('user_lists')
       .select('*, profiles(display_name, avatar_url)')
       .eq('id', listId)
       .single();
-    if (!list) return null;
+    if (listErr || !list) {
+      // Retry without join in case profiles relation fails
+      const { data: listOnly } = await db.from('user_lists')
+        .select('*')
+        .eq('id', listId)
+        .single();
+      if (!listOnly) return null;
+      Object.assign(listOnly, { profiles: null });
+      const { data: items } = await db.from('list_items')
+        .select('*, venues(id, name, neighborhood, cuisine, photo_url, deals, days)')
+        .eq('list_id', listId)
+        .order('position');
+      listOnly.items = items || [];
+      return listOnly;
+    }
     const { data: items } = await db.from('list_items')
       .select('*, venues(id, name, neighborhood, cuisine, photo_url, deals, days)')
       .eq('list_id', listId)
       .order('position');
     list.items = items || [];
     return list;
-  } catch(e) { return null; }
+  } catch(e) { console.error('fetchListDetail error:', e); return null; }
 }
 
 async function addToList(listId, venueId, note) {
