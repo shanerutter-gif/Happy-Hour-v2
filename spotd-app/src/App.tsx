@@ -13,6 +13,8 @@ const DmsPage = lazy(() => import('./features/dms/DmsPage'));
 const ProfilePage = lazy(() => import('./features/profile/ProfilePage'));
 const NotificationsPage = lazy(() => import('./features/notifications/NotificationsPage'));
 const AuthPage = lazy(() => import('./features/auth/AuthPage'));
+const FindPeoplePage = lazy(() => import('./features/social/FindPeoplePage'));
+const LeaderboardPage = lazy(() => import('./features/social/LeaderboardPage'));
 
 function PageLoader() {
   return (
@@ -39,6 +41,8 @@ export default function App() {
                 <Route path="/profile" element={<ProfilePage />} />
                 <Route path="/profile/:userId" element={<ProfilePage />} />
                 <Route path="/auth" element={<AuthPage />} />
+                <Route path="/find-people" element={<FindPeoplePage />} />
+                <Route path="/leaderboard" element={<LeaderboardPage />} />
               </Routes>
             </Suspense>
             <BottomNav />

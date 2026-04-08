@@ -2,10 +2,11 @@ import { useState, useEffect, useCallback } from 'react';
 import { Sheet } from '../../components/ui/Sheet';
 import { Button } from '../../components/ui/Button';
 import { Pill } from '../../components/ui/Pill';
+import { TextArea } from '../../components/ui/Input';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { showToast } from '../../components/ui/Toast';
-import type { Venue, Review } from '../../types/database';
+import type { Venue, Review, VenueDescription } from '../../types/database';
 import styles from './VenueSheet.module.css';
 
 interface Props {
@@ -19,6 +20,10 @@ export function VenueSheet({ venue, open, onClose }: Props) {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [isGoing, setIsGoing] = useState(false);
   const [goingCount, setGoingCount] = useState(0);
+  const [descriptions, setDescriptions] = useState<VenueDescription[]>([]);
+  const [showDescForm, setShowDescForm] = useState(false);
+  const [descText, setDescText] = useState('');
+  const [submittingDesc, setSubmittingDesc] = useState(false);
 
   const today = new Date().toISOString().slice(0, 10);
   const todayDay = new Date().toLocaleDateString('en-US', { weekday: 'short' }).toLowerCase();
@@ -54,13 +59,24 @@ export function VenueSheet({ venue, open, onClose }: Props) {
     setGoingCount(data?.length || 0);
   }, [venue.id, today]);
 
+  const loadDescriptions = useCallback(async () => {
+    const { data } = await supabase
+      .from('venue_descriptions')
+      .select('*')
+      .eq('venue_id', venue.id)
+      .order('upvotes', { ascending: false })
+      .limit(5);
+    setDescriptions((data as VenueDescription[]) || []);
+  }, [venue.id]);
+
   useEffect(() => {
     if (open) {
       loadReviews();
       checkGoing();
       loadGoingCount();
+      loadDescriptions();
     }
-  }, [open, loadReviews, checkGoing, loadGoingCount]);
+  }, [open, loadReviews, checkGoing, loadGoingCount, loadDescriptions]);
 
   const handleCheckIn = async () => {
     if (!user) {
@@ -68,7 +84,6 @@ export function VenueSheet({ venue, open, onClose }: Props) {
       return;
     }
     if (isGoing) {
-      // Un-check-in
       await supabase
         .from('check_ins')
         .delete()
@@ -86,6 +101,60 @@ export function VenueSheet({ venue, open, onClose }: Props) {
       setGoingCount((c) => c + 1);
       showToast({ text: `Checked in to ${venue.name}!`, type: 'success' });
     }
+  };
+
+  const handleDirections = () => {
+    const q = encodeURIComponent(`${venue.name}, ${venue.address}`);
+    window.open(`https://www.google.com/maps/search/?api=1&query=${q}`, '_blank');
+  };
+
+  const handleShare = async () => {
+    const shareData = {
+      title: venue.name,
+      text: `Check out ${venue.name} on Spotd!`,
+      url: `${window.location.origin}/?spot=${venue.id}`,
+    };
+    if (navigator.share) {
+      await navigator.share(shareData).catch(() => {});
+    } else {
+      await navigator.clipboard.writeText(shareData.url);
+      showToast({ text: 'Link copied!', type: 'success' });
+    }
+  };
+
+  const handleUpvoteDesc = async (descId: string) => {
+    if (!user) {
+      showToast({ text: 'Sign in to upvote', type: 'error' });
+      return;
+    }
+    // Check if already upvoted
+    const { data: existing } = await supabase
+      .from('description_upvotes')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('description_id', descId);
+    if (existing && existing.length > 0) {
+      await supabase.from('description_upvotes').delete().eq('user_id', user.id).eq('description_id', descId);
+      setDescriptions((prev) => prev.map((d) => d.id === descId ? { ...d, upvotes: d.upvotes - 1 } : d));
+    } else {
+      await supabase.from('description_upvotes').insert({ user_id: user.id, description_id: descId });
+      setDescriptions((prev) => prev.map((d) => d.id === descId ? { ...d, upvotes: d.upvotes + 1 } : d));
+    }
+  };
+
+  const submitDescription = async () => {
+    if (!user || !descText.trim()) return;
+    setSubmittingDesc(true);
+    await supabase.from('venue_descriptions').insert({
+      venue_id: venue.id,
+      user_id: user.id,
+      description_text: descText.trim(),
+    });
+    setDescText('');
+    setShowDescForm(false);
+    setSubmittingDesc(false);
+    loadDescriptions();
+    showToast({ text: 'Description added!', type: 'success' });
   };
 
   return (
@@ -149,24 +218,62 @@ export function VenueSheet({ venue, open, onClose }: Props) {
           </Button>
         </div>
 
-        {/* Actions */}
+        {/* Actions — now functional */}
         <div className={styles.actions}>
-          <button className={styles.action}>
+          <button className={styles.action} onClick={handleDirections}>
             <span className={styles.actionIcon}>📍</span>
             <span>Directions</span>
           </button>
-          <button className={styles.action}>
+          <button className={styles.action} onClick={handleShare}>
             <span className={styles.actionIcon}>📤</span>
             <span>Share</span>
           </button>
-          <button className={styles.action}>
+          <button className={styles.action} onClick={() => showToast({ text: 'Lists coming soon!' })}>
             <span className={styles.actionIcon}>📋</span>
             <span>Add to List</span>
           </button>
-          <button className={styles.action}>
+          <button className={styles.action} onClick={() => showToast({ text: '🔥 Fired!', type: 'success' })}>
             <span className={styles.actionIcon}>🔥</span>
             <span>Fire</span>
           </button>
+        </div>
+
+        <div className={styles.divider} />
+
+        {/* Locals Say (venue descriptions) */}
+        <div className={styles.section}>
+          <span className={styles.label}>Locals Say ({descriptions.length})</span>
+          {descriptions.length === 0 && !showDescForm ? (
+            <p className={styles.noReviews}>No descriptions yet — tell people about this spot!</p>
+          ) : (
+            descriptions.map((d) => (
+              <div key={d.id} className={styles.descRow}>
+                <p className={styles.descText}>"{d.text}"</p>
+                <button className={styles.upvoteBtn} onClick={() => handleUpvoteDesc(d.id)}>
+                  👍 {d.upvotes}
+                </button>
+              </div>
+            ))
+          )}
+          {user && !showDescForm && (
+            <button className={styles.addDescBtn} onClick={() => setShowDescForm(true)}>
+              + Add your description
+            </button>
+          )}
+          {showDescForm && (
+            <div className={styles.descForm}>
+              <TextArea
+                placeholder="How would you describe this spot?"
+                value={descText}
+                onChange={(e) => setDescText(e.target.value)}
+                rows={3}
+              />
+              <div className={styles.descFormActions}>
+                <Button size="sm" variant="ghost" onClick={() => setShowDescForm(false)}>Cancel</Button>
+                <Button size="sm" onClick={submitDescription} loading={submittingDesc}>Submit</Button>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className={styles.divider} />

@@ -7,7 +7,23 @@ import { Button } from '../../components/ui/Button';
 import type { Profile } from '../../types/database';
 import styles from './ProfilePage.module.css';
 
-type Tab = 'activity' | 'reviews' | 'lists';
+type Tab = 'activity' | 'reviews' | 'badges' | 'lists';
+
+interface Badge {
+  badge_key: string;
+  earned_at: string;
+}
+
+const BADGE_META: Record<string, { emoji: string; label: string; desc: string }> = {
+  first_checkin: { emoji: '📍', label: 'First Check-In', desc: 'Checked in for the first time' },
+  regular: { emoji: '🏠', label: 'Regular', desc: '3+ check-ins at one venue' },
+  explorer: { emoji: '🧭', label: 'Explorer', desc: 'Visited 5+ neighborhoods' },
+  critic: { emoji: '📝', label: 'Critic', desc: 'Posted 10+ reviews' },
+  top_reviewer: { emoji: '🌟', label: 'Top Reviewer', desc: 'Posted 25+ reviews' },
+  social: { emoji: '👋', label: 'Social Butterfly', desc: '5+ followers' },
+  streak_4: { emoji: '🔥', label: '4-Day Streak', desc: 'Checked in 4 days in a row' },
+  streak_8: { emoji: '💎', label: '8-Day Streak', desc: 'Checked in 8 days in a row' },
+};
 
 export default function ProfilePage() {
   const { userId } = useParams();
@@ -17,6 +33,7 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('activity');
   const [loading, setLoading] = useState(true);
+  const [badges, setBadges] = useState<Badge[]>([]);
 
   const isOwnProfile = !userId || userId === user?.id;
   const targetId = userId || user?.id;
@@ -26,18 +43,29 @@ export default function ProfilePage() {
     if (isOwnProfile && myProfile) {
       setProfile(myProfile);
       setLoading(false);
-      return;
+    } else {
+      const { data } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', targetId)
+        .single();
+      setProfile(data as Profile | null);
+      setLoading(false);
     }
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', targetId)
-      .single();
-    setProfile(data as Profile | null);
-    setLoading(false);
   }, [targetId, isOwnProfile, myProfile]);
 
+  const loadBadges = useCallback(async () => {
+    if (!targetId) return;
+    const { data } = await supabase
+      .from('user_badges')
+      .select('badge_key, earned_at')
+      .eq('user_id', targetId)
+      .order('earned_at', { ascending: false });
+    setBadges((data || []) as Badge[]);
+  }, [targetId]);
+
   useEffect(() => { loadProfile(); }, [loadProfile]);
+  useEffect(() => { loadBadges(); }, [loadBadges]);
 
   if (!user && isOwnProfile) {
     return (
@@ -72,6 +100,12 @@ export default function ProfilePage() {
         </div>
         <h2 className={styles.name}>{profile?.display_name || 'User'}</h2>
         {profile?.bio && <p className={styles.bio}>{profile.bio}</p>}
+
+        {/* Streak badge */}
+        {profile && profile.streak > 0 && (
+          <div className={styles.streakBadge}>🔥 {profile.streak}-day streak</div>
+        )}
+
         <div className={styles.stats}>
           <div className={styles.stat}>
             <span className={styles.statNum}>{profile?.check_in_count || 0}</span>
@@ -92,9 +126,21 @@ export default function ProfilePage() {
         </div>
       </div>
 
+      {/* Quick actions */}
+      {isOwnProfile && (
+        <div className={styles.quickActions}>
+          <button className={styles.quickBtn} onClick={() => navigate('/find-people')}>
+            🔍 Find People
+          </button>
+          <button className={styles.quickBtn} onClick={() => navigate('/leaderboard')}>
+            🏆 Leaderboard
+          </button>
+        </div>
+      )}
+
       {/* Tabs */}
       <div className={styles.tabs}>
-        {(['activity', 'reviews', 'lists'] as Tab[]).map((tab) => (
+        {(['activity', 'reviews', 'badges', 'lists'] as Tab[]).map((tab) => (
           <button
             key={tab}
             className={[styles.tab, activeTab === tab && styles.tabActive].filter(Boolean).join(' ')}
@@ -107,11 +153,33 @@ export default function ProfilePage() {
 
       {/* Tab content */}
       <div className={styles.tabContent}>
-        <p className={styles.placeholder}>
-          {activeTab === 'activity' && 'Recent activity will appear here'}
-          {activeTab === 'reviews' && 'Your reviews will appear here'}
-          {activeTab === 'lists' && 'Your curated lists will appear here'}
-        </p>
+        {activeTab === 'badges' ? (
+          badges.length === 0 ? (
+            <p className={styles.placeholder}>No badges earned yet — start checking in!</p>
+          ) : (
+            <div className={styles.badgeGrid}>
+              {badges.map((b) => {
+                const meta = BADGE_META[b.badge_key];
+                return (
+                  <div key={b.badge_key} className={styles.badgeCard}>
+                    <span className={styles.badgeEmoji}>{meta?.emoji || '🏅'}</span>
+                    <span className={styles.badgeLabel}>{meta?.label || b.badge_key}</span>
+                    <span className={styles.badgeDesc}>{meta?.desc || ''}</span>
+                    <span className={styles.badgeDate}>
+                      {new Date(b.earned_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )
+        ) : (
+          <p className={styles.placeholder}>
+            {activeTab === 'activity' && 'Recent activity will appear here'}
+            {activeTab === 'reviews' && 'Your reviews will appear here'}
+            {activeTab === 'lists' && 'Your curated lists will appear here'}
+          </p>
+        )}
       </div>
 
       {/* Settings for own profile */}

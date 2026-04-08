@@ -1,0 +1,74 @@
+.page {
+  display: flex; flex-direction: column;
+  min-height: 100dvh;
+  padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+}
+
+.header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 16px 16px 8px;
+}
+
+.backBtn {
+  background: var(--card); border: none;
+  border-radius: var(--r-sm); padding: 6px 12px;
+  cursor: pointer; box-shadow: var(--clay-sm);
+  font-size: 14px; color: var(--muted);
+}
+.backBtn:active { box-shadow: var(--clay-pressed); }
+
+.title {
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-weight: 800; font-size: 24px; color: var(--ink);
+}
+
+.searchWrap { padding: 0 16px 8px; }
+
+.results {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 0 12px;
+}
+
+.skeleton { height: 64px; border-radius: var(--r); }
+
+.empty {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 8px; padding: 40px 20px; text-align: center;
+  color: var(--muted); font-size: 14px;
+}
+.empty span { font-size: 32px; }
+
+.personRow {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px; background: var(--card);
+  border: none; border-radius: var(--r);
+  box-shadow: var(--clay-sm);
+  animation: fadeIn 0.25s var(--ease) both;
+}
+
+.personAvatar {
+  width: 44px; height: 44px; border-radius: 50%;
+  overflow: hidden; flex-shrink: 0; cursor: pointer;
+  background: var(--coral);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-weight: 800; font-size: 14px;
+}
+.personAvatar img { width: 100%; height: 100%; object-fit: cover; }
+
+.personInfo {
+  flex: 1; min-width: 0; cursor: pointer;
+}
+
+.personName {
+  display: block; font-weight: 700; font-size: 15px; color: var(--ink);
+}
+
+.personBio {
+  display: block; font-size: 12px; color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}

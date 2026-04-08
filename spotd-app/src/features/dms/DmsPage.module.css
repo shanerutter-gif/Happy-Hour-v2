@@ -45,6 +45,12 @@
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
+.threadTime {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; color: var(--muted);
+  flex-shrink: 0;
+}
+
 /* Thread header */
 .threadHeader {
   display: flex; align-items: center; gap: 12px;

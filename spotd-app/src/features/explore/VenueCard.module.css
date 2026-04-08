@@ -1,3 +1,4 @@
+/* ─── Standard Card ─── */
 .card {
   background: var(--card);
   border: none;
@@ -8,15 +9,8 @@
   transition: transform var(--duration-fast), box-shadow var(--duration-fast);
   animation: cardIn 0.3s var(--ease) both;
 }
-
-.card:active {
-  transform: scale(0.98);
-  box-shadow: var(--clay-pressed);
-}
-
-.card:hover {
-  box-shadow: var(--clay-lg);
-}
+.card:active { transform: scale(0.98); box-shadow: var(--clay-pressed); }
+.card:hover { box-shadow: var(--clay-lg); }
 
 .photo {
   position: relative;
@@ -24,12 +18,7 @@
   aspect-ratio: 16 / 9;
   overflow: hidden;
 }
-
-.photo img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
+.photo img { width: 100%; height: 100%; object-fit: cover; }
 
 .badges {
   position: absolute;
@@ -40,13 +29,9 @@
 }
 
 .badgeFire {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  padding: 4px 9px;
-  border-radius: 50px;
-  font-size: 10px;
-  font-weight: 700;
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 4px 9px; border-radius: 50px;
+  font-size: 10px; font-weight: 700;
   font-family: 'DM Sans', sans-serif;
   background: rgba(255, 255, 255, 0.92);
   color: var(--coral);
@@ -54,21 +39,16 @@
 }
 
 .badgeToday {
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 9px;
-  border-radius: 50px;
-  font-size: 10px;
-  font-weight: 700;
+  display: inline-flex; align-items: center;
+  padding: 4px 9px; border-radius: 50px;
+  font-size: 10px; font-weight: 700;
   font-family: 'DM Sans', sans-serif;
   background: rgba(255, 107, 74, 0.92);
   color: #fff;
   box-shadow: var(--clay-md);
 }
 
-.body {
-  padding: 14px 16px;
-}
+.body { padding: 14px 16px; }
 
 .header {
   display: flex;
@@ -79,52 +59,123 @@
 
 .name {
   font-family: 'Cabinet Grotesk', sans-serif;
-  font-weight: 800;
-  font-size: 17px;
-  color: var(--ink);
-  line-height: 1.2;
+  font-weight: 800; font-size: 17px;
+  color: var(--ink); line-height: 1.2;
 }
 
 .rating {
   font-family: 'DM Sans', sans-serif;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--amber);
-  flex-shrink: 0;
+  font-size: 13px; font-weight: 700;
+  color: var(--amber); flex-shrink: 0;
 }
 
 .hood {
   font-family: 'DM Sans', sans-serif;
-  font-size: 9px;
-  text-transform: uppercase;
-  letter-spacing: 1.5px;
-  color: var(--coral);
-  opacity: 0.7;
-  margin-top: 2px;
+  font-size: 9px; text-transform: uppercase;
+  letter-spacing: 1.5px; color: var(--coral);
+  opacity: 0.7; margin-top: 2px;
 }
 
 .deal {
-  font-size: 13px;
-  color: var(--text);
-  margin-top: 6px;
-  line-height: 1.4;
+  font-size: 13px; color: var(--text);
+  margin-top: 6px; line-height: 1.4;
 }
 
 .meta {
-  display: flex;
-  gap: 12px;
-  margin-top: 6px;
-  font-size: 11px;
-  color: var(--muted);
+  display: flex; gap: 12px; margin-top: 6px;
+  font-size: 11px; color: var(--muted);
+}
+
+/* ─── Hero Card ─── */
+.hero {
+  border-radius: 26px;
+  overflow: hidden;
+  box-shadow: var(--clay-lg);
+  cursor: pointer;
+  transition: transform var(--duration-fast), box-shadow var(--duration-fast);
+  animation: cardIn 0.35s var(--ease) both;
+}
+.hero:active { transform: scale(0.98); box-shadow: var(--clay-pressed); }
+
+.heroPhoto {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+}
+.heroPhoto img { width: 100%; height: 100%; object-fit: cover; }
+
+.heroGradient {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(0deg, rgba(0,0,0,0.65) 0%, transparent 60%);
+}
+
+.heroOverlay {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  padding: 20px;
+}
+
+.heroName {
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-weight: 800; font-size: 24px;
+  color: #fff; line-height: 1.1;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+.heroHood {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 10px; text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: rgba(255,255,255,0.8);
+  margin-top: 4px;
+}
+
+.heroDeal {
+  font-size: 13px; color: rgba(255,255,255,0.9);
+  margin-top: 8px; line-height: 1.4;
+}
+
+/* ─── Compact Card ─── */
+.compact {
+  background: var(--card);
+  border: none;
+  border-radius: var(--r);
+  overflow: hidden;
+  box-shadow: var(--clay-sm);
+  cursor: pointer;
+  transition: transform var(--duration-fast), box-shadow var(--duration-fast);
+  animation: cardIn 0.25s var(--ease) both;
+}
+.compact:active { transform: scale(0.97); box-shadow: var(--clay-pressed); }
+
+.compactPhoto {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 2;
+  overflow: hidden;
+}
+.compactPhoto img { width: 100%; height: 100%; object-fit: cover; }
+
+.compactBadge {
+  position: absolute; top: 6px; left: 6px;
+  padding: 2px 7px; border-radius: 50px;
+  font-size: 9px; font-weight: 700;
+  background: rgba(255,255,255,0.9);
+  color: var(--coral);
+  box-shadow: var(--clay-sm);
+}
+
+.compactBody { padding: 10px 12px 12px; }
+
+.compactName {
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-weight: 800; font-size: 14px;
+  color: var(--ink); line-height: 1.2;
 }
 
 @keyframes cardIn {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
 }

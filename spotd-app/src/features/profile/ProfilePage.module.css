@@ -41,6 +41,18 @@
 
 .bio { font-size: 13px; color: var(--muted); margin-top: 4px; }
 
+.streakBadge {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 4px 12px;
+  border-radius: 50px;
+  font-size: 12px;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--coral-dim), var(--card));
+  color: var(--coral);
+  box-shadow: var(--clay-sm);
+}
+
 .stats {
   display: flex; justify-content: center; gap: 20px; margin-top: 16px;
 }
@@ -62,6 +74,22 @@
   color: var(--muted);
 }
 
+/* Quick actions */
+.quickActions {
+  display: flex; gap: 8px;
+  padding: 0 16px 12px;
+}
+
+.quickBtn {
+  flex: 1; padding: 10px;
+  background: var(--card); border: none; border-radius: var(--r);
+  box-shadow: var(--clay-sm); cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px; font-weight: 600; color: var(--text);
+  transition: transform var(--duration-fast), box-shadow var(--duration-fast);
+}
+.quickBtn:active { transform: scale(0.97); box-shadow: var(--clay-pressed); }
+
 /* Tabs */
 .tabs {
   display: flex; gap: 0; margin: 0 16px;
@@ -79,6 +107,40 @@
 
 .tabContent { padding: 16px; }
 .placeholder { font-size: 13px; color: var(--muted); font-style: italic; text-align: center; padding: 20px; }
+
+/* Badges grid */
+.badgeGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.badgeCard {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 16px 12px; background: var(--card);
+  border: none; border-radius: var(--r);
+  box-shadow: var(--clay-sm); text-align: center;
+  transition: transform var(--duration-fast);
+}
+.badgeCard:active { transform: scale(0.97); }
+
+.badgeEmoji { font-size: 28px; margin-bottom: 6px; }
+
+.badgeLabel {
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 700; font-size: 13px; color: var(--ink);
+}
+
+.badgeDesc {
+  font-size: 11px; color: var(--muted);
+  margin-top: 2px; line-height: 1.3;
+}
+
+.badgeDate {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px; color: var(--muted);
+  margin-top: 6px;
+}
 
 /* Settings */
 .settings {

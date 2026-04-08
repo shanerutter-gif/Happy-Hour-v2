@@ -13,6 +13,15 @@ import styles from './ExplorePage.module.css';
 type ViewType = 'hh' | 'events';
 type SortBy = 'name' | 'going' | 'rating' | 'distance';
 
+const SUGGESTIONS = [
+  { id: 'pup', emoji: '🐕', label: 'Drinks with the pup?', amenities: ['is_dog_friendly', 'has_happy_hour'] },
+  { id: 'game', emoji: '🏈', label: 'Catch the game', amenities: ['has_sports_tv'] },
+  { id: 'music', emoji: '🎵', label: 'Live music tonight', amenities: ['has_live_music'] },
+  { id: 'trivia', emoji: '🧠', label: 'Trivia night', amenities: ['has_trivia'] },
+  { id: 'karaoke', emoji: '🎤', label: 'Karaoke vibes', amenities: ['has_karaoke'] },
+  { id: 'comedy', emoji: '😂', label: 'Comedy shows', amenities: ['has_comedy'] },
+];
+
 export default function ExplorePage() {
   const navigate = useNavigate();
   const { venues, loading: venuesLoading } = useVenues();
@@ -26,22 +35,20 @@ export default function ExplorePage() {
   const [selectedNeighborhood, setSelectedNeighborhood] = useState<string | null>(null);
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
   const [selectedVenueId, setSelectedVenueId] = useState<string | null>(null);
+  const [activeSuggestion, setActiveSuggestion] = useState<string | null>(null);
 
   const items = viewType === 'hh' ? venues : events;
   const loading = viewType === 'hh' ? venuesLoading : eventsLoading;
 
-  // Get unique neighborhoods for filtering
   const neighborhoods = useMemo(() => {
     return [...new Set(items.map((v) => v.neighborhood).filter(Boolean))].sort();
   }, [items]);
 
-  // Get unique amenities
   const amenities = useMemo(() => {
     const all = items.flatMap((v) => v.amenities || []);
     return [...new Set(all)].sort();
   }, [items]);
 
-  // Filter and sort
   const filtered = useMemo(() => {
     let result = items;
 
@@ -65,7 +72,16 @@ export default function ExplorePage() {
       );
     }
 
-    // Sort
+    // Apply smart suggestion filter
+    if (activeSuggestion) {
+      const sug = SUGGESTIONS.find((s) => s.id === activeSuggestion);
+      if (sug) {
+        result = result.filter((v) =>
+          sug.amenities.some((a) => v.amenities?.includes(a))
+        );
+      }
+    }
+
     result = [...result].sort((a, b) => {
       switch (sortBy) {
         case 'going':
@@ -78,13 +94,25 @@ export default function ExplorePage() {
     });
 
     return result;
-  }, [items, search, selectedNeighborhood, selectedAmenities, sortBy, checkInCounts]);
+  }, [items, search, selectedNeighborhood, selectedAmenities, sortBy, checkInCounts, activeSuggestion]);
 
   const activeFilters: string[] = [];
   if (selectedNeighborhood) activeFilters.push(selectedNeighborhood);
   selectedAmenities.forEach((a) => activeFilters.push(a));
 
   const selectedVenue = items.find((v) => v.id === selectedVenueId) || null;
+
+  // Assign card tiers: first featured = hero, next 4 = compact grid, rest = standard
+  const assignTier = (venue: Venue, index: number): 'hero' | 'compact' | 'standard' => {
+    if (index === 0 && venue.featured) return 'hero';
+    if (index === 0 && venue.photo_url) return 'hero';
+    if (index >= 1 && index <= 4) return 'compact';
+    return 'standard';
+  };
+
+  const handleSuggestion = (id: string) => {
+    setActiveSuggestion(activeSuggestion === id ? null : id);
+  };
 
   return (
     <div className={styles.page}>
@@ -111,6 +139,20 @@ export default function ExplorePage() {
           >
             🗺 Map
           </button>
+        </div>
+
+        {/* Smart suggestion chips */}
+        <div className={styles.suggestions}>
+          {SUGGESTIONS.map((s) => (
+            <Pill
+              key={s.id}
+              variant="chip"
+              active={activeSuggestion === s.id}
+              onClick={() => handleSuggestion(s.id)}
+            >
+              {s.emoji} {s.label}
+            </Pill>
+          ))}
         </div>
 
         {/* Type tabs */}
@@ -161,11 +203,12 @@ export default function ExplorePage() {
           setSelectedNeighborhood(null);
           setSelectedAmenities([]);
           setSortBy('name');
+          setActiveSuggestion(null);
         }}
         onDone={() => setFilterOpen(false)}
       />
 
-      {/* Venue list */}
+      {/* Venue list — mixed layout */}
       <div className={styles.list}>
         {loading ? (
           Array.from({ length: 6 }).map((_, i) => (
@@ -177,14 +220,44 @@ export default function ExplorePage() {
             <p>No {viewType === 'hh' ? 'happy hours' : 'events'} found</p>
           </div>
         ) : (
-          filtered.map((venue) => (
-            <VenueCard
-              key={venue.id}
-              venue={venue}
-              goingCount={checkInCounts[venue.id] || 0}
-              onClick={() => setSelectedVenueId(venue.id)}
-            />
-          ))
+          <>
+            {/* Hero card */}
+            {filtered.length > 0 && (
+              <VenueCard
+                key={filtered[0].id}
+                venue={filtered[0]}
+                goingCount={checkInCounts[filtered[0].id] || 0}
+                onClick={() => setSelectedVenueId(filtered[0].id)}
+                tier={assignTier(filtered[0], 0)}
+              />
+            )}
+
+            {/* Compact grid (2 columns) */}
+            {filtered.length > 1 && (
+              <div className={styles.compactGrid}>
+                {filtered.slice(1, 5).map((venue, i) => (
+                  <VenueCard
+                    key={venue.id}
+                    venue={venue}
+                    goingCount={checkInCounts[venue.id] || 0}
+                    onClick={() => setSelectedVenueId(venue.id)}
+                    tier="compact"
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Standard cards (remainder) */}
+            {filtered.slice(5).map((venue, i) => (
+              <VenueCard
+                key={venue.id}
+                venue={venue}
+                goingCount={checkInCounts[venue.id] || 0}
+                onClick={() => setSelectedVenueId(venue.id)}
+                tier="standard"
+              />
+            ))}
+          </>
         )}
       </div>
 

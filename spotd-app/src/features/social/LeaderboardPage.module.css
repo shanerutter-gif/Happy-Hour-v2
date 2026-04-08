@@ -1,0 +1,82 @@
+.page {
+  display: flex; flex-direction: column;
+  min-height: 100dvh;
+  padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+}
+
+.header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 16px 16px 8px;
+}
+
+.backBtn {
+  background: var(--card); border: none;
+  border-radius: var(--r-sm); padding: 6px 12px;
+  cursor: pointer; box-shadow: var(--clay-sm);
+  font-size: 14px; color: var(--muted);
+}
+.backBtn:active { box-shadow: var(--clay-pressed); }
+
+.title {
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-weight: 800; font-size: 24px; color: var(--ink);
+}
+
+.list {
+  display: flex; flex-direction: column;
+  gap: 4px; padding: 8px 12px;
+}
+
+.skeleton { height: 60px; border-radius: var(--r); }
+
+.empty {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 8px; padding: 40px 20px; text-align: center;
+  color: var(--muted); font-size: 14px;
+}
+.empty span { font-size: 40px; }
+
+.row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px; background: var(--card);
+  border: none; border-radius: var(--r);
+  box-shadow: var(--clay-sm); cursor: pointer;
+  transition: transform var(--duration-fast), box-shadow var(--duration-fast);
+  animation: fadeIn 0.25s var(--ease) both;
+}
+.row:active { transform: scale(0.98); box-shadow: var(--clay-pressed); }
+
+.topThree {
+  box-shadow: var(--clay-md);
+  background: linear-gradient(135deg, var(--card), var(--coral-dim));
+}
+
+.rank {
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-weight: 800; font-size: 16px; color: var(--muted);
+  width: 32px; text-align: center; flex-shrink: 0;
+}
+
+.avatar {
+  width: 40px; height: 40px; border-radius: 50%;
+  overflow: hidden; flex-shrink: 0;
+  background: var(--coral);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-weight: 800; font-size: 13px;
+}
+.avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+.name {
+  flex: 1; font-weight: 700; font-size: 15px; color: var(--ink);
+}
+
+.count {
+  font-family: 'DM Mono', monospace;
+  font-size: 12px; color: var(--coral);
+  font-weight: 600; flex-shrink: 0;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}

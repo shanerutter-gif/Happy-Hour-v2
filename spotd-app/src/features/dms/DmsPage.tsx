@@ -30,6 +30,7 @@ export default function DmsPage() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(true);
   const messagesEnd = useRef<HTMLDivElement>(null);
+  const subscriptionRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   const loadThreads = useCallback(async () => {
     if (!user) return;
@@ -42,7 +43,6 @@ export default function DmsPage() {
 
     const raw = (data || []) as Thread[];
 
-    // Enrich with other participant names
     const otherIds = raw.map((t) => t.participants.find((p) => p !== user.id)).filter(Boolean) as string[];
     if (otherIds.length) {
       const { data: profiles } = await supabase
@@ -78,6 +78,39 @@ export default function DmsPage() {
   useEffect(() => { loadThreads(); }, [loadThreads]);
   useEffect(() => { loadMessages(); }, [loadMessages]);
 
+  // Real-time subscription for new messages in active thread
+  useEffect(() => {
+    if (!threadId) return;
+
+    const channel = supabase
+      .channel(`dm-${threadId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'dm_messages',
+          filter: `thread_id=eq.${threadId}`,
+        },
+        (payload) => {
+          const newMsg = payload.new as Message;
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === newMsg.id)) return prev;
+            return [...prev, newMsg];
+          });
+          setTimeout(() => messagesEnd.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+        }
+      )
+      .subscribe();
+
+    subscriptionRef.current = channel;
+
+    return () => {
+      supabase.removeChannel(channel);
+      subscriptionRef.current = null;
+    };
+  }, [threadId]);
+
   const sendMessage = async () => {
     if (!input.trim() || !threadId || !user) return;
     const content = input.trim();
@@ -94,13 +127,23 @@ export default function DmsPage() {
       return;
     }
 
-    // Update thread
     await supabase
       .from('dm_threads')
       .update({ last_message: content, last_message_at: new Date().toISOString() })
       .eq('id', threadId);
 
-    loadMessages();
+    // Don't manually reload — realtime will pick up the insert
+  };
+
+  const timeAgo = (date: string | null) => {
+    if (!date) return '';
+    const diff = Date.now() - new Date(date).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'now';
+    if (mins < 60) return `${mins}m`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h`;
+    return `${Math.floor(hrs / 24)}d`;
   };
 
   if (!user) {
@@ -185,6 +228,7 @@ export default function DmsPage() {
                 <span className={styles.threadTitle}>{t.other_name || 'User'}</span>
                 <span className={styles.threadPreview}>{t.last_message || 'No messages'}</span>
               </div>
+              <span className={styles.threadTime}>{timeAgo(t.last_message_at)}</span>
             </button>
           ))
         )}

@@ -53,6 +53,18 @@
   box-shadow: var(--ring), var(--clay-sm);
 }
 
+/* Smart suggestion chips */
+.suggestions {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 2px 16px 6px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  scroll-behavior: smooth;
+}
+.suggestions::-webkit-scrollbar { display: none; }
+
 .typeTabs {
   display: flex;
   gap: 6px;
@@ -68,16 +80,20 @@
   scrollbar-width: none;
   scroll-behavior: smooth;
 }
-
-.chips::-webkit-scrollbar {
-  display: none;
-}
+.chips::-webkit-scrollbar { display: none; }
 
 .list {
   display: flex;
   flex-direction: column;
   gap: 10px;
   padding: 8px 16px;
+}
+
+/* Compact 2-column grid */
+.compactGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
 }
 
 .skeleton {

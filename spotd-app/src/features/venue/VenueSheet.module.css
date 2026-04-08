@@ -154,6 +154,69 @@
   box-shadow: var(--clay-sm);
 }
 
+/* Locals Say descriptions */
+.descRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border2);
+}
+.descRow:last-of-type { border: none; }
+
+.descText {
+  font-size: 14px;
+  color: var(--text);
+  line-height: 1.5;
+  font-style: italic;
+  flex: 1;
+}
+
+.upvoteBtn {
+  background: var(--bg);
+  border: none;
+  border-radius: var(--r-sm);
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  box-shadow: var(--clay-sm);
+  color: var(--muted);
+  flex-shrink: 0;
+  transition: transform var(--duration-fast), box-shadow var(--duration-fast);
+}
+.upvoteBtn:active { transform: scale(0.93); box-shadow: var(--clay-pressed); }
+
+.addDescBtn {
+  display: block;
+  margin-top: 8px;
+  background: none;
+  border: none;
+  color: var(--coral);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 0;
+}
+
+.descForm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 12px;
+  background: var(--bg);
+  border-radius: var(--r);
+  box-shadow: var(--clay-input);
+}
+
+.descFormActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 /* Reviews */
 .noReviews {
   font-size: 13px;
