@@ -11,7 +11,7 @@ import { VenueSheet } from '../venue/VenueSheet';
 import type { Venue } from '../../types/database';
 import styles from './MapPage.module.css';
 
-export function MapPage() {
+export default function MapPage() {
   const navigate = useNavigate();
   const mapRef = useRef<HTMLDivElement>(null);
   const leafletMap = useRef<L.Map | null>(null);

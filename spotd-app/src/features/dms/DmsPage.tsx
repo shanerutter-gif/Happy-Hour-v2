@@ -21,7 +21,7 @@ interface Message {
   created_at: string;
 }
 
-export function DmsPage() {
+export default function DmsPage() {
   const { threadId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();

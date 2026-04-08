@@ -20,7 +20,7 @@ interface FeedPost {
   avatar_url?: string;
 }
 
-export function SocialPage() {
+export default function SocialPage() {
   const { user } = useAuth();
   const { currentCity } = useCity();
   const [posts, setPosts] = useState<FeedPost[]>([]);

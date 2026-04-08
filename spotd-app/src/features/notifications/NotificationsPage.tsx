@@ -12,7 +12,7 @@ interface NotifRow {
   actor_name?: string;
 }
 
-export function NotificationsPage() {
+export default function NotificationsPage() {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<NotifRow[]>([]);
   const [loading, setLoading] = useState(true);

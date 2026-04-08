@@ -13,7 +13,7 @@ import styles from './ExplorePage.module.css';
 type ViewType = 'hh' | 'events';
 type SortBy = 'name' | 'going' | 'rating' | 'distance';
 
-export function ExplorePage() {
+export default function ExplorePage() {
   const navigate = useNavigate();
   const { venues, loading: venuesLoading } = useVenues();
   const { events, loading: eventsLoading } = useEvents();

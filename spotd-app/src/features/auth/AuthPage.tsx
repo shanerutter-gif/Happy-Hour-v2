@@ -8,7 +8,7 @@ import styles from './AuthPage.module.css';
 
 type Mode = 'signin' | 'signup';
 
-export function AuthPage() {
+export default function AuthPage() {
   const navigate = useNavigate();
   const { signIn, signUp, signInWithGoogle } = useAuth();
   const [mode, setMode] = useState<Mode>('signin');

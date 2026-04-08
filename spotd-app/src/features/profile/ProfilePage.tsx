@@ -9,7 +9,7 @@ import styles from './ProfilePage.module.css';
 
 type Tab = 'activity' | 'reviews' | 'lists';
 
-export function ProfilePage() {
+export default function ProfilePage() {
   const { userId } = useParams();
   const navigate = useNavigate();
   const { user, profile: myProfile, signOut } = useAuth();
