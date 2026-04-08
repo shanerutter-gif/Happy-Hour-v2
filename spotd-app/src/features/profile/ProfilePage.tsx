@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { supabase } from '../../lib/supabase';
 import { Button } from '../../components/ui/Button';
+import { Pill } from '../../components/ui/Pill';
 import { showToast } from '../../components/ui/Toast';
 import type { Profile, Review, List } from '../../types/database';
 import styles from './ProfilePage.module.css';
@@ -42,6 +43,9 @@ export default function ProfilePage() {
   const [userReviews, setUserReviews] = useState<(Review & { venue_name?: string })[]>([]);
   const [userLists, setUserLists] = useState<List[]>([]);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [neighborhoodFollows, setNeighborhoodFollows] = useState<string[]>([]);
+  const [availableNeighborhoods, setAvailableNeighborhoods] = useState<string[]>([]);
+  const [showBlockConfirm, setShowBlockConfirm] = useState(false);
 
   const isOwnProfile = !userId || userId === user?.id;
   const targetId = userId || user?.id;
@@ -108,12 +112,29 @@ export default function ProfilePage() {
     setIsFollowing((data?.length || 0) > 0);
   }, [user, userId]);
 
+  const loadNeighborhoodFollows = useCallback(async () => {
+    if (!user || !isOwnProfile) return;
+    const { data } = await supabase
+      .from('neighborhood_follows')
+      .select('neighborhood')
+      .eq('user_id', user.id);
+    setNeighborhoodFollows((data || []).map((r: { neighborhood: string }) => r.neighborhood));
+    // Load available neighborhoods from venues
+    const { data: venueData } = await supabase
+      .from('venues')
+      .select('neighborhood')
+      .eq('city', profile?.city || '');
+    const hoods = [...new Set((venueData || []).map((v: { neighborhood: string }) => v.neighborhood).filter(Boolean))].sort();
+    setAvailableNeighborhoods(hoods as string[]);
+  }, [user, isOwnProfile, profile?.city]);
+
   useEffect(() => { loadProfile(); }, [loadProfile]);
   useEffect(() => { loadBadges(); }, [loadBadges]);
   useEffect(() => { loadActivity(); }, [loadActivity]);
   useEffect(() => { loadReviews(); }, [loadReviews]);
   useEffect(() => { loadLists(); }, [loadLists]);
   useEffect(() => { checkFollowing(); }, [checkFollowing]);
+  useEffect(() => { loadNeighborhoodFollows(); }, [loadNeighborhoodFollows]);
 
   const toggleFollow = async () => {
     if (!user || !userId) return;
@@ -137,6 +158,45 @@ export default function ProfilePage() {
     });
     if (error) showToast({ text: 'Failed to create list', type: 'error' });
     else { showToast({ text: 'List created!', type: 'success' }); loadLists(); }
+  };
+
+  const blockUser = async () => {
+    if (!user || !userId) return;
+    await supabase.from('blocked_users').insert({ blocker_id: user.id, blocked_id: userId });
+    // Also unfollow
+    await supabase.from('follows').delete().eq('follower_id', user.id).eq('following_id', userId);
+    setIsFollowing(false);
+    setShowBlockConfirm(false);
+    showToast({ text: 'User blocked' });
+    navigate(-1);
+  };
+
+  const reportUser = async () => {
+    if (!user || !userId) return;
+    await supabase.from('reports').insert({
+      reporter_id: user.id,
+      content_type: 'user',
+      content_id: userId,
+      reason: 'Reported from profile',
+    });
+    showToast({ text: 'Report submitted — thanks!', type: 'success' });
+  };
+
+  const toggleNeighborhoodFollow = async (neighborhood: string) => {
+    if (!user) return;
+    if (neighborhoodFollows.includes(neighborhood)) {
+      await supabase.from('neighborhood_follows')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('neighborhood', neighborhood);
+      setNeighborhoodFollows((prev) => prev.filter((n) => n !== neighborhood));
+      showToast({ text: `Unfollowed ${neighborhood}` });
+    } else {
+      await supabase.from('neighborhood_follows')
+        .insert({ user_id: user.id, neighborhood, city_slug: profile?.city || '' });
+      setNeighborhoodFollows((prev) => [...prev, neighborhood]);
+      showToast({ text: `Following ${neighborhood}!`, type: 'success' });
+    }
   };
 
   const timeAgo = (date: string) => {
@@ -188,14 +248,32 @@ export default function ProfilePage() {
 
         {/* Follow button for other profiles */}
         {!isOwnProfile && user && (
-          <Button
-            variant={isFollowing ? 'secondary' : 'primary'}
-            size="sm"
-            onClick={toggleFollow}
-            className={styles.followBtn}
-          >
-            {isFollowing ? 'Following' : 'Follow'}
-          </Button>
+          <div className={styles.profileActions}>
+            <Button
+              variant={isFollowing ? 'secondary' : 'primary'}
+              size="sm"
+              onClick={toggleFollow}
+              className={styles.followBtn}
+            >
+              {isFollowing ? 'Following' : 'Follow'}
+            </Button>
+            <button className={styles.moreBtn} onClick={() => setShowBlockConfirm(!showBlockConfirm)}>
+              ···
+            </button>
+          </div>
+        )}
+        {showBlockConfirm && !isOwnProfile && (
+          <div className={styles.blockMenu}>
+            <button className={styles.blockMenuItem} onClick={reportUser}>
+              🚩 Report User
+            </button>
+            <button className={[styles.blockMenuItem, styles.blockMenuDanger].join(' ')} onClick={blockUser}>
+              🚫 Block User
+            </button>
+            <button className={styles.blockMenuItem} onClick={() => setShowBlockConfirm(false)}>
+              Cancel
+            </button>
+          </div>
         )}
 
         <div className={styles.stats}>
@@ -329,6 +407,24 @@ export default function ProfilePage() {
           </>
         )}
       </div>
+
+      {isOwnProfile && availableNeighborhoods.length > 0 && (
+        <div className={styles.neighborhoodSection}>
+          <span className={styles.sectionLabel}>Neighborhood Follows</span>
+          <p className={styles.sectionHint}>Get notified about new spots in these areas</p>
+          <div className={styles.neighborhoodPills}>
+            {availableNeighborhoods.map((n) => (
+              <Pill
+                key={n}
+                active={neighborhoodFollows.includes(n)}
+                onClick={() => toggleNeighborhoodFollow(n)}
+              >
+                {n}
+              </Pill>
+            ))}
+          </div>
+        </div>
+      )}
 
       {isOwnProfile && (
         <div className={styles.settings}>

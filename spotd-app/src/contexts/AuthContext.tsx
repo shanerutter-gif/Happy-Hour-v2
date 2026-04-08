@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { trackEvent } from '../lib/analytics';
 import type { Profile } from '../types/database';
 
 interface AuthState {
@@ -51,8 +52,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
+    trackEvent('login_attempt', { method: 'email' });
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
+    trackEvent('login', { method: 'email' });
   };
 
   const signUp = async (email: string, password: string, displayName: string) => {
@@ -62,14 +65,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       options: { data: { display_name: displayName } },
     });
     if (error) throw error;
+    trackEvent('sign_up', { method: 'email' });
   };
 
   const signInWithGoogle = async () => {
+    trackEvent('login_attempt', { method: 'google' });
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: window.location.origin },
     });
     if (error) throw error;
+    trackEvent('login', { method: 'google' });
   };
 
   const signOut = async () => {

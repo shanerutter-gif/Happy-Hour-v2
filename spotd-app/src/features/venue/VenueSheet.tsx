@@ -34,6 +34,13 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
   // Edit review state
   const [editingReview, setEditingReview] = useState<Review | null>(null);
   const [followingVenue, setFollowingVenue] = useState(false);
+  // Share via DM state
+  const [showSharePicker, setShowSharePicker] = useState(false);
+  const [dmContacts, setDmContacts] = useState<{ id: string; display_name: string; avatar_url: string | null }[]>([]);
+  const [loadingContacts, setLoadingContacts] = useState(false);
+  // Report state
+  const [showReportForm, setShowReportForm] = useState(false);
+  const [reportReason, setReportReason] = useState('');
 
   const today = new Date().toISOString().slice(0, 10);
   const todayDay = new Date().toLocaleDateString('en-US', { weekday: 'short' }).toLowerCase();
@@ -194,6 +201,83 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
       setFollowingVenue(true);
       showToast({ text: 'Following — you\'ll get updates!', type: 'success' });
     }
+  };
+
+  // --- Share via DM ---
+  const openSharePicker = async () => {
+    if (!user) { showToast({ text: 'Sign in to share', type: 'error' }); return; }
+    setShowSharePicker(true);
+    setLoadingContacts(true);
+    // Get user's follows to populate contact list
+    const { data: follows } = await supabase
+      .from('follows')
+      .select('following_id')
+      .eq('follower_id', user.id);
+    const ids = (follows || []).map((f: { following_id: string }) => f.following_id);
+    if (ids.length) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, display_name, avatar_url')
+        .in('id', ids);
+      setDmContacts((profiles || []) as { id: string; display_name: string; avatar_url: string | null }[]);
+    } else {
+      setDmContacts([]);
+    }
+    setLoadingContacts(false);
+  };
+
+  const sendVenueToDm = async (recipientId: string) => {
+    if (!user) return;
+    // Find or create DM thread
+    const { data: existingThreads } = await supabase
+      .from('dm_threads')
+      .select('*')
+      .contains('participants', [user.id, recipientId]);
+    let threadId: string;
+    const existing = (existingThreads || []).find(
+      (t: { participants: string[] }) => t.participants.includes(user.id) && t.participants.includes(recipientId)
+    );
+    if (existing) {
+      threadId = existing.id;
+    } else {
+      const { data: newThread } = await supabase
+        .from('dm_threads')
+        .insert({ participants: [user.id, recipientId] })
+        .select('id')
+        .single();
+      if (!newThread) { showToast({ text: 'Failed to create thread', type: 'error' }); return; }
+      threadId = newThread.id;
+    }
+    // Send venue share message
+    const shareContent = `📍 Check out ${venue.name}!\n${venue.address}\n${window.location.origin}/?spot=${venue.id}`;
+    await supabase.from('dm_messages').insert({
+      thread_id: threadId,
+      sender_id: user.id,
+      content: shareContent,
+      message_type: 'venue_share',
+      venue_id: venue.id,
+    });
+    await supabase.from('dm_threads').update({
+      last_message: `Shared ${venue.name}`,
+      last_message_at: new Date().toISOString(),
+    }).eq('id', threadId);
+    setShowSharePicker(false);
+    const contact = dmContacts.find((c) => c.id === recipientId);
+    showToast({ text: `Sent to ${contact?.display_name || 'user'}!`, type: 'success' });
+  };
+
+  // --- Report venue ---
+  const submitReport = async () => {
+    if (!user || !reportReason.trim()) { showToast({ text: 'Enter a reason', type: 'error' }); return; }
+    await supabase.from('reports').insert({
+      reporter_id: user.id,
+      content_type: 'venue',
+      content_id: venue.id,
+      reason: reportReason.trim(),
+    });
+    setShowReportForm(false);
+    setReportReason('');
+    showToast({ text: 'Report submitted — thanks!', type: 'success' });
   };
 
   // --- Review CRUD ---
@@ -429,6 +513,74 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
             ))
           )}
         </div>
+
+        <div className={styles.divider} />
+
+        {/* Send to friend + Report */}
+        <div className={styles.section}>
+          {user && (
+            <button className={styles.addDescBtn} onClick={openSharePicker}>
+              💬 Send to a friend
+            </button>
+          )}
+          {user && (
+            <button
+              className={styles.reportBtn}
+              onClick={() => setShowReportForm(!showReportForm)}
+            >
+              🚩 Report this venue
+            </button>
+          )}
+        </div>
+
+        {/* Share via DM picker */}
+        {showSharePicker && (
+          <div className={styles.sharePicker}>
+            <span className={styles.label}>Send to...</span>
+            {loadingContacts ? (
+              <div className="skeleton" style={{ height: 44, borderRadius: 12 }} />
+            ) : dmContacts.length === 0 ? (
+              <p className={styles.noReviews}>Follow people to share venues with them</p>
+            ) : (
+              dmContacts.map((c) => (
+                <button
+                  key={c.id}
+                  className={styles.contactRow}
+                  onClick={() => sendVenueToDm(c.id)}
+                >
+                  <span className={styles.contactAvatar}>
+                    {c.avatar_url ? (
+                      <img src={c.avatar_url} alt="" />
+                    ) : (
+                      (c.display_name || 'U').slice(0, 2).toUpperCase()
+                    )}
+                  </span>
+                  <span className={styles.contactName}>{c.display_name}</span>
+                  <span className={styles.sendIcon}>↗</span>
+                </button>
+              ))
+            )}
+            <Button size="sm" variant="ghost" onClick={() => setShowSharePicker(false)}>
+              Close
+            </Button>
+          </div>
+        )}
+
+        {/* Report form */}
+        {showReportForm && (
+          <div className={styles.descForm}>
+            <TextArea
+              placeholder="Why are you reporting this venue?"
+              value={reportReason}
+              onChange={(e) => setReportReason(e.target.value)}
+              rows={2}
+            />
+            <div className={styles.descFormActions}>
+              <Button size="sm" variant="ghost" onClick={() => setShowReportForm(false)}>Cancel</Button>
+              <Button size="sm" onClick={submitReport}>Report</Button>
+            </div>
+          </div>
+        )}
       </div>
     </Sheet>
   );
