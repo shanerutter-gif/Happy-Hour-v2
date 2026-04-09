@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, lazy, Suspense } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CityBar } from '../../components/layout/CityBar';
 import { SearchBox } from '../../components/ui/Input';
@@ -6,11 +6,15 @@ import { Pill } from '../../components/ui/Pill';
 import { useVenues, useEvents, useCheckInCounts } from '../../hooks/useVenues';
 import { useFavorites } from '../../hooks/useFavorites';
 import { useGeolocation } from '../../hooks/useGeolocation';
+import { useAuth } from '../../contexts/AuthContext';
+import { shouldShowOnboarding } from '../onboarding/OnboardingFlow';
 import { VenueCard } from './VenueCard';
 import { FilterPanel } from './FilterPanel';
 import { VenueSheet } from '../venue/VenueSheet';
 import type { Venue } from '../../types/database';
 import styles from './ExplorePage.module.css';
+
+const OnboardingFlow = lazy(() => import('../onboarding/OnboardingFlow'));
 
 type ViewType = 'hh' | 'events';
 type SortBy = 'name' | 'going' | 'rating' | 'distance';
@@ -27,11 +31,13 @@ const SUGGESTIONS = [
 export default function ExplorePage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { user } = useAuth();
   const { venues, loading: venuesLoading } = useVenues();
   const { events, loading: eventsLoading } = useEvents();
   const checkInCounts = useCheckInCounts();
   const { isFavorite, toggle: toggleFavorite } = useFavorites();
   const geo = useGeolocation();
+  const [showOnboarding] = useState(() => shouldShowOnboarding(user?.id));
 
   const [viewType, setViewType] = useState<ViewType>('hh');
   const [search, setSearch] = useState('');
@@ -287,6 +293,12 @@ export default function ExplorePage() {
           isFavorite={isFavorite(selectedVenue.id)}
           onToggleFavorite={() => toggleFavorite(selectedVenue.id)}
         />
+      )}
+
+      {showOnboarding && (
+        <Suspense fallback={null}>
+          <OnboardingFlow />
+        </Suspense>
       )}
     </div>
   );
