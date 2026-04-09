@@ -1,5 +1,7 @@
 {
   "version": 2,
+  "buildCommand": "cd spotd-app && npm install && npm run build",
+  "outputDirectory": "spotd-app/dist",
   "crons": [
     { "path": "/api/loops-inactive", "schedule": "0 14 * * *" },
     { "path": "/api/daily-deals", "schedule": "0 14 * * *" }
@@ -19,6 +21,7 @@
     { "src": "/api/stripe-checkout",       "dest": "/api/stripe-checkout.js" },
     { "src": "/api/stripe-billing-portal", "dest": "/api/stripe-billing-portal.js" },
     { "src": "/api/stripe-webhook",        "dest": "/api/stripe-webhook.js" },
-    { "src": "/api/send-push",              "dest": "/api/send-push.js" }
+    { "src": "/api/send-push",              "dest": "/api/send-push.js" },
+    { "src": "/(.*)",                       "dest": "/index.html" }
   ]
 }
