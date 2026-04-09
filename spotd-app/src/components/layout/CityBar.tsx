@@ -33,19 +33,19 @@ export function CityBar() {
               className={[
                 styles.item,
                 city.slug === currentCity?.slug && styles.current,
-                !city.enabled && styles.disabled,
+                !city.active && styles.disabled,
               ].filter(Boolean).join(' ')}
               onClick={() => {
-                if (city.enabled) {
+                if (city.active) {
                   setCity(city.slug);
                   setOpen(false);
                 }
               }}
-              disabled={!city.enabled}
+              disabled={!city.active}
             >
-              <span>{city.name}, {city.state}</span>
+              <span>{city.name}, {city.state_code}</span>
               {city.slug === currentCity?.slug && <span className={styles.check}>✓</span>}
-              {!city.enabled && <span className={styles.soon}>Soon</span>}
+              {!city.active && <span className={styles.soon}>Soon</span>}
             </button>
           ))}
         </div>

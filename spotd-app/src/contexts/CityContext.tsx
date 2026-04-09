@@ -1,14 +1,21 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import { supabase } from '../lib/supabase';
+import { createContext, useContext, useState, type ReactNode } from 'react';
 
 export interface City {
   slug: string;
   name: string;
-  state: string;
-  lat: number;
-  lng: number;
-  enabled: boolean;
+  state_code: string;
+  active: boolean;
 }
+
+const CITIES: City[] = [
+  { slug: 'san-diego',     name: 'San Diego',     state_code: 'CA', active: true },
+  { slug: 'los-angeles',   name: 'Los Angeles',   state_code: 'CA', active: false },
+  { slug: 'new-york',      name: 'New York',      state_code: 'NY', active: false },
+  { slug: 'chicago',       name: 'Chicago',       state_code: 'IL', active: false },
+  { slug: 'austin',        name: 'Austin',        state_code: 'TX', active: false },
+  { slug: 'miami',         name: 'Miami',         state_code: 'FL', active: false },
+  { slug: 'orange-county', name: 'Orange County', state_code: 'CA', active: false },
+];
 
 interface CityState {
   cities: City[];
@@ -20,29 +27,12 @@ interface CityState {
 const CityContext = createContext<CityState | null>(null);
 
 export function CityProvider({ children }: { children: ReactNode }) {
-  const [cities, setCities] = useState<City[]>([]);
-  const [currentCity, setCurrentCity] = useState<City | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function loadCities() {
-      const { data } = await supabase
-        .from('cities')
-        .select('*')
-        .order('name');
-      if (data) {
-        setCities(data as City[]);
-        const saved = localStorage.getItem('spotd-city');
-        const match = data.find((c: City) => c.slug === saved) || data.find((c: City) => c.enabled);
-        if (match) setCurrentCity(match as City);
-      }
-      setLoading(false);
-    }
-    loadCities();
-  }, []);
+  const saved = localStorage.getItem('spotd-city');
+  const initial = CITIES.find((c) => c.slug === saved) || CITIES.find((c) => c.active) || CITIES[0];
+  const [currentCity, setCurrentCity] = useState<City | null>(initial);
 
   const setCity = (slug: string) => {
-    const city = cities.find((c) => c.slug === slug);
+    const city = CITIES.find((c) => c.slug === slug);
     if (city) {
       setCurrentCity(city);
       localStorage.setItem('spotd-city', slug);
@@ -50,7 +40,7 @@ export function CityProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <CityContext.Provider value={{ cities, currentCity, setCity, loading }}>
+    <CityContext.Provider value={{ cities: CITIES, currentCity, setCity, loading: false }}>
       {children}
     </CityContext.Provider>
   );
