@@ -37,9 +37,9 @@ export function AgeGate({ onVerified }: { onVerified: () => void }) {
               No, I'm under 21
             </button>
             <div className={styles.legal}>
-              <span className={styles.legalLink}>Privacy Policy</span>
+              <a href="/legal/privacy" className={styles.legalLink} onClick={(e) => { e.preventDefault(); window.open('/legal/privacy', '_blank'); }}>Privacy Policy</a>
               <span className={styles.legalDot}> · </span>
-              <span className={styles.legalLink}>Terms of Service</span>
+              <a href="/legal/terms" className={styles.legalLink} onClick={(e) => { e.preventDefault(); window.open('/legal/terms', '_blank'); }}>Terms of Service</a>
             </div>
           </>
         ) : (

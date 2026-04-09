@@ -1,0 +1,97 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  position: sticky;
+  top: 0;
+  z-index: 200;
+  background: var(--bg);
+}
+
+.backBtn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: var(--card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text);
+  box-shadow: var(--clay-sm);
+}
+.backBtn:active {
+  transform: scale(0.9);
+}
+
+.headerTitle {
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-weight: 800;
+  font-size: 18px;
+  color: var(--ink);
+}
+
+.body {
+  padding: 0 20px 40px;
+}
+
+.title {
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-weight: 800;
+  font-size: 20px;
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+
+.effective {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 20px;
+}
+
+.legalBody {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--text);
+}
+
+.legalBody h3 {
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-weight: 800;
+  font-size: 16px;
+  color: var(--ink);
+  margin: 20px 0 8px;
+}
+
+.legalBody p {
+  margin-bottom: 10px;
+}
+
+.legalBody ul {
+  margin: 0 0 12px 18px;
+  padding: 0;
+}
+
+.legalBody li {
+  margin-bottom: 4px;
+}
+
+.legalBody a {
+  color: var(--coral);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.legalBody strong {
+  color: var(--ink);
+}

@@ -84,3 +84,20 @@
 .active .avatar {
   box-shadow: 0 0 0 2px var(--coral);
 }
+
+/* Notification dot */
+.avatarWrap {
+  position: relative;
+  display: inline-flex;
+}
+.dot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--coral);
+  border: 2px solid var(--nav-bg);
+  z-index: 1;
+}
