@@ -98,6 +98,16 @@ export interface Venue {
   featured: boolean;
   is_hero: boolean;
   created_at: string;
+  // Boolean amenity columns (used by filters)
+  has_happy_hour?: boolean;
+  has_sports_tv?: boolean;
+  is_dog_friendly?: boolean;
+  has_live_music?: boolean;
+  has_karaoke?: boolean;
+  has_trivia?: boolean;
+  has_bingo?: boolean;
+  has_comedy?: boolean;
+  [key: string]: unknown;
 }
 
 export interface Profile {

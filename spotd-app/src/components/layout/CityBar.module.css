@@ -1,7 +1,13 @@
+.logo {
+  height: 24px;
+  width: auto;
+  flex-shrink: 0;
+}
+
 .bar {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   padding: 10px 16px;
   background: var(--nav-bg);
   position: sticky;

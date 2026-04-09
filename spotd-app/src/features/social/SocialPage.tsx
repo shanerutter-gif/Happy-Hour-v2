@@ -65,7 +65,7 @@ export default function SocialPage() {
   const { currentCity } = useCity();
   const [items, setItems] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<SocialTab>('following');
+  const [activeTab, setActiveTab] = useState<SocialTab>(user ? 'following' : 'public');
   const [commentSheetPost, setCommentSheetPost] = useState<string | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentInput, setCommentInput] = useState('');
@@ -327,10 +327,10 @@ export default function SocialPage() {
 
   const isVideo = (url: string | null) => url && /\.(mp4|webm|mov)(\?|$)/i.test(url);
 
-  // Filter based on active sub-tab
+  // Filter based on active sub-tab: "following" shows only followed users, "public" shows ALL
   const filtered = activeTab === 'following'
     ? items.filter(i => i.isFollowing)
-    : items.filter(i => !i.isFollowing);
+    : items;
 
   const renderItem = (item: FeedItem, variant: 'hero' | 'compact' | 'wide') => {
     const displayName = item.display_name || 'Someone';

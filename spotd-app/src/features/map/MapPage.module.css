@@ -1,7 +1,7 @@
 .page {
   display: flex;
   flex-direction: column;
-  height: 100dvh;
+  height: calc(100dvh - 80px - env(safe-area-inset-bottom, 0px));
   position: relative;
 }
 
@@ -12,14 +12,14 @@
   z-index: 400;
   background: var(--card);
   border: none;
-  border-radius: var(--r-sm);
-  color: var(--muted);
+  border-radius: var(--r);
+  color: var(--ink);
   font-family: 'DM Sans', sans-serif;
-  font-size: 12px;
-  font-weight: 600;
-  padding: 6px 12px;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 10px 16px;
   cursor: pointer;
-  box-shadow: var(--clay-sm);
+  box-shadow: var(--clay-md);
   transition: transform var(--duration-fast), box-shadow var(--duration-fast);
 }
 
@@ -35,17 +35,19 @@
 
 .cards {
   position: absolute;
-  bottom: calc(80px + env(safe-area-inset-bottom, 0px));
-  left: 0;
-  right: 0;
-  padding: 8px 8px 8px;
+  right: 12px;
+  bottom: 12px;
+  width: 280px;
+  max-height: 60%;
+  background: var(--card);
+  border-radius: 16px;
+  overflow-y: auto;
+  box-shadow: var(--clay-lg);
+  padding: 14px;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  max-height: 40vh;
-  overflow-y: auto;
   z-index: 300;
-  pointer-events: none;
 }
 
 .card {
@@ -57,7 +59,6 @@
   box-shadow: var(--clay-sm);
   transition: transform var(--duration-fast), box-shadow var(--duration-fast);
   text-align: left;
-  pointer-events: auto;
 }
 
 .card:active {
@@ -89,6 +90,16 @@
   color: var(--muted);
   margin-top: 4px;
   display: block;
+}
+
+.sidebarTitle {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--muted);
+  margin-bottom: 8px;
 }
 
 .cardSkeleton {

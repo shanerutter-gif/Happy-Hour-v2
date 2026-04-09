@@ -90,16 +90,18 @@ export default function ExplorePage() {
 
     if (selectedAmenities.length > 0) {
       result = result.filter((v) =>
-        selectedAmenities.every((a) => v.amenities?.includes(a))
+        selectedAmenities.every((a) => !!(v as Record<string, unknown>)[a])
       );
     }
 
     if (activeSuggestion) {
       const sug = SUGGESTIONS.find((s) => s.id === activeSuggestion);
       if (sug) {
-        result = result.filter((v) =>
-          sug.amenities.some((a) => v.amenities?.includes(a))
-        );
+        result = result.filter((v) => {
+          const matchAmenity = sug.amenities.length === 0 || sug.amenities.some((a) => !!(v as Record<string, unknown>)[a]);
+          const matchSearch = !sug.search || v.name.toLowerCase().includes(sug.search.toLowerCase()) || v.deals?.some(d => d.toLowerCase().includes(sug.search.toLowerCase()));
+          return matchAmenity && matchSearch;
+        });
       }
     }
 

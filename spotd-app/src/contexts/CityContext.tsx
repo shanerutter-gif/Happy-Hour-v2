@@ -29,15 +29,15 @@ interface CityState {
 const CityContext = createContext<CityState | null>(null);
 
 export function CityProvider({ children }: { children: ReactNode }) {
-  const saved = localStorage.getItem('spotd-city');
-  const initial = CITIES.find((c) => c.slug === saved) || CITIES.find((c) => c.active) || CITIES[0];
+  const saved = localStorage.getItem('spotd-last-city') || localStorage.getItem('spotd-city');
+  const initial = CITIES.find((c) => c.slug === saved && c.active) || CITIES.find((c) => c.active) || CITIES[0];
   const [currentCity, setCurrentCity] = useState<City | null>(initial);
 
   const setCity = (slug: string) => {
     const city = CITIES.find((c) => c.slug === slug);
     if (city) {
       setCurrentCity(city);
-      localStorage.setItem('spotd-city', slug);
+      localStorage.setItem('spotd-last-city', slug);
     }
   };
 

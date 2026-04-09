@@ -64,7 +64,7 @@ export default function NewsPage() {
 
       <div className={styles.cityLabel}>{cityName}</div>
 
-      <a href={`${hero.url}?inapp=1`} className={styles.hero}>
+      <a href={`${hero.url}?inapp=1`} target="_blank" rel="noopener noreferrer" className={styles.hero}>
         <img src={hero.img} alt="" className={styles.heroImg} loading="eager" />
         <div className={styles.heroOverlay} />
         <div className={styles.heroContent}>
@@ -76,7 +76,7 @@ export default function NewsPage() {
 
       <div className={styles.grid}>
         {rest.map((a, i) => (
-          <a key={i} href={`${a.url}?inapp=1`} className={styles.card}>
+          <a key={i} href={`${a.url}?inapp=1`} target="_blank" rel="noopener noreferrer" className={styles.card}>
             <div className={styles.cardImgWrap}>
               <img src={a.img} alt="" className={styles.cardImg} loading="lazy" />
             </div>
