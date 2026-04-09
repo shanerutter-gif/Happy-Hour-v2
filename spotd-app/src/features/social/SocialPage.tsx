@@ -128,6 +128,34 @@ export default function SocialPage() {
   const [loadingComments, setLoadingComments] = useState(false);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
 
+  // Pull-to-refresh
+  const [refreshing, setRefreshing] = useState(false);
+  const [pullDistance, setPullDistance] = useState(0);
+  const pullStartY = useRef(0);
+  const feedRef = useRef<HTMLDivElement>(null);
+
+  const handlePullStart = (e: React.TouchEvent) => {
+    if (feedRef.current && feedRef.current.scrollTop <= 0) {
+      pullStartY.current = e.touches[0].clientY;
+    }
+  };
+  const handlePullMove = (e: React.TouchEvent) => {
+    if (!pullStartY.current) return;
+    const dy = e.touches[0].clientY - pullStartY.current;
+    if (dy > 0 && feedRef.current && feedRef.current.scrollTop <= 0) {
+      setPullDistance(Math.min(dy * 0.4, 80));
+    }
+  };
+  const handlePullEnd = async () => {
+    if (pullDistance > 50) {
+      setRefreshing(true);
+      await loadFeed();
+      setRefreshing(false);
+    }
+    setPullDistance(0);
+    pullStartY.current = 0;
+  };
+
   // Add a Spot overlay state
   const [showAddSpot, setShowAddSpot] = useState(false);
   const [spotName, setSpotName] = useState('');
@@ -821,7 +849,21 @@ export default function SocialPage() {
         </div>
       </div>
 
-      <div className={styles.feed}>
+      <div
+        ref={feedRef}
+        className={styles.feed}
+        onTouchStart={handlePullStart}
+        onTouchMove={handlePullMove}
+        onTouchEnd={handlePullEnd}
+      >
+        {(pullDistance > 0 || refreshing) && (
+          <div
+            className={styles.pullIndicator}
+            style={{ height: refreshing ? 40 : pullDistance, opacity: refreshing ? 1 : Math.min(pullDistance / 50, 1) }}
+          >
+            {refreshing ? '↻ Refreshing...' : pullDistance > 50 ? '↑ Release to refresh' : '↓ Pull to refresh'}
+          </div>
+        )}
         {renderFeed()}
       </div>
 

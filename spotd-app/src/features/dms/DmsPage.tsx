@@ -42,6 +42,13 @@ export default function DmsPage() {
   const messagesEnd = useRef<HTMLDivElement>(null);
   const subscriptionRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
+  // New DM compose state
+  const [showCompose, setShowCompose] = useState(false);
+  const [composeSearch, setComposeSearch] = useState('');
+  const [composeResults, setComposeResults] = useState<{ id: string; display_name: string; avatar_url: string | null }[]>([]);
+  const [composeSending, setComposeSending] = useState(false);
+  const composeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const loadThreads = useCallback(async () => {
     if (!user) return;
     setLoading(true);
@@ -197,6 +204,61 @@ export default function DmsPage() {
     showToast({ text: 'Conversation deleted' });
   };
 
+  // --- New DM compose ---
+  const searchComposeUsers = (query: string) => {
+    setComposeSearch(query);
+    if (composeTimer.current) clearTimeout(composeTimer.current);
+    if (query.length < 2) { setComposeResults([]); return; }
+    composeTimer.current = setTimeout(async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, display_name, avatar_url')
+        .ilike('display_name', `%${query}%`)
+        .neq('id', user!.id)
+        .limit(10);
+      setComposeResults((data || []) as typeof composeResults);
+    }, 200);
+  };
+
+  const startDmWith = async (recipientId: string) => {
+    if (!user || composeSending) return;
+    setComposeSending(true);
+    // Check for existing 1:1 thread
+    const { data: existingThreads } = await supabase
+      .from('dm_threads')
+      .select('*')
+      .contains('participants', [user.id, recipientId]);
+    const existing = (existingThreads || []).find(
+      (t: { participants: string[] }) =>
+        t.participants.length === 2 &&
+        t.participants.includes(user.id) &&
+        t.participants.includes(recipientId)
+    );
+    if (existing) {
+      setShowCompose(false);
+      setComposeSearch('');
+      setComposeResults([]);
+      setComposeSending(false);
+      navigate(`/dms/${existing.id}`);
+      return;
+    }
+    // Create new thread
+    const { data: newThread } = await supabase
+      .from('dm_threads')
+      .insert({ participants: [user.id, recipientId] })
+      .select('id')
+      .single();
+    setComposeSending(false);
+    setShowCompose(false);
+    setComposeSearch('');
+    setComposeResults([]);
+    if (newThread) {
+      navigate(`/dms/${newThread.id}`);
+    } else {
+      showToast({ text: 'Failed to create conversation', type: 'error' });
+    }
+  };
+
   const sendMessage = async () => {
     if (!input.trim() || !threadId || !user) return;
     const content = input.trim();
@@ -312,7 +374,49 @@ export default function DmsPage() {
     <div className={styles.page}>
       <div className={styles.header}>
         <h1 className={styles.title}>Messages</h1>
+        <button className={styles.newDmBtn} onClick={() => setShowCompose(true)}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+        </button>
       </div>
+
+      {/* New DM compose overlay */}
+      {showCompose && (
+        <div className={styles.composeOverlay}>
+          <div className={styles.composeHeader}>
+            <button className={styles.backBtn} onClick={() => { setShowCompose(false); setComposeSearch(''); setComposeResults([]); }}>←</button>
+            <span className={styles.threadName}>New Message</span>
+          </div>
+          <input
+            className={styles.composeSearchInput}
+            placeholder="Search by name..."
+            value={composeSearch}
+            onChange={(e) => searchComposeUsers(e.target.value)}
+            autoFocus
+          />
+          <div className={styles.composeResultsList}>
+            {composeResults.map((p) => (
+              <button
+                key={p.id}
+                className={styles.composeResultRow}
+                onClick={() => startDmWith(p.id)}
+                disabled={composeSending}
+              >
+                <div className={styles.threadAvatar}>
+                  {p.avatar_url ? (
+                    <img src={p.avatar_url} alt="" />
+                  ) : (
+                    <span>{(p.display_name || 'U').slice(0, 2).toUpperCase()}</span>
+                  )}
+                </div>
+                <span className={styles.composeResultName}>{p.display_name}</span>
+              </button>
+            ))}
+            {composeSearch.length >= 2 && composeResults.length === 0 && (
+              <p className={styles.composeEmpty}>No users found</p>
+            )}
+          </div>
+        </div>
+      )}
       <div className={styles.list}>
         {loading ? (
           Array.from({ length: 4 }).map((_, i) => (

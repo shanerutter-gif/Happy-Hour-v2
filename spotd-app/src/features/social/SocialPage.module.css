@@ -459,6 +459,19 @@
 }
 .commentSend:active { transform: scale(0.88); }
 
+/* ── Pull to refresh ── */
+.pullIndicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 600;
+  font-family: 'DM Sans', sans-serif;
+  overflow: hidden;
+  transition: height 0.2s ease;
+}
+
 /* ── Video player ── */
 .sfHeroVideo {
   width: 100%;

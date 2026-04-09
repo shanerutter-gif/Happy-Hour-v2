@@ -5,6 +5,7 @@ import { Pill } from '../../components/ui/Pill';
 import { TextArea } from '../../components/ui/Input';
 import { PhotoUpload } from '../../components/ui/PhotoUpload';
 import { PushPrompt } from '../../components/ui/PushPrompt';
+import { Lightbox } from '../../components/ui/Lightbox';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { saveCheckinPhoto } from '../../lib/media';
@@ -72,6 +73,8 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
     name: '', when_text: '', address: '', deals: '', amenities: '', photo_url: '',
   });
   const [savingAdmin, setSavingAdmin] = useState(false);
+  // Photo lightbox
+  const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
 
   const ADMIN_EMAILS = ['shanerutter@gmail.com'];
   const isAdmin = user && ADMIN_EMAILS.includes(user.email || '');
@@ -778,8 +781,15 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
           <span className={styles.label}>Photos ({venuePhotos.length})</span>
           {venuePhotos.length > 0 && (
             <div className={styles.photoGrid}>
-              {venuePhotos.map((p) => (
-                <img key={p.id} src={p.photo_url} alt={p.caption || ''} className={styles.photoThumb} loading="lazy" />
+              {venuePhotos.map((p, i) => (
+                <img
+                  key={p.id}
+                  src={p.photo_url}
+                  alt={p.caption || ''}
+                  className={styles.photoThumb}
+                  loading="lazy"
+                  onClick={() => setLightboxIdx(i)}
+                />
               ))}
             </div>
           )}
@@ -1096,6 +1106,15 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
 
       {showPushPrompt && (
         <PushPrompt trigger="action" />
+      )}
+
+      {lightboxIdx !== null && venuePhotos.length > 0 && (
+        <Lightbox
+          src={venuePhotos[lightboxIdx].photo_url}
+          images={venuePhotos.map(p => p.photo_url)}
+          startIndex={lightboxIdx}
+          onClose={() => setLightboxIdx(null)}
+        />
       )}
     </Sheet>
   );

@@ -5,7 +5,10 @@
   padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
 }
 
-.header { padding: 16px 20px 8px; }
+.header {
+  padding: 16px 20px 8px;
+  display: flex; align-items: center; justify-content: space-between;
+}
 .title {
   font-family: 'Cabinet Grotesk', sans-serif;
   font-weight: 800; font-size: 24px; color: var(--ink);
@@ -171,4 +174,54 @@
   color: var(--muted); font-weight: 600;
   font-family: 'DM Sans', sans-serif;
   box-shadow: var(--clay-sm);
+}
+
+/* New DM button */
+.newDmBtn {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--coral), var(--coral-dk));
+  color: #fff; border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: var(--clay-md);
+  transition: transform var(--duration-fast);
+}
+.newDmBtn:active { transform: scale(0.88); }
+
+/* Compose overlay */
+.composeOverlay {
+  display: flex; flex-direction: column;
+  padding: 0 12px;
+}
+.composeHeader {
+  display: flex; align-items: center; gap: 12px;
+  padding: 0 0 12px;
+}
+.composeSearchInput {
+  width: 100%; padding: 12px 16px;
+  background: var(--card); border: none;
+  border-radius: var(--r); font-size: 15px;
+  color: var(--text); outline: none;
+  box-shadow: var(--clay-input);
+  font-family: 'DM Sans', sans-serif;
+  margin-bottom: 8px;
+}
+.composeSearchInput:focus { box-shadow: var(--ring), var(--clay-sm); }
+.composeResultsList {
+  display: flex; flex-direction: column; gap: 4px;
+}
+.composeResultRow {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px; background: var(--card); border: none;
+  border-radius: var(--r); cursor: pointer;
+  text-align: left; width: 100%;
+  box-shadow: var(--clay-sm);
+  transition: transform var(--duration-fast);
+}
+.composeResultRow:active { transform: scale(0.98); }
+.composeResultName {
+  font-weight: 600; font-size: 15px; color: var(--ink);
+}
+.composeEmpty {
+  text-align: center; color: var(--muted);
+  font-size: 13px; padding: 20px;
 }

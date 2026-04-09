@@ -35,6 +35,47 @@
   max-height: 90vh;
   object-fit: contain;
   border-radius: 8px;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* Carousel nav arrows */
+.navBtn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(255, 255, 255, 0.15);
+  border: none;
+  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 28px;
+  cursor: pointer;
+  z-index: 2;
+  backdrop-filter: blur(8px);
+  transition: background 0.15s;
+}
+.navBtn:active { background: rgba(255, 255, 255, 0.3); }
+.navLeft { left: 12px; }
+.navRight { right: 12px; }
+
+/* Counter */
+.counter {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+  font-family: 'DM Mono', monospace;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 4px 12px;
+  border-radius: 50px;
+  backdrop-filter: blur(8px);
 }
 
 @keyframes fadeIn {
