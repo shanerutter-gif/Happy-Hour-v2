@@ -348,6 +348,24 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
       setTodayCheckInCount((c) => c + 1);
       loadGoingAvatars();
       showToast({ text: `Checked in to ${venue.name}!`, type: 'success' });
+      // Streak celebration — compute current week streak and show toast if >= 2
+      supabase.from('check_ins').select('date, created_at').eq('user_id', user.id).then(({ data: allCi }) => {
+        if (!allCi?.length) return;
+        const weekSet = new Set(allCi.map((c: { date: string | null; created_at: string }) => {
+          const d = new Date(c.date || c.created_at);
+          const jan1 = new Date(d.getFullYear(), 0, 1);
+          return `${d.getFullYear()}-W${Math.ceil(((d.getTime() - jan1.getTime()) / 86400000 + 1) / 7)}`;
+        }));
+        const weeks = [...weekSet].sort().reverse();
+        let streak = 1;
+        for (let i = 1; i < weeks.length; i++) {
+          if (weeks[i - 1] > weeks[i]) streak++;
+          else break;
+        }
+        if (streak >= 2) {
+          setTimeout(() => showToast({ text: `🔥 ${streak}-week streak! Keep it going!`, type: 'success' }), 1500);
+        }
+      });
       // Badge awarding (background, no await)
       checkAndAwardBadges();
       // Show tag friends overlay

@@ -762,6 +762,18 @@ export default function SocialPage() {
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-1a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v1" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-1a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
           <div className={styles.emptyTitle}>Follow people to see their activity</div>
           <p>When you follow someone, their check-ins and photos show up here.</p>
+          <button className={styles.shareCtaBtn} onClick={async () => {
+            const text = 'Check out Spotd — find the best happy hours, events & nightlife near you!';
+            const url = window.location.origin;
+            if (navigator.share) {
+              await navigator.share({ title: 'Spotd', text, url }).catch(() => {});
+            } else {
+              await navigator.clipboard.writeText(url);
+              showToast({ text: 'Link copied!', type: 'success' });
+            }
+          }}>
+            📤 Share Spotd with a friend!
+          </button>
         </div>
       );
     }
