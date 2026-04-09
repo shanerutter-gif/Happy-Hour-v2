@@ -67,6 +67,24 @@ export default function ExplorePage() {
   const [showRequestForm, setShowRequestForm] = useState(false);
   const [requestFields, setRequestFields] = useState({ name: '', neighborhood: '', details: '' });
   const [submittingRequest, setSubmittingRequest] = useState(false);
+  const [descCache, setDescCache] = useState<Record<string, string>>({});
+
+  // Load "Locals Say" descriptions for venue cards
+  useEffect(() => {
+    if (venues.length === 0) return;
+    supabase
+      .from('venue_descriptions')
+      .select('venue_id, description_text')
+      .order('upvotes', { ascending: false })
+      .then(({ data }) => {
+        if (!data) return;
+        const cache: Record<string, string> = {};
+        (data as { venue_id: string; description_text: string }[]).forEach((d) => {
+          if (!cache[d.venue_id]) cache[d.venue_id] = d.description_text;
+        });
+        setDescCache(cache);
+      });
+  }, [venues.length]);
 
   // Deep linking: ?spot=VENUE_ID
   useEffect(() => {
@@ -344,6 +362,8 @@ export default function ExplorePage() {
                 onClick={() => setSelectedVenueId(venue.id)}
                 tier="standard"
                 isFavorite={isFavorite(venue.id)}
+                onToggleFavorite={() => toggleFavorite(venue.id)}
+                localsSay={descCache[venue.id] || null}
               />
             ))}
           </>
@@ -361,6 +381,8 @@ export default function ExplorePage() {
                       onClick={() => setSelectedVenueId(venue.id)}
                       tier="hero"
                       isFavorite={isFavorite(venue.id)}
+                      onToggleFavorite={() => toggleFavorite(venue.id)}
+                      localsSay={descCache[venue.id] || null}
                     />
                   </div>
                 ))}
@@ -380,6 +402,8 @@ export default function ExplorePage() {
                         onClick={() => setSelectedVenueId(venue.id)}
                         tier="compact"
                         isFavorite={isFavorite(venue.id)}
+                        onToggleFavorite={() => toggleFavorite(venue.id)}
+                        localsSay={descCache[venue.id] || null}
                       />
                     </div>
                   ))}
@@ -399,6 +423,8 @@ export default function ExplorePage() {
                     onClick={() => setSelectedVenueId(venue.id)}
                     tier="standard"
                     isFavorite={isFavorite(venue.id)}
+                    onToggleFavorite={() => toggleFavorite(venue.id)}
+                    localsSay={descCache[venue.id] || null}
                   />
                 ))}
               </>
