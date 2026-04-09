@@ -430,6 +430,43 @@
   flex-shrink: 0;
 }
 
+/* Events at venue */
+.venueEventsList {
+  display: flex; flex-direction: column; gap: 8px;
+}
+.venueEventItem {
+  padding: 10px 12px; background: var(--bg);
+  border-radius: var(--r-sm); box-shadow: var(--clay-sm);
+}
+.venueEventTop {
+  display: flex; align-items: center; gap: 8px;
+  flex-wrap: wrap; margin-bottom: 4px;
+}
+.venueEventName {
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 700; font-size: 14px; color: var(--ink);
+}
+.venueEventType {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--muted);
+  padding: 2px 6px; background: var(--card);
+  border-radius: 4px;
+}
+.venueEventTonight {
+  font-size: 10px; font-weight: 700;
+  color: var(--teal); letter-spacing: 0.04em;
+}
+.venueEventMeta {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px; color: var(--muted);
+  margin-bottom: 4px;
+}
+.venueEventDesc {
+  font-size: 13px; color: var(--muted);
+  line-height: 1.4;
+}
+
 /* Tag friends overlay */
 .tagOverlay {
   padding: 16px; margin-top: 12px;

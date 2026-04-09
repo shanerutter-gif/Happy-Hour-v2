@@ -278,6 +278,19 @@ export default function ProfilePage() {
     loadProfile();
   };
 
+  const handleHeaderUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    const ext = file.name.split('.').pop() || 'jpg';
+    const path = `profiles/${user.id}/header-${Date.now()}.${ext}`;
+    const { error: uploadErr } = await supabase.storage.from('checkin-photos').upload(path, file, { contentType: file.type, upsert: true });
+    if (uploadErr) { showToast({ text: 'Upload failed', type: 'error' }); return; }
+    const { data: urlData } = supabase.storage.from('checkin-photos').getPublicUrl(path);
+    await supabase.from('profiles').update({ header_url: urlData.publicUrl }).eq('id', user.id);
+    showToast({ text: 'Header updated!', type: 'success' });
+    loadProfile();
+  };
+
   const startDmWithUser = async () => {
     if (!user || !userId) return;
     // Check for existing 1:1 thread
@@ -428,8 +441,15 @@ export default function ProfilePage() {
                     📤 <span>Share Spotd</span>
                   </button>
                   <div className={styles.pfDropdownSep} />
+                  <button className={styles.pfDropdownItem} onClick={() => { setShowMenu(false); document.getElementById('avatarUpload')?.click(); }}>
+                    📷 <span>Change Profile Photo</span>
+                  </button>
+                  <button className={styles.pfDropdownItem} onClick={() => { setShowMenu(false); document.getElementById('headerUpload')?.click(); }}>
+                    🖼️ <span>Change Header Photo</span>
+                  </button>
+                  <div className={styles.pfDropdownSep} />
                   <button className={styles.pfDropdownItem} onClick={() => { setShowMenu(false); openEditProfile(); }}>
-                    ✏️ <span>Edit Profile</span>
+                    ⚙️ <span>Settings</span>
                   </button>
                   <button className={styles.pfDropdownItem} onClick={() => { navigate('/find-people'); setShowMenu(false); }}>
                     🔍 <span>Find People</span>
@@ -467,6 +487,7 @@ export default function ProfilePage() {
           )}
           {isOwnProfile && <span className={styles.avatarEditBadge}>📷</span>}
           {isOwnProfile && <input id="avatarUpload" type="file" accept="image/*" onChange={handleAvatarUpload} style={{ display: 'none' }} />}
+          {isOwnProfile && <input id="headerUpload" type="file" accept="image/*" onChange={handleHeaderUpload} style={{ display: 'none' }} />}
         </div>
         <h2 className={styles.name}>{displayName}</h2>
         {profile?.bio ? (
