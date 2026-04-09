@@ -1,7 +1,7 @@
 .page {
   display: flex;
   flex-direction: column;
-  height: 100dvh;
+  height: calc(100dvh - 80px - env(safe-area-inset-bottom, 0px));
   position: relative;
 }
 
@@ -12,14 +12,14 @@
   z-index: 400;
   background: var(--card);
   border: none;
-  border-radius: var(--r-sm);
-  color: var(--muted);
+  border-radius: var(--r);
+  color: var(--text);
   font-family: 'DM Sans', sans-serif;
-  font-size: 12px;
-  font-weight: 600;
-  padding: 6px 12px;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 10px 16px;
   cursor: pointer;
-  box-shadow: var(--clay-sm);
+  box-shadow: var(--clay-md);
   transition: transform var(--duration-fast), box-shadow var(--duration-fast);
 }
 
@@ -35,18 +35,20 @@
 
 .cards {
   position: absolute;
-  bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  bottom: 12px;
   left: 0;
   right: 0;
-  padding: 8px 8px 8px;
+  padding: 0 12px;
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  max-height: 40vh;
-  overflow-y: auto;
+  flex-direction: row;
+  gap: 8px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
   z-index: 300;
   pointer-events: none;
 }
+.cards::-webkit-scrollbar { display: none; }
 
 .card {
   background: var(--card2);
@@ -58,6 +60,9 @@
   transition: transform var(--duration-fast), box-shadow var(--duration-fast);
   text-align: left;
   pointer-events: auto;
+  flex-shrink: 0;
+  min-width: 180px;
+  max-width: 220px;
 }
 
 .card:active {

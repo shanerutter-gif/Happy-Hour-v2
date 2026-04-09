@@ -10,6 +10,11 @@
   box-shadow: 0 4px 12px rgba(42, 31, 20, 0.04), var(--clay-inset);
 }
 
+.logo {
+  height: 24px;
+  width: auto;
+}
+
 .pill {
   display: flex;
   align-items: center;

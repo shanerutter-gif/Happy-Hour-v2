@@ -17,6 +17,7 @@ export function CityBar() {
 
   return (
     <div className={styles.bar} ref={ref}>
+      <img src="/spotd_logo_v5.png" alt="Spotd" className={styles.logo} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
       <button
         className={[styles.pill, open && styles.open].filter(Boolean).join(' ')}
         onClick={() => setOpen(!open)}

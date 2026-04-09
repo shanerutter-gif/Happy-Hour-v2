@@ -97,16 +97,26 @@ export default function ExplorePage() {
 
     if (selectedAmenities.length > 0) {
       result = result.filter((v) =>
-        selectedAmenities.every((a) => v.amenities?.includes(a))
+        selectedAmenities.every((a) => (v as Record<string, unknown>)[a])
       );
     }
 
     if (activeSuggestion) {
       const sug = SUGGESTIONS.find((s) => s.id === activeSuggestion);
       if (sug) {
-        result = result.filter((v) =>
-          sug.amenities.some((a) => v.amenities?.includes(a))
-        );
+        if (sug.amenities.length > 0) {
+          result = result.filter((v) =>
+            sug.amenities.some((a) => (v as Record<string, unknown>)[a])
+          );
+        }
+        if (sug.search) {
+          const q = sug.search.toLowerCase();
+          result = result.filter((v) =>
+            v.name.toLowerCase().includes(q) ||
+            v.deals?.some(d => d.toLowerCase().includes(q)) ||
+            v.neighborhood?.toLowerCase().includes(q)
+          );
+        }
       }
     }
 

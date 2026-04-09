@@ -32,7 +32,7 @@ export function CityProvider({ children }: { children: ReactNode }) {
         .order('name');
       if (data) {
         setCities(data as City[]);
-        const saved = localStorage.getItem('spotd-city');
+        const saved = localStorage.getItem('spotd-last-city') || localStorage.getItem('spotd-city');
         const match = data.find((c: City) => c.slug === saved) || data.find((c: City) => c.enabled);
         if (match) setCurrentCity(match as City);
       }
@@ -45,6 +45,7 @@ export function CityProvider({ children }: { children: ReactNode }) {
     const city = cities.find((c) => c.slug === slug);
     if (city) {
       setCurrentCity(city);
+      localStorage.setItem('spotd-last-city', slug);
       localStorage.setItem('spotd-city', slug);
     }
   };
