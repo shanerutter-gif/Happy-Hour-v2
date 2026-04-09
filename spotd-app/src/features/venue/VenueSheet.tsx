@@ -282,7 +282,17 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
     const earned = new Set((badgesRes.data || []).map((b: { badge_key: string }) => b.badge_key));
     const award = (key: string) => {
       if (!earned.has(key)) {
-        supabase.from('user_badges').insert({ user_id: user!.id, badge_key: key });
+        supabase.from('user_badges').insert({ user_id: user!.id, badge_key: key }).then(() => {
+          // Log badge to activity_feed (matches vanilla logActivity for badges)
+          supabase.from('activity_feed').insert({
+            user_id: user!.id,
+            activity_type: 'badge',
+            venue_id: null,
+            venue_name: null,
+            neighborhood: null,
+            meta: { badge_key: key },
+          });
+        });
       }
     };
     if (checkIns.length >= 1) award('first_checkin');
@@ -332,9 +342,10 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
         return;
       }
       const note = checkInNote.trim() || null;
+      const date = new Date().toISOString().slice(0, 10);
       await supabase
         .from('check_ins')
-        .insert({ venue_id: venue.id, user_id: user.id, city_slug: venue.city_slug, note });
+        .insert({ venue_id: venue.id, user_id: user.id, city_slug: venue.city_slug, date, note });
       // Log to activity_feed for social feed
       await supabase.from('activity_feed').insert({
         user_id: user.id,
@@ -419,9 +430,15 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
       .eq('description_id', descId);
     if (existing && existing.length > 0) {
       await supabase.from('description_upvotes').delete().eq('user_id', user.id).eq('description_id', descId);
-      setDescriptions((prev) => prev.map((d) => d.id === descId ? { ...d, upvotes: d.upvotes - 1 } : d));
+      // Sync upvote count on venue_descriptions (matches vanilla RPC with manual fallback)
+      const { data: desc } = await supabase.from('venue_descriptions').select('upvotes').eq('id', descId).single();
+      if (desc) await supabase.from('venue_descriptions').update({ upvotes: Math.max(0, (desc.upvotes || 0) - 1) }).eq('id', descId);
+      setDescriptions((prev) => prev.map((d) => d.id === descId ? { ...d, upvotes: Math.max(0, d.upvotes - 1) } : d));
     } else {
       await supabase.from('description_upvotes').insert({ user_id: user.id, description_id: descId });
+      // Sync upvote count on venue_descriptions (matches vanilla RPC with manual fallback)
+      const { data: desc } = await supabase.from('venue_descriptions').select('upvotes').eq('id', descId).single();
+      if (desc) await supabase.from('venue_descriptions').update({ upvotes: (desc.upvotes || 0) + 1 }).eq('id', descId);
       setDescriptions((prev) => prev.map((d) => d.id === descId ? { ...d, upvotes: d.upvotes + 1 } : d));
     }
   };
@@ -429,10 +446,12 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
   const submitDescription = async () => {
     if (!user || !descText.trim()) return;
     setSubmittingDesc(true);
+    haptic('medium');
     await supabase.from('venue_descriptions').upsert({
       venue_id: venue.id,
       user_id: user.id,
       description_text: descText.trim(),
+      tags: [],
     }, { onConflict: 'user_id,venue_id' });
     setDescText('');
     setShowDescForm(false);
