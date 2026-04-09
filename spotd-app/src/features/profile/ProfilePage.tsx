@@ -44,6 +44,11 @@ export default function ProfilePage() {
   const [availableNeighborhoods, setAvailableNeighborhoods] = useState<string[]>([]);
   const [showBlockConfirm, setShowBlockConfirm] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [showEditProfile, setShowEditProfile] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editBio, setEditBio] = useState('');
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [showIdeaBanner, setShowIdeaBanner] = useState(() => !localStorage.getItem('ideaBannerDismissed'));
 
   const isOwnProfile = !userId || userId === user?.id;
   const targetId = userId || user?.id;
@@ -201,6 +206,45 @@ export default function ProfilePage() {
     }
   };
 
+  const saveProfile = async () => {
+    if (!user) return;
+    setSavingProfile(true);
+    const updates: Record<string, string> = {};
+    if (editName.trim()) updates.display_name = editName.trim();
+    updates.bio = editBio.trim();
+    await supabase.from('profiles').update(updates).eq('id', user.id);
+    setSavingProfile(false);
+    setShowEditProfile(false);
+    showToast({ text: 'Profile updated!', type: 'success' });
+    loadProfile();
+  };
+
+  const openEditProfile = () => {
+    setEditName(profile?.display_name || '');
+    setEditBio(profile?.bio || '');
+    setShowEditProfile(true);
+  };
+
+  // Badge definitions matching vanilla app
+  const BADGE_DEFS: { key: string; icon: string; label: string; check: () => boolean }[] = [
+    { key: 'first_checkin', icon: '📍', label: 'First Check-in', check: () => checkIns.length >= 1 },
+    { key: 'regular', icon: '🏅', label: 'Regular', check: () => {
+      const venueCounts = new Map<string, number>();
+      checkIns.forEach(c => venueCounts.set(c.venue_id, (venueCounts.get(c.venue_id) || 0) + 1));
+      return [...venueCounts.values()].some(c => c >= 3);
+    }},
+    { key: 'explorer', icon: '🧭', label: 'Neighborhood Explorer', check: () => {
+      const hoods = new Set(checkIns.map(c => c.neighborhood).filter(Boolean));
+      return hoods.size >= 5;
+    }},
+    { key: 'critic', icon: '⭐', label: 'Critic', check: () => userReviews.length >= 10 },
+    { key: 'social', icon: '🤝', label: 'Social Butterfly', check: () => followersCount >= 5 },
+    { key: 'streak_4', icon: '🔥', label: '4-Week Streak', check: () => (profile?.streak || 0) >= 28 },
+    { key: 'streak_8', icon: '🔥', label: '8-Week Streak', check: () => (profile?.streak || 0) >= 56 },
+    { key: 'top_reviewer', icon: '✏️', label: 'Top Reviewer', check: () => userReviews.length >= 25 },
+  ];
+  const earnedBadges = BADGE_DEFS.filter(b => b.check());
+
   const timeAgo = (date: string) => {
     const diff = Date.now() - new Date(date).getTime();
     const mins = Math.floor(diff / 60000);
@@ -271,6 +315,21 @@ export default function ProfilePage() {
                   <button className={styles.pfDropdownItem} onClick={() => { toggle(); setShowMenu(false); }}>
                     {theme === 'dark' ? '☀️' : '🌙'} <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
                   </button>
+                  <button className={styles.pfDropdownItem} onClick={async () => {
+                    setShowMenu(false);
+                    if (navigator.share) {
+                      await navigator.share({ title: 'Spotd', text: 'Find the best happy hours near you!', url: window.location.origin }).catch(() => {});
+                    } else {
+                      await navigator.clipboard.writeText(window.location.origin);
+                      showToast({ text: 'Link copied!', type: 'success' });
+                    }
+                  }}>
+                    📤 <span>Share Spotd</span>
+                  </button>
+                  <div className={styles.pfDropdownSep} />
+                  <button className={styles.pfDropdownItem} onClick={() => { setShowMenu(false); openEditProfile(); }}>
+                    ✏️ <span>Edit Profile</span>
+                  </button>
                   <button className={styles.pfDropdownItem} onClick={() => { navigate('/find-people'); setShowMenu(false); }}>
                     🔍 <span>Find People</span>
                   </button>
@@ -315,6 +374,15 @@ export default function ProfilePage() {
           <span className={styles.streakBadge}>🔥 {profile.streak} day streak</span>
         ) : null}
 
+        {/* Earned badges */}
+        {earnedBadges.length > 0 && (
+          <div className={styles.badgeRow}>
+            {earnedBadges.map(b => (
+              <span key={b.key} className={styles.badge} title={b.label}>{b.icon}</span>
+            ))}
+          </div>
+        )}
+
         {!isOwnProfile && user && (
           <div className={styles.profileActions}>
             <Button
@@ -356,6 +424,15 @@ export default function ProfilePage() {
           <span className={styles.statLabel}>Followers</span>
         </div>
       </div>
+
+      {/* Idea banner */}
+      {isOwnProfile && showIdeaBanner && (
+        <div className={styles.ideaBanner}>
+          <span className={styles.ideaIcon}>💡</span>
+          <span className={styles.ideaText}>Have an idea for a feature? Let us know!</span>
+          <button className={styles.ideaDismiss} onClick={() => { setShowIdeaBanner(false); localStorage.setItem('ideaBannerDismissed', '1'); }}>×</button>
+        </div>
+      )}
 
       {/* Tabs: Check-ins / Reviews / Saved / Lists */}
       <div className={styles.tabs}>
@@ -465,6 +542,38 @@ export default function ProfilePage() {
                 {n}
               </Pill>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Edit profile overlay */}
+      {showEditProfile && (
+        <div className={styles.editOverlay}>
+          <div className={styles.editSheet}>
+            <div className={styles.editHeader}>
+              <h3>Edit Profile</h3>
+              <button className={styles.editClose} onClick={() => setShowEditProfile(false)}>×</button>
+            </div>
+            <div className={styles.editField}>
+              <label className={styles.editLabel}>Display Name</label>
+              <input
+                className={styles.editInput}
+                value={editName}
+                onChange={e => setEditName(e.target.value)}
+                placeholder="Your name"
+              />
+            </div>
+            <div className={styles.editField}>
+              <label className={styles.editLabel}>Bio</label>
+              <textarea
+                className={styles.editTextarea}
+                value={editBio}
+                onChange={e => setEditBio(e.target.value)}
+                placeholder="Tell people about yourself..."
+                rows={3}
+              />
+            </div>
+            <Button fullWidth onClick={saveProfile} loading={savingProfile}>Save Changes</Button>
           </div>
         </div>
       )}

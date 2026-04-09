@@ -84,6 +84,9 @@ export interface Venue {
   photo_url: string | null;
   photo_urls: string[] | null;
   url: string | null;
+  promo_code: string | null;
+  promo_description: string | null;
+  cuisine: string | null;
   yelp_url: string | null;
   yelp_rating: number | null;
   google_rating: number | null;

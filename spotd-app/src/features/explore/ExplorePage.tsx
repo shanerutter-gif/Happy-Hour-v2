@@ -275,6 +275,7 @@ export default function ExplorePage() {
                     onClick={() => setSelectedVenueId(venue.id)}
                     tier="hero"
                     isFavorite={isFavorite(venue.id)}
+                    onToggleFavorite={() => toggleFavorite(venue.id)}
                   />
                 ))}
               </>
@@ -311,6 +312,7 @@ export default function ExplorePage() {
                     onClick={() => setSelectedVenueId(venue.id)}
                     tier="standard"
                     isFavorite={isFavorite(venue.id)}
+                    onToggleFavorite={() => toggleFavorite(venue.id)}
                   />
                 ))}
               </>

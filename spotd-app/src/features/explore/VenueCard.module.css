@@ -1,4 +1,4 @@
-/* ─── Standard Card ─── */
+/* ─── Standard Card (horizontal row) ─── */
 .card {
   background: var(--card);
   border: none;
@@ -10,83 +10,66 @@
   animation: cardIn 0.3s var(--ease) both;
 }
 .card:active { transform: scale(0.98); box-shadow: var(--clay-pressed); }
-.card:hover { box-shadow: var(--clay-lg); }
 
-.photo {
+.cardRow {
+  display: flex; gap: 12px; padding: 12px;
   position: relative;
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  overflow: hidden;
-}
-.photo img { width: 100%; height: 100%; object-fit: cover; }
-
-.badges {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  display: flex;
-  gap: 6px;
 }
 
-.badgeFire {
-  display: inline-flex; align-items: center; gap: 3px;
-  padding: 4px 9px; border-radius: 50px;
-  font-size: 10px; font-weight: 700;
-  font-family: 'DM Sans', sans-serif;
-  background: rgba(255, 255, 255, 0.92);
-  color: var(--coral);
-  box-shadow: var(--clay-sm);
+.cardThumb {
+  width: 80px; height: 80px; flex-shrink: 0;
+  border-radius: var(--r); overflow: hidden;
+  background: var(--bg2);
+  display: flex; align-items: center; justify-content: center;
 }
+.cardThumb img { width: 100%; height: 100%; object-fit: cover; }
+.thumbPlaceholder { font-size: 28px; }
 
-.badgeToday {
-  display: inline-flex; align-items: center;
-  padding: 4px 9px; border-radius: 50px;
-  font-size: 10px; font-weight: 700;
-  font-family: 'DM Sans', sans-serif;
-  background: rgba(255, 107, 74, 0.92);
-  color: #fff;
-  box-shadow: var(--clay-md);
-}
-
-.body { padding: 14px 16px; }
-
-.header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-}
+.body { flex: 1; min-width: 0; }
 
 .name {
   font-family: 'Cabinet Grotesk', sans-serif;
-  font-weight: 800; font-size: 17px;
+  font-weight: 800; font-size: 16px;
   color: var(--ink); line-height: 1.2;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
-.rating {
+.stdMeta {
   font-family: 'DM Sans', sans-serif;
-  font-size: 13px; font-weight: 700;
-  color: var(--amber); flex-shrink: 0;
-}
-
-.hood {
-  font-family: 'DM Sans', sans-serif;
-  font-size: 9px; text-transform: uppercase;
-  letter-spacing: 1.5px; color: var(--coral);
-  opacity: 0.7; margin-top: 2px;
-}
-
-.deal {
-  font-size: 13px; color: var(--text);
-  margin-top: 6px; line-height: 1.4;
-}
-
-.meta {
-  display: flex; gap: 12px; margin-top: 6px;
   font-size: 11px; color: var(--muted);
+  margin-top: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
-/* ─── Hero Card ─── */
+.dealList {
+  display: flex; flex-direction: column; gap: 1px; margin-top: 5px;
+}
+.dealItem {
+  font-size: 12px; color: var(--text); line-height: 1.4;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.cardBottom {
+  margin-top: 4px;
+}
+.cardFire {
+  font-size: 11px; font-weight: 700; color: var(--coral);
+  font-family: 'DM Sans', sans-serif;
+}
+.cardRating {
+  font-size: 11px; font-weight: 600; color: var(--amber);
+  font-family: 'DM Sans', sans-serif;
+}
+
+.cardFavBtn {
+  position: absolute; top: 12px; right: 12px;
+  background: none; border: none; cursor: pointer;
+  font-size: 20px; color: var(--amber); padding: 2px;
+  transition: transform var(--duration-fast);
+}
+.cardFavBtn:active { transform: scale(1.2); }
+
+/* ─── Hero Card (full-width photo) ─── */
 .hero {
   border-radius: 26px;
   overflow: hidden;
@@ -100,21 +83,49 @@
 .heroPhoto {
   position: relative;
   width: 100%;
-  aspect-ratio: 4 / 3;
+  min-height: 220px;
   overflow: hidden;
 }
-.heroPhoto img { width: 100%; height: 100%; object-fit: cover; }
-
-.heroGradient {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(0deg, rgba(0,0,0,0.65) 0%, transparent 60%);
+.heroPhoto img { width: 100%; height: 100%; object-fit: cover; min-height: 220px; }
+.heroPlaceholder {
+  width: 100%; min-height: 220px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 48px; background: var(--bg2);
 }
 
+.heroGradient {
+  position: absolute; inset: 0;
+  background: linear-gradient(0deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.1) 50%, transparent 70%);
+}
+
+.badges {
+  position: absolute; top: 12px; left: 12px;
+  display: flex; gap: 6px; z-index: 2;
+}
+
+.badgeFire, .badgeSports, .badgeToday {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 4px 10px; border-radius: 50px;
+  font-size: 10px; font-weight: 700;
+  font-family: 'DM Sans', sans-serif;
+  box-shadow: var(--clay-sm);
+}
+.badgeFire { background: rgba(255,255,255,0.92); color: var(--coral); }
+.badgeSports { background: rgba(255,255,255,0.92); color: #2c5edc; }
+.badgeToday { background: rgba(255,107,74,0.92); color: #fff; }
+
+.heroFavBtn {
+  position: absolute; top: 12px; right: 12px; z-index: 2;
+  background: rgba(255,255,255,0.85); border: none; cursor: pointer;
+  font-size: 20px; color: var(--amber); padding: 6px 8px;
+  border-radius: 50%; box-shadow: var(--clay-sm);
+  transition: transform var(--duration-fast);
+}
+.heroFavBtn:active { transform: scale(1.15); }
+
 .heroOverlay {
-  position: absolute;
-  bottom: 0; left: 0; right: 0;
-  padding: 20px;
+  position: absolute; bottom: 0; left: 0; right: 0;
+  padding: 20px; z-index: 2;
 }
 
 .heroName {
@@ -124,20 +135,56 @@
   text-shadow: 0 1px 3px rgba(0,0,0,0.3);
 }
 
-.heroHood {
+.heroMeta {
   font-family: 'DM Sans', sans-serif;
-  font-size: 10px; text-transform: uppercase;
-  letter-spacing: 1.5px;
-  color: rgba(255,255,255,0.8);
+  font-size: 12px; color: rgba(255,255,255,0.8);
   margin-top: 4px;
 }
+.heroRating { color: var(--amber); font-weight: 700; }
 
-.heroDeal {
-  font-size: 13px; color: rgba(255,255,255,0.9);
-  margin-top: 8px; line-height: 1.4;
+.heroDealPills {
+  display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px;
+}
+.dealPill {
+  display: inline-block;
+  padding: 3px 10px; border-radius: 50px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px; font-weight: 600;
+  background: rgba(255,255,255,0.18);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  color: #fff;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 200px;
 }
 
-/* ─── Compact Card ─── */
+.heroGoingBar {
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 10px; padding: 6px 10px;
+  background: rgba(255,255,255,0.15);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border-radius: 50px;
+  width: fit-content;
+}
+.goingAvatars { display: flex; gap: -4px; }
+.goingAvatar {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--coral); color: #fff;
+  font-size: 10px; display: flex; align-items: center; justify-content: center;
+  margin-left: -4px; border: 1.5px solid rgba(255,255,255,0.5);
+}
+.goingAvatar:first-child { margin-left: 0; }
+.goingMore {
+  font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.8);
+  margin-left: 2px;
+}
+.goingLabel {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px; font-weight: 600; color: #fff;
+}
+
+/* ─── Compact Card (2-up grid) ─── */
 .compact {
   background: var(--card);
   border: none;
@@ -145,6 +192,7 @@
   overflow: hidden;
   box-shadow: var(--clay-sm);
   cursor: pointer;
+  position: relative;
   transition: transform var(--duration-fast), box-shadow var(--duration-fast);
   animation: cardIn 0.25s var(--ease) both;
 }
@@ -157,6 +205,11 @@
   overflow: hidden;
 }
 .compactPhoto img { width: 100%; height: 100%; object-fit: cover; }
+.compactPlaceholder {
+  width: 100%; aspect-ratio: 3 / 2;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 32px; background: var(--bg2);
+}
 
 .compactBadge {
   position: absolute; top: 6px; left: 6px;
@@ -166,6 +219,10 @@
   color: var(--coral);
   box-shadow: var(--clay-sm);
 }
+.compactSportsBadge {
+  position: absolute; top: 6px; right: 6px;
+  font-size: 14px;
+}
 
 .compactBody { padding: 10px 12px 12px; }
 
@@ -173,25 +230,45 @@
   font-family: 'Cabinet Grotesk', sans-serif;
   font-weight: 800; font-size: 14px;
   color: var(--ink); line-height: 1.2;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
-.badgeFav {
-  display: inline-flex; align-items: center;
-  padding: 4px 7px; border-radius: 50px;
-  font-size: 11px; font-weight: 700;
-  background: rgba(255, 255, 255, 0.92);
-  color: var(--amber);
-  box-shadow: var(--clay-sm);
-}
-
-.favStar {
-  color: var(--amber); font-size: 12px;
+.hood {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 9px; text-transform: uppercase;
+  letter-spacing: 1.5px; color: var(--coral);
+  opacity: 0.7; margin-top: 2px;
 }
 
 .compactMeta {
   display: flex; align-items: center; gap: 6px;
-  margin-top: 2px;
+  margin-top: 3px;
 }
+
+.rating {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px; font-weight: 700;
+  color: var(--amber);
+}
+
+.compactFire {
+  font-size: 10px; color: var(--coral); font-weight: 600;
+}
+
+.compactDeal {
+  font-size: 11px; color: var(--muted); margin-top: 3px;
+  line-height: 1.3;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.compactFavBtn {
+  position: absolute; top: 8px; right: 8px; z-index: 2;
+  background: rgba(255,255,255,0.85); border: none; cursor: pointer;
+  font-size: 16px; color: var(--amber); padding: 4px 5px;
+  border-radius: 50%; box-shadow: var(--clay-sm);
+  transition: transform var(--duration-fast);
+}
+.compactFavBtn:active { transform: scale(1.15); }
 
 @keyframes cardIn {
   from { opacity: 0; transform: translateY(12px); }

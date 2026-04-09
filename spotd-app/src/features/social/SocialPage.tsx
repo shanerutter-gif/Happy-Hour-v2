@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sheet } from '../../components/ui/Sheet';
 import { Lightbox } from '../../components/ui/Lightbox';
@@ -37,6 +37,27 @@ interface Comment {
 }
 
 type SocialTab = 'following' | 'public';
+
+function AutoPlayVideo({ src, className }: { src: string; className?: string }) {
+  const ref = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          el.play().catch(() => {});
+        } else {
+          el.pause();
+        }
+      },
+      { threshold: 0.5 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  return <video ref={ref} src={src} className={className} loop muted playsInline preload="metadata" />;
+}
 
 export default function SocialPage() {
   const navigate = useNavigate();
@@ -304,6 +325,8 @@ export default function SocialPage() {
   const initials = (name: string) =>
     name ? name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) : '?';
 
+  const isVideo = (url: string | null) => url && /\.(mp4|webm|mov)(\?|$)/i.test(url);
+
   // Filter based on active sub-tab
   const filtered = activeTab === 'following'
     ? items.filter(i => i.isFollowing)
@@ -342,8 +365,12 @@ export default function SocialPage() {
     if (variant === 'hero' && item.photo_url) {
       return (
         <div key={item.id} className={styles.sfHero}>
-          <div className={styles.sfHeroMedia} onClick={() => setLightboxSrc(item.photo_url)}>
-            <img className={styles.sfHeroImg} src={item.photo_url} alt={venueName} loading="lazy" />
+          <div className={styles.sfHeroMedia} onClick={() => !isVideo(item.photo_url) && setLightboxSrc(item.photo_url)}>
+            {isVideo(item.photo_url) ? (
+              <AutoPlayVideo src={item.photo_url!} className={styles.sfHeroImg} />
+            ) : (
+              <img className={styles.sfHeroImg} src={item.photo_url} alt={venueName} loading="lazy" />
+            )}
             <div className={styles.sfHeroGrad} />
           </div>
           <div className={styles.sfHeroInfo}>
@@ -495,6 +522,9 @@ export default function SocialPage() {
           </button>
           <button className={styles.headerBtn} onClick={() => navigate('/notifications')} title="Notifications">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>
+          </button>
+          <button className={styles.headerBtn} onClick={() => navigate('/?addspot=1')} title="Add a spot">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
           </button>
           <button className={styles.headerBtn} onClick={() => loadFeed()} title="Refresh">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" /></svg>

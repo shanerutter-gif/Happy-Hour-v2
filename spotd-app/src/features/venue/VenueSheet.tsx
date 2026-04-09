@@ -481,6 +481,23 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
           </div>
         )}
 
+        {/* Promo Code */}
+        {venue.promo_code && (
+          <div className={styles.promoBox}>
+            <div className={styles.promoInner} onClick={() => {
+              navigator.clipboard.writeText(venue.promo_code!);
+              showToast({ text: 'Promo code copied!', type: 'success' });
+            }}>
+              <div>
+                <span className={styles.promoLabel}>Promo Code</span>
+                <span className={styles.promoCode}>{venue.promo_code}</span>
+                {venue.promo_description && <span className={styles.promoDesc}>{venue.promo_description}</span>}
+              </div>
+              <span className={styles.promoCopy}>📋 Copy</span>
+            </div>
+          </div>
+        )}
+
         {/* Amenity Tags */}
         {venue.amenities && venue.amenities.length > 0 && (
           <div className={styles.section}>
@@ -603,6 +620,23 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
         </div>
 
         <div className={styles.divider} />
+
+        {/* Rating Summary */}
+        {(venue.avg_rating || venue.yelp_rating || reviews.length > 0) && (() => {
+          const avgRating = reviews.length > 0
+            ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
+            : (venue.avg_rating || venue.yelp_rating || 0);
+          const totalReviews = (venue.review_count || 0) + reviews.length;
+          return (
+            <div className={styles.ratingSummary}>
+              <span className={styles.ratingBig}>{avgRating.toFixed(1)}</span>
+              <div className={styles.ratingRight}>
+                <span className={styles.ratingStars}>{'★'.repeat(Math.round(avgRating))}{'☆'.repeat(5 - Math.round(avgRating))}</span>
+                <span className={styles.ratingCount}>{totalReviews} review{totalReviews !== 1 ? 's' : ''}</span>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Reviews */}
         <div className={styles.section}>

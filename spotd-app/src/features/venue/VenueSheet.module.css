@@ -96,6 +96,52 @@
 .amenity_karaoke { background: #fceef4; color: #c24080; border-color: rgba(194,64,128,0.2); }
 .amenity_comedy { background: #fef8ec; color: #c08c30; border-color: rgba(192,140,48,0.2); }
 
+/* Promo code */
+.promoBox {
+  margin: 10px 0; padding: 0;
+}
+.promoInner {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px; border-radius: var(--r);
+  background: linear-gradient(135deg, rgba(255,107,74,0.08), rgba(232,148,58,0.08));
+  border: 1px dashed var(--coral);
+  cursor: pointer;
+  transition: transform var(--duration-fast);
+}
+.promoInner:active { transform: scale(0.98); }
+.promoLabel {
+  display: block; font-size: 9px; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--muted); margin-bottom: 2px;
+}
+.promoCode {
+  display: block; font-family: 'DM Mono', 'Cabinet Grotesk', monospace;
+  font-size: 18px; font-weight: 800; color: var(--coral);
+  letter-spacing: 2px;
+}
+.promoDesc {
+  display: block; font-size: 11px; color: var(--muted); margin-top: 2px;
+}
+.promoCopy {
+  font-size: 12px; font-weight: 600; color: var(--coral);
+  white-space: nowrap;
+}
+
+/* Rating summary */
+.ratingSummary {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 12px; padding: 12px;
+  background: var(--bg); border-radius: var(--r);
+  box-shadow: var(--clay-sm);
+}
+.ratingBig {
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-weight: 800; font-size: 36px; color: var(--ink);
+  line-height: 1;
+}
+.ratingRight { display: flex; flex-direction: column; gap: 2px; }
+.ratingStars { color: var(--amber); font-size: 16px; letter-spacing: 1px; }
+.ratingCount { font-size: 11px; color: var(--muted); }
+
 .goingWrap { margin: 16px 0 4px; text-align: center; }
 .goingBtn { border-radius: 50px !important; }
 .checkInCount {

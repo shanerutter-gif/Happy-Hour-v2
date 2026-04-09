@@ -21,6 +21,12 @@ interface Message {
   created_at: string;
 }
 
+interface Contact {
+  id: string;
+  display_name: string;
+  avatar_url: string | null;
+}
+
 export default function DmsPage() {
   const { threadId } = useParams();
   const navigate = useNavigate();
@@ -31,6 +37,9 @@ export default function DmsPage() {
   const [loading, setLoading] = useState(true);
   const messagesEnd = useRef<HTMLDivElement>(null);
   const subscriptionRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const [showPicker, setShowPicker] = useState(false);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [pickerLoading, setPickerLoading] = useState(false);
 
   const loadThreads = useCallback(async () => {
     if (!user) return;
@@ -135,6 +144,54 @@ export default function DmsPage() {
     // Don't manually reload — realtime will pick up the insert
   };
 
+  const openNewMessage = async () => {
+    if (!user) return;
+    setShowPicker(true);
+    setPickerLoading(true);
+    const { data: follows } = await supabase
+      .from('user_follows')
+      .select('following_id')
+      .eq('follower_id', user.id);
+    const ids = (follows || []).map((f: { following_id: string }) => f.following_id);
+    if (ids.length) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, display_name, avatar_url')
+        .in('id', ids);
+      setContacts((profiles || []) as Contact[]);
+    } else {
+      setContacts([]);
+    }
+    setPickerLoading(false);
+  };
+
+  const startConversation = async (contactId: string) => {
+    if (!user) return;
+    // Check for existing thread
+    const { data: existing } = await supabase
+      .from('dm_threads')
+      .select('*')
+      .contains('participants', [user.id, contactId]);
+    const found = (existing || []).find(
+      (t: { participants: string[] }) => t.participants.includes(user.id) && t.participants.includes(contactId)
+    );
+    if (found) {
+      setShowPicker(false);
+      navigate(`/dms/${found.id}`);
+      return;
+    }
+    // Create new thread
+    const { data: newThread } = await supabase
+      .from('dm_threads')
+      .insert({ participants: [user.id, contactId] })
+      .select('id')
+      .single();
+    if (newThread) {
+      setShowPicker(false);
+      navigate(`/dms/${newThread.id}`);
+    }
+  };
+
   const timeAgo = (date: string | null) => {
     if (!date) return '';
     const diff = Date.now() - new Date(date).getTime();
@@ -199,7 +256,38 @@ export default function DmsPage() {
     <div className={styles.page}>
       <div className={styles.header}>
         <h1 className={styles.title}>Messages</h1>
+        <button className={styles.newBtn} onClick={openNewMessage}>+</button>
       </div>
+
+      {/* New message picker */}
+      {showPicker && (
+        <div className={styles.picker}>
+          <div className={styles.pickerHeader}>
+            <button className={styles.pickerBack} onClick={() => setShowPicker(false)}>←</button>
+            <span>New Message</span>
+          </div>
+          <div className={styles.pickerList}>
+            {pickerLoading ? (
+              <div className={styles.empty}><p>Loading...</p></div>
+            ) : contacts.length === 0 ? (
+              <div className={styles.empty}><p>Follow people to message them</p></div>
+            ) : (
+              contacts.map(c => (
+                <button key={c.id} className={styles.pickerRow} onClick={() => startConversation(c.id)}>
+                  <div className={styles.threadAvatar}>
+                    {c.avatar_url ? (
+                      <img src={c.avatar_url} alt="" />
+                    ) : (
+                      <span>{(c.display_name || 'U').slice(0, 2).toUpperCase()}</span>
+                    )}
+                  </div>
+                  <span className={styles.pickerName}>{c.display_name}</span>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
       <div className={styles.list}>
         {loading ? (
           Array.from({ length: 4 }).map((_, i) => (
