@@ -196,42 +196,38 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Deep-link: /list/<uuid> opens list detail directly (used by shared list links)
-  const listMatch = window.location.pathname.match(/^\/list\/([a-zA-Z0-9-]+)/);
+  // Deep-link: /?list=<uuid> opens list detail directly (used by shared list links)
+  const deepParams = new URLSearchParams(window.location.search);
+  const listId = deepParams.get('list');
+  const spotId = deepParams.get('spot');
 
   // Auto-enter last city (or default San Diego) if user is signed in
   if (currentUser) {
     const lastSlug = localStorage.getItem('spotd-last-city') || 'san-diego';
     const city = CITIES.find(c => c.slug === lastSlug && c.active) || CITIES[0];
     enterCity(city.slug, city.name, city.state_code).then(() => {
-      if (listMatch) {
+      if (listId) {
         window.history.replaceState({}, document.title, '/');
-        openListDetail(listMatch[1]);
-      } else {
+        openListDetail(listId);
+      } else if (spotId) {
         // Deep-link: /?spot=<uuid> opens venue modal directly (used by SEO venue pages)
-        const spotId = new URLSearchParams(window.location.search).get('spot');
-        if (spotId) {
-          window.history.replaceState({}, document.title, window.location.pathname);
-          openModal(spotId, 'venue');
-        }
+        window.history.replaceState({}, document.title, window.location.pathname);
+        openModal(spotId, 'venue');
       }
     });
   } else {
     const city = CITIES[0];
-    if (listMatch) {
+    if (listId) {
       enterCity(city.slug, city.name, city.state_code).then(() => {
         window.history.replaceState({}, document.title, '/');
-        openListDetail(listMatch[1]);
+        openListDetail(listId);
       });
-    } else {
+    } else if (spotId) {
       // Guest deep-link: enter default city then open modal
-      const spotId = new URLSearchParams(window.location.search).get('spot');
-      if (spotId) {
-        enterCity(city.slug, city.name, city.state_code).then(() => {
-          window.history.replaceState({}, document.title, window.location.pathname);
-          openModal(spotId, 'venue');
-        });
-      }
+      enterCity(city.slug, city.name, city.state_code).then(() => {
+        window.history.replaceState({}, document.title, window.location.pathname);
+        openModal(spotId, 'venue');
+      });
     }
   }
 });
@@ -5729,7 +5725,7 @@ async function doRemoveFromList(listId, venueId, btn) {
 }
 
 function shareList(listId, title) {
-  var url = window.location.origin + '/list/' + listId;
+  var url = window.location.origin + '/?list=' + listId;
   if (navigator.share) {
     navigator.share({ title: title + ' \u2014 Spotd', url: url }).catch(function() {});
   } else {
