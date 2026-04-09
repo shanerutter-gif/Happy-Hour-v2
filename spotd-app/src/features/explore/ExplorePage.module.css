@@ -183,3 +183,94 @@
   color: var(--muted);
   opacity: 0.7;
 }
+
+/* HH / Events toggle */
+.viewToggle {
+  display: flex;
+  gap: 4px;
+  padding: 0 16px 4px;
+  background: var(--bg2);
+  margin: 0 16px;
+  border-radius: 12px;
+  padding: 3px;
+}
+
+.viewTab {
+  flex: 1;
+  padding: 10px;
+  background: none;
+  border: none;
+  border-radius: 10px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all var(--duration-fast);
+  text-align: center;
+}
+
+.viewTabActive {
+  background: var(--card);
+  color: var(--text);
+  box-shadow: var(--clay-sm);
+}
+
+/* Venue request form */
+.requestForm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px;
+  margin: 0 16px 8px;
+  background: var(--bg);
+  border-radius: var(--r);
+  box-shadow: var(--clay-input);
+}
+
+.requestInput {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--card);
+  border: none;
+  border-radius: var(--r-sm);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  color: var(--text);
+  outline: none;
+  box-shadow: var(--clay-input);
+}
+.requestInput:focus { box-shadow: var(--ring), var(--clay-sm); }
+
+.requestActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.requestCancel {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 8px 12px;
+}
+
+.requestSubmit {
+  background: var(--coral);
+  color: #fff;
+  border: none;
+  border-radius: var(--r-sm);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 8px 16px;
+  box-shadow: var(--clay-sm);
+  transition: transform var(--duration-fast);
+}
+.requestSubmit:active { transform: scale(0.96); }
+.requestSubmit:disabled { opacity: 0.5; }

@@ -83,6 +83,7 @@ export interface Venue {
   amenities: string[];
   photo_url: string | null;
   photo_urls: string[] | null;
+  url: string | null;
   yelp_url: string | null;
   yelp_rating: number | null;
   google_rating: number | null;
@@ -93,7 +94,18 @@ export interface Venue {
   claimed: boolean;
   featured: boolean;
   is_hero: boolean;
+  promo_code: string | null;
+  promo_description: string | null;
+  has_happy_hour?: boolean;
+  has_sports_tv?: boolean;
+  is_dog_friendly?: boolean;
+  has_live_music?: boolean;
+  has_karaoke?: boolean;
+  has_trivia?: boolean;
+  has_bingo?: boolean;
+  has_comedy?: boolean;
   created_at: string;
+  [key: string]: unknown;
 }
 
 export interface Profile {

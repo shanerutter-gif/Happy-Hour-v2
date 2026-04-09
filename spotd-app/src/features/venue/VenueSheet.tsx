@@ -12,6 +12,11 @@ import { showToast } from '../../components/ui/Toast';
 import type { Venue, Review, VenueDescription } from '../../types/database';
 import styles from './VenueSheet.module.css';
 
+const AMENITY_ICONS: Record<string, string> = {
+  patio: '🌿', dog: '🐕', sports: '🏈', rooftop: '🏙️',
+  live_music: '🎵', trivia: '🧠', karaoke: '🎤', comedy: '😂',
+};
+
 interface Props {
   venue: Venue;
   open: boolean;
@@ -49,6 +54,13 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
   const [venuePhotos, setVenuePhotos] = useState<{ id: string; photo_url: string; caption: string | null }[]>([]);
   // Push prompt
   const [showPushPrompt, setShowPushPrompt] = useState(false);
+  // Going tonight avatars
+  const [goingAvatars, setGoingAvatars] = useState<{ user_id: string; display_name: string; avatar_url: string | null; avatar_emoji: string | null }[]>([]);
+  // Add-to-list state
+  const [showListPicker, setShowListPicker] = useState(false);
+  const [userLists, setUserLists] = useState<{ id: string; title: string; cover_emoji: string; hasVenue: boolean }[]>([]);
+  // Daily check-in count
+  const [todayCheckInCount, setTodayCheckInCount] = useState(0);
   // Admin edit state
   const [showAdminEdit, setShowAdminEdit] = useState(false);
   const [adminFields, setAdminFields] = useState({
@@ -125,20 +137,73 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
     setVenuePhotos((data || []) as { id: string; photo_url: string; caption: string | null }[]);
   }, [venue.id]);
 
+  const loadTodayCheckIns = useCallback(async () => {
+    if (!user) return;
+    const { count } = await supabase
+      .from('check_ins')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .gte('created_at', today + 'T00:00:00');
+    setTodayCheckInCount(count || 0);
+  }, [user, today]);
+
+  const loadGoingAvatars = useCallback(async () => {
+    const { data } = await supabase
+      .from('check_ins')
+      .select('user_id')
+      .eq('venue_id', venue.id)
+      .gte('created_at', today + 'T00:00:00');
+    const userIds = [...new Set((data || []).map((r: { user_id: string }) => r.user_id))];
+    if (userIds.length) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, display_name, avatar_url, avatar_emoji')
+        .in('id', userIds);
+      setGoingAvatars((profiles || []).map((p: { id: string; display_name: string; avatar_url: string | null; avatar_emoji: string | null }) => ({
+        user_id: p.id, display_name: p.display_name, avatar_url: p.avatar_url, avatar_emoji: p.avatar_emoji,
+      })));
+    } else {
+      setGoingAvatars([]);
+    }
+  }, [venue.id, today]);
+
+  const loadUserLists = useCallback(async () => {
+    if (!user) return;
+    const { data: lists } = await supabase
+      .from('user_lists')
+      .select('id, title, cover_emoji')
+      .eq('user_id', user.id)
+      .order('updated_at', { ascending: false });
+    if (!lists?.length) { setUserLists([]); return; }
+    const listIds = lists.map((l: { id: string }) => l.id);
+    const { data: items } = await supabase
+      .from('list_items')
+      .select('list_id')
+      .eq('venue_id', venue.id)
+      .in('list_id', listIds);
+    const hasVenueSet = new Set((items || []).map((i: { list_id: string }) => i.list_id));
+    setUserLists(lists.map((l: { id: string; title: string; cover_emoji: string }) => ({
+      ...l, hasVenue: hasVenueSet.has(l.id),
+    })));
+  }, [user, venue.id]);
+
   useEffect(() => {
     if (open) {
       loadReviews();
+      loadTodayCheckIns();
       checkGoing();
       loadGoingCount();
+      loadGoingAvatars();
       loadDescriptions();
       checkVenueFollow();
       loadVenuePhotos();
+      loadUserLists();
       setShowReviewForm(false);
       setEditingReview(null);
       setReviewRating(0);
       setReviewText('');
     }
-  }, [open, loadReviews, checkGoing, loadGoingCount, loadDescriptions, checkVenueFollow, loadVenuePhotos]);
+  }, [open, loadReviews, checkGoing, loadGoingCount, loadGoingAvatars, loadDescriptions, checkVenueFollow, loadVenuePhotos, loadTodayCheckIns, loadUserLists]);
 
   const handleCheckIn = async () => {
     if (!user) {
@@ -156,11 +221,26 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
       setGoingCount((c) => Math.max(0, c - 1));
       showToast({ text: 'Check-in removed' });
     } else {
+      if (todayCheckInCount >= 5) {
+        showToast({ text: 'Daily limit reached (5/day)', type: 'error' });
+        return;
+      }
       await supabase
         .from('check_ins')
         .insert({ venue_id: venue.id, user_id: user.id, city_slug: venue.city_slug });
+      // Log to activity_feed for social feed
+      await supabase.from('activity_feed').insert({
+        user_id: user.id,
+        activity_type: 'check_in',
+        venue_id: venue.id,
+        venue_name: venue.name,
+        neighborhood: venue.neighborhood,
+        city_slug: venue.city_slug,
+      });
       setIsGoing(true);
       setGoingCount((c) => c + 1);
+      setTodayCheckInCount((c) => c + 1);
+      loadGoingAvatars();
       showToast({ text: `Checked in to ${venue.name}!`, type: 'success' });
       // Prompt for push after first check-in
       if (!localStorage.getItem('pushBannerDismissed') && 'Notification' in window && Notification.permission === 'default') {
@@ -210,11 +290,11 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
   const submitDescription = async () => {
     if (!user || !descText.trim()) return;
     setSubmittingDesc(true);
-    await supabase.from('venue_descriptions').insert({
+    await supabase.from('venue_descriptions').upsert({
       venue_id: venue.id,
       user_id: user.id,
       description_text: descText.trim(),
-    });
+    }, { onConflict: 'user_id,venue_id' });
     setDescText('');
     setShowDescForm(false);
     setSubmittingDesc(false);
@@ -233,6 +313,18 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
       setFollowingVenue(true);
       showToast({ text: 'Following — you\'ll get updates!', type: 'success' });
     }
+  };
+
+  // --- Add to List ---
+  const toggleListItem = async (listId: string, hasVenue: boolean) => {
+    if (!user) return;
+    if (hasVenue) {
+      await supabase.from('list_items').delete().eq('list_id', listId).eq('venue_id', venue.id);
+    } else {
+      await supabase.from('list_items').insert({ list_id: listId, venue_id: venue.id });
+    }
+    setUserLists(prev => prev.map(l => l.id === listId ? { ...l, hasVenue: !hasVenue } : l));
+    showToast({ text: hasVenue ? 'Removed from list' : 'Added to list!', type: 'success' });
   };
 
   // --- Share via DM ---
@@ -378,6 +470,16 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
         rating: reviewRating,
         text: reviewText.trim(),
       });
+      // Log to activity_feed
+      await supabase.from('activity_feed').insert({
+        user_id: user.id,
+        activity_type: 'review',
+        venue_id: venue.id,
+        venue_name: venue.name,
+        neighborhood: venue.neighborhood,
+        city_slug: venue.city_slug,
+        meta: { rating: reviewRating, note: reviewText.trim() },
+      });
       showToast({ text: 'Review posted!', type: 'success' });
     }
     setSubmittingReview(false);
@@ -404,6 +506,14 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
   return (
     <Sheet open={open} onClose={onClose}>
       <div className={styles.content}>
+        {/* Photo hero */}
+        {venue.photo_url && (
+          <div className={styles.photoHero}>
+            <img src={venue.photo_url} alt={venue.name} className={styles.photoHeroImg} />
+            <div className={styles.photoHeroGrad} />
+          </div>
+        )}
+
         {/* Tag + Favorite */}
         <div className={styles.topRow}>
           <span className={styles.tag}>
@@ -450,23 +560,78 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
           </div>
         )}
 
+        {/* Promo Code */}
+        {venue.promo_code && (
+          <div className={styles.promoBox}>
+            <div className={styles.promoInner} onClick={() => {
+              navigator.clipboard.writeText(venue.promo_code!);
+              showToast({ text: 'Promo code copied!', type: 'success' });
+            }}>
+              <div>
+                <span className={styles.promoLabel}>Promo Code</span>
+                <span className={styles.promoCode}>{venue.promo_code}</span>
+                {venue.promo_description && <span className={styles.promoDesc}>{venue.promo_description}</span>}
+              </div>
+              <span className={styles.promoCopy}>📋 Copy</span>
+            </div>
+          </div>
+        )}
+
+        {/* Amenity Tags */}
+        {venue.amenities && venue.amenities.length > 0 && (
+          <div className={styles.section}>
+            <div className={styles.amenityTags}>
+              {venue.amenities.map((a) => (
+                <span key={a} className={[styles.amenityTag, styles[`amenity_${a.replace(/\s+/g, '_').toLowerCase()}`]].filter(Boolean).join(' ')}>
+                  {AMENITY_ICONS[a] || '✦'} {a}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className={styles.divider} />
 
         {/* Going button */}
         <div className={styles.goingWrap}>
           <Button
-            variant={isGoing ? 'secondary' : 'primary'}
+            variant={isGoing ? 'secondary' : todayCheckInCount >= 5 ? 'ghost' : 'primary'}
             fullWidth
             size="lg"
             onClick={handleCheckIn}
             className={styles.goingBtn}
+            disabled={!isGoing && todayCheckInCount >= 5}
           >
-            {isGoing ? '✓ Going Tonight' : `I'm Going${goingCount > 0 ? ` · ${goingCount} going` : ''}`}
+            {isGoing ? '✓ Going Tonight' : todayCheckInCount >= 5 ? 'Daily Limit Reached' : `I'm Going${goingCount > 0 ? ` · ${goingCount} going` : ''}`}
           </Button>
+          {user && <span className={styles.checkInCount}>{todayCheckInCount}/5 check-ins today</span>}
+          {goingAvatars.length > 0 && (
+            <div className={styles.goingAvatars}>
+              {goingAvatars.slice(0, 8).map((a) => (
+                <span key={a.user_id} className={styles.goingAvatar} title={a.display_name}>
+                  {a.avatar_url ? (
+                    <img src={a.avatar_url} alt="" />
+                  ) : (
+                    <span>{a.avatar_emoji || (a.display_name || '?').slice(0, 1).toUpperCase()}</span>
+                  )}
+                </span>
+              ))}
+              {goingAvatars.length > 8 && <span className={styles.goingMore}>+{goingAvatars.length - 8}</span>}
+            </div>
+          )}
         </div>
 
         {/* Actions */}
         <div className={styles.actions}>
+          <button className={[styles.action, styles.actionPrimary].filter(Boolean).join(' ')} onClick={() => {
+            const url = venue.url && venue.url !== '#' && venue.url.trim()
+              ? venue.url
+              : `https://www.google.com/search?q=${encodeURIComponent(venue.name + ' ' + (venue.neighborhood || ''))}`;
+            window.open(url, '_blank');
+          }}>
+            <span className={styles.actionIcon}>🌐</span>
+            <span>Website</span>
+          </button>
           <button className={styles.action} onClick={handleDirections}>
             <span className={styles.actionIcon}>📍</span>
             <span>Directions</span>
@@ -475,15 +640,38 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
             <span className={styles.actionIcon}>📤</span>
             <span>Share</span>
           </button>
+          <button className={styles.action} onClick={openSharePicker}>
+            <span className={styles.actionIcon}>✈️</span>
+            <span>Send</span>
+          </button>
           <button className={styles.action} onClick={onToggleFavorite || (() => {})}>
             <span className={styles.actionIcon}>{isFavorite ? '★' : '☆'}</span>
             <span>Save</span>
           </button>
-          <button className={styles.action} onClick={toggleVenueFollow}>
-            <span className={styles.actionIcon}>{followingVenue ? '🔔' : '🔕'}</span>
-            <span>{followingVenue ? 'Following' : 'Follow'}</span>
-          </button>
         </div>
+
+        {/* Add to List picker */}
+        {showListPicker && user && (
+          <div className={styles.sharePicker}>
+            <span className={styles.label}>Add to list</span>
+            {userLists.length === 0 ? (
+              <p className={styles.noReviews}>No lists yet — create one from your profile</p>
+            ) : (
+              userLists.map((l) => (
+                <button
+                  key={l.id}
+                  className={styles.contactRow}
+                  onClick={() => toggleListItem(l.id, l.hasVenue)}
+                >
+                  <span className={styles.contactAvatar}>{l.cover_emoji || '📋'}</span>
+                  <span className={styles.contactName}>{l.title}</span>
+                  <span className={styles.sendIcon}>{l.hasVenue ? '✓' : '+'}</span>
+                </button>
+              ))
+            )}
+            <Button size="sm" variant="ghost" onClick={() => setShowListPicker(false)}>Close</Button>
+          </div>
+        )}
 
         {/* Photos */}
         <div className={styles.section}>
@@ -548,6 +736,23 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
         </div>
 
         <div className={styles.divider} />
+
+        {/* Rating Summary */}
+        {(venue.avg_rating || venue.yelp_rating || reviews.length > 0) && (() => {
+          const avgRating = reviews.length > 0
+            ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
+            : (venue.avg_rating || venue.yelp_rating || 0);
+          const totalReviews = (venue.review_count || 0) + reviews.length;
+          return (
+            <div className={styles.ratingSummary}>
+              <span className={styles.ratingBig}>{avgRating.toFixed(1)}</span>
+              <div className={styles.ratingRight}>
+                <span className={styles.ratingStars}>{'★'.repeat(Math.round(avgRating))}{'☆'.repeat(5 - Math.round(avgRating))}</span>
+                <span className={styles.ratingCount}>{totalReviews} review{totalReviews !== 1 ? 's' : ''}</span>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Reviews */}
         <div className={styles.section}>
@@ -621,11 +826,16 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
 
         <div className={styles.divider} />
 
-        {/* Send to friend + Report */}
+        {/* Send to friend + Add to List + Report */}
         <div className={styles.section}>
           {user && (
             <button className={styles.addDescBtn} onClick={openSharePicker}>
               💬 Send to a friend
+            </button>
+          )}
+          {user && (
+            <button className={styles.addDescBtn} onClick={() => setShowListPicker(!showListPicker)}>
+              📋 Add to a list
             </button>
           )}
           {user && (

@@ -69,25 +69,31 @@ export default function SocialPage() {
     const followSet = new Set(followingIds);
 
     // Fetch from 3 tables in parallel (matches legacy fetchSocialFeed)
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const todayStr = new Date().toISOString().slice(0, 10);
     const [photosRes, activityRes, checkInsRes] = await Promise.all([
       supabase
         .from('checkin_photos')
         .select('id, user_id, venue_id, venue_name, neighborhood, caption, photo_url, created_at')
         .eq('city_slug', citySlug)
+        .gte('created_at', thirtyDaysAgo)
         .order('created_at', { ascending: false })
         .limit(60),
       supabase
         .from('activity_feed')
         .select('id, user_id, activity_type, venue_id, venue_name, neighborhood, meta, created_at')
         .eq('city_slug', citySlug)
+        .in('activity_type', ['check_in', 'review', 'favorite', 'tagged_at'])
+        .gte('created_at', thirtyDaysAgo)
         .order('created_at', { ascending: false })
         .limit(60),
       supabase
         .from('check_ins')
         .select('id, user_id, venue_id, venue_name, neighborhood, date, created_at')
         .eq('city_slug', citySlug)
+        .eq('date', todayStr)
         .order('created_at', { ascending: false })
-        .limit(60),
+        .limit(40),
     ]);
 
     const photos = photosRes.data || [];
