@@ -81,6 +81,8 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
   const [savingAdmin, setSavingAdmin] = useState(false);
   // Photo lightbox
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
+  // Events at this venue
+  const [venueEvents, setVenueEvents] = useState<{ id: string; name: string; event_type: string; days: string[]; hours: string; price: string; description: string }[]>([]);
 
   const ADMIN_EMAILS = ['shanerutter@gmail.com'];
   const isAdmin = user && ADMIN_EMAILS.includes(user.email || '');
@@ -201,6 +203,16 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
     })));
   }, [user, venue.id]);
 
+  const loadVenueEvents = useCallback(async () => {
+    if (!venue.name) return;
+    const { data } = await supabase
+      .from('venues')
+      .select('id, name, event_type, days, hours, price, description')
+      .ilike('venue_name', venue.name.trim())
+      .not('event_type', 'is', null);
+    setVenueEvents((data || []) as typeof venueEvents);
+  }, [venue.name]);
+
   useEffect(() => {
     if (open) {
       loadReviews();
@@ -212,12 +224,13 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
       checkVenueFollow();
       loadVenuePhotos();
       loadUserLists();
+      loadVenueEvents();
       setShowReviewForm(false);
       setEditingReview(null);
       setReviewRating(0);
       setReviewText('');
     }
-  }, [open, loadReviews, checkGoing, loadGoingCount, loadGoingAvatars, loadDescriptions, checkVenueFollow, loadVenuePhotos, loadTodayCheckIns, loadUserLists]);
+  }, [open, loadReviews, checkGoing, loadGoingCount, loadGoingAvatars, loadDescriptions, checkVenueFollow, loadVenuePhotos, loadTodayCheckIns, loadUserLists, loadVenueEvents]);
 
   // Load following list for tag-friends overlay
   const loadTagFriends = useCallback(async () => {
@@ -724,6 +737,34 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
               ))}
             </div>
           </div>
+        )}
+
+        {/* Events at this venue */}
+        {venueEvents.length > 0 && (
+          <>
+            <div className={styles.divider} />
+            <div className={styles.section}>
+              <span className={styles.label}>Events at this venue</span>
+              <div className={styles.venueEventsList}>
+                {venueEvents.map((ev) => {
+                  const evToday = (ev.days || []).some((d: string) => d.toLowerCase() === todayDay);
+                  return (
+                    <div key={ev.id} className={styles.venueEventItem}>
+                      <div className={styles.venueEventTop}>
+                        <span className={styles.venueEventName}>{ev.name || ev.event_type}</span>
+                        <span className={styles.venueEventType}>{ev.event_type || ''}</span>
+                        {evToday && <span className={styles.venueEventTonight}>TONIGHT</span>}
+                      </div>
+                      <div className={styles.venueEventMeta}>
+                        {(ev.days || []).join(', ')} · {ev.hours || ''}{ev.price && ev.price !== 'Free' ? ` · ${ev.price}` : ' · Free'}
+                      </div>
+                      {ev.description && <div className={styles.venueEventDesc}>{ev.description}</div>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </>
         )}
 
         <div className={styles.divider} />
