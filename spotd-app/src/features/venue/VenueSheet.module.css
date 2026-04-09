@@ -399,6 +399,37 @@
 }
 .adminInput:focus { box-shadow: var(--ring), var(--clay-sm); }
 
+/* Days picker */
+.daysPicker {
+  display: flex; flex-wrap: wrap; gap: 6px;
+}
+.dayBtn {
+  padding: 6px 12px; border-radius: 6px;
+  font-size: 12px; font-weight: 600;
+  cursor: pointer; border: 1px solid var(--border);
+  background: var(--bg); color: var(--muted);
+  font-family: 'DM Sans', sans-serif;
+  transition: all 0.15s;
+}
+.dayBtnSel {
+  background: rgba(255, 107, 74, 0.12);
+  color: var(--coral); border-color: rgba(255, 107, 74, 0.35);
+}
+
+/* Admin checkboxes grid */
+.adminChecks {
+  display: flex; flex-wrap: wrap; gap: 6px 14px;
+}
+.adminCheck {
+  display: flex; align-items: center; gap: 6px;
+  cursor: pointer; font-size: 13px; color: var(--text);
+  white-space: nowrap; font-family: 'DM Sans', sans-serif;
+}
+.adminCheck input[type="checkbox"] {
+  width: 16px; height: 16px; accent-color: var(--coral);
+  flex-shrink: 0;
+}
+
 /* Tag friends overlay */
 .tagOverlay {
   padding: 16px; margin-top: 12px;

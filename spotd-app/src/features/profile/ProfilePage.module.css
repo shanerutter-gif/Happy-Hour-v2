@@ -462,6 +462,35 @@
   width: 20px; height: 20px; accent-color: var(--coral);
 }
 
+/* Feedback form */
+.feedbackSection {
+  display: flex; flex-direction: column; gap: 8px;
+  margin-top: 20px; padding-top: 16px;
+  border-top: 1px solid var(--border2);
+}
+.feedbackSubmitBtn {
+  width: 100%; padding: 12px;
+  background: linear-gradient(135deg, var(--teal), var(--amber));
+  color: #fff; border: none; border-radius: var(--r);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px; font-weight: 600;
+  cursor: pointer; box-shadow: var(--clay-md);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.feedbackSubmitBtn:active {
+  transform: scale(0.95);
+  box-shadow: var(--clay-pressed);
+}
+.feedbackSubmitBtn:disabled {
+  opacity: 0.6; cursor: default;
+}
+.feedbackEmail {
+  font-size: 13px; color: var(--muted); text-align: center;
+}
+.feedbackEmail a {
+  color: var(--coral); font-weight: 600; text-decoration: none;
+}
+
 .deleteAccountBtn {
   display: block; width: 100%; margin-top: 12px;
   background: none; border: none;
