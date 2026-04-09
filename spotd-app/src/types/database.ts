@@ -71,7 +71,7 @@ export interface Venue {
   name: string;
   type: 'hh' | 'event';
   neighborhood: string;
-  city: string;
+  city_slug: string;
   address: string;
   lat: number | null;
   lng: number | null;
@@ -196,7 +196,7 @@ export interface VenueDescription {
   id: string;
   venue_id: string;
   user_id: string;
-  text: string;
+  description_text: string;
   tags: string[];
   upvotes: number;
   created_at: string;

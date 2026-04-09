@@ -70,9 +70,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithGoogle = async () => {
     trackEvent('login_attempt', { method: 'google' });
+    // Native iOS: use skipBrowserRedirect so we can route through ASWebAuthenticationSession
+    const w = window as { spotdNative?: { openOAuth?: (url: string) => void } };
+    if (w.spotdNative?.openOAuth) {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: 'spotd://auth-callback',
+          skipBrowserRedirect: true,
+        },
+      });
+      if (error) throw error;
+      if (data?.url) w.spotdNative.openOAuth(data.url);
+      return;
+    }
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: window.location.origin },
+      options: { redirectTo: window.location.origin + '/?auth_callback=1' },
     });
     if (error) throw error;
     trackEvent('login', { method: 'google' });

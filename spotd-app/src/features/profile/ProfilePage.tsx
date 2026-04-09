@@ -95,7 +95,7 @@ export default function ProfilePage() {
   const loadLists = useCallback(async () => {
     if (!targetId) return;
     const { data } = await supabase
-      .from('lists')
+      .from('user_lists')
       .select('*')
       .eq('user_id', targetId)
       .order('created_at', { ascending: false });
@@ -105,7 +105,7 @@ export default function ProfilePage() {
   const checkFollowing = useCallback(async () => {
     if (!user || !userId || userId === user.id) return;
     const { data } = await supabase
-      .from('follows')
+      .from('user_follows')
       .select('id')
       .eq('follower_id', user.id)
       .eq('following_id', userId);
@@ -119,14 +119,15 @@ export default function ProfilePage() {
       .select('neighborhood')
       .eq('user_id', user.id);
     setNeighborhoodFollows((data || []).map((r: { neighborhood: string }) => r.neighborhood));
-    // Load available neighborhoods from venues
+    // Load available neighborhoods from venues in current city
     const { data: venueData } = await supabase
       .from('venues')
       .select('neighborhood')
-      .eq('city', profile?.city || '');
+      .eq('city_slug', 'san-diego')
+      .eq('active', true);
     const hoods = [...new Set((venueData || []).map((v: { neighborhood: string }) => v.neighborhood).filter(Boolean))].sort();
     setAvailableNeighborhoods(hoods as string[]);
-  }, [user, isOwnProfile, profile?.city]);
+  }, [user, isOwnProfile]);
 
   useEffect(() => { loadProfile(); }, [loadProfile]);
   useEffect(() => { loadBadges(); }, [loadBadges]);
@@ -139,11 +140,11 @@ export default function ProfilePage() {
   const toggleFollow = async () => {
     if (!user || !userId) return;
     if (isFollowing) {
-      await supabase.from('follows').delete().eq('follower_id', user.id).eq('following_id', userId);
+      await supabase.from('user_follows').delete().eq('follower_id', user.id).eq('following_id', userId);
       setIsFollowing(false);
       showToast({ text: 'Unfollowed' });
     } else {
-      await supabase.from('follows').insert({ follower_id: user.id, following_id: userId });
+      await supabase.from('user_follows').insert({ follower_id: user.id, following_id: userId });
       setIsFollowing(true);
       showToast({ text: 'Following!', type: 'success' });
     }
@@ -153,8 +154,8 @@ export default function ProfilePage() {
     if (!user) return;
     const title = prompt('List name:');
     if (!title?.trim()) return;
-    const { error } = await supabase.from('lists').insert({
-      user_id: user.id, title: title.trim(), emoji: '📋', is_public: true,
+    const { error } = await supabase.from('user_lists').insert({
+      user_id: user.id, title: title.trim(), cover_emoji: '📋',
     });
     if (error) showToast({ text: 'Failed to create list', type: 'error' });
     else { showToast({ text: 'List created!', type: 'success' }); loadLists(); }
@@ -164,7 +165,7 @@ export default function ProfilePage() {
     if (!user || !userId) return;
     await supabase.from('blocked_users').insert({ blocker_id: user.id, blocked_id: userId });
     // Also unfollow
-    await supabase.from('follows').delete().eq('follower_id', user.id).eq('following_id', userId);
+    await supabase.from('user_follows').delete().eq('follower_id', user.id).eq('following_id', userId);
     setIsFollowing(false);
     setShowBlockConfirm(false);
     showToast({ text: 'User blocked' });
@@ -193,7 +194,7 @@ export default function ProfilePage() {
       showToast({ text: `Unfollowed ${neighborhood}` });
     } else {
       await supabase.from('neighborhood_follows')
-        .insert({ user_id: user.id, neighborhood, city_slug: profile?.city || '' });
+        .insert({ user_id: user.id, neighborhood });
       setNeighborhoodFollows((prev) => [...prev, neighborhood]);
       showToast({ text: `Following ${neighborhood}!`, type: 'success' });
     }

@@ -61,8 +61,7 @@ export function useCheckInCounts() {
       .from('check_ins')
       .select('venue_id')
       .eq('city_slug', currentCity.slug)
-      .gte('created_at', today + 'T00:00:00')
-      .lte('created_at', today + 'T23:59:59')
+      .eq('date', today)
       .then(({ data }) => {
         const map: Record<string, number> = {};
         (data || []).forEach((row: { venue_id: string }) => {

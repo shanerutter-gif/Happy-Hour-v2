@@ -14,7 +14,7 @@ export function ListsSection() {
   const loadLists = useCallback(async () => {
     if (!user) { setLoading(false); return; }
     const { data } = await supabase
-      .from('lists')
+      .from('user_lists')
       .select('*')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
@@ -28,10 +28,10 @@ export function ListsSection() {
     if (!user) return;
     const title = prompt('List name:');
     if (!title) return;
-    const { error } = await supabase.from('lists').insert({
+    const { error } = await supabase.from('user_lists').insert({
       user_id: user.id,
       title,
-      emoji: '📋',
+      cover_emoji: '📋',
       is_public: true,
     });
     if (error) {

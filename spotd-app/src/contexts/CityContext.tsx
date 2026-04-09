@@ -4,17 +4,19 @@ export interface City {
   slug: string;
   name: string;
   state_code: string;
+  lat: number;
+  lng: number;
   active: boolean;
 }
 
 const CITIES: City[] = [
-  { slug: 'san-diego',     name: 'San Diego',     state_code: 'CA', active: true },
-  { slug: 'los-angeles',   name: 'Los Angeles',   state_code: 'CA', active: false },
-  { slug: 'new-york',      name: 'New York',      state_code: 'NY', active: false },
-  { slug: 'chicago',       name: 'Chicago',       state_code: 'IL', active: false },
-  { slug: 'austin',        name: 'Austin',        state_code: 'TX', active: false },
-  { slug: 'miami',         name: 'Miami',         state_code: 'FL', active: false },
-  { slug: 'orange-county', name: 'Orange County', state_code: 'CA', active: false },
+  { slug: 'san-diego',     name: 'San Diego',     state_code: 'CA', lat: 32.7157, lng: -117.1611, active: true },
+  { slug: 'los-angeles',   name: 'Los Angeles',   state_code: 'CA', lat: 34.0522, lng: -118.2437, active: false },
+  { slug: 'new-york',      name: 'New York',      state_code: 'NY', lat: 40.7128, lng: -74.0060, active: false },
+  { slug: 'chicago',       name: 'Chicago',       state_code: 'IL', lat: 41.8781, lng: -87.6298, active: false },
+  { slug: 'austin',        name: 'Austin',        state_code: 'TX', lat: 30.2672, lng: -97.7431, active: false },
+  { slug: 'miami',         name: 'Miami',         state_code: 'FL', lat: 25.7617, lng: -80.1918, active: false },
+  { slug: 'orange-county', name: 'Orange County', state_code: 'CA', lat: 33.7175, lng: -117.8311, active: false },
 ];
 
 interface CityState {

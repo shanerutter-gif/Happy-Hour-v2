@@ -80,8 +80,7 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
       .select('id')
       .eq('venue_id', venue.id)
       .eq('user_id', user.id)
-      .gte('created_at', today + 'T00:00:00')
-      .lte('created_at', today + 'T23:59:59');
+      .eq('date', today);
     setIsGoing((data?.length || 0) > 0);
   }, [user, venue.id, today]);
 
@@ -90,8 +89,7 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
       .from('check_ins')
       .select('id')
       .eq('venue_id', venue.id)
-      .gte('created_at', today + 'T00:00:00')
-      .lte('created_at', today + 'T23:59:59');
+      .eq('date', today);
     setGoingCount(data?.length || 0);
   }, [venue.id, today]);
 
@@ -151,14 +149,14 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
         .delete()
         .eq('venue_id', venue.id)
         .eq('user_id', user.id)
-        .gte('created_at', today + 'T00:00:00');
+        .eq('date', today);
       setIsGoing(false);
       setGoingCount((c) => Math.max(0, c - 1));
       showToast({ text: 'Check-in removed' });
     } else {
       await supabase
         .from('check_ins')
-        .insert({ venue_id: venue.id, user_id: user.id, city_slug: venue.city });
+        .insert({ venue_id: venue.id, user_id: user.id, city_slug: venue.city_slug, date: today });
       setIsGoing(true);
       setGoingCount((c) => c + 1);
       showToast({ text: `Checked in to ${venue.name}!`, type: 'success' });
@@ -210,11 +208,11 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
   const submitDescription = async () => {
     if (!user || !descText.trim()) return;
     setSubmittingDesc(true);
-    await supabase.from('venue_descriptions').insert({
+    await supabase.from('venue_descriptions').upsert({
       venue_id: venue.id,
       user_id: user.id,
       description_text: descText.trim(),
-    });
+    }, { onConflict: 'user_id,venue_id' });
     setDescText('');
     setShowDescForm(false);
     setSubmittingDesc(false);
@@ -242,7 +240,7 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
     setLoadingContacts(true);
     // Get user's follows to populate contact list
     const { data: follows } = await supabase
-      .from('follows')
+      .from('user_follows')
       .select('following_id')
       .eq('follower_id', user.id);
     const ids = (follows || []).map((f: { following_id: string }) => f.following_id);
@@ -352,7 +350,7 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
     await saveCheckinPhoto({
       userId: user.id,
       venueId: venue.id,
-      citySlug: venue.city,
+      citySlug: venue.city_slug,
       photoUrl: result.url,
       storagePath: result.storagePath,
     });
@@ -519,7 +517,7 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
           ) : (
             descriptions.map((d) => (
               <div key={d.id} className={styles.descRow}>
-                <p className={styles.descText}>"{d.text}"</p>
+                <p className={styles.descText}>"{d.description_text}"</p>
                 <button className={styles.upvoteBtn} onClick={() => handleUpvoteDesc(d.id)}>
                   👍 {d.upvotes}
                 </button>
