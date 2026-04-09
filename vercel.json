@@ -7,18 +7,18 @@
   "redirects": [
     { "source": "/app-download", "destination": "https://apps.apple.com/us/app/spotd/id6760452388", "permanent": false }
   ],
-  "rewrites": [
-    { "source": "/spots/:slug+",              "destination": "/api/spots.js?slug=:slug+" },
-    { "source": "/blog/:slug",                "destination": "/api/blog-post.js?slug=:slug" },
-    { "source": "/sitemap-venues.xml",        "destination": "/api/sitemap-venues.js" },
-    { "source": "/api/auth",                  "destination": "/api/auth.js" },
-    { "source": "/api/loops-onboarding",      "destination": "/api/loops-onboarding.js" },
-    { "source": "/api/loops-event",           "destination": "/api/loops-event.js" },
-    { "source": "/api/loops-inactive",        "destination": "/api/loops-inactive.js" },
-    { "source": "/api/daily-deals",           "destination": "/api/daily-deals.js" },
-    { "source": "/api/stripe-checkout",       "destination": "/api/stripe-checkout.js" },
-    { "source": "/api/stripe-billing-portal", "destination": "/api/stripe-billing-portal.js" },
-    { "source": "/api/stripe-webhook",        "destination": "/api/stripe-webhook.js" },
-    { "source": "/api/send-push",             "destination": "/api/send-push.js" }
+  "routes": [
+    { "src": "/spots/(.+)",                 "dest": "/api/spots.js?slug=$1" },
+    { "src": "/blog/([^.]+)$",              "dest": "/api/blog-post.js?slug=$1" },
+    { "src": "/sitemap-venues.xml",         "dest": "/api/sitemap-venues.js" },
+    { "src": "/api/auth",                  "dest": "/api/auth.js" },
+    { "src": "/api/loops-onboarding",      "dest": "/api/loops-onboarding.js" },
+    { "src": "/api/loops-event",           "dest": "/api/loops-event.js" },
+    { "src": "/api/loops-inactive",        "dest": "/api/loops-inactive.js" },
+    { "src": "/api/daily-deals",           "dest": "/api/daily-deals.js" },
+    { "src": "/api/stripe-checkout",       "dest": "/api/stripe-checkout.js" },
+    { "src": "/api/stripe-billing-portal", "dest": "/api/stripe-billing-portal.js" },
+    { "src": "/api/stripe-webhook",        "dest": "/api/stripe-webhook.js" },
+    { "src": "/api/send-push",              "dest": "/api/send-push.js" }
   ]
 }
