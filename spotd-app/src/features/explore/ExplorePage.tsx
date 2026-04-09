@@ -8,6 +8,7 @@ import { useFavorites } from '../../hooks/useFavorites';
 import { useGeolocation } from '../../hooks/useGeolocation';
 import { useAuth } from '../../contexts/AuthContext';
 import { shouldShowOnboarding } from '../onboarding/OnboardingFlow';
+import { shouldShowTooltips, TooltipWalkthrough } from '../onboarding/TooltipWalkthrough';
 import { supabase } from '../../lib/supabase';
 import { showToast } from '../../components/ui/Toast';
 import { useCity } from '../../contexts/CityContext';
@@ -44,6 +45,15 @@ export default function ExplorePage() {
   const geo = useGeolocation();
   const { currentCity } = useCity();
   const [showOnboarding] = useState(() => shouldShowOnboarding(user?.id));
+  const [showTooltipWalkthrough, setShowTooltipWalkthrough] = useState(false);
+
+  // Show tooltips after venues load for first-time logged-in users
+  useEffect(() => {
+    if (!venuesLoading && venues.length > 0 && shouldShowTooltips(user?.id)) {
+      const timer = setTimeout(() => setShowTooltipWalkthrough(true), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [venuesLoading, venues.length, user?.id]);
 
   const [viewType, setViewType] = useState<ViewType>('hh');
   const [search, setSearch] = useState('');
@@ -194,14 +204,14 @@ export default function ExplorePage() {
       </div>
 
       <div className={styles.controls}>
-        <div className={styles.controlsTop}>
+        <div className={styles.controlsTop} data-tt="search">
           <SearchBox
             placeholder={viewType === 'hh' ? 'Search happy hours...' : 'Search events...'}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onClear={() => setSearch('')}
           />
-          <button className={styles.mapBtn} onClick={() => navigate('/map')}>
+          <button className={styles.mapBtn} onClick={() => navigate('/map')} data-tt="map">
             Map
           </button>
         </div>
@@ -225,6 +235,7 @@ export default function ExplorePage() {
           <button
             className={[styles.filterToggle, filterOpen && styles.filterToggleActive].filter(Boolean).join(' ')}
             onClick={() => setFilterOpen(!filterOpen)}
+            data-tt="filter"
           >
             Personalize Your Search
             {activeFilters.length > 0 && <span className={styles.filterDot} />}
@@ -342,15 +353,16 @@ export default function ExplorePage() {
             {heroVenues.length > 0 && (
               <>
                 <div className={styles.feedLabel}>🔥 Hot right now</div>
-                {heroVenues.map(venue => (
-                  <VenueCard
-                    key={venue.id}
-                    venue={venue}
-                    goingCount={checkInCounts[venue.id] || 0}
-                    onClick={() => setSelectedVenueId(venue.id)}
-                    tier="hero"
-                    isFavorite={isFavorite(venue.id)}
-                  />
+                {heroVenues.map((venue, i) => (
+                  <div key={venue.id} {...(i === 0 ? { 'data-tt': 'card' } : {})}>
+                    <VenueCard
+                      venue={venue}
+                      goingCount={checkInCounts[venue.id] || 0}
+                      onClick={() => setSelectedVenueId(venue.id)}
+                      tier="hero"
+                      isFavorite={isFavorite(venue.id)}
+                    />
+                  </div>
                 ))}
               </>
             )}
@@ -360,15 +372,16 @@ export default function ExplorePage() {
               <>
                 <div className={styles.feedLabel}>{heroVenues.length ? 'Near you' : "Today's happy hours"}</div>
                 <div className={styles.compactGrid}>
-                  {compactVenues.map(venue => (
-                    <VenueCard
-                      key={venue.id}
-                      venue={venue}
-                      goingCount={checkInCounts[venue.id] || 0}
-                      onClick={() => setSelectedVenueId(venue.id)}
-                      tier="compact"
-                      isFavorite={isFavorite(venue.id)}
-                    />
+                  {compactVenues.map((venue, i) => (
+                    <div key={venue.id} {...(i === 0 && heroVenues.length === 0 ? { 'data-tt': 'card' } : {})}>
+                      <VenueCard
+                        venue={venue}
+                        goingCount={checkInCounts[venue.id] || 0}
+                        onClick={() => setSelectedVenueId(venue.id)}
+                        tier="compact"
+                        isFavorite={isFavorite(venue.id)}
+                      />
+                    </div>
                   ))}
                 </div>
               </>
@@ -408,6 +421,10 @@ export default function ExplorePage() {
         <Suspense fallback={null}>
           <OnboardingFlow />
         </Suspense>
+      )}
+
+      {showTooltipWalkthrough && (
+        <TooltipWalkthrough onComplete={() => setShowTooltipWalkthrough(false)} />
       )}
     </div>
   );

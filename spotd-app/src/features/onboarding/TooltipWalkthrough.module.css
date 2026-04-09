@@ -1,0 +1,133 @@
+/* Tooltip walkthrough overlay */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: auto;
+  animation: fadeIn 0.3s ease;
+}
+
+.overlayOut {
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  cursor: pointer;
+}
+
+.highlight {
+  position: fixed;
+  border-radius: 12px;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55);
+  z-index: 1;
+  pointer-events: none;
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.bubble {
+  position: fixed;
+  z-index: 2;
+  max-width: 320px;
+  margin: 0 auto;
+  background: var(--card, #fff);
+  border-radius: 18px;
+  padding: 20px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+  animation: bubbleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.bubbleAbove {}
+.bubbleBelow {}
+
+.emoji {
+  font-size: 32px;
+  margin-bottom: 8px;
+}
+
+.title {
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-weight: 800;
+  font-size: 18px;
+  color: var(--ink, #1a1208);
+  margin-bottom: 6px;
+}
+
+.text {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  color: var(--muted, #7a7060);
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dots {
+  display: flex;
+  gap: 5px;
+  flex: 1;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--border2, #ddd);
+  transition: all 0.2s ease;
+}
+
+.dotActive {
+  background: var(--coral, #ff6b4a);
+  transform: scale(1.3);
+}
+
+.dotDone {
+  background: var(--coral, #ff6b4a);
+  opacity: 0.4;
+}
+
+.skip {
+  background: none;
+  border: none;
+  color: var(--muted, #7a7060);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 12px;
+}
+
+.nextBtn {
+  background: linear-gradient(135deg, var(--coral, #ff6b4a), var(--coral-dk, #e8943a));
+  color: #fff;
+  border: none;
+  border-radius: 50px;
+  padding: 10px 20px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(255, 107, 74, 0.3);
+  transition: transform 0.15s ease;
+}
+.nextBtn:active {
+  transform: scale(0.95);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes bubbleIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
