@@ -3,8 +3,11 @@ import { Sheet } from '../../components/ui/Sheet';
 import { Button } from '../../components/ui/Button';
 import { Pill } from '../../components/ui/Pill';
 import { TextArea } from '../../components/ui/Input';
+import { PhotoUpload } from '../../components/ui/PhotoUpload';
+import { PushPrompt } from '../../components/ui/PushPrompt';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
+import { saveCheckinPhoto } from '../../lib/media';
 import { showToast } from '../../components/ui/Toast';
 import type { Venue, Review, VenueDescription } from '../../types/database';
 import styles from './VenueSheet.module.css';
@@ -41,6 +44,20 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
   // Report state
   const [showReportForm, setShowReportForm] = useState(false);
   const [reportReason, setReportReason] = useState('');
+  // Photo upload state
+  const [showPhotoUpload, setShowPhotoUpload] = useState(false);
+  const [venuePhotos, setVenuePhotos] = useState<{ id: string; photo_url: string; caption: string | null }[]>([]);
+  // Push prompt
+  const [showPushPrompt, setShowPushPrompt] = useState(false);
+  // Admin edit state
+  const [showAdminEdit, setShowAdminEdit] = useState(false);
+  const [adminFields, setAdminFields] = useState({
+    name: '', when_text: '', address: '', deals: '', amenities: '', photo_url: '',
+  });
+  const [savingAdmin, setSavingAdmin] = useState(false);
+
+  const ADMIN_EMAILS = ['shanerutter@gmail.com'];
+  const isAdmin = user && ADMIN_EMAILS.includes(user.email || '');
 
   const today = new Date().toISOString().slice(0, 10);
   const todayDay = new Date().toLocaleDateString('en-US', { weekday: 'short' }).toLowerCase();
@@ -98,6 +115,16 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
     setFollowingVenue((data?.length || 0) > 0);
   }, [user, venue.id]);
 
+  const loadVenuePhotos = useCallback(async () => {
+    const { data } = await supabase
+      .from('checkin_photos')
+      .select('id, photo_url, caption')
+      .eq('venue_id', venue.id)
+      .order('created_at', { ascending: false })
+      .limit(10);
+    setVenuePhotos((data || []) as { id: string; photo_url: string; caption: string | null }[]);
+  }, [venue.id]);
+
   useEffect(() => {
     if (open) {
       loadReviews();
@@ -105,12 +132,13 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
       loadGoingCount();
       loadDescriptions();
       checkVenueFollow();
+      loadVenuePhotos();
       setShowReviewForm(false);
       setEditingReview(null);
       setReviewRating(0);
       setReviewText('');
     }
-  }, [open, loadReviews, checkGoing, loadGoingCount, loadDescriptions, checkVenueFollow]);
+  }, [open, loadReviews, checkGoing, loadGoingCount, loadDescriptions, checkVenueFollow, loadVenuePhotos]);
 
   const handleCheckIn = async () => {
     if (!user) {
@@ -134,6 +162,10 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
       setIsGoing(true);
       setGoingCount((c) => c + 1);
       showToast({ text: `Checked in to ${venue.name}!`, type: 'success' });
+      // Prompt for push after first check-in
+      if (!localStorage.getItem('pushBannerDismissed') && 'Notification' in window && Notification.permission === 'default') {
+        setTimeout(() => setShowPushPrompt(true), 1500);
+      }
     }
   };
 
@@ -280,6 +312,55 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
     showToast({ text: 'Report submitted — thanks!', type: 'success' });
   };
 
+  // --- Admin edit ---
+  const openAdminEdit = () => {
+    setAdminFields({
+      name: venue.name,
+      when_text: venue.when_text || '',
+      address: venue.address || '',
+      deals: (venue.deals || []).join('\n'),
+      amenities: (venue.amenities || []).join(', '),
+      photo_url: venue.photo_url || '',
+    });
+    setShowAdminEdit(true);
+  };
+
+  const saveAdminEdit = async () => {
+    if (!isAdmin) return;
+    setSavingAdmin(true);
+    const updates: Record<string, unknown> = {
+      name: adminFields.name.trim(),
+      when_text: adminFields.when_text.trim(),
+      address: adminFields.address.trim(),
+      deals: adminFields.deals.split('\n').map((d) => d.trim()).filter(Boolean),
+      amenities: adminFields.amenities.split(',').map((a) => a.trim()).filter(Boolean),
+      photo_url: adminFields.photo_url.trim() || null,
+    };
+    const { error } = await supabase.from('venues').update(updates).eq('id', venue.id);
+    setSavingAdmin(false);
+    if (error) {
+      showToast({ text: 'Save failed', type: 'error' });
+    } else {
+      setShowAdminEdit(false);
+      showToast({ text: 'Venue updated!', type: 'success' });
+    }
+  };
+
+  // --- Photo upload ---
+  const handlePhotoUploaded = async (result: { url: string; storagePath: string; type: 'photo' | 'video'; posterUrl?: string }) => {
+    if (!user) return;
+    await saveCheckinPhoto({
+      userId: user.id,
+      venueId: venue.id,
+      citySlug: venue.city,
+      photoUrl: result.url,
+      storagePath: result.storagePath,
+    });
+    setShowPhotoUpload(false);
+    loadVenuePhotos();
+    showToast({ text: 'Photo added!', type: 'success' });
+  };
+
   // --- Review CRUD ---
   const submitReview = async () => {
     if (!user || reviewRating === 0) {
@@ -402,6 +483,30 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
             <span className={styles.actionIcon}>{followingVenue ? '🔔' : '🔕'}</span>
             <span>{followingVenue ? 'Following' : 'Follow'}</span>
           </button>
+        </div>
+
+        {/* Photos */}
+        <div className={styles.section}>
+          <span className={styles.label}>Photos ({venuePhotos.length})</span>
+          {venuePhotos.length > 0 && (
+            <div className={styles.photoGrid}>
+              {venuePhotos.map((p) => (
+                <img key={p.id} src={p.photo_url} alt={p.caption || ''} className={styles.photoThumb} loading="lazy" />
+              ))}
+            </div>
+          )}
+          {user && !showPhotoUpload && (
+            <button className={styles.addDescBtn} onClick={() => setShowPhotoUpload(true)}>
+              + Add a photo
+            </button>
+          )}
+          {showPhotoUpload && user && (
+            <PhotoUpload
+              userId={user.id}
+              onUpload={handlePhotoUploaded}
+              onCancel={() => setShowPhotoUpload(false)}
+            />
+          )}
         </div>
 
         <div className={styles.divider} />
@@ -581,7 +686,69 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
             </div>
           </div>
         )}
+
+        {/* Admin editor */}
+        {isAdmin && (
+          <>
+            <div className={styles.divider} />
+            <div className={styles.section}>
+              <span className={styles.label}>Admin</span>
+              {!showAdminEdit ? (
+                <button className={styles.addDescBtn} onClick={openAdminEdit}>
+                  ✏️ Edit Venue
+                </button>
+              ) : (
+                <div className={styles.adminForm}>
+                  <label className={styles.adminLabel}>Name</label>
+                  <input
+                    className={styles.adminInput}
+                    value={adminFields.name}
+                    onChange={(e) => setAdminFields((f) => ({ ...f, name: e.target.value }))}
+                  />
+                  <label className={styles.adminLabel}>When</label>
+                  <input
+                    className={styles.adminInput}
+                    value={adminFields.when_text}
+                    onChange={(e) => setAdminFields((f) => ({ ...f, when_text: e.target.value }))}
+                  />
+                  <label className={styles.adminLabel}>Address</label>
+                  <input
+                    className={styles.adminInput}
+                    value={adminFields.address}
+                    onChange={(e) => setAdminFields((f) => ({ ...f, address: e.target.value }))}
+                  />
+                  <label className={styles.adminLabel}>Deals (one per line)</label>
+                  <TextArea
+                    value={adminFields.deals}
+                    onChange={(e) => setAdminFields((f) => ({ ...f, deals: e.target.value }))}
+                    rows={3}
+                  />
+                  <label className={styles.adminLabel}>Amenities (comma-separated)</label>
+                  <input
+                    className={styles.adminInput}
+                    value={adminFields.amenities}
+                    onChange={(e) => setAdminFields((f) => ({ ...f, amenities: e.target.value }))}
+                  />
+                  <label className={styles.adminLabel}>Photo URL</label>
+                  <input
+                    className={styles.adminInput}
+                    value={adminFields.photo_url}
+                    onChange={(e) => setAdminFields((f) => ({ ...f, photo_url: e.target.value }))}
+                  />
+                  <div className={styles.descFormActions}>
+                    <Button size="sm" variant="ghost" onClick={() => setShowAdminEdit(false)}>Cancel</Button>
+                    <Button size="sm" onClick={saveAdminEdit} loading={savingAdmin}>Save</Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </div>
+
+      {showPushPrompt && (
+        <PushPrompt trigger="action" />
+      )}
     </Sheet>
   );
 }

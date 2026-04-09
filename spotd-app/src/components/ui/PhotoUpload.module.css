@@ -1,0 +1,70 @@
+.container { margin-top: 8px; }
+
+.hidden { display: none; }
+
+.trigger {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; padding: 14px;
+  background: var(--bg); border: 2px dashed var(--border2);
+  border-radius: var(--r); cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px; color: var(--muted);
+  transition: border-color var(--duration-fast), background var(--duration-fast);
+}
+.trigger:active { border-color: var(--coral); background: var(--card); }
+
+.triggerIcon { font-size: 20px; }
+
+.previewWrap {
+  display: flex; flex-direction: column; gap: 10px;
+}
+
+.preview {
+  width: 100%; max-height: 240px;
+  object-fit: cover; border-radius: var(--r);
+  box-shadow: var(--clay-md);
+}
+
+/* Filmstrip (video cover picker) */
+.filmstrip {
+  display: flex; flex-direction: column; gap: 6px;
+}
+
+.filmLabel {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 10px; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--muted);
+}
+
+.frames {
+  display: flex; gap: 4px; overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 4px;
+}
+
+.frame {
+  flex-shrink: 0; background: none; border: 2px solid transparent;
+  border-radius: 6px; cursor: pointer; padding: 0; overflow: hidden;
+  transition: border-color var(--duration-fast);
+}
+.frame img { width: 48px; height: 36px; object-fit: cover; display: block; }
+.frameActive { border-color: var(--coral); }
+
+.caption {
+  width: 100%; background: var(--card); border: none;
+  border-radius: var(--r-sm); padding: 10px 14px;
+  font-size: 14px; color: var(--text); outline: none;
+  box-shadow: var(--clay-input);
+  font-family: 'DM Sans', sans-serif;
+}
+.caption:focus { box-shadow: var(--ring), var(--clay-sm); }
+
+.status {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px; color: var(--coral);
+  text-align: center; padding: 4px;
+}
+
+.actions {
+  display: flex; justify-content: flex-end; gap: 8px;
+}

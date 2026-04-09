@@ -1,0 +1,64 @@
+.overlay {
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(42, 31, 20, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+  animation: fadeIn 250ms ease both;
+}
+
+.card {
+  background: var(--card); color: var(--text);
+  border-radius: 20px; padding: 32px 28px;
+  max-width: 340px; width: 100%;
+  box-shadow: 0 16px 48px rgba(42, 31, 20, 0.4), var(--clay-lg);
+  animation: scaleIn 300ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  text-align: center; position: relative;
+}
+
+.close {
+  position: absolute; top: 12px; right: 14px;
+  background: none; border: none; color: var(--muted);
+  font-size: 22px; cursor: pointer; padding: 4px; line-height: 1;
+  opacity: 0.4;
+}
+.close:active { opacity: 0.7; }
+
+.icon {
+  font-size: 48px; margin-bottom: 16px;
+}
+
+.title {
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-weight: 800; font-size: 20px;
+  color: var(--ink); margin-bottom: 8px;
+}
+
+.desc {
+  font-size: 15px; color: var(--muted);
+  line-height: 1.4; margin-bottom: 24px;
+}
+
+.accept {
+  width: 100%;
+  background: linear-gradient(135deg, var(--coral), var(--coral-dk));
+  color: #fff; border: none; border-radius: 12px;
+  padding: 14px 0; font-weight: 700; font-size: 16px;
+  cursor: pointer; font-family: inherit;
+  box-shadow: var(--clay-md);
+  transition: transform var(--duration-fast);
+}
+.accept:active { transform: scale(0.97); }
+
+.later {
+  background: none; border: none;
+  margin-top: 14px; font-size: 13px;
+  color: var(--muted); opacity: 0.4;
+  cursor: pointer;
+}
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}

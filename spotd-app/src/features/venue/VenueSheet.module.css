@@ -92,6 +92,20 @@
   font-size: 16px; box-shadow: var(--clay-sm);
 }
 
+/* Photo grid */
+.photoGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px; margin-bottom: 8px;
+}
+.photoThumb {
+  width: 100%; aspect-ratio: 1;
+  object-fit: cover; border-radius: var(--r-sm);
+  box-shadow: var(--clay-sm); cursor: pointer;
+  transition: transform var(--duration-fast);
+}
+.photoThumb:active { transform: scale(0.95); }
+
 /* Locals Say descriptions */
 .descRow {
   display: flex; align-items: flex-start;
@@ -240,3 +254,25 @@
 .sendIcon {
   font-size: 16px; color: var(--coral); font-weight: 700;
 }
+
+/* Admin editor */
+.adminForm {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 14px; background: var(--bg);
+  border-radius: var(--r); box-shadow: var(--clay-input);
+  border: 1px dashed var(--amber);
+}
+.adminLabel {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 10px; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--amber);
+  margin-top: 4px;
+}
+.adminInput {
+  width: 100%; background: var(--card); border: none;
+  border-radius: var(--r-sm); padding: 10px 12px;
+  font-size: 14px; color: var(--text); outline: none;
+  box-shadow: var(--clay-input);
+  font-family: 'DM Sans', sans-serif;
+}
+.adminInput:focus { box-shadow: var(--ring), var(--clay-sm); }
