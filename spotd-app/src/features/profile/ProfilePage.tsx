@@ -550,7 +550,7 @@ export default function ProfilePage() {
           <span className={styles.statNum}>{followingCount}</span>
           <span className={styles.statLabel}>Following</span>
         </div>
-        <div className={styles.stat}>
+        <div className={styles.stat} onClick={() => navigate('/followers')} style={{ cursor: 'pointer' }}>
           <span className={styles.statNum}>{followersCount}</span>
           <span className={styles.statLabel}>Followers</span>
         </div>

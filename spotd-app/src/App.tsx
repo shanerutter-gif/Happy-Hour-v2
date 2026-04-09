@@ -21,6 +21,7 @@ const LeaderboardPage = lazy(() => import('./features/social/LeaderboardPage'));
 const ListDetailPage = lazy(() => import('./features/lists/ListDetailPage'));
 const LegalPage = lazy(() => import('./features/legal/LegalPage'));
 const ActivityFeedPage = lazy(() => import('./features/profile/ActivityFeedPage'));
+const FollowersPage = lazy(() => import('./features/social/FollowersPage'));
 
 function PageLoader() {
   return (
@@ -56,6 +57,8 @@ export default function App() {
                   <Route path="/leaderboard" element={<LeaderboardPage />} />
                   <Route path="/lists/:listId" element={<ListDetailPage />} />
                   <Route path="/activity" element={<ActivityFeedPage />} />
+                  <Route path="/followers" element={<FollowersPage />} />
+                  <Route path="/followers/:userId" element={<FollowersPage />} />
                   <Route path="/legal/:page" element={<LegalPage />} />
                 </Routes>
               </Suspense>
