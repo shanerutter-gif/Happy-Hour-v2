@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -6,6 +6,7 @@ import { CityProvider } from './contexts/CityContext';
 import { ToastContainer } from './components/ui/Toast';
 import { BottomNav } from './components/layout/BottomNav';
 import { ErrorBoundary } from './components/ui/ErrorBoundary';
+import { AgeGate, needsAgeGate } from './features/onboarding/AgeGate';
 
 const ExplorePage = lazy(() => import('./features/explore/ExplorePage'));
 const MapPage = lazy(() => import('./features/map/MapPage'));
@@ -28,12 +29,15 @@ function PageLoader() {
 }
 
 export default function App() {
+  const [showAgeGate, setShowAgeGate] = useState(needsAgeGate);
+
   return (
     <BrowserRouter>
       <ThemeProvider>
         <AuthProvider>
           <CityProvider>
             <ErrorBoundary>
+              {showAgeGate && <AgeGate onVerified={() => setShowAgeGate(false)} />}
               <Suspense fallback={<PageLoader />}>
                 <Routes>
                   <Route path="/" element={<ExplorePage />} />

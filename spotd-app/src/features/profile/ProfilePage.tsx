@@ -52,6 +52,9 @@ export default function ProfilePage() {
   const [digestEnabled, setDigestEnabled] = useState(false);
   const [showIdeaBanner, setShowIdeaBanner] = useState(() => !localStorage.getItem('ideaBannerDismissed'));
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [feedbackType, setFeedbackType] = useState('');
+  const [feedbackText, setFeedbackText] = useState('');
+  const [sendingFeedback, setSendingFeedback] = useState(false);
 
   const isOwnProfile = !userId || userId === user?.id;
   const targetId = userId || user?.id;
@@ -273,6 +276,31 @@ export default function ProfilePage() {
     setUploadingAvatar(false);
     showToast({ text: 'Avatar updated!', type: 'success' });
     loadProfile();
+  };
+
+  const submitFeedback = async () => {
+    if (!feedbackType) { showToast({ text: 'Please select a feedback type' }); return; }
+    if (!feedbackText.trim()) { showToast({ text: 'Please describe the issue' }); return; }
+    setSendingFeedback(true);
+    try {
+      const { error } = await supabase.from('feedback').insert({
+        user_id: user?.id || null,
+        type: feedbackType,
+        text: feedbackText.trim(),
+        url: window.location.href,
+        created_at: new Date().toISOString(),
+      });
+      if (error) {
+        showToast({ text: 'Could not send feedback', type: 'error' });
+      } else {
+        setFeedbackType('');
+        setFeedbackText('');
+        showToast({ text: 'Feedback sent — thank you!', type: 'success' });
+      }
+    } catch {
+      showToast({ text: 'Could not send feedback', type: 'error' });
+    }
+    setSendingFeedback(false);
   };
 
   // Badge definitions matching vanilla app
@@ -639,6 +667,43 @@ export default function ProfilePage() {
               </label>
             </div>
             <Button fullWidth onClick={saveProfile} loading={savingProfile}>Save Changes</Button>
+
+            {/* Feedback & Data Issues — matches vanilla settings */}
+            <div className={styles.feedbackSection}>
+              <span className={styles.editLabel}>Feedback &amp; Data Issues</span>
+              <select
+                className={styles.editInput}
+                value={feedbackType}
+                onChange={e => setFeedbackType(e.target.value)}
+              >
+                <option value="">Select a reason…</option>
+                <option value="wrong_data">Restaurant/venue data is wrong</option>
+                <option value="missing_venue">Missing a venue</option>
+                <option value="hours_wrong">Happy hour hours are incorrect</option>
+                <option value="bug">App bug or issue</option>
+                <option value="suggestion">Feature suggestion</option>
+                <option value="other">Other</option>
+              </select>
+              <textarea
+                className={styles.editTextarea}
+                value={feedbackText}
+                onChange={e => setFeedbackText(e.target.value)}
+                placeholder="Tell us what's wrong or what you'd like to see…"
+                rows={3}
+              />
+              <button
+                className={styles.feedbackSubmitBtn}
+                onClick={submitFeedback}
+                disabled={sendingFeedback}
+              >
+                {sendingFeedback ? 'Sending…' : 'Send Feedback'}
+              </button>
+              <div className={styles.feedbackEmail}>
+                Or email us directly at{' '}
+                <a href="mailto:support@spotd.biz">support@spotd.biz</a>
+              </div>
+            </div>
+
             <button className={styles.deleteAccountBtn} onClick={deleteAccount}>Delete Account</button>
           </div>
         </div>

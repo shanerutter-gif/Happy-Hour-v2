@@ -70,7 +70,13 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
   // Admin edit state
   const [showAdminEdit, setShowAdminEdit] = useState(false);
   const [adminFields, setAdminFields] = useState({
-    name: '', when_text: '', address: '', deals: '', amenities: '', photo_url: '',
+    name: '', when_text: '', address: '', deals: '', photo_url: '',
+    neighborhood: '', cuisine: '', hours: '', url: '', description: '',
+    days: [] as string[],
+    active: false, featured: false, is_hero: false, owner_verified: false,
+    has_happy_hour: false, has_sports_tv: false, is_dog_friendly: false,
+    has_live_music: false, has_karaoke: false, has_trivia: false,
+    has_bingo: false, has_comedy: false,
   });
   const [savingAdmin, setSavingAdmin] = useState(false);
   // Photo lightbox
@@ -497,27 +503,63 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
 
   // --- Admin edit ---
   const openAdminEdit = () => {
+    const v = venue as Record<string, unknown>;
     setAdminFields({
       name: venue.name,
       when_text: venue.when_text || '',
       address: venue.address || '',
       deals: (venue.deals || []).join('\n'),
-      amenities: (venue.amenities || []).join(', '),
       photo_url: venue.photo_url || '',
+      neighborhood: (v.neighborhood as string) || '',
+      cuisine: (v.cuisine as string) || '',
+      hours: (v.hours as string) || '',
+      url: (v.url as string) || '',
+      description: (v.description as string) || '',
+      days: (v.days as string[]) || [],
+      active: v.active !== false,
+      featured: !!v.featured,
+      is_hero: !!v.is_hero,
+      owner_verified: !!v.owner_verified,
+      has_happy_hour: !!v.has_happy_hour,
+      has_sports_tv: !!v.has_sports_tv,
+      is_dog_friendly: !!v.is_dog_friendly,
+      has_live_music: !!v.has_live_music,
+      has_karaoke: !!v.has_karaoke,
+      has_trivia: !!v.has_trivia,
+      has_bingo: !!v.has_bingo,
+      has_comedy: !!v.has_comedy,
     });
     setShowAdminEdit(true);
   };
 
   const saveAdminEdit = async () => {
     if (!isAdmin) return;
+    if (!adminFields.name.trim()) { showToast({ text: 'Name is required', type: 'error' }); return; }
     setSavingAdmin(true);
     const updates: Record<string, unknown> = {
       name: adminFields.name.trim(),
       when_text: adminFields.when_text.trim(),
-      address: adminFields.address.trim(),
+      address: adminFields.address.trim() || null,
       deals: adminFields.deals.split('\n').map((d) => d.trim()).filter(Boolean),
-      amenities: adminFields.amenities.split(',').map((a) => a.trim()).filter(Boolean),
       photo_url: adminFields.photo_url.trim() || null,
+      neighborhood: adminFields.neighborhood.trim() || null,
+      cuisine: adminFields.cuisine.trim() || null,
+      hours: adminFields.hours.trim() || null,
+      url: adminFields.url.trim() || null,
+      description: adminFields.description.trim() || null,
+      days: adminFields.days.length ? adminFields.days : [],
+      active: adminFields.active,
+      featured: adminFields.featured,
+      is_hero: adminFields.is_hero,
+      owner_verified: adminFields.owner_verified,
+      has_happy_hour: adminFields.has_happy_hour,
+      has_sports_tv: adminFields.has_sports_tv,
+      is_dog_friendly: adminFields.is_dog_friendly,
+      has_live_music: adminFields.has_live_music,
+      has_karaoke: adminFields.has_karaoke,
+      has_trivia: adminFields.has_trivia,
+      has_bingo: adminFields.has_bingo,
+      has_comedy: adminFields.has_comedy,
     };
     const { error } = await supabase.from('venues').update(updates).eq('id', venue.id);
     setSavingAdmin(false);
@@ -1034,44 +1076,75 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
               ) : (
                 <div className={styles.adminForm}>
                   <label className={styles.adminLabel}>Name</label>
-                  <input
-                    className={styles.adminInput}
-                    value={adminFields.name}
-                    onChange={(e) => setAdminFields((f) => ({ ...f, name: e.target.value }))}
-                  />
-                  <label className={styles.adminLabel}>When</label>
-                  <input
-                    className={styles.adminInput}
-                    value={adminFields.when_text}
-                    onChange={(e) => setAdminFields((f) => ({ ...f, when_text: e.target.value }))}
-                  />
+                  <input className={styles.adminInput} value={adminFields.name} onChange={(e) => setAdminFields((f) => ({ ...f, name: e.target.value }))} />
+
+                  <label className={styles.adminLabel}>Neighborhood</label>
+                  <input className={styles.adminInput} value={adminFields.neighborhood} onChange={(e) => setAdminFields((f) => ({ ...f, neighborhood: e.target.value }))} />
+
                   <label className={styles.adminLabel}>Address</label>
-                  <input
-                    className={styles.adminInput}
-                    value={adminFields.address}
-                    onChange={(e) => setAdminFields((f) => ({ ...f, address: e.target.value }))}
-                  />
+                  <input className={styles.adminInput} value={adminFields.address} onChange={(e) => setAdminFields((f) => ({ ...f, address: e.target.value }))} />
+
+                  <label className={styles.adminLabel}>Hours</label>
+                  <input className={styles.adminInput} value={adminFields.hours} placeholder="4pm - 7pm" onChange={(e) => setAdminFields((f) => ({ ...f, hours: e.target.value }))} />
+
+                  <label className={styles.adminLabel}>Days</label>
+                  <div className={styles.daysPicker}>
+                    {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => (
+                      <button
+                        key={d}
+                        type="button"
+                        className={[styles.dayBtn, adminFields.days.includes(d.toLowerCase()) && styles.dayBtnSel].filter(Boolean).join(' ')}
+                        onClick={() => setAdminFields((f) => ({
+                          ...f,
+                          days: f.days.includes(d.toLowerCase())
+                            ? f.days.filter((x) => x !== d.toLowerCase())
+                            : [...f.days, d.toLowerCase()],
+                        }))}
+                      >{d}</button>
+                    ))}
+                  </div>
+
+                  <label className={styles.adminLabel}>When Text</label>
+                  <input className={styles.adminInput} value={adminFields.when_text} onChange={(e) => setAdminFields((f) => ({ ...f, when_text: e.target.value }))} />
+
                   <label className={styles.adminLabel}>Deals (one per line)</label>
-                  <TextArea
-                    value={adminFields.deals}
-                    onChange={(e) => setAdminFields((f) => ({ ...f, deals: e.target.value }))}
-                    rows={3}
-                  />
-                  <label className={styles.adminLabel}>Amenities (comma-separated)</label>
-                  <input
-                    className={styles.adminInput}
-                    value={adminFields.amenities}
-                    onChange={(e) => setAdminFields((f) => ({ ...f, amenities: e.target.value }))}
-                  />
+                  <TextArea value={adminFields.deals} onChange={(e) => setAdminFields((f) => ({ ...f, deals: e.target.value }))} rows={3} />
+
+                  <label className={styles.adminLabel}>Cuisine / Type</label>
+                  <input className={styles.adminInput} value={adminFields.cuisine} onChange={(e) => setAdminFields((f) => ({ ...f, cuisine: e.target.value }))} />
+
+                  <label className={styles.adminLabel}>Website URL</label>
+                  <input className={styles.adminInput} value={adminFields.url} placeholder="https://..." onChange={(e) => setAdminFields((f) => ({ ...f, url: e.target.value }))} />
+
+                  <label className={styles.adminLabel}>Description</label>
+                  <TextArea value={adminFields.description} onChange={(e) => setAdminFields((f) => ({ ...f, description: e.target.value }))} rows={2} />
+
                   <label className={styles.adminLabel}>Photo URL</label>
-                  <input
-                    className={styles.adminInput}
-                    value={adminFields.photo_url}
-                    onChange={(e) => setAdminFields((f) => ({ ...f, photo_url: e.target.value }))}
-                  />
+                  <input className={styles.adminInput} value={adminFields.photo_url} onChange={(e) => setAdminFields((f) => ({ ...f, photo_url: e.target.value }))} />
+
+                  <label className={styles.adminLabel}>Visibility</label>
+                  <div className={styles.adminChecks}>
+                    <label className={styles.adminCheck}><input type="checkbox" checked={adminFields.active} onChange={(e) => setAdminFields((f) => ({ ...f, active: e.target.checked }))} /> Active</label>
+                    <label className={styles.adminCheck}><input type="checkbox" checked={adminFields.featured} onChange={(e) => setAdminFields((f) => ({ ...f, featured: e.target.checked }))} /> Featured</label>
+                    <label className={styles.adminCheck}><input type="checkbox" checked={adminFields.is_hero} onChange={(e) => setAdminFields((f) => ({ ...f, is_hero: e.target.checked }))} /> Hero Card</label>
+                    <label className={styles.adminCheck}><input type="checkbox" checked={adminFields.owner_verified} onChange={(e) => setAdminFields((f) => ({ ...f, owner_verified: e.target.checked }))} /> Owner Verified</label>
+                  </div>
+
+                  <label className={styles.adminLabel}>Amenities</label>
+                  <div className={styles.adminChecks}>
+                    <label className={styles.adminCheck}><input type="checkbox" checked={adminFields.has_happy_hour} onChange={(e) => setAdminFields((f) => ({ ...f, has_happy_hour: e.target.checked }))} /> 🍺 Happy Hour</label>
+                    <label className={styles.adminCheck}><input type="checkbox" checked={adminFields.has_sports_tv} onChange={(e) => setAdminFields((f) => ({ ...f, has_sports_tv: e.target.checked }))} /> 📺 Sports TV</label>
+                    <label className={styles.adminCheck}><input type="checkbox" checked={adminFields.is_dog_friendly} onChange={(e) => setAdminFields((f) => ({ ...f, is_dog_friendly: e.target.checked }))} /> 🐶 Dog Friendly</label>
+                    <label className={styles.adminCheck}><input type="checkbox" checked={adminFields.has_live_music} onChange={(e) => setAdminFields((f) => ({ ...f, has_live_music: e.target.checked }))} /> 🎵 Live Music</label>
+                    <label className={styles.adminCheck}><input type="checkbox" checked={adminFields.has_karaoke} onChange={(e) => setAdminFields((f) => ({ ...f, has_karaoke: e.target.checked }))} /> 🎤 Karaoke</label>
+                    <label className={styles.adminCheck}><input type="checkbox" checked={adminFields.has_trivia} onChange={(e) => setAdminFields((f) => ({ ...f, has_trivia: e.target.checked }))} /> 🧠 Trivia</label>
+                    <label className={styles.adminCheck}><input type="checkbox" checked={adminFields.has_bingo} onChange={(e) => setAdminFields((f) => ({ ...f, has_bingo: e.target.checked }))} /> 🎯 Bingo</label>
+                    <label className={styles.adminCheck}><input type="checkbox" checked={adminFields.has_comedy} onChange={(e) => setAdminFields((f) => ({ ...f, has_comedy: e.target.checked }))} /> 🎭 Comedy</label>
+                  </div>
+
                   <div className={styles.descFormActions}>
                     <Button size="sm" variant="ghost" onClick={() => setShowAdminEdit(false)}>Cancel</Button>
-                    <Button size="sm" onClick={saveAdminEdit} loading={savingAdmin}>Save</Button>
+                    <Button size="sm" onClick={saveAdminEdit} loading={savingAdmin}>Save Changes</Button>
                   </div>
                 </div>
               )}

@@ -1,0 +1,112 @@
+/* Age gate overlay — matches vanilla checkAgeGate() */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: rgba(10, 6, 2, 0.7);
+  backdrop-filter: blur(20px) saturate(1.3);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: fadeIn 0.25s ease;
+}
+
+@media (min-width: 600px) {
+  .overlay { align-items: center; }
+}
+
+.sheet {
+  width: 100%;
+  max-width: 640px;
+  background: var(--card, #fff);
+  border-radius: 30px 30px 0 0;
+  padding: 32px 24px calc(32px + env(safe-area-inset-bottom, 0px));
+  text-align: center;
+  animation: slideUp 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@media (min-width: 600px) {
+  .sheet { border-radius: 24px; }
+}
+
+.emoji {
+  font-size: 40px;
+  margin-bottom: 8px;
+}
+
+.title {
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-weight: 800;
+  font-size: 20px;
+  color: var(--ink, #1a1208);
+  margin-bottom: 8px;
+}
+
+.subtitle {
+  color: var(--muted, #7a7060);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+  margin-bottom: 20px;
+}
+
+.btnPrimary {
+  display: block;
+  width: 100%;
+  padding: 14px;
+  margin-bottom: 10px;
+  background: var(--teal, #2ec4b6);
+  color: #fff;
+  border: none;
+  border-radius: var(--r, 12px);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: var(--clay-md);
+  transition: transform 0.15s, opacity 0.15s;
+}
+.btnPrimary:active {
+  opacity: 0.88;
+  transform: scale(0.97);
+}
+
+.btnSecondary {
+  display: block;
+  width: 100%;
+  padding: 13px;
+  border-radius: 12px;
+  border: 1.5px solid var(--border, #e0dcd5);
+  background: none;
+  color: var(--muted, #7a7060);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+.btnSecondary:active {
+  transform: scale(0.97);
+}
+
+.legal {
+  margin-top: 16px;
+}
+.legalLink {
+  font-size: 12px;
+  color: var(--muted, #7a7060);
+  cursor: pointer;
+}
+.legalDot {
+  color: var(--muted, #7a7060);
+  font-size: 12px;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
