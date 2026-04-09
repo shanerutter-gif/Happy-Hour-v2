@@ -17,6 +17,9 @@
   --coral-dim: rgba(255, 107, 74, 0.10);
   --coral-glow: rgba(255, 107, 74, 0.22);
   --amber: #E8943A;
+  --teal: #FF6B4A;
+  --teal-dk: #E5543A;
+  --teal-lt: #FF8566;
 
   /* Text */
   --ink: #1A1208;
@@ -91,6 +94,9 @@
   --coral-dim: rgba(255, 107, 74, 0.12);
   --coral-glow: rgba(255, 107, 74, 0.25);
   --amber: #F59E0B;
+  --teal: #FF6B4A;
+  --teal-dk: #E5543A;
+  --teal-lt: #FF8566;
 
   --ink: #F5EFE6;
   --text: #EDE5D8;
