@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { showToast } from '../components/ui/Toast';
+import { haptic } from '../lib/haptic';
 
 export function useFavorites() {
   const { user } = useAuth();
@@ -19,6 +20,7 @@ export function useFavorites() {
   useEffect(() => { load(); }, [load]);
 
   const toggle = async (itemId: string, itemType: string = 'venue') => {
+    haptic('light');
     if (!user) {
       showToast({ text: 'Sign in to save favorites', type: 'error' });
       return;

@@ -20,6 +20,7 @@ const FindPeoplePage = lazy(() => import('./features/social/FindPeoplePage'));
 const LeaderboardPage = lazy(() => import('./features/social/LeaderboardPage'));
 const ListDetailPage = lazy(() => import('./features/lists/ListDetailPage'));
 const LegalPage = lazy(() => import('./features/legal/LegalPage'));
+const ActivityFeedPage = lazy(() => import('./features/profile/ActivityFeedPage'));
 
 function PageLoader() {
   return (
@@ -54,6 +55,7 @@ export default function App() {
                   <Route path="/find-people" element={<FindPeoplePage />} />
                   <Route path="/leaderboard" element={<LeaderboardPage />} />
                   <Route path="/lists/:listId" element={<ListDetailPage />} />
+                  <Route path="/activity" element={<ActivityFeedPage />} />
                   <Route path="/legal/:page" element={<LegalPage />} />
                 </Routes>
               </Suspense>

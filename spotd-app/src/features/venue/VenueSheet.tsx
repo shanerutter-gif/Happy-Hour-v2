@@ -10,6 +10,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { saveCheckinPhoto } from '../../lib/media';
 import { showToast } from '../../components/ui/Toast';
+import { haptic } from '../../lib/haptic';
 import type { Venue, Review, VenueDescription } from '../../types/database';
 import styles from './VenueSheet.module.css';
 
@@ -309,6 +310,7 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
   };
 
   const handleCheckIn = async () => {
+    haptic('light');
     if (!user) {
       showToast({ text: 'Sign in to check in', type: 'error' });
       return;
@@ -383,6 +385,7 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
   };
 
   const handleShare = async () => {
+    haptic('light');
     const shareData = {
       title: venue.name,
       text: `Check out ${venue.name} on Spotd!`,
@@ -431,6 +434,7 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
   };
 
   const toggleVenueFollow = async () => {
+    haptic('light');
     if (!user) { showToast({ text: 'Sign in to follow', type: 'error' }); return; }
     if (followingVenue) {
       await supabase.from('venue_follows').delete().eq('user_id', user.id).eq('venue_id', venue.id);
@@ -619,6 +623,7 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
 
   // --- Review CRUD ---
   const submitReview = async () => {
+    haptic('medium');
     if (reviewRating === 0) {
       showToast({ text: 'Select a star rating', type: 'error' });
       return;

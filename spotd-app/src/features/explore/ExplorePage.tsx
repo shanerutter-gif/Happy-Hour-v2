@@ -11,6 +11,7 @@ import { shouldShowOnboarding } from '../onboarding/OnboardingFlow';
 import { shouldShowTooltips, TooltipWalkthrough } from '../onboarding/TooltipWalkthrough';
 import { supabase } from '../../lib/supabase';
 import { showToast } from '../../components/ui/Toast';
+import { haptic } from '../../lib/haptic';
 import { useCity } from '../../contexts/CityContext';
 import { VenueCard } from './VenueCard';
 import { FilterPanel } from './FilterPanel';
@@ -245,7 +246,7 @@ export default function ExplorePage() {
               key={s.id}
               variant="chip"
               active={activeSuggestion === s.id}
-              onClick={() => setActiveSuggestion(activeSuggestion === s.id ? null : s.id)}
+              onClick={() => { haptic('medium'); setActiveSuggestion(activeSuggestion === s.id ? null : s.id); }}
             >
               {s.emoji} {s.label}
             </Pill>

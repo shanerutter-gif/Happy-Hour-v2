@@ -6,6 +6,7 @@ import { supabase } from '../../lib/supabase';
 import { Button } from '../../components/ui/Button';
 import { Pill } from '../../components/ui/Pill';
 import { showToast } from '../../components/ui/Toast';
+import { haptic } from '../../lib/haptic';
 import type { Profile, Review, List } from '../../types/database';
 import styles from './ProfilePage.module.css';
 
@@ -206,6 +207,7 @@ export default function ProfilePage() {
   };
 
   const toggleNeighborhoodFollow = async (neighborhood: string) => {
+    haptic('light');
     if (!user) return;
     if (neighborhoodFollows.includes(neighborhood)) {
       await supabase.from('neighborhood_follows').delete().eq('user_id', user.id).eq('neighborhood', neighborhood);
@@ -536,7 +538,7 @@ export default function ProfilePage() {
 
       {/* Stats: Check-ins / Reviews / Following / Followers */}
       <div className={styles.stats}>
-        <div className={styles.stat}>
+        <div className={styles.stat} onClick={() => navigate('/activity')} style={{ cursor: 'pointer' }}>
           <span className={styles.statNum}>{checkIns.length}</span>
           <span className={styles.statLabel}>Check-ins</span>
         </div>

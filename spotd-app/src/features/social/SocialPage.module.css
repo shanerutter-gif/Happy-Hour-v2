@@ -44,6 +44,12 @@
   position: relative;
 }
 .headerBtn:active { transform: scale(0.9); }
+.notifDot {
+  position: absolute; top: 4px; right: 4px;
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--coral); border: 2px solid var(--card);
+  pointer-events: none;
+}
 
 /* ── Sub-tabs (Following / Public) ── */
 .subTabs {

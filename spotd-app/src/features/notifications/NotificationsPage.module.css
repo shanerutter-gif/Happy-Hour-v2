@@ -4,7 +4,16 @@
   padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
 }
 
-.header { padding: 16px 20px 8px; }
+.header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 16px 20px 8px;
+}
+.backBtn {
+  background: var(--card); border: none; border-radius: var(--r-sm);
+  padding: 6px 12px; cursor: pointer; box-shadow: var(--clay-sm);
+  font-size: 14px; color: var(--muted);
+}
+.backBtn:active { box-shadow: var(--clay-pressed); }
 .title {
   font-family: 'Cabinet Grotesk', sans-serif;
   font-weight: 800; font-size: 24px; color: var(--ink);
@@ -19,20 +28,43 @@
   color: var(--muted); font-size: 14px;
 }
 .empty span { font-size: 40px; }
+.emptySub { font-size: 13px; color: var(--muted); margin-top: 4px; }
 
 .row {
-  display: flex; align-items: flex-start; gap: 12px;
+  display: flex; align-items: center; gap: 12px;
   padding: 14px 16px; border: none; border-radius: var(--r);
-  cursor: pointer; background: var(--card); margin-bottom: 4px;
-  box-shadow: var(--clay-sm);
+  cursor: pointer; background: var(--card);
+  box-shadow: var(--clay-sm); width: 100%; text-align: left;
   transition: transform var(--duration-fast), box-shadow var(--duration-fast);
+  font-family: 'DM Sans', sans-serif;
 }
 .row:active { transform: scale(0.98); box-shadow: var(--clay-pressed); }
 
-.unread { background: var(--coral-dim); }
+.avatar {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: var(--coral); display: flex; align-items: center; justify-content: center;
+  color: #fff; font-weight: 800; font-size: 13px; flex-shrink: 0; overflow: hidden;
+}
+.avatar img { width: 100%; height: 100%; object-fit: cover; }
+.avatarEmoji { font-size: 20px; }
 
-.icon { font-size: 16px; flex-shrink: 0; margin-top: 2px; }
-
-.body { flex: 1; }
-.content { font-size: 13px; color: var(--text); line-height: 1.5; }
+.body { flex: 1; min-width: 0; }
+.content {
+  font-size: 13px; color: var(--text); line-height: 1.5;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.content strong { color: var(--ink); }
 .time { display: block; color: var(--muted); font-size: 11px; margin-top: 2px; }
+
+.icon { font-size: 16px; flex-shrink: 0; }
+
+.backToFeed { text-align: center; padding: 16px; }
+.backToFeedBtn {
+  display: inline-block; padding: 8px 20px;
+  background: var(--card); border: none; border-radius: 12px;
+  font-size: 12px; font-weight: 600; color: var(--text);
+  cursor: pointer; box-shadow: var(--clay-sm);
+  font-family: 'DM Sans', sans-serif;
+}
+.backToFeedBtn:active { box-shadow: var(--clay-pressed); }

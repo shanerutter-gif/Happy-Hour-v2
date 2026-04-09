@@ -68,6 +68,14 @@
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
+.avatarEmoji { font-size: 20px; }
+
+.sectionLabel {
+  font-size: 13px; font-weight: 700; color: var(--muted);
+  padding: 8px 4px 4px;
+  font-family: 'DM Sans', sans-serif;
+}
+
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }

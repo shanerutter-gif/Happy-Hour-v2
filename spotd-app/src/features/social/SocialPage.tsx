@@ -8,6 +8,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { supabase } from '../../lib/supabase';
 import { uploadPhoto, uploadVideo, extractVideoFrames } from '../../lib/media';
 import { showToast } from '../../components/ui/Toast';
+import { haptic } from '../../lib/haptic';
 import styles from './SocialPage.module.css';
 
 interface FeedItem {
@@ -176,6 +177,50 @@ export default function SocialPage() {
   const [spotUploadStatus, setSpotUploadStatus] = useState('');
   const spotSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const spotFileRef = useRef<HTMLInputElement>(null);
+
+  // Notification dot (unseen likes/comments on my posts — matches vanilla checkSocialNotifications)
+  const [hasNotifDot, setHasNotifDot] = useState(false);
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      try {
+        const [af, cp, ci] = await Promise.all([
+          supabase.from('activity_feed').select('id').eq('user_id', user.id),
+          supabase.from('checkin_photos').select('id').eq('user_id', user.id),
+          supabase.from('check_ins').select('id').eq('user_id', user.id),
+        ]);
+        const myPostIds: string[] = [];
+        (af.data || []).forEach((r: { id: string }) => myPostIds.push('activity-' + r.id));
+        (cp.data || []).forEach((r: { id: string }) => myPostIds.push('photo-' + r.id));
+        (ci.data || []).forEach((r: { id: string }) => myPostIds.push('going-' + r.id));
+        if (!myPostIds.length) return;
+
+        const lastSeen = localStorage.getItem('spotd-notif-seen');
+        if (lastSeen) {
+          const { count } = await supabase
+            .from('social_likes')
+            .select('*', { count: 'exact', head: true })
+            .in('post_id', myPostIds)
+            .neq('user_id', user.id)
+            .gt('created_at', lastSeen);
+          const { count: cc } = await supabase
+            .from('social_comments')
+            .select('*', { count: 'exact', head: true })
+            .in('post_id', myPostIds)
+            .neq('user_id', user.id)
+            .gt('created_at', lastSeen);
+          setHasNotifDot(((count || 0) + (cc || 0)) > 0);
+        } else {
+          const { count } = await supabase
+            .from('social_likes')
+            .select('*', { count: 'exact', head: true })
+            .in('post_id', myPostIds)
+            .neq('user_id', user.id);
+          setHasNotifDot((count || 0) > 0);
+        }
+      } catch { /* ignore */ }
+    })();
+  }, [user]);
 
   // Social nudge — shown first 3 visits (matching vanilla maybeShowSocialNudge)
   const [showNudge, setShowNudge] = useState(false);
@@ -382,6 +427,7 @@ export default function SocialPage() {
   useEffect(() => { loadFeed(); }, [loadFeed]);
 
   const toggleLike = async (postId: string, postType: string) => {
+    haptic('light');
     if (!user) { showToast({ text: 'Sign in to like posts', type: 'error' }); return; }
     const item = items.find(i => i.id === postId);
     if (!item) return;
@@ -853,6 +899,7 @@ export default function SocialPage() {
           </button>
           <button className={styles.headerBtn} onClick={() => navigate('/notifications')} title="Notifications">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>
+            {hasNotifDot && <span className={styles.notifDot} />}
           </button>
           <button className={styles.headerBtn} onClick={() => loadFeed()} title="Refresh">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" /></svg>

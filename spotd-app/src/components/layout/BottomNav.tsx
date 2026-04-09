@@ -44,16 +44,52 @@ export function BottomNav() {
   const { user, profile } = useAuth();
   const [hasUnread, setHasUnread] = useState(false);
 
-  // Poll for unseen notifications (DMs + social) every 2 min like vanilla
+  // Poll for unseen social activity (likes + comments on my posts) every 2 min like vanilla
   const checkUnread = useCallback(async () => {
     if (!user) { setHasUnread(false); return; }
-    // Check unread notifications
-    const { count } = await supabase
-      .from('notifications')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .eq('read', false);
-    setHasUnread((count || 0) > 0);
+    try {
+      // Get my post IDs from activity_feed, checkin_photos, check_ins
+      const [af, cp, ci] = await Promise.all([
+        supabase.from('activity_feed').select('id').eq('user_id', user.id),
+        supabase.from('checkin_photos').select('id').eq('user_id', user.id),
+        supabase.from('check_ins').select('id').eq('user_id', user.id),
+      ]);
+      const myPostIds: string[] = [];
+      (af.data || []).forEach((r: { id: string }) => myPostIds.push('activity-' + r.id));
+      (cp.data || []).forEach((r: { id: string }) => myPostIds.push('photo-' + r.id));
+      (ci.data || []).forEach((r: { id: string }) => myPostIds.push('going-' + r.id));
+      if (!myPostIds.length) { setHasUnread(false); return; }
+
+      // Check for likes/comments newer than last seen
+      const lastSeen = localStorage.getItem('spotd-notif-seen');
+      let hasNew = false;
+      if (lastSeen) {
+        const { count: likeCount } = await supabase
+          .from('social_likes')
+          .select('*', { count: 'exact', head: true })
+          .in('post_id', myPostIds)
+          .neq('user_id', user.id)
+          .gt('created_at', lastSeen);
+        const { count: commentCount } = await supabase
+          .from('social_comments')
+          .select('*', { count: 'exact', head: true })
+          .in('post_id', myPostIds)
+          .neq('user_id', user.id)
+          .gt('created_at', lastSeen);
+        hasNew = ((likeCount || 0) + (commentCount || 0)) > 0;
+      } else {
+        // Never seen — any activity counts
+        const { count } = await supabase
+          .from('social_likes')
+          .select('*', { count: 'exact', head: true })
+          .in('post_id', myPostIds)
+          .neq('user_id', user.id);
+        hasNew = (count || 0) > 0;
+      }
+      setHasUnread(hasNew);
+    } catch {
+      setHasUnread(false);
+    }
   }, [user]);
 
   useEffect(() => {
