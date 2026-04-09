@@ -86,11 +86,15 @@ export default function ExplorePage() {
       });
   }, [venues.length]);
 
-  // Deep linking: ?spot=VENUE_ID
+  // Deep linking: ?spot=VENUE_ID or ?list=LIST_ID
   useEffect(() => {
     const spotId = searchParams.get('spot');
     if (spotId && venues.length > 0) {
       setSelectedVenueId(spotId);
+    }
+    const listId = searchParams.get('list');
+    if (listId) {
+      navigate(`/lists/${listId}`, { replace: true });
     }
   }, [searchParams, venues]);
 

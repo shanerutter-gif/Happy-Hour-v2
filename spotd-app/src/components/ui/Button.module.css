@@ -54,6 +54,13 @@
 }
 .google:active { box-shadow: var(--clay-pressed); }
 
+.apple {
+  background: #000;
+  color: #fff;
+  box-shadow: var(--clay-sm);
+}
+.apple:active { box-shadow: var(--clay-pressed); }
+
 /* Sizes */
 .sm {
   padding: 7px 14px;

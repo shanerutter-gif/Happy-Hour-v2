@@ -6,6 +6,7 @@ import 'leaflet.markercluster';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import { useVenues, useCheckInCounts } from '../../hooks/useVenues';
+import { useFavorites } from '../../hooks/useFavorites';
 import { useCity } from '../../contexts/CityContext';
 import { VenueSheet } from '../venue/VenueSheet';
 import type { Venue } from '../../types/database';
@@ -17,6 +18,7 @@ export default function MapPage() {
   const leafletMap = useRef<L.Map | null>(null);
   const { venues, loading: venuesLoading } = useVenues();
   const checkInCounts = useCheckInCounts();
+  const { isFavorite, toggle: toggleFavorite } = useFavorites();
   const { currentCity } = useCity();
   const [selectedVenue, setSelectedVenue] = useState<Venue | null>(null);
 
@@ -117,6 +119,8 @@ export default function MapPage() {
           venue={selectedVenue}
           open={!!selectedVenue}
           onClose={() => setSelectedVenue(null)}
+          isFavorite={isFavorite(selectedVenue.id)}
+          onToggleFavorite={() => toggleFavorite(selectedVenue.id)}
         />
       )}
     </div>

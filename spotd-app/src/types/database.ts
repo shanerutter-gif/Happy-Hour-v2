@@ -104,6 +104,11 @@ export interface Venue {
   has_trivia?: boolean;
   has_bingo?: boolean;
   has_comedy?: boolean;
+  owner_verified?: boolean;
+  active?: boolean;
+  cuisine?: string | null;
+  description?: string | null;
+  venue_name?: string | null;
   created_at: string;
   [key: string]: unknown;
 }

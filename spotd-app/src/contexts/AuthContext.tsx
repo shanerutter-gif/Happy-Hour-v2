@@ -12,6 +12,8 @@ interface AuthState {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, displayName: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
+  signInWithApple: () => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -41,11 +43,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s);
       setUser(s?.user ?? null);
       if (s?.user) fetchProfile(s.user.id);
       else setProfile(null);
+
+      // Handle password recovery callback — prompt user to set new password
+      if (event === 'PASSWORD_RECOVERY') {
+        const newPass = window.prompt('Enter your new password (min 6 characters):');
+        if (newPass && newPass.length >= 6) {
+          supabase.auth.updateUser({ password: newPass }).then(({ error }) => {
+            if (error) window.alert('Error updating password: ' + error.message);
+            else window.alert('Password updated successfully!');
+          });
+        }
+        window.history.replaceState({}, document.title, '/');
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -92,6 +106,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     trackEvent('login', { method: 'google' });
   };
 
+  const signInWithApple = async () => {
+    trackEvent('login_attempt', { method: 'apple' });
+    const w = window as { spotdNative?: { openOAuth?: (url: string) => void } };
+    if (w.spotdNative?.openOAuth) {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'apple',
+        options: {
+          redirectTo: 'spotd://auth-callback',
+          skipBrowserRedirect: true,
+        },
+      });
+      if (error) throw error;
+      if (data?.url) w.spotdNative.openOAuth(data.url);
+      return;
+    }
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'apple',
+      options: { redirectTo: window.location.origin + '/?auth_callback=1' },
+    });
+    if (error) throw error;
+    trackEvent('login', { method: 'apple' });
+  };
+
+  const resetPassword = async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + '/?type=recovery',
+    });
+    if (error) throw error;
+  };
+
   const signOut = async () => {
     await supabase.auth.signOut();
     setUser(null);
@@ -105,7 +149,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, profile, session, loading, signIn, signUp, signInWithGoogle, signOut, refreshProfile }}
+      value={{ user, profile, session, loading, signIn, signUp, signInWithGoogle, signInWithApple, resetPassword, signOut, refreshProfile }}
     >
       {children}
     </AuthContext.Provider>
