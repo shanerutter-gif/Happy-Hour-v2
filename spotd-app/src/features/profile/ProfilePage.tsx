@@ -224,7 +224,25 @@ export default function ProfilePage() {
   if (loading) {
     return (
       <div className={styles.page}>
-        <div className={`skeleton ${styles.profileSkeleton}`} />
+        <div className={styles.skeletonCard}>
+          <div className={`skeleton ${styles.skeletonAvatar}`} />
+          <div className={`skeleton ${styles.skeletonName}`} />
+          <div className={styles.skeletonStats}>
+            <div className={`skeleton ${styles.skeletonStat}`} />
+            <div className={`skeleton ${styles.skeletonStat}`} />
+            <div className={`skeleton ${styles.skeletonStat}`} />
+            <div className={`skeleton ${styles.skeletonStat}`} />
+          </div>
+        </div>
+        <div className={styles.skeletonTabs}>
+          <div className={`skeleton ${styles.skeletonTab}`} />
+          <div className={`skeleton ${styles.skeletonTab}`} />
+          <div className={`skeleton ${styles.skeletonTab}`} />
+          <div className={`skeleton ${styles.skeletonTab}`} />
+        </div>
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className={`skeleton ${styles.skeletonRow}`} />
+        ))}
       </div>
     );
   }

@@ -91,6 +91,11 @@
   display: block;
 }
 
+.cardSkeleton {
+  height: 72px; border-radius: var(--r);
+  flex-shrink: 0; min-width: 180px;
+}
+
 /* Map markers */
 .pin {
   background: var(--card);

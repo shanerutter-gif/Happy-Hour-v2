@@ -5,6 +5,7 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import { CityProvider } from './contexts/CityContext';
 import { ToastContainer } from './components/ui/Toast';
 import { BottomNav } from './components/layout/BottomNav';
+import { ErrorBoundary } from './components/ui/ErrorBoundary';
 
 const ExplorePage = lazy(() => import('./features/explore/ExplorePage'));
 const MapPage = lazy(() => import('./features/map/MapPage'));
@@ -31,22 +32,24 @@ export default function App() {
       <ThemeProvider>
         <AuthProvider>
           <CityProvider>
-            <Suspense fallback={<PageLoader />}>
-              <Routes>
-                <Route path="/" element={<ExplorePage />} />
-                <Route path="/map" element={<MapPage />} />
-                <Route path="/social" element={<SocialPage />} />
-                <Route path="/dms" element={<DmsPage />} />
-                <Route path="/dms/:threadId" element={<DmsPage />} />
-                <Route path="/notifications" element={<NotificationsPage />} />
-                <Route path="/profile" element={<ProfilePage />} />
-                <Route path="/profile/:userId" element={<ProfilePage />} />
-                <Route path="/auth" element={<AuthPage />} />
-                <Route path="/find-people" element={<FindPeoplePage />} />
-                <Route path="/leaderboard" element={<LeaderboardPage />} />
-                <Route path="/lists/:listId" element={<ListDetailPage />} />
-              </Routes>
-            </Suspense>
+            <ErrorBoundary>
+              <Suspense fallback={<PageLoader />}>
+                <Routes>
+                  <Route path="/" element={<ExplorePage />} />
+                  <Route path="/map" element={<MapPage />} />
+                  <Route path="/social" element={<SocialPage />} />
+                  <Route path="/dms" element={<DmsPage />} />
+                  <Route path="/dms/:threadId" element={<DmsPage />} />
+                  <Route path="/notifications" element={<NotificationsPage />} />
+                  <Route path="/profile" element={<ProfilePage />} />
+                  <Route path="/profile/:userId" element={<ProfilePage />} />
+                  <Route path="/auth" element={<AuthPage />} />
+                  <Route path="/find-people" element={<FindPeoplePage />} />
+                  <Route path="/leaderboard" element={<LeaderboardPage />} />
+                  <Route path="/lists/:listId" element={<ListDetailPage />} />
+                </Routes>
+              </Suspense>
+            </ErrorBoundary>
             <BottomNav />
             <ToastContainer />
           </CityProvider>

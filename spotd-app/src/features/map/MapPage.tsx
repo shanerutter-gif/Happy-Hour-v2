@@ -15,7 +15,7 @@ export default function MapPage() {
   const navigate = useNavigate();
   const mapRef = useRef<HTMLDivElement>(null);
   const leafletMap = useRef<L.Map | null>(null);
-  const { venues } = useVenues();
+  const { venues, loading: venuesLoading } = useVenues();
   const checkInCounts = useCheckInCounts();
   const { currentCity } = useCity();
   const [selectedVenue, setSelectedVenue] = useState<Venue | null>(null);
@@ -93,17 +93,23 @@ export default function MapPage() {
 
       {/* Map sidebar cards */}
       <div className={styles.cards}>
-        {venues.filter((v) => v.lat && v.lng).slice(0, 20).map((v) => (
-          <button
-            key={v.id}
-            className={styles.card}
-            onClick={() => setSelectedVenue(v)}
-          >
-            <span className={styles.cardName}>{v.name}</span>
-            <span className={styles.cardHood}>{v.neighborhood}</span>
-            {v.when_text && <span className={styles.cardWhen}>{v.when_text}</span>}
-          </button>
-        ))}
+        {venuesLoading ? (
+          Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className={`skeleton ${styles.cardSkeleton}`} />
+          ))
+        ) : (
+          venues.filter((v) => v.lat && v.lng).slice(0, 20).map((v) => (
+            <button
+              key={v.id}
+              className={styles.card}
+              onClick={() => setSelectedVenue(v)}
+            >
+              <span className={styles.cardName}>{v.name}</span>
+              <span className={styles.cardHood}>{v.neighborhood}</span>
+              {v.when_text && <span className={styles.cardWhen}>{v.when_text}</span>}
+            </button>
+          ))
+        )}
       </div>
 
       {selectedVenue && (

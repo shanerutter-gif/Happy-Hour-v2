@@ -4,7 +4,23 @@
   padding: 16px 0 calc(80px + env(safe-area-inset-bottom, 0px));
 }
 
-.profileSkeleton { height: 200px; margin: 16px; border-radius: 22px; }
+/* Skeleton loading */
+.skeletonCard {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 12px; padding: 24px 16px;
+  margin: 0 16px 14px; background: var(--card);
+  border-radius: 22px; box-shadow: var(--clay-lg);
+}
+.skeletonAvatar { width: 72px; height: 72px; border-radius: 50%; }
+.skeletonName { width: 120px; height: 20px; border-radius: 8px; }
+.skeletonStats { display: flex; gap: 16px; margin-top: 8px; }
+.skeletonStat { width: 56px; height: 48px; border-radius: var(--r); }
+.skeletonTabs {
+  display: flex; gap: 0; margin: 0 16px;
+  border-bottom: 2px solid var(--border2);
+}
+.skeletonTab { flex: 1; height: 40px; border-radius: 0; }
+.skeletonRow { height: 56px; border-radius: var(--r); margin: 6px 16px; }
 
 .authPrompt {
   display: flex; flex-direction: column; align-items: center;
