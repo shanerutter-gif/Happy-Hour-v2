@@ -83,6 +83,7 @@ export interface Venue {
   amenities: string[];
   photo_url: string | null;
   photo_urls: string[] | null;
+  url: string | null;
   yelp_url: string | null;
   yelp_rating: number | null;
   google_rating: number | null;

@@ -102,19 +102,34 @@
 
 /* Profile card */
 .card {
-  margin: 0 16px 14px; padding: 20px 16px;
+  margin: 0 16px 14px; padding: 0 16px 20px;
   background: var(--card); border: none; border-radius: 22px;
   text-align: center; box-shadow: var(--clay-lg); position: relative;
+  overflow: hidden;
+}
+
+.banner {
+  width: 100%; height: 120px; overflow: hidden;
+  margin-bottom: -36px;
+}
+.bannerImg {
+  width: 100%; height: 100%; object-fit: cover;
+}
+.bannerFallback {
+  width: 100%; height: 80px;
+  background: linear-gradient(135deg, var(--coral), var(--amber));
+  opacity: 0.15; margin-bottom: -36px;
 }
 
 .avatar {
   width: 72px; height: 72px; border-radius: 50%;
   background: linear-gradient(145deg, var(--coral-dim), var(--bg2));
-  border: 2.5px solid var(--coral); overflow: hidden;
+  border: 3px solid var(--card); overflow: hidden;
   display: flex; align-items: center; justify-content: center;
   margin: 0 auto 12px; box-shadow: var(--clay-md);
   font-family: 'Cabinet Grotesk', sans-serif;
   font-weight: 800; font-size: 24px; color: var(--coral);
+  position: relative; z-index: 1;
 }
 .avatar img { width: 100%; height: 100%; object-fit: cover; }
 

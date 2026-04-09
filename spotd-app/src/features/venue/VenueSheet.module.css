@@ -1,4 +1,20 @@
-.content { padding: 8px 0; }
+.content { padding: 0; }
+
+/* Photo hero */
+.photoHero {
+  position: relative; width: 100%;
+  aspect-ratio: 16 / 9; overflow: hidden;
+  border-radius: 0; margin-bottom: 12px;
+}
+.photoHeroImg {
+  width: 100%; height: 100%; object-fit: cover;
+}
+.photoHeroGrad {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  height: 50%;
+  background: linear-gradient(to top, rgba(0,0,0,0.45), transparent);
+  pointer-events: none;
+}
 
 .topRow {
   display: flex; align-items: center; justify-content: space-between;
@@ -58,8 +74,35 @@
 .deals li { font-size: 14px; color: var(--text); padding: 4px 0; }
 .deals li::before { content: '•'; color: var(--coral); margin-right: 8px; }
 
-.goingWrap { margin: 16px 0 4px; }
+/* Amenity tags */
+.amenityTags {
+  display: flex; flex-wrap: wrap; gap: 6px;
+}
+.amenityTag {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 5px 12px; border-radius: 999px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px; font-weight: 600;
+  background: var(--bg); color: var(--text);
+  border: 1px solid var(--border2);
+  box-shadow: var(--clay-sm);
+}
+.amenity_patio { background: #f0f7ef; color: #3a7d34; border-color: rgba(58,125,52,0.2); }
+.amenity_dog { background: #eef7ee; color: #2e8b57; border-color: rgba(46,139,87,0.2); }
+.amenity_sports { background: #edf2fc; color: #2c5edc; border-color: rgba(44,94,220,0.2); }
+.amenity_rooftop { background: #eef6fc; color: #1e88c8; border-color: rgba(30,136,200,0.2); }
+.amenity_live_music { background: #f3eef8; color: #7b42b0; border-color: rgba(123,66,176,0.2); }
+.amenity_trivia { background: #ecf6f6; color: #1a9a8a; border-color: rgba(26,154,138,0.2); }
+.amenity_karaoke { background: #fceef4; color: #c24080; border-color: rgba(194,64,128,0.2); }
+.amenity_comedy { background: #fef8ec; color: #c08c30; border-color: rgba(192,140,48,0.2); }
+
+.goingWrap { margin: 16px 0 4px; text-align: center; }
 .goingBtn { border-radius: 50px !important; }
+.checkInCount {
+  display: block; margin-top: 6px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px; color: var(--muted);
+}
 
 /* Actions row */
 .actions {
@@ -85,6 +128,7 @@
   width: 1px; background: var(--border2);
 }
 .action:active { transform: scale(0.95); }
+.actionPrimary { color: var(--coral); }
 
 .actionIcon {
   width: 36px; height: 36px; border-radius: 50%;

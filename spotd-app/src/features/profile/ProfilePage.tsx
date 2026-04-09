@@ -288,8 +288,15 @@ export default function ProfilePage() {
         )}
       </div>
 
-      {/* Profile card */}
+      {/* Profile card with banner */}
       <div className={styles.card}>
+        {profile?.header_url ? (
+          <div className={styles.banner}>
+            <img src={profile.header_url} alt="" className={styles.bannerImg} />
+          </div>
+        ) : (
+          <div className={styles.bannerFallback} />
+        )}
         <div className={styles.avatar}>
           {profile?.avatar_url ? (
             <img src={profile.avatar_url} alt="" />
@@ -302,6 +309,10 @@ export default function ProfilePage() {
           <p className={styles.bio}>{profile.bio}</p>
         ) : isOwnProfile ? (
           <p className={styles.bioEmpty}>+ add a bio</p>
+        ) : null}
+
+        {profile?.streak && profile.streak > 0 ? (
+          <span className={styles.streakBadge}>🔥 {profile.streak} day streak</span>
         ) : null}
 
         {!isOwnProfile && user && (

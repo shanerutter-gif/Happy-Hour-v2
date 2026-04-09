@@ -12,6 +12,11 @@ import { showToast } from '../../components/ui/Toast';
 import type { Venue, Review, VenueDescription } from '../../types/database';
 import styles from './VenueSheet.module.css';
 
+const AMENITY_ICONS: Record<string, string> = {
+  patio: '🌿', dog: '🐕', sports: '🏈', rooftop: '🏙️',
+  live_music: '🎵', trivia: '🧠', karaoke: '🎤', comedy: '😂',
+};
+
 interface Props {
   venue: Venue;
   open: boolean;
@@ -49,6 +54,8 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
   const [venuePhotos, setVenuePhotos] = useState<{ id: string; photo_url: string; caption: string | null }[]>([]);
   // Push prompt
   const [showPushPrompt, setShowPushPrompt] = useState(false);
+  // Daily check-in count
+  const [todayCheckInCount, setTodayCheckInCount] = useState(0);
   // Admin edit state
   const [showAdminEdit, setShowAdminEdit] = useState(false);
   const [adminFields, setAdminFields] = useState({
@@ -125,9 +132,20 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
     setVenuePhotos((data || []) as { id: string; photo_url: string; caption: string | null }[]);
   }, [venue.id]);
 
+  const loadTodayCheckIns = useCallback(async () => {
+    if (!user) return;
+    const { count } = await supabase
+      .from('check_ins')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .gte('created_at', today + 'T00:00:00');
+    setTodayCheckInCount(count || 0);
+  }, [user, today]);
+
   useEffect(() => {
     if (open) {
       loadReviews();
+      loadTodayCheckIns();
       checkGoing();
       loadGoingCount();
       loadDescriptions();
@@ -138,7 +156,7 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
       setReviewRating(0);
       setReviewText('');
     }
-  }, [open, loadReviews, checkGoing, loadGoingCount, loadDescriptions, checkVenueFollow, loadVenuePhotos]);
+  }, [open, loadReviews, checkGoing, loadGoingCount, loadDescriptions, checkVenueFollow, loadVenuePhotos, loadTodayCheckIns]);
 
   const handleCheckIn = async () => {
     if (!user) {
@@ -156,11 +174,16 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
       setGoingCount((c) => Math.max(0, c - 1));
       showToast({ text: 'Check-in removed' });
     } else {
+      if (todayCheckInCount >= 5) {
+        showToast({ text: 'Daily limit reached (5/day)', type: 'error' });
+        return;
+      }
       await supabase
         .from('check_ins')
         .insert({ venue_id: venue.id, user_id: user.id, city_slug: venue.city_slug });
       setIsGoing(true);
       setGoingCount((c) => c + 1);
+      setTodayCheckInCount((c) => c + 1);
       showToast({ text: `Checked in to ${venue.name}!`, type: 'success' });
       // Prompt for push after first check-in
       if (!localStorage.getItem('pushBannerDismissed') && 'Notification' in window && Notification.permission === 'default') {
@@ -404,6 +427,14 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
   return (
     <Sheet open={open} onClose={onClose}>
       <div className={styles.content}>
+        {/* Photo hero */}
+        {venue.photo_url && (
+          <div className={styles.photoHero}>
+            <img src={venue.photo_url} alt={venue.name} className={styles.photoHeroImg} />
+            <div className={styles.photoHeroGrad} />
+          </div>
+        )}
+
         {/* Tag + Favorite */}
         <div className={styles.topRow}>
           <span className={styles.tag}>
@@ -450,23 +481,47 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
           </div>
         )}
 
+        {/* Amenity Tags */}
+        {venue.amenities && venue.amenities.length > 0 && (
+          <div className={styles.section}>
+            <div className={styles.amenityTags}>
+              {venue.amenities.map((a) => (
+                <span key={a} className={[styles.amenityTag, styles[`amenity_${a.replace(/\s+/g, '_').toLowerCase()}`]].filter(Boolean).join(' ')}>
+                  {AMENITY_ICONS[a] || '✦'} {a}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className={styles.divider} />
 
         {/* Going button */}
         <div className={styles.goingWrap}>
           <Button
-            variant={isGoing ? 'secondary' : 'primary'}
+            variant={isGoing ? 'secondary' : todayCheckInCount >= 5 ? 'ghost' : 'primary'}
             fullWidth
             size="lg"
             onClick={handleCheckIn}
             className={styles.goingBtn}
+            disabled={!isGoing && todayCheckInCount >= 5}
           >
-            {isGoing ? '✓ Going Tonight' : `I'm Going${goingCount > 0 ? ` · ${goingCount} going` : ''}`}
+            {isGoing ? '✓ Going Tonight' : todayCheckInCount >= 5 ? 'Daily Limit Reached' : `I'm Going${goingCount > 0 ? ` · ${goingCount} going` : ''}`}
           </Button>
+          {user && <span className={styles.checkInCount}>{todayCheckInCount}/5 check-ins today</span>}
         </div>
 
         {/* Actions */}
         <div className={styles.actions}>
+          <button className={[styles.action, styles.actionPrimary].filter(Boolean).join(' ')} onClick={() => {
+            const url = venue.url && venue.url !== '#' && venue.url.trim()
+              ? venue.url
+              : `https://www.google.com/search?q=${encodeURIComponent(venue.name + ' ' + (venue.neighborhood || ''))}`;
+            window.open(url, '_blank');
+          }}>
+            <span className={styles.actionIcon}>🌐</span>
+            <span>Website</span>
+          </button>
           <button className={styles.action} onClick={handleDirections}>
             <span className={styles.actionIcon}>📍</span>
             <span>Directions</span>
@@ -475,13 +530,13 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
             <span className={styles.actionIcon}>📤</span>
             <span>Share</span>
           </button>
+          <button className={styles.action} onClick={openSharePicker}>
+            <span className={styles.actionIcon}>✈️</span>
+            <span>Send</span>
+          </button>
           <button className={styles.action} onClick={onToggleFavorite || (() => {})}>
             <span className={styles.actionIcon}>{isFavorite ? '★' : '☆'}</span>
             <span>Save</span>
-          </button>
-          <button className={styles.action} onClick={toggleVenueFollow}>
-            <span className={styles.actionIcon}>{followingVenue ? '🔔' : '🔕'}</span>
-            <span>{followingVenue ? 'Following' : 'Follow'}</span>
           </button>
         </div>
 
