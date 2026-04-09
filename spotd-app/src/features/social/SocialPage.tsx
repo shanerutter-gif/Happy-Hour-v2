@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sheet } from '../../components/ui/Sheet';
 import { Lightbox } from '../../components/ui/Lightbox';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCity } from '../../contexts/CityContext';
 import { supabase } from '../../lib/supabase';
+import { uploadPhoto, uploadVideo, extractVideoFrames } from '../../lib/media';
 import { showToast } from '../../components/ui/Toast';
 import styles from './SocialPage.module.css';
 
@@ -17,6 +18,8 @@ interface FeedItem {
   neighborhood: string | null;
   caption: string | null;
   photo_url: string | null;
+  video_url: string | null;
+  video_poster: string | null;
   rating: number | null;
   created_at: string;
   isFollowing: boolean;
@@ -38,6 +41,80 @@ interface Comment {
 
 type SocialTab = 'following' | 'public';
 
+/** Inline video player with play/pause + mute/unmute (matches vanilla) */
+function VideoPlayer({ videoUrl, poster }: { videoUrl: string; poster: string | null }) {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const [muted, setMuted] = useState(true);
+
+  // IntersectionObserver for autoplay/pause
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        const vid = videoRef.current;
+        if (!vid) return;
+        if (entry.isIntersecting) {
+          vid.play().catch(() => {});
+          setPlaying(true);
+        } else {
+          vid.pause();
+          setPlaying(false);
+        }
+      },
+      { threshold: 0.5 },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  const togglePlay = () => {
+    const vid = videoRef.current;
+    if (!vid) return;
+    if (vid.paused) {
+      vid.play().catch(() => {});
+      setPlaying(true);
+    } else {
+      vid.pause();
+      setPlaying(false);
+    }
+  };
+
+  const toggleMute = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const vid = videoRef.current;
+    if (!vid) return;
+    vid.muted = !vid.muted;
+    setMuted(vid.muted);
+  };
+
+  return (
+    <div ref={wrapRef} className={styles.sfHeroMedia} onClick={togglePlay}>
+      <video
+        ref={videoRef}
+        className={styles.sfHeroVideo}
+        src={videoUrl}
+        poster={poster || undefined}
+        playsInline
+        muted
+        loop
+        preload="metadata"
+      />
+      {!playing && (
+        <div className={styles.videoPlayOverlay}>
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="#fff"><polygon points="5 3 19 12 5 21 5 3" /></svg>
+        </div>
+      )}
+      <button className={styles.videoMuteBtn} onClick={toggleMute}>
+        {muted ? '🔇' : '🔊'}
+      </button>
+      <div className={styles.sfHeroGrad} />
+    </div>
+  );
+}
+
 export default function SocialPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -50,6 +127,25 @@ export default function SocialPage() {
   const [commentInput, setCommentInput] = useState('');
   const [loadingComments, setLoadingComments] = useState(false);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+
+  // Add a Spot overlay state
+  const [showAddSpot, setShowAddSpot] = useState(false);
+  const [spotName, setSpotName] = useState('');
+  const [spotHood, setSpotHood] = useState('');
+  const [spotNote, setSpotNote] = useState('');
+  const [spotRating, setSpotRating] = useState(0);
+  const [spotLinkedVenue, setSpotLinkedVenue] = useState<{ id: string; name: string; neighborhood: string | null } | null>(null);
+  const [spotSearchResults, setSpotSearchResults] = useState<{ id: string; name: string; neighborhood: string | null; google_rating: number | null }[]>([]);
+  const [spotVenues, setSpotVenues] = useState<{ id: string; name: string; neighborhood: string | null; google_rating: number | null; city_slug: string }[]>([]);
+  const [spotFile, setSpotFile] = useState<File | null>(null);
+  const [spotPreview, setSpotPreview] = useState<string | null>(null);
+  const [spotFileType, setSpotFileType] = useState<'photo' | 'video'>('photo');
+  const [spotVideoFrames, setSpotVideoFrames] = useState<string[]>([]);
+  const [spotPoster, setSpotPoster] = useState<string | null>(null);
+  const [spotSubmitting, setSpotSubmitting] = useState(false);
+  const [spotUploadStatus, setSpotUploadStatus] = useState('');
+  const spotSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const spotFileRef = useRef<HTMLInputElement>(null);
 
   const loadFeed = useCallback(async () => {
     if (!currentCity) return;
@@ -118,6 +214,8 @@ export default function SocialPage() {
         neighborhood: p.neighborhood,
         caption: p.caption,
         photo_url: p.photo_url,
+        video_url: null,
+        video_poster: null,
         rating: null,
         created_at: p.created_at,
         isFollowing: followSet.has(p.user_id),
@@ -131,7 +229,7 @@ export default function SocialPage() {
     });
 
     // Add activity items
-    activities.forEach((a: { id: string; user_id: string; activity_type: string; venue_id: string; venue_name: string; neighborhood: string; meta: { photo_url?: string; rating?: number; note?: string } | null; created_at: string }) => {
+    activities.forEach((a: { id: string; user_id: string; activity_type: string; venue_id: string; venue_name: string; neighborhood: string; meta: { photo_url?: string; video_url?: string; video_poster?: string; rating?: number; note?: string } | null; created_at: string }) => {
       const meta = a.meta || {};
       merged.push({
         id: a.id,
@@ -142,6 +240,8 @@ export default function SocialPage() {
         neighborhood: a.neighborhood,
         caption: meta.note || null,
         photo_url: meta.photo_url || null,
+        video_url: meta.video_url || null,
+        video_poster: meta.video_poster || null,
         rating: meta.rating || null,
         created_at: a.created_at,
         isFollowing: followSet.has(a.user_id),
@@ -166,6 +266,8 @@ export default function SocialPage() {
           neighborhood: c.neighborhood,
           caption: null,
           photo_url: null,
+          video_url: null,
+          video_poster: null,
           rating: null,
           created_at: c.created_at,
           isFollowing: followSet.has(c.user_id),
@@ -305,6 +407,171 @@ export default function SocialPage() {
     openComments(commentSheetPost);
   };
 
+  // --- Add a Spot ---
+  const openAddSpot = async () => {
+    if (!user) { showToast({ text: 'Sign in to share a spot', type: 'error' }); return; }
+    setShowAddSpot(true);
+    // Load venues for autocomplete
+    if (currentCity) {
+      const { data } = await supabase
+        .from('venues')
+        .select('id, name, neighborhood, google_rating, city_slug')
+        .eq('city_slug', currentCity.slug)
+        .eq('active', true)
+        .order('name');
+      setSpotVenues((data || []) as typeof spotVenues);
+    }
+  };
+
+  const handleSpotSearch = (query: string) => {
+    setSpotName(query);
+    setSpotLinkedVenue(null);
+    if (spotSearchTimer.current) clearTimeout(spotSearchTimer.current);
+    if (query.length < 2) { setSpotSearchResults([]); return; }
+    spotSearchTimer.current = setTimeout(() => {
+      const q = query.toLowerCase();
+      const results = spotVenues
+        .filter(v => v.name.toLowerCase().includes(q))
+        .slice(0, 6)
+        .map(v => ({ id: v.id, name: v.name, neighborhood: v.neighborhood, google_rating: v.google_rating }));
+      setSpotSearchResults(results);
+    }, 150);
+  };
+
+  const selectSpotVenue = (v: { id: string; name: string; neighborhood: string | null }) => {
+    setSpotLinkedVenue(v);
+    setSpotName(v.name);
+    if (v.neighborhood) setSpotHood(v.neighborhood);
+    setSpotSearchResults([]);
+  };
+
+  const clearSpotVenue = () => {
+    setSpotLinkedVenue(null);
+    setSpotName('');
+    setSpotHood('');
+  };
+
+  const handleSpotMedia = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const isVideo = file.type.startsWith('video/');
+    if (isVideo && file.size > 100 * 1024 * 1024) {
+      showToast({ text: 'Video must be under 100 MB', type: 'error' }); return;
+    }
+    if (!isVideo && file.size > 10 * 1024 * 1024) {
+      showToast({ text: 'Photo must be under 10 MB', type: 'error' }); return;
+    }
+    setSpotFile(file);
+    setSpotFileType(isVideo ? 'video' : 'photo');
+    const url = URL.createObjectURL(file);
+    setSpotPreview(url);
+    if (isVideo) {
+      // Validate duration
+      const vid = document.createElement('video');
+      vid.onloadedmetadata = async () => {
+        if (vid.duration > 60) {
+          showToast({ text: 'Video must be 60s or less', type: 'error' });
+          setSpotFile(null); setSpotPreview(null);
+          URL.revokeObjectURL(url);
+          return;
+        }
+        const frames = await extractVideoFrames(url);
+        setSpotVideoFrames(frames);
+        if (frames.length > 0) setSpotPoster(frames[0]);
+      };
+      vid.src = url;
+    }
+  };
+
+  const clearSpotMedia = () => {
+    if (spotPreview) URL.revokeObjectURL(spotPreview);
+    setSpotFile(null); setSpotPreview(null);
+    setSpotVideoFrames([]); setSpotPoster(null);
+    setSpotFileType('photo');
+  };
+
+  const resetAddSpot = () => {
+    setSpotName(''); setSpotHood(''); setSpotNote(''); setSpotRating(0);
+    setSpotLinkedVenue(null); setSpotSearchResults([]);
+    clearSpotMedia();
+    setSpotSubmitting(false); setSpotUploadStatus('');
+    setShowAddSpot(false);
+  };
+
+  const submitSpot = async () => {
+    if (!user) return;
+    if (!spotName.trim()) { showToast({ text: 'Enter a venue name', type: 'error' }); return; }
+    if (!spotNote.trim()) { showToast({ text: 'Share your experience', type: 'error' }); return; }
+    setSpotSubmitting(true);
+
+    const meta: Record<string, unknown> = {
+      note: spotNote.trim(),
+      rating: spotRating || null,
+      manual: true,
+    };
+
+    // Upload media
+    if (spotFile) {
+      if (spotFileType === 'video') {
+        setSpotUploadStatus('Uploading video…');
+        const result = await uploadVideo(spotFile, user.id, setSpotUploadStatus);
+        if (result) {
+          meta.video_url = result.url;
+          meta.video_storage_path = result.storagePath;
+          if (spotPoster) meta.video_poster = spotPoster;
+        }
+      } else {
+        setSpotUploadStatus('Uploading photo…');
+        const result = await uploadPhoto(spotFile, user.id);
+        if (result) {
+          meta.photo_url = result.url;
+          meta.photo_storage_path = result.storagePath;
+        }
+      }
+    }
+
+    const citySlug = currentCity?.slug || 'san-diego';
+    const linkedId = spotLinkedVenue?.id || null;
+
+    // 1. Activity feed (always)
+    await supabase.from('activity_feed').insert({
+      user_id: user.id,
+      activity_type: 'check_in',
+      venue_id: linkedId,
+      venue_name: spotName.trim(),
+      neighborhood: spotHood.trim() || null,
+      city_slug: citySlug,
+      meta,
+    });
+
+    // 2. Check-in (only if linked to existing venue)
+    if (linkedId) {
+      const todayStr = new Date().toISOString().slice(0, 10);
+      await supabase.from('check_ins').upsert({
+        user_id: user.id,
+        venue_id: linkedId,
+        city_slug: citySlug,
+        date: todayStr,
+        note: spotNote.trim() || null,
+      }, { onConflict: 'user_id,venue_id,date', ignoreDuplicates: true });
+    }
+
+    // 3. Review (only if linked venue + rating)
+    if (linkedId && spotRating > 0) {
+      await supabase.from('reviews').insert({
+        venue_id: linkedId,
+        user_id: user.id,
+        rating: spotRating,
+        text: spotNote.trim() || null,
+        name: user.user_metadata?.full_name || 'Anonymous',
+      });
+    }
+
+    resetAddSpot();
+    showToast({ text: 'Spot shared!', type: 'success' });
+    loadFeed();
+  };
+
   const timeAgo = (date: string) => {
     const diff = Date.now() - new Date(date).getTime();
     const mins = Math.floor(diff / 60000);
@@ -370,13 +637,17 @@ export default function SocialPage() {
       </div>
     );
 
-    if (variant === 'hero' && item.photo_url) {
+    if (variant === 'hero' && (item.photo_url || item.video_url)) {
       return (
         <div key={item.id} className={styles.sfHero}>
-          <div className={styles.sfHeroMedia} onClick={() => setLightboxSrc(item.photo_url)}>
-            <img className={styles.sfHeroImg} src={item.photo_url} alt={venueName} loading="lazy" />
-            <div className={styles.sfHeroGrad} />
-          </div>
+          {item.video_url ? (
+            <VideoPlayer videoUrl={item.video_url} poster={item.video_poster} />
+          ) : (
+            <div className={styles.sfHeroMedia} onClick={() => setLightboxSrc(item.photo_url)}>
+              <img className={styles.sfHeroImg} src={item.photo_url!} alt={venueName} loading="lazy" />
+              <div className={styles.sfHeroGrad} />
+            </div>
+          )}
           <div className={styles.sfHeroInfo}>
             <div className={styles.sfHeroUser}>
               <div className={styles.sfHeroAvatar}>{avatarEl}</div>
@@ -499,7 +770,7 @@ export default function SocialPage() {
     };
 
     filtered.forEach(item => {
-      const hasMedia = item.type === 'photo' || item.photo_url;
+      const hasMedia = item.type === 'photo' || item.photo_url || item.video_url;
       if (hasMedia) {
         flushText();
         elements.push(renderItem(item, 'hero'));
@@ -518,6 +789,9 @@ export default function SocialPage() {
       <div className={styles.socialHeader}>
         <img src="/spotd_logo_v5.png" alt="Spotd" className={styles.headerLogo} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
         <div className={styles.headerActions}>
+          <button className={[styles.headerBtn, styles.addSpotBtn].join(' ')} onClick={openAddSpot} title="Add a Spot">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+          </button>
           <button className={styles.headerBtn} onClick={() => navigate('/dms')} title="Messages">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
           </button>
@@ -552,6 +826,128 @@ export default function SocialPage() {
       </div>
 
       {lightboxSrc && <Lightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />}
+
+      {/* Add a Spot overlay */}
+      <Sheet open={showAddSpot} onClose={resetAddSpot}>
+        <div className={styles.addSpotSheet}>
+          <h2 className={styles.addSpotTitle}>Share a Spot</h2>
+
+          {/* Venue search */}
+          <label className={styles.addSpotLabel}>Venue name *</label>
+          <input
+            className={styles.addSpotInput}
+            placeholder="Search or type a name..."
+            value={spotName}
+            onChange={e => handleSpotSearch(e.target.value)}
+          />
+          {spotSearchResults.length > 0 && !spotLinkedVenue && (
+            <div className={styles.addSpotResults}>
+              {spotSearchResults.map(v => (
+                <button key={v.id} className={styles.addSpotResult} onClick={() => selectSpotVenue(v)}>
+                  <span className={styles.addSpotResultName}>{v.name}</span>
+                  <span className={styles.addSpotResultMeta}>
+                    {v.google_rating ? `⭐ ${v.google_rating} · ` : ''}{v.neighborhood || ''}
+                  </span>
+                </button>
+              ))}
+              <button className={styles.addSpotResult} onClick={() => setSpotSearchResults([])}>
+                <span className={styles.addSpotResultName}>Not listed? Keep typing...</span>
+              </button>
+            </div>
+          )}
+          {spotLinkedVenue && (
+            <div className={styles.addSpotLinked}>
+              <span>📍 {spotLinkedVenue.name}</span>
+              <button className={styles.addSpotLinkedClear} onClick={clearSpotVenue}>✕</button>
+            </div>
+          )}
+
+          {/* Neighborhood */}
+          <label className={styles.addSpotLabel}>Neighborhood</label>
+          <input
+            className={styles.addSpotInput}
+            placeholder="e.g. Gaslamp, North Park..."
+            value={spotHood}
+            onChange={e => setSpotHood(e.target.value)}
+          />
+
+          {/* Experience note */}
+          <label className={styles.addSpotLabel}>Your experience *</label>
+          <textarea
+            className={styles.addSpotTextarea}
+            placeholder="What was the vibe? Great drinks, cool music, good food..."
+            value={spotNote}
+            onChange={e => setSpotNote(e.target.value)}
+            rows={3}
+          />
+
+          {/* Rating */}
+          <label className={styles.addSpotLabel}>Rating (optional)</label>
+          <div className={styles.addSpotStars}>
+            {[1, 2, 3, 4, 5].map(s => (
+              <button
+                key={s}
+                className={[styles.addSpotStar, s <= spotRating && styles.addSpotStarActive].filter(Boolean).join(' ')}
+                onClick={() => setSpotRating(s === spotRating ? 0 : s)}
+              >
+                {s <= spotRating ? '★' : '☆'}
+              </button>
+            ))}
+          </div>
+
+          {/* Photo/Video upload */}
+          <label className={styles.addSpotLabel}>Photo or Video (optional)</label>
+          {!spotPreview ? (
+            <>
+              <button className={styles.addSpotMediaTrigger} onClick={() => spotFileRef.current?.click()}>
+                📸 Add photo or video
+              </button>
+              <input
+                ref={spotFileRef}
+                type="file"
+                accept="image/*,video/mp4,video/quicktime,video/webm"
+                onChange={handleSpotMedia}
+                style={{ display: 'none' }}
+              />
+            </>
+          ) : (
+            <div className={styles.addSpotMediaPreview}>
+              {spotFileType === 'photo' ? (
+                <img src={spotPreview} alt="Preview" className={styles.addSpotPreviewImg} />
+              ) : (
+                <video src={spotPreview} className={styles.addSpotPreviewImg} controls muted />
+              )}
+              {spotVideoFrames.length > 0 && (
+                <div className={styles.addSpotFilmstrip}>
+                  <span className={styles.addSpotFilmLabel}>Cover frame</span>
+                  <div className={styles.addSpotFrames}>
+                    {spotVideoFrames.map((frame, i) => (
+                      <button
+                        key={i}
+                        className={[styles.addSpotFrame, spotPoster === frame && styles.addSpotFrameActive].filter(Boolean).join(' ')}
+                        onClick={() => setSpotPoster(frame)}
+                      >
+                        <img src={frame} alt={`Frame ${i + 1}`} />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <button className={styles.addSpotMediaClear} onClick={clearSpotMedia}>Remove</button>
+            </div>
+          )}
+
+          {spotUploadStatus && <p className={styles.addSpotStatus}>{spotUploadStatus}</p>}
+
+          <button
+            className={styles.addSpotSubmit}
+            onClick={submitSpot}
+            disabled={spotSubmitting}
+          >
+            {spotSubmitting ? 'Sharing...' : 'Share with the feed'}
+          </button>
+        </div>
+      </Sheet>
 
       <Sheet open={!!commentSheetPost} onClose={() => { setCommentSheetPost(null); setComments([]); }}>
         <div className={styles.commentsSheet}>

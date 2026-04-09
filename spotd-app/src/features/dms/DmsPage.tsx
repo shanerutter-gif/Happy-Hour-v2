@@ -21,6 +21,8 @@ interface Message {
   content: string;
   created_at: string;
   read: boolean;
+  message_type?: string;
+  venue_id?: string;
 }
 
 export default function DmsPage() {
@@ -196,7 +198,25 @@ export default function DmsPage() {
               key={msg.id}
               className={[styles.msg, msg.sender_id === user.id ? styles.mine : styles.theirs].join(' ')}
             >
-              <div className={styles.bubble}>{msg.content}</div>
+              {msg.message_type === 'venue_share' ? (
+                <div
+                  className={styles.venueShareBubble}
+                  onClick={() => {
+                    // Extract venue link from content or navigate via venue_id
+                    const urlMatch = msg.content.match(/\?spot=([a-f0-9-]+)/);
+                    if (urlMatch) navigate(`/?spot=${urlMatch[1]}`);
+                  }}
+                >
+                  <span className={styles.venueShareIcon}>📍</span>
+                  <div className={styles.venueShareText}>
+                    {msg.content.split('\n').map((line, i) => (
+                      <span key={i}>{line}{i < msg.content.split('\n').length - 1 && <br />}</span>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className={styles.bubble}>{msg.content}</div>
+              )}
               <span className={styles.msgTime}>
                 {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </span>
