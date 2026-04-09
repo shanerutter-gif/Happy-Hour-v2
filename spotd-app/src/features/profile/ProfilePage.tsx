@@ -751,6 +751,12 @@ export default function ProfilePage() {
               </div>
             </div>
 
+            <div className={styles.legalLinks}>
+              <a href="/legal/privacy" onClick={(e) => { e.preventDefault(); navigate('/legal/privacy'); setShowEditProfile(false); }}>Privacy Policy</a>
+              <span> · </span>
+              <a href="/legal/terms" onClick={(e) => { e.preventDefault(); navigate('/legal/terms'); setShowEditProfile(false); }}>Terms of Service</a>
+            </div>
+
             <button className={styles.deleteAccountBtn} onClick={deleteAccount}>Delete Account</button>
           </div>
         </div>

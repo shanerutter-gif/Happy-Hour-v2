@@ -499,6 +499,15 @@
   color: var(--coral); font-weight: 600; text-decoration: none;
 }
 
+.legalLinks {
+  text-align: center; margin-top: 16px; padding-top: 12px;
+  border-top: 1px solid var(--border2);
+}
+.legalLinks a {
+  font-size: 12px; color: var(--muted); text-decoration: none;
+}
+.legalLinks span { font-size: 12px; color: var(--muted); }
+
 .deleteAccountBtn {
   display: block; width: 100%; margin-top: 12px;
   background: none; border: none;
