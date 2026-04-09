@@ -8,6 +8,9 @@ import { useFavorites } from '../../hooks/useFavorites';
 import { useGeolocation } from '../../hooks/useGeolocation';
 import { useAuth } from '../../contexts/AuthContext';
 import { shouldShowOnboarding } from '../onboarding/OnboardingFlow';
+import { supabase } from '../../lib/supabase';
+import { showToast } from '../../components/ui/Toast';
+import { useCity } from '../../contexts/CityContext';
 import { VenueCard } from './VenueCard';
 import { FilterPanel } from './FilterPanel';
 import { VenueSheet } from '../venue/VenueSheet';
@@ -39,6 +42,7 @@ export default function ExplorePage() {
   const checkInCounts = useCheckInCounts();
   const { isFavorite, toggle: toggleFavorite } = useFavorites();
   const geo = useGeolocation();
+  const { currentCity } = useCity();
   const [showOnboarding] = useState(() => shouldShowOnboarding(user?.id));
 
   const [viewType, setViewType] = useState<ViewType>('hh');
@@ -50,6 +54,9 @@ export default function ExplorePage() {
   const [selectedVenueId, setSelectedVenueId] = useState<string | null>(null);
   const [activeSuggestion, setActiveSuggestion] = useState<string | null>(null);
   const [favFilterOn, setFavFilterOn] = useState(false);
+  const [showRequestForm, setShowRequestForm] = useState(false);
+  const [requestFields, setRequestFields] = useState({ name: '', neighborhood: '', details: '' });
+  const [submittingRequest, setSubmittingRequest] = useState(false);
 
   // Deep linking: ?spot=VENUE_ID
   useEffect(() => {
@@ -90,18 +97,26 @@ export default function ExplorePage() {
 
     if (selectedAmenities.length > 0) {
       result = result.filter((v) =>
-        selectedAmenities.every((a) => !!(v as Record<string, unknown>)[a])
+        selectedAmenities.every((a) => (v as Record<string, unknown>)[a])
       );
     }
 
     if (activeSuggestion) {
       const sug = SUGGESTIONS.find((s) => s.id === activeSuggestion);
       if (sug) {
-        result = result.filter((v) => {
-          const matchAmenity = sug.amenities.length === 0 || sug.amenities.some((a) => !!(v as Record<string, unknown>)[a]);
-          const matchSearch = !sug.search || v.name.toLowerCase().includes(sug.search.toLowerCase()) || v.deals?.some(d => d.toLowerCase().includes(sug.search.toLowerCase()));
-          return matchAmenity && matchSearch;
-        });
+        if (sug.amenities.length > 0) {
+          result = result.filter((v) =>
+            sug.amenities.some((a) => (v as Record<string, unknown>)[a])
+          );
+        }
+        if (sug.search) {
+          const q = sug.search.toLowerCase();
+          result = result.filter((v) =>
+            v.name.toLowerCase().includes(q) ||
+            v.deals?.some(d => d.toLowerCase().includes(q)) ||
+            v.neighborhood?.toLowerCase().includes(q)
+          );
+        }
       }
     }
 
@@ -135,6 +150,22 @@ export default function ExplorePage() {
   if (selectedNeighborhood) activeFilters.push(selectedNeighborhood);
   selectedAmenities.forEach((a) => activeFilters.push(a));
 
+  const submitVenueRequest = async () => {
+    if (!requestFields.name.trim()) { showToast({ text: 'Enter a venue name', type: 'error' }); return; }
+    setSubmittingRequest(true);
+    await supabase.from('venue_requests').insert({
+      venue_name: requestFields.name.trim(),
+      neighborhood: requestFields.neighborhood.trim() || null,
+      details: requestFields.details.trim() || null,
+      city_slug: currentCity?.slug || 'san-diego',
+      user_id: user?.id || null,
+    });
+    setSubmittingRequest(false);
+    setShowRequestForm(false);
+    setRequestFields({ name: '', neighborhood: '', details: '' });
+    showToast({ text: 'Request submitted — thanks!', type: 'success' });
+  };
+
   const selectedVenue = [...venues, ...events].find((v) => v.id === selectedVenueId) || null;
 
   // Split venues into tiers matching vanilla app layout
@@ -149,6 +180,18 @@ export default function ExplorePage() {
   return (
     <div className={styles.page}>
       <CityBar />
+
+      {/* HH / Events toggle */}
+      <div className={styles.viewToggle}>
+        <button
+          className={[styles.viewTab, viewType === 'hh' && styles.viewTabActive].filter(Boolean).join(' ')}
+          onClick={() => setViewType('hh')}
+        >Happy Hours</button>
+        <button
+          className={[styles.viewTab, viewType === 'events' && styles.viewTabActive].filter(Boolean).join(' ')}
+          onClick={() => setViewType('events')}
+        >Events</button>
+      </div>
 
       <div className={styles.controls}>
         <div className={styles.controlsTop}>
@@ -234,7 +277,37 @@ export default function ExplorePage() {
       {!loading && filtered.length > 0 && (
         <div className={styles.resultsBar}>
           <span className={styles.resultsCount}>{filtered.length} spots</span>
-          <button className={styles.requestBtn}>+ Request a Venue</button>
+          <button className={styles.requestBtn} onClick={() => setShowRequestForm(!showRequestForm)}>+ Request a Venue</button>
+        </div>
+      )}
+
+      {/* Venue request form */}
+      {showRequestForm && (
+        <div className={styles.requestForm}>
+          <input
+            className={styles.requestInput}
+            placeholder="Venue name *"
+            value={requestFields.name}
+            onChange={(e) => setRequestFields(f => ({ ...f, name: e.target.value }))}
+          />
+          <input
+            className={styles.requestInput}
+            placeholder="Neighborhood (optional)"
+            value={requestFields.neighborhood}
+            onChange={(e) => setRequestFields(f => ({ ...f, neighborhood: e.target.value }))}
+          />
+          <input
+            className={styles.requestInput}
+            placeholder="Any details? (optional)"
+            value={requestFields.details}
+            onChange={(e) => setRequestFields(f => ({ ...f, details: e.target.value }))}
+          />
+          <div className={styles.requestActions}>
+            <button className={styles.requestCancel} onClick={() => setShowRequestForm(false)}>Cancel</button>
+            <button className={styles.requestSubmit} onClick={submitVenueRequest} disabled={submittingRequest}>
+              {submittingRequest ? 'Submitting...' : 'Submit'}
+            </button>
+          </div>
         </div>
       )}
 
@@ -277,7 +350,6 @@ export default function ExplorePage() {
                     onClick={() => setSelectedVenueId(venue.id)}
                     tier="hero"
                     isFavorite={isFavorite(venue.id)}
-                    onToggleFavorite={() => toggleFavorite(venue.id)}
                   />
                 ))}
               </>
@@ -314,7 +386,6 @@ export default function ExplorePage() {
                     onClick={() => setSelectedVenueId(venue.id)}
                     tier="standard"
                     isFavorite={isFavorite(venue.id)}
-                    onToggleFavorite={() => toggleFavorite(venue.id)}
                   />
                 ))}
               </>

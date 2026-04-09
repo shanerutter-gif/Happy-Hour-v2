@@ -1,17 +1,24 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, type TouchEvent as ReactTouchEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { showToast } from '../../components/ui/Toast';
 import styles from './DmsPage.module.css';
 
+// Swipe-to-delete state
+const swipeState: { startX: number; el: HTMLElement | null } = { startX: 0, el: null };
+
 interface Thread {
   id: string;
   participants: string[];
   last_message: string | null;
   last_message_at: string | null;
+  is_group?: boolean;
+  name?: string | null;
   other_name?: string;
   other_avatar?: string;
+  unread_count?: number;
+  member_names?: string[];
 }
 
 interface Message {
@@ -19,12 +26,9 @@ interface Message {
   sender_id: string;
   content: string;
   created_at: string;
-}
-
-interface Contact {
-  id: string;
-  display_name: string;
-  avatar_url: string | null;
+  read: boolean;
+  message_type?: string;
+  venue_id?: string;
 }
 
 export default function DmsPage() {
@@ -37,9 +41,13 @@ export default function DmsPage() {
   const [loading, setLoading] = useState(true);
   const messagesEnd = useRef<HTMLDivElement>(null);
   const subscriptionRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
-  const [showPicker, setShowPicker] = useState(false);
-  const [contacts, setContacts] = useState<Contact[]>([]);
-  const [pickerLoading, setPickerLoading] = useState(false);
+
+  // New DM compose state
+  const [showCompose, setShowCompose] = useState(false);
+  const [composeSearch, setComposeSearch] = useState('');
+  const [composeResults, setComposeResults] = useState<{ id: string; display_name: string; avatar_url: string | null }[]>([]);
+  const [composeSending, setComposeSending] = useState(false);
+  const composeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadThreads = useCallback(async () => {
     if (!user) return;
@@ -52,7 +60,12 @@ export default function DmsPage() {
 
     const raw = (data || []) as Thread[];
 
-    const otherIds = raw.map((t) => t.participants.find((p) => p !== user.id)).filter(Boolean) as string[];
+    // Collect all non-self participant IDs across all threads
+    const allOtherIds = new Set<string>();
+    raw.forEach((t) => {
+      t.participants.filter((p) => p !== user.id).forEach((id) => allOtherIds.add(id));
+    });
+    const otherIds = [...allOtherIds];
     if (otherIds.length) {
       const { data: profiles } = await supabase
         .from('profiles')
@@ -60,13 +73,39 @@ export default function DmsPage() {
         .in('id', otherIds);
       const pMap = new Map((profiles || []).map((p: { id: string; display_name: string; avatar_url: string }) => [p.id, p]));
       raw.forEach((t) => {
-        const otherId = t.participants.find((p) => p !== user!.id);
-        const profile = otherId ? pMap.get(otherId) : undefined;
-        if (profile) {
-          t.other_name = profile.display_name;
-          t.other_avatar = profile.avatar_url;
+        const others = t.participants.filter((p) => p !== user!.id);
+        const isGroup = others.length > 1;
+        t.is_group = isGroup;
+        if (isGroup) {
+          // Group: show custom name or concatenated first names
+          t.member_names = others.map((id) => {
+            const prof = pMap.get(id);
+            return prof ? (prof.display_name || 'User').split(' ')[0] : 'User';
+          });
+          t.other_name = t.name || t.member_names.join(', ');
+        } else {
+          const profile = others[0] ? pMap.get(others[0]) : undefined;
+          if (profile) {
+            t.other_name = profile.display_name;
+            t.other_avatar = profile.avatar_url;
+          }
         }
       });
+    }
+
+    // Count unread messages per thread
+    if (raw.length) {
+      const { data: unreadData } = await supabase
+        .from('dm_messages')
+        .select('thread_id')
+        .in('thread_id', raw.map(t => t.id))
+        .neq('sender_id', user.id)
+        .eq('read', false);
+      const unreadMap: Record<string, number> = {};
+      (unreadData || []).forEach((m: { thread_id: string }) => {
+        unreadMap[m.thread_id] = (unreadMap[m.thread_id] || 0) + 1;
+      });
+      raw.forEach(t => { t.unread_count = unreadMap[t.id] || 0; });
     }
 
     setThreads(raw);
@@ -82,7 +121,14 @@ export default function DmsPage() {
       .order('created_at', { ascending: true });
     setMessages((data || []) as Message[]);
     setTimeout(() => messagesEnd.current?.scrollIntoView({ behavior: 'smooth' }), 100);
-  }, [threadId]);
+    // Mark messages as read
+    if (user && data?.length) {
+      const unreadIds = data.filter((m: Message) => !m.read && m.sender_id !== user.id).map((m: Message) => m.id);
+      if (unreadIds.length) {
+        supabase.from('dm_messages').update({ read: true }).in('id', unreadIds);
+      }
+    }
+  }, [threadId, user]);
 
   useEffect(() => { loadThreads(); }, [loadThreads]);
   useEffect(() => { loadMessages(); }, [loadMessages]);
@@ -120,6 +166,99 @@ export default function DmsPage() {
     };
   }, [threadId]);
 
+  // --- Swipe-to-delete ---
+  const handleSwipeStart = (e: ReactTouchEvent) => {
+    swipeState.startX = e.touches[0].clientX;
+    swipeState.el = e.currentTarget as HTMLElement;
+  };
+
+  const handleSwipeMove = (e: ReactTouchEvent) => {
+    if (!swipeState.el) return;
+    const dx = e.touches[0].clientX - swipeState.startX;
+    if (dx < 0) {
+      const clamped = Math.max(dx, -80);
+      swipeState.el.style.transform = `translateX(${clamped}px)`;
+    }
+  };
+
+  const handleSwipeEnd = (threadIdToDelete: string) => {
+    if (!swipeState.el) return;
+    const rect = swipeState.el.getBoundingClientRect();
+    const currentX = parseFloat(swipeState.el.style.transform.replace(/[^-\d.]/g, '')) || 0;
+    if (currentX < -50) {
+      // Show delete button — keep swiped
+      swipeState.el.style.transform = 'translateX(-70px)';
+      swipeState.el.dataset.swiped = threadIdToDelete;
+    } else {
+      swipeState.el.style.transform = 'translateX(0)';
+    }
+    swipeState.el = null;
+  };
+
+  const deleteThread = async (tid: string) => {
+    if (!user) return;
+    // Delete messages then thread
+    await supabase.from('dm_messages').delete().eq('thread_id', tid);
+    await supabase.from('dm_threads').delete().eq('id', tid);
+    setThreads((prev) => prev.filter((t) => t.id !== tid));
+    showToast({ text: 'Conversation deleted' });
+  };
+
+  // --- New DM compose ---
+  const searchComposeUsers = (query: string) => {
+    setComposeSearch(query);
+    if (composeTimer.current) clearTimeout(composeTimer.current);
+    if (query.length < 2) { setComposeResults([]); return; }
+    composeTimer.current = setTimeout(async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, display_name, avatar_url')
+        .ilike('display_name', `%${query}%`)
+        .neq('id', user!.id)
+        .limit(10);
+      setComposeResults((data || []) as typeof composeResults);
+    }, 200);
+  };
+
+  const startDmWith = async (recipientId: string) => {
+    if (!user || composeSending) return;
+    setComposeSending(true);
+    // Check for existing 1:1 thread
+    const { data: existingThreads } = await supabase
+      .from('dm_threads')
+      .select('*')
+      .contains('participants', [user.id, recipientId]);
+    const existing = (existingThreads || []).find(
+      (t: { participants: string[] }) =>
+        t.participants.length === 2 &&
+        t.participants.includes(user.id) &&
+        t.participants.includes(recipientId)
+    );
+    if (existing) {
+      setShowCompose(false);
+      setComposeSearch('');
+      setComposeResults([]);
+      setComposeSending(false);
+      navigate(`/dms/${existing.id}`);
+      return;
+    }
+    // Create new thread
+    const { data: newThread } = await supabase
+      .from('dm_threads')
+      .insert({ participants: [user.id, recipientId] })
+      .select('id')
+      .single();
+    setComposeSending(false);
+    setShowCompose(false);
+    setComposeSearch('');
+    setComposeResults([]);
+    if (newThread) {
+      navigate(`/dms/${newThread.id}`);
+    } else {
+      showToast({ text: 'Failed to create conversation', type: 'error' });
+    }
+  };
+
   const sendMessage = async () => {
     if (!input.trim() || !threadId || !user) return;
     const content = input.trim();
@@ -142,54 +281,6 @@ export default function DmsPage() {
       .eq('id', threadId);
 
     // Don't manually reload — realtime will pick up the insert
-  };
-
-  const openNewMessage = async () => {
-    if (!user) return;
-    setShowPicker(true);
-    setPickerLoading(true);
-    const { data: follows } = await supabase
-      .from('user_follows')
-      .select('following_id')
-      .eq('follower_id', user.id);
-    const ids = (follows || []).map((f: { following_id: string }) => f.following_id);
-    if (ids.length) {
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, display_name, avatar_url')
-        .in('id', ids);
-      setContacts((profiles || []) as Contact[]);
-    } else {
-      setContacts([]);
-    }
-    setPickerLoading(false);
-  };
-
-  const startConversation = async (contactId: string) => {
-    if (!user) return;
-    // Check for existing thread
-    const { data: existing } = await supabase
-      .from('dm_threads')
-      .select('*')
-      .contains('participants', [user.id, contactId]);
-    const found = (existing || []).find(
-      (t: { participants: string[] }) => t.participants.includes(user.id) && t.participants.includes(contactId)
-    );
-    if (found) {
-      setShowPicker(false);
-      navigate(`/dms/${found.id}`);
-      return;
-    }
-    // Create new thread
-    const { data: newThread } = await supabase
-      .from('dm_threads')
-      .insert({ participants: [user.id, contactId] })
-      .select('id')
-      .single();
-    if (newThread) {
-      setShowPicker(false);
-      navigate(`/dms/${newThread.id}`);
-    }
   };
 
   const timeAgo = (date: string | null) => {
@@ -221,7 +312,16 @@ export default function DmsPage() {
       <div className={styles.page}>
         <div className={styles.threadHeader}>
           <button className={styles.backBtn} onClick={() => navigate('/dms')}>←</button>
-          <span className={styles.threadName}>{thread?.other_name || 'Chat'}</span>
+          <div>
+            <span className={styles.threadName}>{thread?.other_name || 'Chat'}</span>
+            {thread?.is_group && thread.member_names && (
+              <div className={styles.memberPills}>
+                {thread.member_names.map((name, i) => (
+                  <span key={i} className={styles.memberPill}>{name}</span>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
         <div className={styles.messages}>
           {messages.map((msg) => (
@@ -229,7 +329,25 @@ export default function DmsPage() {
               key={msg.id}
               className={[styles.msg, msg.sender_id === user.id ? styles.mine : styles.theirs].join(' ')}
             >
-              <div className={styles.bubble}>{msg.content}</div>
+              {msg.message_type === 'venue_share' ? (
+                <div
+                  className={styles.venueShareBubble}
+                  onClick={() => {
+                    // Extract venue link from content or navigate via venue_id
+                    const urlMatch = msg.content.match(/\?spot=([a-f0-9-]+)/);
+                    if (urlMatch) navigate(`/?spot=${urlMatch[1]}`);
+                  }}
+                >
+                  <span className={styles.venueShareIcon}>📍</span>
+                  <div className={styles.venueShareText}>
+                    {msg.content.split('\n').map((line, i) => (
+                      <span key={i}>{line}{i < msg.content.split('\n').length - 1 && <br />}</span>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className={styles.bubble}>{msg.content}</div>
+              )}
               <span className={styles.msgTime}>
                 {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </span>
@@ -256,34 +374,45 @@ export default function DmsPage() {
     <div className={styles.page}>
       <div className={styles.header}>
         <h1 className={styles.title}>Messages</h1>
-        <button className={styles.newBtn} onClick={openNewMessage}>+</button>
+        <button className={styles.newDmBtn} onClick={() => setShowCompose(true)}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+        </button>
       </div>
 
-      {/* New message picker */}
-      {showPicker && (
-        <div className={styles.picker}>
-          <div className={styles.pickerHeader}>
-            <button className={styles.pickerBack} onClick={() => setShowPicker(false)}>←</button>
-            <span>New Message</span>
+      {/* New DM compose overlay */}
+      {showCompose && (
+        <div className={styles.composeOverlay}>
+          <div className={styles.composeHeader}>
+            <button className={styles.backBtn} onClick={() => { setShowCompose(false); setComposeSearch(''); setComposeResults([]); }}>←</button>
+            <span className={styles.threadName}>New Message</span>
           </div>
-          <div className={styles.pickerList}>
-            {pickerLoading ? (
-              <div className={styles.empty}><p>Loading...</p></div>
-            ) : contacts.length === 0 ? (
-              <div className={styles.empty}><p>Follow people to message them</p></div>
-            ) : (
-              contacts.map(c => (
-                <button key={c.id} className={styles.pickerRow} onClick={() => startConversation(c.id)}>
-                  <div className={styles.threadAvatar}>
-                    {c.avatar_url ? (
-                      <img src={c.avatar_url} alt="" />
-                    ) : (
-                      <span>{(c.display_name || 'U').slice(0, 2).toUpperCase()}</span>
-                    )}
-                  </div>
-                  <span className={styles.pickerName}>{c.display_name}</span>
-                </button>
-              ))
+          <input
+            className={styles.composeSearchInput}
+            placeholder="Search by name..."
+            value={composeSearch}
+            onChange={(e) => searchComposeUsers(e.target.value)}
+            autoFocus
+          />
+          <div className={styles.composeResultsList}>
+            {composeResults.map((p) => (
+              <button
+                key={p.id}
+                className={styles.composeResultRow}
+                onClick={() => startDmWith(p.id)}
+                disabled={composeSending}
+              >
+                <div className={styles.threadAvatar}>
+                  {p.avatar_url ? (
+                    <img src={p.avatar_url} alt="" />
+                  ) : (
+                    <span>{(p.display_name || 'U').slice(0, 2).toUpperCase()}</span>
+                  )}
+                </div>
+                <span className={styles.composeResultName}>{p.display_name}</span>
+              </button>
+            ))}
+            {composeSearch.length >= 2 && composeResults.length === 0 && (
+              <p className={styles.composeEmpty}>No users found</p>
             )}
           </div>
         </div>
@@ -300,24 +429,38 @@ export default function DmsPage() {
           </div>
         ) : (
           threads.map((t) => (
-            <button
-              key={t.id}
-              className={styles.threadRow}
-              onClick={() => navigate(`/dms/${t.id}`)}
-            >
-              <div className={styles.threadAvatar}>
-                {t.other_avatar ? (
-                  <img src={t.other_avatar} alt="" />
-                ) : (
-                  <span>{(t.other_name || 'U').slice(0, 2).toUpperCase()}</span>
-                )}
+            <div key={t.id} className={styles.threadSwipeWrap}>
+              <div
+                className={styles.threadSwipeInner}
+                onTouchStart={handleSwipeStart}
+                onTouchMove={handleSwipeMove}
+                onTouchEnd={() => handleSwipeEnd(t.id)}
+              >
+                <button
+                  className={styles.threadRow}
+                  onClick={() => navigate(`/dms/${t.id}`)}
+                >
+                  <div className={styles.threadAvatar}>
+                    {t.is_group ? (
+                      <span>👥</span>
+                    ) : t.other_avatar ? (
+                      <img src={t.other_avatar} alt="" />
+                    ) : (
+                      <span>{(t.other_name || 'U').slice(0, 2).toUpperCase()}</span>
+                    )}
+                  </div>
+                  <div className={styles.threadBody}>
+                    <span className={styles.threadTitle}>{t.other_name || 'User'}</span>
+                    <span className={styles.threadPreview}>{t.last_message || 'No messages'}</span>
+                  </div>
+                  <div className={styles.threadRight}>
+                    <span className={styles.threadTime}>{timeAgo(t.last_message_at)}</span>
+                    {(t.unread_count || 0) > 0 && <span className={styles.unreadBadge}>{t.unread_count}</span>}
+                  </div>
+                </button>
               </div>
-              <div className={styles.threadBody}>
-                <span className={styles.threadTitle}>{t.other_name || 'User'}</span>
-                <span className={styles.threadPreview}>{t.last_message || 'No messages'}</span>
-              </div>
-              <span className={styles.threadTime}>{timeAgo(t.last_message_at)}</span>
-            </button>
+              <button className={styles.swipeDelete} onClick={() => deleteThread(t.id)}>Delete</button>
+            </div>
           ))
         )}
       </div>

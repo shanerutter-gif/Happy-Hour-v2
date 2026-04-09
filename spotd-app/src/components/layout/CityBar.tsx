@@ -17,12 +17,7 @@ export function CityBar() {
 
   return (
     <div className={styles.bar} ref={ref}>
-      <img
-        src="/spotd_logo_v5.png"
-        alt="Spotd"
-        className={styles.logo}
-        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-      />
+      <img src="/spotd_logo_v5.png" alt="Spotd" className={styles.logo} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
       <button
         className={[styles.pill, open && styles.open].filter(Boolean).join(' ')}
         onClick={() => setOpen(!open)}
@@ -39,19 +34,19 @@ export function CityBar() {
               className={[
                 styles.item,
                 city.slug === currentCity?.slug && styles.current,
-                !city.active && styles.disabled,
+                !city.enabled && styles.disabled,
               ].filter(Boolean).join(' ')}
               onClick={() => {
-                if (city.active) {
+                if (city.enabled) {
                   setCity(city.slug);
                   setOpen(false);
                 }
               }}
-              disabled={!city.active}
+              disabled={!city.enabled}
             >
-              <span>{city.name}, {city.state_code}</span>
+              <span>{city.name}, {city.state}</span>
               {city.slug === currentCity?.slug && <span className={styles.check}>✓</span>}
-              {!city.active && <span className={styles.soon}>Soon</span>}
+              {!city.enabled && <span className={styles.soon}>Soon</span>}
             </button>
           ))}
         </div>

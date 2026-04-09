@@ -6,22 +6,13 @@
 }
 
 .header {
-  display: flex; align-items: center; justify-content: space-between;
   padding: 16px 20px 8px;
+  display: flex; align-items: center; justify-content: space-between;
 }
 .title {
   font-family: 'Cabinet Grotesk', sans-serif;
   font-weight: 800; font-size: 24px; color: var(--ink);
 }
-.newBtn {
-  width: 36px; height: 36px; border-radius: 50%;
-  border: none; background: var(--card);
-  box-shadow: var(--clay-sm); cursor: pointer;
-  font-size: 20px; font-weight: 700; color: var(--coral);
-  display: flex; align-items: center; justify-content: center;
-  transition: transform var(--duration-fast);
-}
-.newBtn:active { transform: scale(0.9); }
 
 .list { display: flex; flex-direction: column; gap: 4px; padding: 0 12px; }
 .skeleton { height: 72px; border-radius: var(--r); }
@@ -57,10 +48,20 @@
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
+.threadRight {
+  display: flex; flex-direction: column;
+  align-items: flex-end; gap: 4px; flex-shrink: 0;
+}
 .threadTime {
   font-family: 'DM Mono', monospace;
   font-size: 10px; color: var(--muted);
-  flex-shrink: 0;
+}
+.unreadBadge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; padding: 0 5px;
+  border-radius: 50px; font-size: 10px; font-weight: 800;
+  background: var(--coral); color: #fff;
+  font-family: 'DM Sans', sans-serif;
 }
 
 /* Thread header */
@@ -130,38 +131,97 @@
 }
 .sendBtn:active { transform: scale(0.88); }
 
-/* New message picker */
-.picker {
-  position: fixed; inset: 0; z-index: 999;
-  background: var(--bg);
+/* Venue share message */
+.venueShareBubble {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 12px 16px; border-radius: 18px;
+  background: linear-gradient(135deg, rgba(255,107,74,0.1), rgba(232,148,58,0.1));
+  border: 1px solid var(--coral-dim);
+  cursor: pointer; max-width: 260px;
+  transition: transform var(--duration-fast);
+}
+.venueShareBubble:active { transform: scale(0.97); }
+.venueShareIcon { font-size: 20px; flex-shrink: 0; margin-top: 2px; }
+.venueShareText {
+  font-size: 13px; color: var(--text); line-height: 1.5;
+  word-break: break-word;
+}
+.venueShareText span:first-child { font-weight: 700; color: var(--ink); }
+
+/* Swipe-to-delete */
+.threadSwipeWrap {
+  position: relative; overflow: hidden;
+  border-radius: var(--r);
+}
+.threadSwipeInner {
+  transition: transform 0.15s ease;
+}
+.swipeDelete {
+  position: absolute; right: 0; top: 0; bottom: 0;
+  width: 70px; background: #e74c3c; color: #fff;
+  border: none; font-weight: 700; font-size: 13px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  font-family: 'DM Sans', sans-serif;
+}
+
+/* Group member pills */
+.memberPills {
+  display: flex; gap: 4px; flex-wrap: wrap; margin-top: 2px;
+}
+.memberPill {
+  font-size: 10px; padding: 2px 8px;
+  background: var(--card); border-radius: 50px;
+  color: var(--muted); font-weight: 600;
+  font-family: 'DM Sans', sans-serif;
+  box-shadow: var(--clay-sm);
+}
+
+/* New DM button */
+.newDmBtn {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--coral), var(--coral-dk));
+  color: #fff; border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: var(--clay-md);
+  transition: transform var(--duration-fast);
+}
+.newDmBtn:active { transform: scale(0.88); }
+
+/* Compose overlay */
+.composeOverlay {
   display: flex; flex-direction: column;
-  animation: slideIn 0.2s ease;
+  padding: 0 12px;
 }
-.pickerHeader {
+.composeHeader {
   display: flex; align-items: center; gap: 12px;
-  padding: 16px 20px;
-  font-family: 'Cabinet Grotesk', sans-serif;
-  font-weight: 800; font-size: 18px; color: var(--ink);
+  padding: 0 0 12px;
 }
-.pickerBack {
-  background: var(--card); border: none; border-radius: var(--r-sm);
-  padding: 6px 12px; cursor: pointer; box-shadow: var(--clay-sm);
-  font-size: 14px; color: var(--muted);
+.composeSearchInput {
+  width: 100%; padding: 12px 16px;
+  background: var(--card); border: none;
+  border-radius: var(--r); font-size: 15px;
+  color: var(--text); outline: none;
+  box-shadow: var(--clay-input);
+  font-family: 'DM Sans', sans-serif;
+  margin-bottom: 8px;
 }
-.pickerList {
-  flex: 1; overflow-y: auto; padding: 0 12px;
+.composeSearchInput:focus { box-shadow: var(--ring), var(--clay-sm); }
+.composeResultsList {
   display: flex; flex-direction: column; gap: 4px;
 }
-.pickerRow {
+.composeResultRow {
   display: flex; align-items: center; gap: 12px;
-  padding: 12px; background: var(--card); border: none; border-radius: var(--r);
-  cursor: pointer; text-align: left; width: 100%;
+  padding: 12px; background: var(--card); border: none;
+  border-radius: var(--r); cursor: pointer;
+  text-align: left; width: 100%;
   box-shadow: var(--clay-sm);
   transition: transform var(--duration-fast);
 }
-.pickerRow:active { transform: scale(0.98); }
-.pickerName { font-weight: 600; font-size: 15px; color: var(--ink); }
-
-@keyframes slideIn {
-  from { transform: translateX(100%); } to { transform: translateX(0); }
+.composeResultRow:active { transform: scale(0.98); }
+.composeResultName {
+  font-weight: 600; font-size: 15px; color: var(--ink);
+}
+.composeEmpty {
+  text-align: center; color: var(--muted);
+  font-size: 13px; padding: 20px;
 }

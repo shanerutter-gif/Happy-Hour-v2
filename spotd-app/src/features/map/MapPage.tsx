@@ -28,12 +28,13 @@ export default function MapPage() {
 
     const map = L.map(mapRef.current, {
       center: [lat, lng],
-      zoom: 12,
+      zoom: 13,
       zoomControl: true,
-      attributionControl: false,
     });
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; OpenStreetMap &copy; CARTO',
+    }).addTo(map);
 
     leafletMap.current = map;
   }, [currentCity]);
@@ -92,7 +93,6 @@ export default function MapPage() {
 
       {/* Map sidebar cards */}
       <div className={styles.cards}>
-        <div className={styles.sidebarTitle}>Tap a pin to explore</div>
         {venuesLoading ? (
           Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className={`skeleton ${styles.cardSkeleton}`} />

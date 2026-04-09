@@ -459,6 +459,303 @@
 }
 .commentSend:active { transform: scale(0.88); }
 
+/* ── Pull to refresh ── */
+.pullIndicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 600;
+  font-family: 'DM Sans', sans-serif;
+  overflow: hidden;
+  transition: height 0.2s ease;
+}
+
+/* ── Video player ── */
+.sfHeroVideo {
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+  display: block;
+  background: #000;
+}
+
+.videoPlayOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+}
+
+.videoMuteBtn {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+/* ── Add a Spot "+" button ── */
+.addSpotBtn {
+  background: linear-gradient(135deg, var(--coral), var(--coral-dk)) !important;
+  color: #fff !important;
+  box-shadow: var(--clay-md) !important;
+}
+
+/* ── Add a Spot Sheet ── */
+.addSpotSheet {
+  padding: 4px 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.addSpotTitle {
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-weight: 800;
+  font-size: 22px;
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+
+.addSpotLabel {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.addSpotInput {
+  width: 100%;
+  padding: 12px 16px;
+  background: var(--card);
+  border: none;
+  border-radius: var(--r);
+  font-size: 15px;
+  color: var(--text);
+  outline: none;
+  box-shadow: var(--clay-input);
+  font-family: 'DM Sans', sans-serif;
+}
+.addSpotInput:focus { box-shadow: var(--ring), var(--clay-sm); }
+
+.addSpotTextarea {
+  width: 100%;
+  padding: 12px 16px;
+  background: var(--card);
+  border: none;
+  border-radius: var(--r);
+  font-size: 15px;
+  color: var(--text);
+  outline: none;
+  box-shadow: var(--clay-input);
+  font-family: 'DM Sans', sans-serif;
+  resize: none;
+  min-height: 80px;
+}
+.addSpotTextarea:focus { box-shadow: var(--ring), var(--clay-sm); }
+
+/* Autocomplete results */
+.addSpotResults {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--card);
+  border-radius: var(--r);
+  box-shadow: var(--clay-md);
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.addSpotResult {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--r-sm);
+  transition: background var(--duration-fast);
+}
+.addSpotResult:hover { background: var(--bg); }
+
+.addSpotResultName {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.addSpotResultMeta {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* Linked venue badge */
+.addSpotLinked {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--coral-dim);
+  border-radius: var(--r);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--coral);
+}
+
+.addSpotLinkedClear {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 0 4px;
+}
+
+/* Star rating */
+.addSpotStars {
+  display: flex;
+  gap: 6px;
+}
+
+.addSpotStar {
+  background: none;
+  border: none;
+  font-size: 28px;
+  cursor: pointer;
+  color: var(--border2);
+  transition: transform var(--duration-fast), color var(--duration-fast);
+  padding: 0;
+}
+.addSpotStar:active { transform: scale(1.15); }
+.addSpotStarActive { color: var(--amber) !important; }
+
+/* Media upload */
+.addSpotMediaTrigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px;
+  background: var(--card);
+  border: 2px dashed var(--border2);
+  border-radius: var(--r);
+  font-size: 14px;
+  color: var(--muted);
+  cursor: pointer;
+  transition: border-color var(--duration-fast);
+  font-family: 'DM Sans', sans-serif;
+  width: 100%;
+}
+.addSpotMediaTrigger:hover { border-color: var(--coral); color: var(--coral); }
+
+.addSpotMediaPreview {
+  position: relative;
+  border-radius: var(--r);
+  overflow: hidden;
+}
+
+.addSpotPreviewImg {
+  width: 100%;
+  max-height: 240px;
+  object-fit: cover;
+  border-radius: var(--r);
+  display: block;
+}
+
+.addSpotMediaClear {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  border: none;
+  border-radius: 50px;
+  padding: 4px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+}
+
+/* Video filmstrip */
+.addSpotFilmstrip {
+  padding: 8px 0;
+}
+
+.addSpotFilmLabel {
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.addSpotFrames {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+}
+
+.addSpotFrame {
+  width: 48px;
+  height: 36px;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  background: none;
+  flex-shrink: 0;
+}
+.addSpotFrame img { width: 100%; height: 100%; object-fit: cover; }
+.addSpotFrameActive { border-color: var(--coral); }
+
+.addSpotStatus {
+  font-size: 12px;
+  color: var(--coral);
+  text-align: center;
+  font-weight: 600;
+}
+
+.addSpotSubmit {
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(135deg, var(--coral), var(--coral-dk));
+  color: #fff;
+  border: none;
+  border-radius: 50px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: var(--clay-md);
+  transition: transform var(--duration-fast) var(--spring);
+  margin-top: 8px;
+}
+.addSpotSubmit:active { transform: scale(0.96); }
+.addSpotSubmit:disabled { opacity: 0.5; }
+
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }

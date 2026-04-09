@@ -48,7 +48,10 @@ export default function ProfilePage() {
   const [editName, setEditName] = useState('');
   const [editBio, setEditBio] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
+  const [isPublic, setIsPublic] = useState(true);
+  const [digestEnabled, setDigestEnabled] = useState(false);
   const [showIdeaBanner, setShowIdeaBanner] = useState(() => !localStorage.getItem('ideaBannerDismissed'));
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   const isOwnProfile = !userId || userId === user?.id;
   const targetId = userId || user?.id;
@@ -149,6 +152,12 @@ export default function ProfilePage() {
   useEffect(() => { loadFollowCounts(); }, [loadFollowCounts]);
   useEffect(() => { checkFollowing(); }, [checkFollowing]);
   useEffect(() => { loadNeighborhoodFollows(); }, [loadNeighborhoodFollows]);
+  useEffect(() => {
+    if (profile && isOwnProfile) {
+      setIsPublic((profile as unknown as Record<string, unknown>).is_public !== false);
+      setDigestEnabled(!!(profile as unknown as Record<string, unknown>).digest_enabled);
+    }
+  }, [profile, isOwnProfile]);
 
   const toggleFollow = async () => {
     if (!user || !userId) return;
@@ -209,9 +218,11 @@ export default function ProfilePage() {
   const saveProfile = async () => {
     if (!user) return;
     setSavingProfile(true);
-    const updates: Record<string, string> = {};
+    const updates: Record<string, unknown> = {};
     if (editName.trim()) updates.display_name = editName.trim();
     updates.bio = editBio.trim();
+    updates.is_public = isPublic;
+    updates.digest_enabled = digestEnabled;
     await supabase.from('profiles').update(updates).eq('id', user.id);
     setSavingProfile(false);
     setShowEditProfile(false);
@@ -219,10 +230,49 @@ export default function ProfilePage() {
     loadProfile();
   };
 
+  const deleteAccount = async () => {
+    if (!user) return;
+    const confirmed = window.confirm('Are you sure you want to delete your account? This will permanently remove all your data.');
+    if (!confirmed) return;
+    const doubleConfirm = window.confirm('This is permanent and cannot be undone. Continue?');
+    if (!doubleConfirm) return;
+    await Promise.all([
+      supabase.from('check_ins').delete().eq('user_id', user.id),
+      supabase.from('reviews').delete().eq('user_id', user.id),
+      supabase.from('favorites').delete().eq('user_id', user.id),
+      supabase.from('user_follows').delete().eq('follower_id', user.id),
+      supabase.from('user_follows').delete().eq('following_id', user.id),
+      supabase.from('activity_feed').delete().eq('user_id', user.id),
+      supabase.from('user_badges').delete().eq('user_id', user.id),
+      supabase.from('social_likes').delete().eq('user_id', user.id),
+      supabase.from('social_comments').delete().eq('user_id', user.id),
+      supabase.from('venue_descriptions').delete().eq('user_id', user.id),
+    ]);
+    await supabase.from('profiles').delete().eq('id', user.id);
+    await signOut();
+    navigate('/');
+    showToast({ text: 'Account deleted', type: 'success' });
+  };
+
   const openEditProfile = () => {
     setEditName(profile?.display_name || '');
     setEditBio(profile?.bio || '');
     setShowEditProfile(true);
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    setUploadingAvatar(true);
+    const ext = file.name.split('.').pop() || 'jpg';
+    const path = `profiles/${user.id}/avatar-${Date.now()}.${ext}`;
+    const { error: uploadErr } = await supabase.storage.from('checkin-photos').upload(path, file, { contentType: file.type, upsert: true });
+    if (uploadErr) { showToast({ text: 'Upload failed', type: 'error' }); setUploadingAvatar(false); return; }
+    const { data: urlData } = supabase.storage.from('checkin-photos').getPublicUrl(path);
+    await supabase.from('profiles').update({ avatar_url: urlData.publicUrl }).eq('id', user.id);
+    setUploadingAvatar(false);
+    showToast({ text: 'Avatar updated!', type: 'success' });
+    loadProfile();
   };
 
   // Badge definitions matching vanilla app
@@ -356,12 +406,16 @@ export default function ProfilePage() {
         ) : (
           <div className={styles.bannerFallback} />
         )}
-        <div className={styles.avatar}>
-          {profile?.avatar_url ? (
+        <div className={styles.avatar} onClick={() => isOwnProfile && document.getElementById('avatarUpload')?.click()} style={isOwnProfile ? { cursor: 'pointer' } : undefined}>
+          {uploadingAvatar ? (
+            <span className={styles.avatarUploading} />
+          ) : profile?.avatar_url ? (
             <img src={profile.avatar_url} alt="" />
           ) : (
             <span>{initials}</span>
           )}
+          {isOwnProfile && <span className={styles.avatarEditBadge}>📷</span>}
+          {isOwnProfile && <input id="avatarUpload" type="file" accept="image/*" onChange={handleAvatarUpload} style={{ display: 'none' }} />}
         </div>
         <h2 className={styles.name}>{displayName}</h2>
         {profile?.bio ? (
@@ -573,7 +627,19 @@ export default function ProfilePage() {
                 rows={3}
               />
             </div>
+            <div className={styles.editField}>
+              <label className={styles.editLabel}>Settings</label>
+              <label className={styles.toggleRow}>
+                <span>Public Profile</span>
+                <input type="checkbox" checked={isPublic} onChange={e => setIsPublic(e.target.checked)} />
+              </label>
+              <label className={styles.toggleRow}>
+                <span>Weekly Digest Email</span>
+                <input type="checkbox" checked={digestEnabled} onChange={e => setDigestEnabled(e.target.checked)} />
+              </label>
+            </div>
             <Button fullWidth onClick={saveProfile} loading={savingProfile}>Save Changes</Button>
+            <button className={styles.deleteAccountBtn} onClick={deleteAccount}>Delete Account</button>
           </div>
         </div>
       )}
