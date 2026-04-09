@@ -8,6 +8,7 @@
     { "source": "/app-download", "destination": "https://apps.apple.com/us/app/spotd/id6760452388", "permanent": false }
   ],
   "routes": [
+    { "src": "/list/(.+)",                  "dest": "/?list=$1", "status": 302 },
     { "src": "/spots/(.+)",                 "dest": "/api/spots.js?slug=$1" },
     { "src": "/blog/([^.]+)$",              "dest": "/api/blog-post.js?slug=$1" },
     { "src": "/sitemap-venues.xml",         "dest": "/api/sitemap-venues.js" },
