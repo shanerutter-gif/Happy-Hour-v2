@@ -39,6 +39,7 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewText, setReviewText] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [guestName, setGuestName] = useState('');
   // Edit review state
   const [editingReview, setEditingReview] = useState<Review | null>(null);
   const [followingVenue, setFollowingVenue] = useState(false);
@@ -51,6 +52,7 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
   const [reportReason, setReportReason] = useState('');
   // Photo upload state
   const [showPhotoUpload, setShowPhotoUpload] = useState(false);
+  const [checkInNote, setCheckInNote] = useState('');
   const [venuePhotos, setVenuePhotos] = useState<{ id: string; photo_url: string; caption: string | null }[]>([]);
   // Push prompt
   const [showPushPrompt, setShowPushPrompt] = useState(false);
@@ -290,9 +292,10 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
         showToast({ text: 'Daily limit reached (5/day)', type: 'error' });
         return;
       }
+      const note = checkInNote.trim() || null;
       await supabase
         .from('check_ins')
-        .insert({ venue_id: venue.id, user_id: user.id, city_slug: venue.city_slug });
+        .insert({ venue_id: venue.id, user_id: user.id, city_slug: venue.city_slug, note });
       // Log to activity_feed for social feed
       await supabase.from('activity_feed').insert({
         user_id: user.id,
@@ -301,7 +304,9 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
         venue_name: venue.name,
         neighborhood: venue.neighborhood,
         city_slug: venue.city_slug,
+        meta: note ? { note } : null,
       });
+      setCheckInNote('');
       setIsGoing(true);
       setGoingCount((c) => c + 1);
       setTodayCheckInCount((c) => c + 1);
@@ -524,7 +529,7 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
 
   // --- Review CRUD ---
   const submitReview = async () => {
-    if (!user || reviewRating === 0) {
+    if (reviewRating === 0) {
       showToast({ text: 'Select a star rating', type: 'error' });
       return;
     }
@@ -535,20 +540,23 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
     } else {
       await supabase.from('reviews').insert({
         venue_id: venue.id,
-        user_id: user.id,
+        user_id: user?.id || null,
         rating: reviewRating,
         text: reviewText.trim(),
+        name: user ? undefined : (guestName.trim() || 'Anonymous'),
       });
-      // Log to activity_feed
-      await supabase.from('activity_feed').insert({
-        user_id: user.id,
-        activity_type: 'review',
-        venue_id: venue.id,
-        venue_name: venue.name,
-        neighborhood: venue.neighborhood,
-        city_slug: venue.city_slug,
-        meta: { rating: reviewRating, note: reviewText.trim() },
-      });
+      // Log to activity_feed (only for logged-in users)
+      if (user) {
+        await supabase.from('activity_feed').insert({
+          user_id: user.id,
+          activity_type: 'review',
+          venue_id: venue.id,
+          venue_name: venue.name,
+          neighborhood: venue.neighborhood,
+          city_slug: venue.city_slug,
+          meta: { rating: reviewRating, note: reviewText.trim() },
+        });
+      }
       showToast({ text: 'Review posted!', type: 'success' });
     }
     setSubmittingReview(false);
@@ -661,8 +669,17 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
 
         <div className={styles.divider} />
 
-        {/* Going button */}
+        {/* Going button with optional note */}
         <div className={styles.goingWrap}>
+          {user && !isGoing && todayCheckInCount < 5 && (
+            <input
+              className={styles.checkInNoteInput}
+              placeholder="Add a note (optional)..."
+              value={checkInNote}
+              onChange={e => setCheckInNote(e.target.value)}
+              maxLength={280}
+            />
+          )}
           <Button
             variant={isGoing ? 'secondary' : todayCheckInCount >= 5 ? 'ghost' : 'primary'}
             fullWidth
@@ -827,7 +844,7 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
         <div className={styles.section}>
           <div className={styles.reviewHeader}>
             <span className={styles.label}>Reviews ({reviews.length})</span>
-            {user && !myReview && !showReviewForm && (
+            {!myReview && !showReviewForm && (
               <button className={styles.addDescBtn} onClick={() => setShowReviewForm(true)}>
                 + Write Review
               </button>
@@ -848,12 +865,26 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
                   </button>
                 ))}
               </div>
+              {!user && (
+                <input
+                  className={styles.adminInput}
+                  placeholder="Your name (optional)"
+                  value={guestName}
+                  onChange={(e) => setGuestName(e.target.value)}
+                  style={{ marginBottom: 8 }}
+                />
+              )}
               <TextArea
                 placeholder="Write your review (optional)..."
                 value={reviewText}
                 onChange={(e) => setReviewText(e.target.value)}
                 rows={3}
               />
+              {!user && (
+                <p style={{ fontSize: 11, color: 'var(--muted)', margin: '4px 0 0' }}>
+                  Posting as guest — sign in to manage reviews
+                </p>
+              )}
               <div className={styles.descFormActions}>
                 <Button size="sm" variant="ghost" onClick={() => {
                   setShowReviewForm(false);

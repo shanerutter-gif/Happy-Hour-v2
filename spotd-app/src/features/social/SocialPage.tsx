@@ -253,6 +253,23 @@ export default function SocialPage() {
     ));
   };
 
+  const deletePost = async (postId: string, postType: string) => {
+    if (!user) return;
+    const confirmed = window.confirm('Delete this post?');
+    if (!confirmed) return;
+    let table: string;
+    if (postType === 'photo') {
+      table = 'checkin_photos';
+    } else if (postType === 'check_in' && !items.find(i => i.id === postId)?.caption) {
+      table = 'check_ins';
+    } else {
+      table = 'activity_feed';
+    }
+    await supabase.from(table).delete().eq('id', postId);
+    setItems(prev => prev.filter(i => i.id !== postId));
+    showToast({ text: 'Post deleted' });
+  };
+
   const openComments = async (postId: string) => {
     setCommentSheetPost(postId);
     setLoadingComments(true);
@@ -342,6 +359,14 @@ export default function SocialPage() {
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
           {item.commentCount > 0 && <span>{item.commentCount}</span>}
         </button>
+        {user && item.user_id === user.id && (
+          <button
+            className={styles.sfActionBtn}
+            onClick={(e) => { e.stopPropagation(); deletePost(item.id, item.type); }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          </button>
+        )}
       </div>
     );
 

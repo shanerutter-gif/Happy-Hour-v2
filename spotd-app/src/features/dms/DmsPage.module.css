@@ -45,10 +45,20 @@
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
+.threadRight {
+  display: flex; flex-direction: column;
+  align-items: flex-end; gap: 4px; flex-shrink: 0;
+}
 .threadTime {
   font-family: 'DM Mono', monospace;
   font-size: 10px; color: var(--muted);
-  flex-shrink: 0;
+}
+.unreadBadge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; padding: 0 5px;
+  border-radius: 50px; font-size: 10px; font-weight: 800;
+  background: var(--coral); color: #fff;
+  font-family: 'DM Sans', sans-serif;
 }
 
 /* Thread header */

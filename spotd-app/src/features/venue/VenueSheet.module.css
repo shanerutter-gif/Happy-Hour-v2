@@ -144,6 +144,17 @@
 
 .goingWrap { margin: 16px 0 4px; text-align: center; }
 .goingBtn { border-radius: 50px !important; }
+.checkInNoteInput {
+  width: 100%; margin-bottom: 8px;
+  padding: 10px 14px; background: var(--bg);
+  border: none; border-radius: var(--r);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px; color: var(--text);
+  box-shadow: var(--clay-input); outline: none;
+  text-align: center;
+}
+.checkInNoteInput:focus { box-shadow: var(--ring), var(--clay-sm); }
+.checkInNoteInput::placeholder { color: var(--muted); opacity: 0.6; }
 .checkInCount {
   display: block; margin-top: 6px;
   font-family: 'DM Sans', sans-serif;

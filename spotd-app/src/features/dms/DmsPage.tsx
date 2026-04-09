@@ -12,6 +12,7 @@ interface Thread {
   last_message_at: string | null;
   other_name?: string;
   other_avatar?: string;
+  unread_count?: number;
 }
 
 interface Message {
@@ -19,6 +20,7 @@ interface Message {
   sender_id: string;
   content: string;
   created_at: string;
+  read: boolean;
 }
 
 export default function DmsPage() {
@@ -60,6 +62,21 @@ export default function DmsPage() {
       });
     }
 
+    // Count unread messages per thread
+    if (raw.length) {
+      const { data: unreadData } = await supabase
+        .from('dm_messages')
+        .select('thread_id')
+        .in('thread_id', raw.map(t => t.id))
+        .neq('sender_id', user.id)
+        .eq('read', false);
+      const unreadMap: Record<string, number> = {};
+      (unreadData || []).forEach((m: { thread_id: string }) => {
+        unreadMap[m.thread_id] = (unreadMap[m.thread_id] || 0) + 1;
+      });
+      raw.forEach(t => { t.unread_count = unreadMap[t.id] || 0; });
+    }
+
     setThreads(raw);
     setLoading(false);
   }, [user]);
@@ -73,7 +90,14 @@ export default function DmsPage() {
       .order('created_at', { ascending: true });
     setMessages((data || []) as Message[]);
     setTimeout(() => messagesEnd.current?.scrollIntoView({ behavior: 'smooth' }), 100);
-  }, [threadId]);
+    // Mark messages as read
+    if (user && data?.length) {
+      const unreadIds = data.filter((m: Message) => !m.read && m.sender_id !== user.id).map((m: Message) => m.id);
+      if (unreadIds.length) {
+        supabase.from('dm_messages').update({ read: true }).in('id', unreadIds);
+      }
+    }
+  }, [threadId, user]);
 
   useEffect(() => { loadThreads(); }, [loadThreads]);
   useEffect(() => { loadMessages(); }, [loadMessages]);
@@ -228,7 +252,10 @@ export default function DmsPage() {
                 <span className={styles.threadTitle}>{t.other_name || 'User'}</span>
                 <span className={styles.threadPreview}>{t.last_message || 'No messages'}</span>
               </div>
-              <span className={styles.threadTime}>{timeAgo(t.last_message_at)}</span>
+              <div className={styles.threadRight}>
+                <span className={styles.threadTime}>{timeAgo(t.last_message_at)}</span>
+                {(t.unread_count || 0) > 0 && <span className={styles.unreadBadge}>{t.unread_count}</span>}
+              </div>
             </button>
           ))
         )}
