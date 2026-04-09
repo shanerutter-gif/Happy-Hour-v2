@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { CityBar } from '../../components/layout/CityBar';
+import { useNavigate } from 'react-router-dom';
 import { Sheet } from '../../components/ui/Sheet';
 import { Lightbox } from '../../components/ui/Lightbox';
 import { useAuth } from '../../contexts/AuthContext';
@@ -8,20 +8,24 @@ import { supabase } from '../../lib/supabase';
 import { showToast } from '../../components/ui/Toast';
 import styles from './SocialPage.module.css';
 
-interface FeedPost {
+interface FeedItem {
   id: string;
   user_id: string;
   type: string;
-  content: string | null;
-  photo_url: string | null;
-  venue_name: string | null;
   venue_id: string | null;
+  venue_name: string | null;
+  neighborhood: string | null;
+  caption: string | null;
+  photo_url: string | null;
+  rating: number | null;
   created_at: string;
-  like_count: number;
-  comment_count: number;
-  display_name?: string;
-  avatar_url?: string | null;
-  isFollowing?: boolean;
+  isFollowing: boolean;
+  display_name: string;
+  avatar_url: string | null;
+  avatar_emoji: string | null;
+  likeCount: number;
+  liked: boolean;
+  commentCount: number;
 }
 
 interface Comment {
@@ -32,12 +36,15 @@ interface Comment {
   display_name?: string;
 }
 
+type SocialTab = 'following' | 'public';
+
 export default function SocialPage() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { currentCity } = useCity();
-  const [posts, setPosts] = useState<FeedPost[]>([]);
+  const [items, setItems] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
+  const [activeTab, setActiveTab] = useState<SocialTab>('following');
   const [commentSheetPost, setCommentSheetPost] = useState<string | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentInput, setCommentInput] = useState('');
@@ -47,6 +54,8 @@ export default function SocialPage() {
   const loadFeed = useCallback(async () => {
     if (!currentCity) return;
     setLoading(true);
+
+    const citySlug = currentCity.slug;
 
     // Get following IDs
     let followingIds: string[] = [];
@@ -59,193 +68,183 @@ export default function SocialPage() {
     }
     const followSet = new Set(followingIds);
 
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-    const today = new Date().toISOString().slice(0, 10);
-
-    // Parallel fetch — same as legacy fetchSocialFeed
-    const [photosRes, activityRes, goingRes] = await Promise.allSettled([
+    // Fetch from 3 tables in parallel (matches legacy fetchSocialFeed)
+    const [photosRes, activityRes, checkInsRes] = await Promise.all([
       supabase
         .from('checkin_photos')
-        .select('id, user_id, venue_id, photo_url, caption, city_slug, created_at')
-        .eq('city_slug', currentCity.slug)
-        .gte('created_at', thirtyDaysAgo)
+        .select('id, user_id, venue_id, venue_name, neighborhood, caption, photo_url, created_at')
+        .eq('city_slug', citySlug)
         .order('created_at', { ascending: false })
         .limit(60),
       supabase
         .from('activity_feed')
         .select('id, user_id, activity_type, venue_id, venue_name, neighborhood, meta, created_at')
-        .in('activity_type', ['check_in', 'review', 'favorite', 'tagged_at'])
-        .gte('created_at', thirtyDaysAgo)
+        .eq('city_slug', citySlug)
         .order('created_at', { ascending: false })
         .limit(60),
       supabase
         .from('check_ins')
-        .select('id, user_id, venue_id, city_slug, created_at')
-        .eq('city_slug', currentCity.slug)
-        .eq('date', today)
+        .select('id, user_id, venue_id, venue_name, neighborhood, date, created_at')
+        .eq('city_slug', citySlug)
         .order('created_at', { ascending: false })
-        .limit(40),
+        .limit(60),
     ]);
 
-    const photos = photosRes.status === 'fulfilled' ? (photosRes.value.data || []) : [];
-    const activity = activityRes.status === 'fulfilled' ? (activityRes.value.data || []) : [];
-    const going = goingRes.status === 'fulfilled' ? (goingRes.value.data || []) : [];
+    const photos = photosRes.data || [];
+    const activities = activityRes.data || [];
+    const checkIns = checkInsRes.data || [];
 
-    // Collect all user IDs
-    const allUserIds = [...new Set([
-      ...photos.map((r: { user_id: string }) => r.user_id),
-      ...activity.map((r: { user_id: string }) => r.user_id),
-      ...going.map((r: { user_id: string }) => r.user_id),
-    ].filter(Boolean))];
-
-    // Fetch profiles
-    const pMap: Record<string, { display_name: string; avatar_url: string | null }> = {};
-    if (allUserIds.length) {
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, display_name, avatar_emoji, avatar_url, username')
-        .in('id', allUserIds);
-      (profiles || []).forEach((p: { id: string; display_name: string; avatar_url: string | null }) => {
-        pMap[p.id] = p;
-      });
-    }
-
-    // Fetch venue names for going-tonight
-    const venueIds = [...new Set(going.map((r: { venue_id: string }) => r.venue_id).filter(Boolean))];
-    const vMap: Record<string, { name: string; neighborhood: string }> = {};
-    if (venueIds.length) {
-      const { data: venues } = await supabase
-        .from('venues')
-        .select('id, name, neighborhood')
-        .in('id', venueIds);
-      (venues || []).forEach((v: { id: string; name: string; neighborhood: string }) => {
-        vMap[v.id] = v;
-      });
-    }
-
-    // Normalize into unified feed
-    const items: FeedPost[] = [
-      ...photos.map((r: { id: string; user_id: string; venue_id: string; photo_url: string; caption: string | null; created_at: string }) => ({
-        id: `photo-${r.id}`,
-        type: 'photo',
-        user_id: r.user_id,
-        venue_id: r.venue_id,
-        photo_url: r.photo_url,
-        content: r.caption || null,
-        venue_name: null as string | null,
-        created_at: r.created_at,
-        like_count: 0,
-        comment_count: 0,
-        display_name: pMap[r.user_id]?.display_name,
-        avatar_url: pMap[r.user_id]?.avatar_url,
-        isFollowing: followSet.has(r.user_id),
-      })),
-      ...activity.map((r: { id: string; user_id: string; activity_type: string; venue_id: string; venue_name: string | null; created_at: string }) => ({
-        id: `activity-${r.id}`,
-        type: r.activity_type,
-        user_id: r.user_id,
-        venue_id: r.venue_id,
-        photo_url: null as string | null,
-        content: null as string | null,
-        venue_name: r.venue_name,
-        created_at: r.created_at,
-        like_count: 0,
-        comment_count: 0,
-        display_name: pMap[r.user_id]?.display_name,
-        avatar_url: pMap[r.user_id]?.avatar_url,
-        isFollowing: followSet.has(r.user_id),
-      })),
-      ...going.map((r: { id: string; user_id: string; venue_id: string; created_at: string }) => ({
-        id: `going-${r.id}`,
-        type: 'going_tonight',
-        user_id: r.user_id,
-        venue_id: r.venue_id,
-        photo_url: null as string | null,
-        content: null as string | null,
-        venue_name: vMap[r.venue_id]?.name || null,
-        created_at: r.created_at,
-        like_count: 0,
-        comment_count: 0,
-        display_name: pMap[r.user_id]?.display_name,
-        avatar_url: pMap[r.user_id]?.avatar_url,
-        isFollowing: followSet.has(r.user_id),
-      })),
-    ];
-
-    // Dedupe: if check_in + photo share same user+venue+day, keep only photo
-    const photoKeys = new Set(
-      items
-        .filter((i) => i.type === 'photo')
-        .map((i) => `${i.user_id}-${i.venue_id}-${i.created_at?.slice(0, 10)}`)
+    // Deduplicate: skip check_ins that also have a photo
+    const photoVenueUserPairs = new Set(
+      photos.map((p: { user_id: string; venue_id: string }) => `${p.user_id}_${p.venue_id}`)
     );
-    const deduped = items.filter((i) => {
-      if (i.type !== 'check_in') return true;
-      return !photoKeys.has(`${i.user_id}-${i.venue_id}-${i.created_at?.slice(0, 10)}`);
+
+    const merged: FeedItem[] = [];
+
+    // Add photos
+    photos.forEach((p: { id: string; user_id: string; venue_id: string; venue_name: string; neighborhood: string; caption: string; photo_url: string; created_at: string }) => {
+      merged.push({
+        id: p.id,
+        user_id: p.user_id,
+        type: 'photo',
+        venue_id: p.venue_id,
+        venue_name: p.venue_name,
+        neighborhood: p.neighborhood,
+        caption: p.caption,
+        photo_url: p.photo_url,
+        rating: null,
+        created_at: p.created_at,
+        isFollowing: followSet.has(p.user_id),
+        display_name: '',
+        avatar_url: null,
+        avatar_emoji: null,
+        likeCount: 0,
+        liked: false,
+        commentCount: 0,
+      });
     });
 
-    // Fetch like/comment counts for all post IDs
-    const postIds = deduped.map((p) => p.id);
-    if (postIds.length) {
-      const [likesRes, commentsRes] = await Promise.allSettled([
-        supabase.from('social_likes').select('post_id').in('post_id', postIds),
-        supabase.from('social_comments').select('post_id').in('post_id', postIds),
-      ]);
-      const likeCounts: Record<string, number> = {};
-      const commentCounts: Record<string, number> = {};
-      if (likesRes.status === 'fulfilled') {
-        (likesRes.value.data || []).forEach((r: { post_id: string }) => {
-          likeCounts[r.post_id] = (likeCounts[r.post_id] || 0) + 1;
-        });
-      }
-      if (commentsRes.status === 'fulfilled') {
-        (commentsRes.value.data || []).forEach((r: { post_id: string }) => {
-          commentCounts[r.post_id] = (commentCounts[r.post_id] || 0) + 1;
-        });
-      }
-      deduped.forEach((p) => {
-        p.like_count = likeCounts[p.id] || 0;
-        p.comment_count = commentCounts[p.id] || 0;
+    // Add activity items
+    activities.forEach((a: { id: string; user_id: string; activity_type: string; venue_id: string; venue_name: string; neighborhood: string; meta: { photo_url?: string; rating?: number; note?: string } | null; created_at: string }) => {
+      const meta = a.meta || {};
+      merged.push({
+        id: a.id,
+        user_id: a.user_id,
+        type: a.activity_type || 'check_in',
+        venue_id: a.venue_id,
+        venue_name: a.venue_name,
+        neighborhood: a.neighborhood,
+        caption: meta.note || null,
+        photo_url: meta.photo_url || null,
+        rating: meta.rating || null,
+        created_at: a.created_at,
+        isFollowing: followSet.has(a.user_id),
+        display_name: '',
+        avatar_url: null,
+        avatar_emoji: null,
+        likeCount: 0,
+        liked: false,
+        commentCount: 0,
       });
-    }
+    });
 
-    // Check which posts user has liked
-    if (user && postIds.length) {
-      const { data: likes } = await supabase
-        .from('social_likes')
-        .select('post_id')
-        .eq('user_id', user.id)
-        .in('post_id', postIds);
-      setLikedPosts(new Set((likes || []).map((l: { post_id: string }) => l.post_id)));
-    }
+    // Add check-ins (deduplicated)
+    checkIns.forEach((c: { id: string; user_id: string; venue_id: string; venue_name: string; neighborhood: string; created_at: string }) => {
+      if (!photoVenueUserPairs.has(`${c.user_id}_${c.venue_id}`)) {
+        merged.push({
+          id: c.id,
+          user_id: c.user_id,
+          type: 'check_in',
+          venue_id: c.venue_id,
+          venue_name: c.venue_name,
+          neighborhood: c.neighborhood,
+          caption: null,
+          photo_url: null,
+          rating: null,
+          created_at: c.created_at,
+          isFollowing: followSet.has(c.user_id),
+          display_name: '',
+          avatar_url: null,
+          avatar_emoji: null,
+          likeCount: 0,
+          liked: false,
+          commentCount: 0,
+        });
+      }
+    });
 
     // Sort: following first, then by recency
-    deduped.sort((a, b) => {
-      if (a.isFollowing && !b.isFollowing) return -1;
-      if (!a.isFollowing && b.isFollowing) return 1;
+    merged.sort((a, b) => {
+      const aFollow = a.isFollowing ? 1 : 0;
+      const bFollow = b.isFollowing ? 1 : 0;
+      if (aFollow !== bFollow) return bFollow - aFollow;
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
 
-    setPosts(deduped.slice(0, 60));
+    // Hydrate profiles
+    const userIds = [...new Set(merged.map(m => m.user_id))];
+    if (userIds.length) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, display_name, avatar_url, avatar_emoji')
+        .in('id', userIds);
+      const pMap = new Map((profiles || []).map((p: { id: string; display_name: string; avatar_url: string; avatar_emoji: string }) => [p.id, p]));
+      merged.forEach(m => {
+        const prof = pMap.get(m.user_id);
+        if (prof) {
+          m.display_name = prof.display_name || '';
+          m.avatar_url = prof.avatar_url;
+          m.avatar_emoji = prof.avatar_emoji;
+        }
+      });
+    }
+
+    // Hydrate likes & comments
+    const postIds = merged.map(m => m.id).filter(Boolean);
+    if (postIds.length) {
+      const [likesRes, commentsRes] = await Promise.all([
+        supabase.from('social_likes').select('post_id, user_id').in('post_id', postIds),
+        supabase.from('social_comments').select('post_id').in('post_id', postIds),
+      ]);
+      const likes = likesRes.data || [];
+      const commentRows = commentsRes.data || [];
+
+      const likeMap: Record<string, string[]> = {};
+      likes.forEach((l: { post_id: string; user_id: string }) => {
+        (likeMap[l.post_id] = likeMap[l.post_id] || []).push(l.user_id);
+      });
+      const commentMap: Record<string, number> = {};
+      commentRows.forEach((c: { post_id: string }) => {
+        commentMap[c.post_id] = (commentMap[c.post_id] || 0) + 1;
+      });
+
+      merged.forEach(m => {
+        const likers = likeMap[m.id] || [];
+        m.likeCount = likers.length;
+        m.liked = user ? likers.includes(user.id) : false;
+        m.commentCount = commentMap[m.id] || 0;
+      });
+    }
+
+    setItems(merged);
     setLoading(false);
   }, [currentCity, user]);
 
   useEffect(() => { loadFeed(); }, [loadFeed]);
 
-  const toggleLike = async (postId: string) => {
-    if (!user) {
-      showToast({ text: 'Sign in to like posts', type: 'error' });
-      return;
-    }
-    const isLiked = likedPosts.has(postId);
-    if (isLiked) {
+  const toggleLike = async (postId: string, postType: string) => {
+    if (!user) { showToast({ text: 'Sign in to like posts', type: 'error' }); return; }
+    const item = items.find(i => i.id === postId);
+    if (!item) return;
+
+    if (item.liked) {
       await supabase.from('social_likes').delete().eq('user_id', user.id).eq('post_id', postId);
-      setLikedPosts((prev) => { const n = new Set(prev); n.delete(postId); return n; });
-      setPosts((prev) => prev.map((p) => p.id === postId ? { ...p, like_count: Math.max(0, p.like_count - 1) } : p));
     } else {
-      await supabase.from('social_likes').insert({ user_id: user.id, post_id: postId, post_type: 'social' });
-      setLikedPosts((prev) => new Set(prev).add(postId));
-      setPosts((prev) => prev.map((p) => p.id === postId ? { ...p, like_count: p.like_count + 1 } : p));
+      await supabase.from('social_likes').insert({ user_id: user.id, post_id: postId, post_type: postType });
     }
+    setItems(prev => prev.map(i =>
+      i.id === postId ? { ...i, liked: !i.liked, likeCount: i.liked ? i.likeCount - 1 : i.likeCount + 1 } : i
+    ));
   };
 
   const openComments = async (postId: string) => {
@@ -253,16 +252,15 @@ export default function SocialPage() {
     setLoadingComments(true);
     const { data } = await supabase
       .from('social_comments')
-      .select('id, user_id, post_id, post_type, text, created_at')
+      .select('*')
       .eq('post_id', postId)
-      .order('created_at', { ascending: true })
-      .limit(50);
+      .order('created_at', { ascending: true });
     const raw = (data || []) as Comment[];
-    const uids = [...new Set(raw.map((c) => c.user_id))];
+    const uids = [...new Set(raw.map(c => c.user_id))];
     if (uids.length) {
       const { data: profiles } = await supabase.from('profiles').select('id, display_name').in('id', uids);
-      const pMap2 = new Map((profiles || []).map((p: { id: string; display_name: string }) => [p.id, p.display_name]));
-      raw.forEach((c) => { c.display_name = pMap2.get(c.user_id) || 'User'; });
+      const pMap = new Map((profiles || []).map((p: { id: string; display_name: string }) => [p.id, p.display_name]));
+      raw.forEach(c => { c.display_name = pMap.get(c.user_id) || 'User'; });
     }
     setComments(raw);
     setLoadingComments(false);
@@ -278,33 +276,10 @@ export default function SocialPage() {
       user_id: user.id,
       text,
     });
-    setPosts((prev) => prev.map((p) => p.id === commentSheetPost ? { ...p, comment_count: p.comment_count + 1 } : p));
+    setItems(prev => prev.map(i =>
+      i.id === commentSheetPost ? { ...i, commentCount: i.commentCount + 1 } : i
+    ));
     openComments(commentSheetPost);
-    showToast({ text: 'Comment posted!', type: 'success' });
-  };
-
-  const getPostEmoji = (type: string) => {
-    switch (type) {
-      case 'check_in': return '📍';
-      case 'review': return '⭐';
-      case 'photo': return '📸';
-      case 'favorite': return '★';
-      case 'going_tonight': return '🎯';
-      case 'tagged_at': return '🏷';
-      default: return '📡';
-    }
-  };
-
-  const getPostText = (post: FeedPost) => {
-    switch (post.type) {
-      case 'photo': return post.content || `shared a photo${post.venue_name ? ` at ${post.venue_name}` : ''}`;
-      case 'check_in': return `checked in${post.venue_name ? ` at ${post.venue_name}` : ''}`;
-      case 'review': return `reviewed${post.venue_name ? ` ${post.venue_name}` : ''}`;
-      case 'favorite': return `saved${post.venue_name ? ` ${post.venue_name}` : ''}`;
-      case 'going_tonight': return `is going to${post.venue_name ? ` ${post.venue_name}` : ' a spot'} tonight`;
-      case 'tagged_at': return `was tagged${post.venue_name ? ` at ${post.venue_name}` : ''}`;
-      default: return post.content || post.type.replace('_', ' ');
-    }
   };
 
   const timeAgo = (date: string) => {
@@ -314,78 +289,238 @@ export default function SocialPage() {
     if (mins < 60) return `${mins}m`;
     const hrs = Math.floor(mins / 60);
     if (hrs < 24) return `${hrs}h`;
-    const days = Math.floor(hrs / 24);
-    return `${days}d`;
+    return `${Math.floor(hrs / 24)}d`;
+  };
+
+  const actionVerbs: Record<string, string> = {
+    photo: 'checked in at',
+    check_in: 'checked in at',
+    review: 'reviewed',
+    favorite: 'saved',
+    going_tonight: 'is going to',
+    tagged_at: 'was tagged at',
+  };
+
+  const initials = (name: string) =>
+    name ? name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) : '?';
+
+  // Filter based on active sub-tab
+  const filtered = activeTab === 'following'
+    ? items.filter(i => i.isFollowing)
+    : items.filter(i => !i.isFollowing);
+
+  const renderItem = (item: FeedItem, variant: 'hero' | 'compact' | 'wide') => {
+    const displayName = item.display_name || 'Someone';
+    const venueName = item.venue_name || 'a spot';
+    const verb = actionVerbs[item.type] || 'visited';
+    const suffix = item.type === 'going_tonight' ? ' tonight' : '';
+    const ta = timeAgo(item.created_at);
+
+    const avatarEl = item.avatar_url
+      ? <img src={item.avatar_url} alt="" className={styles.avatarImg} />
+      : <span className={styles.initials}>{item.avatar_emoji || initials(displayName)}</span>;
+
+    const actionBtns = (
+      <div className={styles.sfActions}>
+        <button
+          className={[styles.sfActionBtn, item.liked && styles.sfLiked].filter(Boolean).join(' ')}
+          onClick={(e) => { e.stopPropagation(); toggleLike(item.id, item.type); }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill={item.liked ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" /></svg>
+          {item.likeCount > 0 && <span>{item.likeCount}</span>}
+        </button>
+        <button
+          className={styles.sfActionBtn}
+          onClick={(e) => { e.stopPropagation(); openComments(item.id); }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
+          {item.commentCount > 0 && <span>{item.commentCount}</span>}
+        </button>
+      </div>
+    );
+
+    if (variant === 'hero' && item.photo_url) {
+      return (
+        <div key={item.id} className={styles.sfHero}>
+          <div className={styles.sfHeroMedia} onClick={() => setLightboxSrc(item.photo_url)}>
+            <img className={styles.sfHeroImg} src={item.photo_url} alt={venueName} loading="lazy" />
+            <div className={styles.sfHeroGrad} />
+          </div>
+          <div className={styles.sfHeroInfo}>
+            <div className={styles.sfHeroUser}>
+              <div className={styles.sfHeroAvatar}>{avatarEl}</div>
+              <span className={styles.sfHeroName}>{displayName}</span>
+            </div>
+            <div className={styles.sfHeroVenue}>{venueName}</div>
+            <div className={styles.sfHeroMeta}>
+              {item.neighborhood && <><span>{item.neighborhood}</span><span className={styles.sfDot} /></>}
+              <span>{ta}</span>
+            </div>
+            {item.caption && <div className={styles.sfHeroCaption}>{item.caption}</div>}
+            {item.rating ? <div className={styles.sfStars}>{'★'.repeat(item.rating)}{'☆'.repeat(5 - item.rating)}</div> : null}
+          </div>
+          {actionBtns}
+        </div>
+      );
+    }
+
+    if (variant === 'compact') {
+      return (
+        <div key={item.id} className={styles.sfCompact}>
+          <div className={styles.sfCompactHeader}>
+            <div className={styles.sfCompactAvatar}>{avatarEl}</div>
+            <span className={styles.sfCompactName}>{displayName}</span>
+          </div>
+          <div className={styles.sfCompactBody}>
+            <div className={styles.sfCompactVenue}>{venueName}</div>
+            {item.rating ? <div className={styles.sfStars}>{'★'.repeat(item.rating)}{'☆'.repeat(5 - item.rating)}</div> : null}
+            {item.caption && <div className={styles.sfCompactCaption}>{item.caption}</div>}
+            <div className={styles.sfCompactMeta}>{item.neighborhood || ta}</div>
+          </div>
+          <div className={styles.sfCompactActions}>
+            <button
+              className={[styles.sfActionBtn, item.liked && styles.sfLiked].filter(Boolean).join(' ')}
+              onClick={(e) => { e.stopPropagation(); toggleLike(item.id, item.type); }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill={item.liked ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2.5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" /></svg>
+              {item.likeCount > 0 && <span>{item.likeCount}</span>}
+            </button>
+            <button className={styles.sfActionBtn} onClick={(e) => { e.stopPropagation(); openComments(item.id); }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
+              {item.commentCount > 0 && <span>{item.commentCount}</span>}
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // Wide variant
+    return (
+      <div key={item.id} className={styles.sfWide}>
+        <div className={styles.sfWideHeader}>
+          <div className={styles.sfWideAvatar}>{avatarEl}</div>
+          <span className={styles.sfWideName}>{displayName}</span>
+        </div>
+        <div className={styles.sfWideBody}>
+          <div className={styles.sfWideHeadline}>
+            <span className={styles.sfWideBoldName}>{displayName}</span>{' '}
+            <span className={styles.sfWideVerb}>{verb}</span>{' '}
+            <span className={styles.sfWideVenue}>{venueName}</span>{suffix}
+          </div>
+          {item.rating ? <div className={styles.sfStars}>{'★'.repeat(item.rating)}{'☆'.repeat(5 - item.rating)}</div> : null}
+          {item.caption && <div className={styles.sfWideCaption}>&ldquo;{item.caption}&rdquo;</div>}
+          <div className={styles.sfWideMeta}>{item.neighborhood ? `${item.neighborhood} · ` : ''}{ta}</div>
+        </div>
+        {actionBtns}
+      </div>
+    );
+  };
+
+  // Build masonry layout (matching vanilla renderSocialTab)
+  const renderFeed = () => {
+    if (loading) {
+      return Array.from({ length: 5 }).map((_, i) => (
+        <div key={i} className={`skeleton ${styles.skeleton}`} />
+      ));
+    }
+
+    if (activeTab === 'following' && !filtered.length) {
+      return (
+        <div className={styles.empty}>
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-1a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v1" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-1a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
+          <div className={styles.emptyTitle}>Follow people to see their activity</div>
+          <p>When you follow someone, their check-ins and photos show up here.</p>
+        </div>
+      );
+    }
+
+    if (!filtered.length) {
+      return (
+        <div className={styles.empty}>
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
+          <div className={styles.emptyTitle}>Nothing here yet</div>
+          <p>Be the first to check in and share a photo tonight</p>
+        </div>
+      );
+    }
+
+    // Masonry: photo posts → hero, text posts → batched 2-up compact with occasional wide
+    const elements: React.JSX.Element[] = [];
+    let textBatch: FeedItem[] = [];
+    let batchIdx = 0;
+
+    const flushText = () => {
+      while (textBatch.length > 0) {
+        if (textBatch.length >= 2 && batchIdx % 3 !== 2) {
+          const a = textBatch.shift()!;
+          const b = textBatch.shift()!;
+          elements.push(
+            <div key={`row-${a.id}`} className={styles.sfCompactRow}>
+              {renderItem(a, 'compact')}
+              {renderItem(b, 'compact')}
+            </div>
+          );
+        } else {
+          elements.push(renderItem(textBatch.shift()!, 'wide'));
+        }
+        batchIdx++;
+      }
+    };
+
+    filtered.forEach(item => {
+      const hasMedia = item.type === 'photo' || item.photo_url;
+      if (hasMedia) {
+        flushText();
+        elements.push(renderItem(item, 'hero'));
+      } else {
+        textBatch.push(item);
+      }
+    });
+    flushText();
+
+    return elements;
   };
 
   return (
     <div className={styles.page}>
-      <CityBar />
+      {/* Header with logo + action buttons (matches vanilla social header) */}
+      <div className={styles.socialHeader}>
+        <img src="/spotd_logo_v5.png" alt="Spotd" className={styles.headerLogo} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+        <div className={styles.headerActions}>
+          <button className={styles.headerBtn} onClick={() => navigate('/dms')} title="Messages">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
+          </button>
+          <button className={styles.headerBtn} onClick={() => navigate('/find-people')} title="Find people">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+          </button>
+          <button className={styles.headerBtn} onClick={() => navigate('/notifications')} title="Notifications">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>
+          </button>
+          <button className={styles.headerBtn} onClick={() => loadFeed()} title="Refresh">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" /></svg>
+          </button>
+        </div>
+      </div>
 
-      <div className={styles.header}>
-        <h1 className={styles.title}>Feed</h1>
+      {/* Following / Public sub-tabs */}
+      <div className={styles.subTabs}>
+        <div className={styles.subTabsInner}>
+          <button
+            className={[styles.subTab, activeTab === 'following' && styles.subTabActive].filter(Boolean).join(' ')}
+            onClick={() => setActiveTab('following')}
+          >Following</button>
+          <button
+            className={[styles.subTab, activeTab === 'public' && styles.subTabActive].filter(Boolean).join(' ')}
+            onClick={() => setActiveTab('public')}
+          >Public</button>
+        </div>
       </div>
 
       <div className={styles.feed}>
-        {loading ? (
-          Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className={`skeleton ${styles.skeleton}`} />
-          ))
-        ) : posts.length === 0 ? (
-          <div className={styles.empty}>
-            <span>📡</span>
-            <p>No activity yet — check in to a spot to get started!</p>
-          </div>
-        ) : (
-          posts.map((post) => (
-            <article key={post.id} className={styles.post}>
-              <div className={styles.avatar}>
-                {post.avatar_url ? (
-                  <img src={post.avatar_url} alt="" />
-                ) : (
-                  <span className={styles.initials}>
-                    {(post.display_name || 'U').slice(0, 2).toUpperCase()}
-                  </span>
-                )}
-              </div>
-              <div className={styles.body}>
-                <div className={styles.postHeader}>
-                  <span className={styles.name}>{post.display_name || 'Anonymous'}</span>
-                  <span className={styles.time}>{timeAgo(post.created_at)}</span>
-                </div>
-                <p className={styles.text}>
-                  {getPostEmoji(post.type)} {getPostText(post)}
-                </p>
-                {post.photo_url && (
-                  <img
-                    src={post.photo_url}
-                    alt=""
-                    className={styles.photo}
-                    loading="lazy"
-                    onClick={() => setLightboxSrc(post.photo_url)}
-                    style={{ cursor: 'pointer' }}
-                  />
-                )}
-                <div className={styles.postActions}>
-                  <button
-                    className={[styles.postAction, likedPosts.has(post.id) && styles.liked].filter(Boolean).join(' ')}
-                    onClick={() => toggleLike(post.id)}
-                  >
-                    {likedPosts.has(post.id) ? '❤️' : '🤍'} {post.like_count || 0}
-                  </button>
-                  <button className={styles.postAction} onClick={() => openComments(post.id)}>
-                    💬 {post.comment_count || 0}
-                  </button>
-                </div>
-              </div>
-            </article>
-          ))
-        )}
+        {renderFeed()}
       </div>
 
-      {lightboxSrc && (
-        <Lightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />
-      )}
+      {lightboxSrc && <Lightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />}
 
       <Sheet open={!!commentSheetPost} onClose={() => { setCommentSheetPost(null); setComments([]); }}>
         <div className={styles.commentsSheet}>
@@ -393,9 +528,9 @@ export default function SocialPage() {
           {loadingComments ? (
             <div className="skeleton" style={{ height: 60, borderRadius: 12 }} />
           ) : comments.length === 0 ? (
-            <p className={styles.noComments}>No comments yet</p>
+            <p className={styles.noComments}>No comments yet — be the first</p>
           ) : (
-            comments.map((c) => (
+            comments.map(c => (
               <div key={c.id} className={styles.commentRow}>
                 <span className={styles.commentName}>{c.display_name || 'User'}</span>
                 <p className={styles.commentBody}>{c.text}</p>
@@ -408,11 +543,14 @@ export default function SocialPage() {
               <input
                 className={styles.commentInput}
                 value={commentInput}
-                onChange={(e) => setCommentInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && submitComment()}
+                onChange={e => setCommentInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && submitComment()}
                 placeholder="Add a comment..."
+                maxLength={280}
               />
-              <button className={styles.commentSend} onClick={submitComment}>↑</button>
+              <button className={styles.commentSend} onClick={submitComment}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>
+              </button>
             </div>
           )}
         </div>

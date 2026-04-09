@@ -20,12 +20,14 @@ type ViewType = 'hh' | 'events';
 type SortBy = 'name' | 'going' | 'rating' | 'distance';
 
 const SUGGESTIONS = [
-  { id: 'pup', emoji: '🐕', label: 'Drinks with the pup?', amenities: ['is_dog_friendly', 'has_happy_hour'] },
-  { id: 'game', emoji: '🏈', label: 'Catch the game', amenities: ['has_sports_tv'] },
-  { id: 'music', emoji: '🎵', label: 'Live music tonight', amenities: ['has_live_music'] },
-  { id: 'trivia', emoji: '🧠', label: 'Trivia night', amenities: ['has_trivia'] },
-  { id: 'karaoke', emoji: '🎤', label: 'Karaoke vibes', amenities: ['has_karaoke'] },
-  { id: 'comedy', emoji: '😂', label: 'Comedy shows', amenities: ['has_comedy'] },
+  { id: 'pup', emoji: '🐕', label: 'Drinks with the pup?', amenities: ['is_dog_friendly', 'has_happy_hour'], search: '' },
+  { id: 'game', emoji: '🏈', label: 'Catch the game', amenities: ['has_sports_tv'], search: '' },
+  { id: 'sing', emoji: '🎤', label: 'Sing your heart out', amenities: ['has_karaoke'], search: '' },
+  { id: 'live', emoji: '🎵', label: 'Live vibes tonight', amenities: ['has_live_music'], search: '' },
+  { id: 'trivia', emoji: '🧠', label: 'Test your brain', amenities: ['has_trivia'], search: '' },
+  { id: 'comedy', emoji: '😂', label: 'Make me laugh', amenities: ['has_comedy'], search: '' },
+  { id: 'cheap', emoji: '💰', label: '$5 deals & under', amenities: ['has_happy_hour'], search: '$5' },
+  { id: 'rooftop', emoji: '🌅', label: 'Rooftop sunset vibes', amenities: [], search: 'rooftop' },
 ];
 
 export default function ExplorePage() {
@@ -133,12 +135,14 @@ export default function ExplorePage() {
 
   const selectedVenue = [...venues, ...events].find((v) => v.id === selectedVenueId) || null;
 
-  const assignTier = (venue: Venue, index: number): 'hero' | 'compact' | 'standard' => {
-    if (index === 0 && venue.featured) return 'hero';
-    if (index === 0 && venue.photo_url) return 'hero';
-    if (index >= 1 && index <= 4) return 'compact';
-    return 'standard';
-  };
+  // Split venues into tiers matching vanilla app layout
+  const heroVenues = filtered.filter(v => v.is_hero && (v.photo_url || (v.photo_urls && v.photo_urls.length)));
+  const nonHeroes = filtered.filter(v => !v.is_hero || !(v.photo_url || (v.photo_urls && v.photo_urls.length)));
+  const withPhoto = nonHeroes.filter(v => v.photo_url || (v.photo_urls && v.photo_urls.length));
+  const withoutPhoto = nonHeroes.filter(v => !(v.photo_url || (v.photo_urls && v.photo_urls.length)));
+  const compactVenues = withPhoto.slice(0, 6);
+  const standardVenues = [...withPhoto.slice(6), ...withoutPhoto];
+  const eventItems = viewType === 'events' ? filtered : [];
 
   return (
     <div className={styles.page}>
@@ -152,20 +156,8 @@ export default function ExplorePage() {
             onChange={(e) => setSearch(e.target.value)}
             onClear={() => setSearch('')}
           />
-          <button
-            className={[styles.filterBtn, filterOpen && styles.filterBtnActive].filter(Boolean).join(' ')}
-            onClick={() => setFilterOpen(!filterOpen)}
-          >
-            ☰ Filter
-          </button>
-          <button
-            className={[styles.favBtn, favFilterOn && styles.favBtnActive].filter(Boolean).join(' ')}
-            onClick={() => setFavFilterOn(!favFilterOn)}
-          >
-            {favFilterOn ? '★' : '☆'}
-          </button>
           <button className={styles.mapBtn} onClick={() => navigate('/map')}>
-            🗺 Map
+            Map
           </button>
         </div>
 
@@ -183,14 +175,15 @@ export default function ExplorePage() {
           ))}
         </div>
 
-        {/* Type tabs */}
-        <div className={styles.typeTabs}>
-          <Pill active={viewType === 'hh'} onClick={() => setViewType('hh')}>
-            🍺 Happy Hours
-          </Pill>
-          <Pill active={viewType === 'events'} onClick={() => setViewType('events')}>
-            🎉 Events
-          </Pill>
+        {/* Filter toggle button */}
+        <div className={styles.controlsActions}>
+          <button
+            className={[styles.filterToggle, filterOpen && styles.filterToggleActive].filter(Boolean).join(' ')}
+            onClick={() => setFilterOpen(!filterOpen)}
+          >
+            Personalize Your Search
+            {activeFilters.length > 0 && <span className={styles.filterDot} />}
+          </button>
         </div>
 
         {activeFilters.length > 0 && (
@@ -235,6 +228,14 @@ export default function ExplorePage() {
         onDone={() => setFilterOpen(false)}
       />
 
+      {/* Results bar */}
+      {!loading && filtered.length > 0 && (
+        <div className={styles.resultsBar}>
+          <span className={styles.resultsCount}>{filtered.length} spots</span>
+          <button className={styles.requestBtn}>+ Request a Venue</button>
+        </div>
+      )}
+
       <div className={styles.list}>
         {loading ? (
           Array.from({ length: 6 }).map((_, i) => (
@@ -244,34 +245,12 @@ export default function ExplorePage() {
           <div className={styles.empty}>
             <span className={styles.emptyIcon}>🔍</span>
             <p>No {viewType === 'hh' ? 'happy hours' : 'events'} found</p>
+            <p className={styles.emptyHint}>Try removing a filter or searching something different</p>
           </div>
-        ) : (
+        ) : viewType === 'events' ? (
           <>
-            {filtered.length > 0 && (
-              <VenueCard
-                key={filtered[0].id}
-                venue={filtered[0]}
-                goingCount={checkInCounts[filtered[0].id] || 0}
-                onClick={() => setSelectedVenueId(filtered[0].id)}
-                tier={assignTier(filtered[0], 0)}
-                isFavorite={isFavorite(filtered[0].id)}
-              />
-            )}
-            {filtered.length > 1 && (
-              <div className={styles.compactGrid}>
-                {filtered.slice(1, 5).map((venue) => (
-                  <VenueCard
-                    key={venue.id}
-                    venue={venue}
-                    goingCount={checkInCounts[venue.id] || 0}
-                    onClick={() => setSelectedVenueId(venue.id)}
-                    tier="compact"
-                    isFavorite={isFavorite(venue.id)}
-                  />
-                ))}
-              </div>
-            )}
-            {filtered.slice(5).map((venue) => (
+            <div className={styles.feedLabel}>Events</div>
+            {eventItems.map(venue => (
               <VenueCard
                 key={venue.id}
                 venue={venue}
@@ -281,6 +260,61 @@ export default function ExplorePage() {
                 isFavorite={isFavorite(venue.id)}
               />
             ))}
+          </>
+        ) : (
+          <>
+            {/* Hero cards - "Hot right now" */}
+            {heroVenues.length > 0 && (
+              <>
+                <div className={styles.feedLabel}>🔥 Hot right now</div>
+                {heroVenues.map(venue => (
+                  <VenueCard
+                    key={venue.id}
+                    venue={venue}
+                    goingCount={checkInCounts[venue.id] || 0}
+                    onClick={() => setSelectedVenueId(venue.id)}
+                    tier="hero"
+                    isFavorite={isFavorite(venue.id)}
+                  />
+                ))}
+              </>
+            )}
+
+            {/* Compact grid - "Near you" / "Today's happy hours" */}
+            {compactVenues.length > 0 && (
+              <>
+                <div className={styles.feedLabel}>{heroVenues.length ? 'Near you' : "Today's happy hours"}</div>
+                <div className={styles.compactGrid}>
+                  {compactVenues.map(venue => (
+                    <VenueCard
+                      key={venue.id}
+                      venue={venue}
+                      goingCount={checkInCounts[venue.id] || 0}
+                      onClick={() => setSelectedVenueId(venue.id)}
+                      tier="compact"
+                      isFavorite={isFavorite(venue.id)}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+
+            {/* Standard rows - "More spots" */}
+            {standardVenues.length > 0 && (
+              <>
+                <div className={styles.feedLabel}>More spots</div>
+                {standardVenues.map(venue => (
+                  <VenueCard
+                    key={venue.id}
+                    venue={venue}
+                    goingCount={checkInCounts[venue.id] || 0}
+                    onClick={() => setSelectedVenueId(venue.id)}
+                    tier="standard"
+                    isFavorite={isFavorite(venue.id)}
+                  />
+                ))}
+              </>
+            )}
           </>
         )}
       </div>

@@ -12,6 +12,7 @@ const MapPage = lazy(() => import('./features/map/MapPage'));
 const SocialPage = lazy(() => import('./features/social/SocialPage'));
 const DmsPage = lazy(() => import('./features/dms/DmsPage'));
 const ProfilePage = lazy(() => import('./features/profile/ProfilePage'));
+const NewsPage = lazy(() => import('./features/news/NewsPage'));
 const NotificationsPage = lazy(() => import('./features/notifications/NotificationsPage'));
 const AuthPage = lazy(() => import('./features/auth/AuthPage'));
 const FindPeoplePage = lazy(() => import('./features/social/FindPeoplePage'));
@@ -40,6 +41,7 @@ export default function App() {
                   <Route path="/social" element={<SocialPage />} />
                   <Route path="/dms" element={<DmsPage />} />
                   <Route path="/dms/:threadId" element={<DmsPage />} />
+                  <Route path="/news" element={<NewsPage />} />
                   <Route path="/notifications" element={<NotificationsPage />} />
                   <Route path="/profile" element={<ProfilePage />} />
                   <Route path="/profile/:userId" element={<ProfilePage />} />

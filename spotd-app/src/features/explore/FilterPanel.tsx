@@ -16,16 +16,25 @@ interface FilterPanelProps {
 }
 
 const SORT_OPTIONS = [
-  { value: 'name', label: 'A-Z' },
-  { value: 'going', label: '🔥 Hot' },
-  { value: 'rating', label: '★ Rated' },
-  { value: 'distance', label: '📍 Near' },
+  { value: 'name', label: 'A–Z' },
+  { value: 'distance', label: 'Nearest' },
+  { value: 'going', label: 'Featured' },
 ] as const;
+
+const AMENITY_DEFS = [
+  { key: 'has_happy_hour', label: 'Happy Hour', emoji: '🍺' },
+  { key: 'has_sports_tv', label: 'Sports TV', emoji: '📺' },
+  { key: 'is_dog_friendly', label: 'Dog Friendly', emoji: '🐕' },
+  { key: 'has_live_music', label: 'Live Music', emoji: '🎵' },
+  { key: 'has_karaoke', label: 'Karaoke', emoji: '🎤' },
+  { key: 'has_trivia', label: 'Trivia', emoji: '🧠' },
+  { key: 'has_bingo', label: 'Bingo', emoji: '🎯' },
+  { key: 'has_comedy', label: 'Comedy', emoji: '😂' },
+];
 
 export function FilterPanel({
   open,
   neighborhoods,
-  amenities,
   selectedNeighborhood,
   selectedAmenities,
   sortBy,
@@ -42,20 +51,20 @@ export function FilterPanel({
       <div className={styles.header}>
         <span className={styles.title}>Filters</span>
         <div className={styles.headerRight}>
-          <button className={styles.clearAll} onClick={onClearAll}>Clear All</button>
+          <button className={styles.clearAll} onClick={onClearAll}>Reset</button>
           <button className={styles.done} onClick={onDone}>Done</button>
         </div>
       </div>
 
       {/* Sort */}
       <div className={styles.section}>
-        <span className={styles.label}>Sort by</span>
+        <span className={styles.label}>Sort</span>
         <div className={styles.row}>
           {SORT_OPTIONS.map((opt) => (
             <Pill
               key={opt.value}
               active={sortBy === opt.value}
-              onClick={() => onSortChange(opt.value as 'name' | 'going' | 'rating' | 'distance')}
+              onClick={() => onSortChange(opt.value as 'name' | 'going' | 'distance')}
             >
               {opt.label}
             </Pill>
@@ -63,48 +72,39 @@ export function FilterPanel({
         </div>
       </div>
 
-      {/* Neighborhoods */}
+      {/* Area dropdown */}
       {neighborhoods.length > 0 && (
         <div className={styles.section}>
-          <span className={styles.label}>Neighborhood</span>
-          <div className={styles.row}>
-            <Pill
-              active={!selectedNeighborhood}
-              onClick={() => onNeighborhoodChange(null)}
-            >
-              All
-            </Pill>
+          <span className={styles.label}>Area</span>
+          <select
+            className={styles.filterSelect}
+            value={selectedNeighborhood || ''}
+            onChange={(e) => onNeighborhoodChange(e.target.value || null)}
+          >
+            <option value="">Any</option>
             {neighborhoods.map((n) => (
-              <Pill
-                key={n}
-                active={selectedNeighborhood === n}
-                onClick={() => onNeighborhoodChange(selectedNeighborhood === n ? null : n)}
-              >
-                {n}
-              </Pill>
+              <option key={n} value={n}>{n}</option>
             ))}
-          </div>
+          </select>
         </div>
       )}
 
-      {/* Amenities */}
-      {amenities.length > 0 && (
-        <div className={styles.section}>
-          <span className={styles.label}>Amenities</span>
-          <div className={styles.row}>
-            {amenities.map((a) => (
-              <Pill
-                key={a}
-                variant="amenity"
-                active={selectedAmenities.includes(a)}
-                onClick={() => onAmenityToggle(a)}
-              >
-                {a}
-              </Pill>
-            ))}
-          </div>
+      {/* Amenities grid */}
+      <div className={styles.section}>
+        <span className={styles.label}>Amenities</span>
+        <div className={styles.amenityGrid}>
+          {AMENITY_DEFS.map((a) => (
+            <button
+              key={a.key}
+              className={[styles.amenityCard, selectedAmenities.includes(a.key) && styles.amenityCardActive].filter(Boolean).join(' ')}
+              onClick={() => onAmenityToggle(a.key)}
+            >
+              <span className={styles.amenityEmoji}>{a.emoji}</span>
+              <span className={styles.amenityLabel}>{a.label}</span>
+            </button>
+          ))}
         </div>
-      )}
+      </div>
     </div>
   );
 }

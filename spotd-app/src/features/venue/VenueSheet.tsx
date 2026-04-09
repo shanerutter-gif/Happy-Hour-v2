@@ -80,7 +80,8 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
       .select('id')
       .eq('venue_id', venue.id)
       .eq('user_id', user.id)
-      .eq('date', today);
+      .gte('created_at', today + 'T00:00:00')
+      .lte('created_at', today + 'T23:59:59');
     setIsGoing((data?.length || 0) > 0);
   }, [user, venue.id, today]);
 
@@ -89,7 +90,8 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
       .from('check_ins')
       .select('id')
       .eq('venue_id', venue.id)
-      .eq('date', today);
+      .gte('created_at', today + 'T00:00:00')
+      .lte('created_at', today + 'T23:59:59');
     setGoingCount(data?.length || 0);
   }, [venue.id, today]);
 
@@ -149,14 +151,14 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
         .delete()
         .eq('venue_id', venue.id)
         .eq('user_id', user.id)
-        .eq('date', today);
+        .gte('created_at', today + 'T00:00:00');
       setIsGoing(false);
       setGoingCount((c) => Math.max(0, c - 1));
       showToast({ text: 'Check-in removed' });
     } else {
       await supabase
         .from('check_ins')
-        .insert({ venue_id: venue.id, user_id: user.id, city_slug: venue.city_slug, date: today });
+        .insert({ venue_id: venue.id, user_id: user.id, city_slug: venue.city_slug });
       setIsGoing(true);
       setGoingCount((c) => c + 1);
       showToast({ text: `Checked in to ${venue.name}!`, type: 'success' });
@@ -208,11 +210,11 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
   const submitDescription = async () => {
     if (!user || !descText.trim()) return;
     setSubmittingDesc(true);
-    await supabase.from('venue_descriptions').upsert({
+    await supabase.from('venue_descriptions').insert({
       venue_id: venue.id,
       user_id: user.id,
       description_text: descText.trim(),
-    }, { onConflict: 'user_id,venue_id' });
+    });
     setDescText('');
     setShowDescForm(false);
     setSubmittingDesc(false);

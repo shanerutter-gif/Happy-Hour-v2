@@ -89,7 +89,7 @@ export default function ListDetailPage() {
     <div className={styles.page}>
       <div className={styles.header}>
         <button className={styles.backBtn} onClick={() => navigate(-1)}>←</button>
-        <h1 className={styles.title}>{list?.emoji} {list?.title || 'List'}</h1>
+        <h1 className={styles.title}>{list?.cover_emoji} {list?.title || 'List'}</h1>
       </div>
 
       {list?.description && <p className={styles.desc}>{list.description}</p>}

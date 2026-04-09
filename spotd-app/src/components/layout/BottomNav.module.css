@@ -40,8 +40,21 @@
 }
 
 .icon {
-  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
   line-height: 1;
+}
+
+.icon svg {
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  stroke-width: 2.2;
+}
+
+.active .icon svg {
+  transform: scale(1.05);
 }
 
 .label {
@@ -50,4 +63,24 @@
   font-weight: 600;
   letter-spacing: 0.3px;
   text-transform: uppercase;
+}
+
+/* Profile avatar circle - matches vanilla bn-avatar */
+.avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--coral) 0%, var(--coral-lt) 100%);
+  color: #fff;
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-size: 10px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.active .avatar {
+  box-shadow: 0 0 0 2px var(--coral);
 }

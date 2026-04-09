@@ -58,7 +58,7 @@ export function ListsSection() {
         ) : (
           lists.map((list) => (
             <div key={list.id} className={styles.card}>
-              <span className={styles.emoji}>{list.emoji}</span>
+              <span className={styles.emoji}>{list.cover_emoji}</span>
               <div className={styles.body}>
                 <span className={styles.listTitle}>{list.title}</span>
                 <span className={styles.meta}>{list.item_count} venues</span>
