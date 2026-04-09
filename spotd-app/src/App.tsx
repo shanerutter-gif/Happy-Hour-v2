@@ -19,6 +19,7 @@ const AuthPage = lazy(() => import('./features/auth/AuthPage'));
 const FindPeoplePage = lazy(() => import('./features/social/FindPeoplePage'));
 const LeaderboardPage = lazy(() => import('./features/social/LeaderboardPage'));
 const ListDetailPage = lazy(() => import('./features/lists/ListDetailPage'));
+const LegalPage = lazy(() => import('./features/legal/LegalPage'));
 
 function PageLoader() {
   return (
@@ -53,6 +54,7 @@ export default function App() {
                   <Route path="/find-people" element={<FindPeoplePage />} />
                   <Route path="/leaderboard" element={<LeaderboardPage />} />
                   <Route path="/lists/:listId" element={<ListDetailPage />} />
+                  <Route path="/legal/:page" element={<LegalPage />} />
                 </Routes>
               </Suspense>
             </ErrorBoundary>

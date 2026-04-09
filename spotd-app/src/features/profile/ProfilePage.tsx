@@ -278,6 +278,29 @@ export default function ProfilePage() {
     loadProfile();
   };
 
+  const startDmWithUser = async () => {
+    if (!user || !userId) return;
+    // Check for existing 1:1 thread
+    const { data: myThreads } = await supabase
+      .from('dm_threads')
+      .select('id, is_group, participants')
+      .contains('participants', [user.id]);
+    const existing = (myThreads || []).find(
+      (t: { participants: string[]; is_group: boolean }) =>
+        !t.is_group && t.participants.includes(userId) && t.participants.length === 2
+    );
+    if (existing) {
+      navigate(`/dms/${existing.id}`);
+    } else {
+      const { data: newThread } = await supabase
+        .from('dm_threads')
+        .insert({ participants: [user.id, userId], is_group: false })
+        .select('id')
+        .single();
+      if (newThread) navigate(`/dms/${newThread.id}`);
+    }
+  };
+
   const submitFeedback = async () => {
     if (!feedbackType) { showToast({ text: 'Please select a feedback type' }); return; }
     if (!feedbackText.trim()) { showToast({ text: 'Please describe the issue' }); return; }
@@ -475,6 +498,9 @@ export default function ProfilePage() {
             >
               {isFollowing ? 'Following' : 'Follow'}
             </Button>
+            <button className={styles.msgBtn} onClick={startDmWithUser} title="Message">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
+            </button>
             <button className={styles.moreBtn} onClick={() => setShowBlockConfirm(!showBlockConfirm)}>···</button>
           </div>
         )}

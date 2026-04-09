@@ -309,6 +309,14 @@
   gap: 8px; margin-top: 12px;
 }
 
+.msgBtn {
+  background: var(--bg); border: none; border-radius: 50%;
+  width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
+  color: var(--coral); cursor: pointer; box-shadow: var(--clay-sm);
+  transition: transform var(--duration-fast);
+}
+.msgBtn:active { transform: scale(0.9); }
+
 .moreBtn {
   background: var(--bg); border: none; border-radius: 50%;
   width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;

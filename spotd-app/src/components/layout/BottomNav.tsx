@@ -1,6 +1,8 @@
+import { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import styles from './BottomNav.module.css';
 import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabase';
 
 function SpotsIcon() {
   return (
@@ -40,6 +42,25 @@ export function BottomNav() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const { user, profile } = useAuth();
+  const [hasUnread, setHasUnread] = useState(false);
+
+  // Poll for unseen notifications (DMs + social) every 2 min like vanilla
+  const checkUnread = useCallback(async () => {
+    if (!user) { setHasUnread(false); return; }
+    // Check unread notifications
+    const { count } = await supabase
+      .from('notifications')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('is_read', false);
+    setHasUnread((count || 0) > 0);
+  }, [user]);
+
+  useEffect(() => {
+    checkUnread();
+    const interval = setInterval(checkUnread, 120000);
+    return () => clearInterval(interval);
+  }, [checkUnread]);
 
   // Build profile avatar initials
   const displayName = profile?.display_name || user?.user_metadata?.full_name || '';
@@ -75,7 +96,10 @@ export function BottomNav() {
           onClick={() => navigate('/profile')}
           aria-label="Profile"
         >
-          <span className={styles.avatar}>{initials}</span>
+          <span className={styles.avatarWrap}>
+            <span className={styles.avatar}>{initials}</span>
+            {hasUnread && <span className={styles.dot} />}
+          </span>
           <span className={styles.label}>Profile</span>
         </button>
       )}
