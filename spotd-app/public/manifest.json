@@ -24,6 +24,6 @@
     { "src": "/screenshots/venues.png", "sizes": "390x844", "type": "image/png", "form_factor": "narrow", "label": "Browse happy hours near you" }
   ],
   "related_applications": [
-    { "platform": "itunes", "url": "https://apps.apple.com/app/spotd/id000000000" }
+    { "platform": "itunes", "url": "https://apps.apple.com/us/app/spotd/id6760452388" }
   ]
 }
