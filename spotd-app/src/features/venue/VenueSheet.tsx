@@ -47,6 +47,7 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
   const [followingVenue, setFollowingVenue] = useState(false);
   // Share via DM state
   const [showSharePicker, setShowSharePicker] = useState(false);
+  const [promoCopied, setPromoCopied] = useState(false);
   const [dmContacts, setDmContacts] = useState<{ id: string; display_name: string; avatar_url: string | null }[]>([]);
   const [loadingContacts, setLoadingContacts] = useState(false);
   // Report state
@@ -386,16 +387,23 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
 
   const handleShare = async () => {
     haptic('light');
-    const shareData = {
-      title: venue.name,
-      text: `Check out ${venue.name} on Spotd!`,
-      url: `${window.location.origin}/?spot=${venue.id}`,
-    };
+    const appUrl = 'https://apps.apple.com/us/app/spotd/id6760452388';
+    const details = [
+      venue.name,
+      [venue.neighborhood, venue.address].filter(Boolean).join(' — '),
+      venue.hours,
+      (venue.deals || []).slice(0, 2).join(' · '),
+      '',
+      `Download Spotd: ${appUrl}`,
+    ].filter(Boolean).join('\n');
     if (navigator.share) {
-      await navigator.share(shareData).catch(() => {});
-    } else {
-      await navigator.clipboard.writeText(shareData.url);
+      await navigator.share({ title: venue.name, text: details, url: appUrl }).catch(() => {});
+    } else if (navigator.clipboard) {
+      await navigator.clipboard.writeText(`${details}\n${window.location.origin}/?spot=${venue.id}`);
       showToast({ text: 'Link copied!', type: 'success' });
+    } else {
+      // SMS fallback (matches vanilla)
+      window.open(`sms:?body=${encodeURIComponent(details)}`, '_blank');
     }
   };
 
@@ -736,15 +744,21 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
         {venue.promo_code && (
           <div className={styles.promoBox}>
             <div className={styles.promoInner} onClick={() => {
-              navigator.clipboard.writeText(venue.promo_code!);
-              showToast({ text: 'Promo code copied!', type: 'success' });
+              haptic('medium');
+              navigator.clipboard.writeText(venue.promo_code!).then(() => {
+                setPromoCopied(true);
+                showToast({ text: 'Promo code copied!', type: 'success' });
+                setTimeout(() => setPromoCopied(false), 2000);
+              }).catch(() => {
+                showToast({ text: 'Could not copy', type: 'error' });
+              });
             }}>
               <div>
                 <span className={styles.promoLabel}>Promo Code</span>
                 <span className={styles.promoCode}>{venue.promo_code}</span>
                 {venue.promo_description && <span className={styles.promoDesc}>{venue.promo_description}</span>}
               </div>
-              <span className={styles.promoCopy}>📋 Copy</span>
+              <span className={styles.promoCopy}>{promoCopied ? '✓ Copied!' : '📋 Copy'}</span>
             </div>
           </div>
         )}
