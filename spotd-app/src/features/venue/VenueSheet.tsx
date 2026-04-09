@@ -158,7 +158,7 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
     } else {
       await supabase
         .from('check_ins')
-        .insert({ venue_id: venue.id, user_id: user.id, city_slug: venue.city });
+        .insert({ venue_id: venue.id, user_id: user.id, city_slug: venue.city_slug });
       setIsGoing(true);
       setGoingCount((c) => c + 1);
       showToast({ text: `Checked in to ${venue.name}!`, type: 'success' });
@@ -242,7 +242,7 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
     setLoadingContacts(true);
     // Get user's follows to populate contact list
     const { data: follows } = await supabase
-      .from('follows')
+      .from('user_follows')
       .select('following_id')
       .eq('follower_id', user.id);
     const ids = (follows || []).map((f: { following_id: string }) => f.following_id);
@@ -352,7 +352,7 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
     await saveCheckinPhoto({
       userId: user.id,
       venueId: venue.id,
-      citySlug: venue.city,
+      citySlug: venue.city_slug,
       photoUrl: result.url,
       storagePath: result.storagePath,
     });
@@ -519,7 +519,7 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
           ) : (
             descriptions.map((d) => (
               <div key={d.id} className={styles.descRow}>
-                <p className={styles.descText}>"{d.text}"</p>
+                <p className={styles.descText}>"{d.description_text}"</p>
                 <button className={styles.upvoteBtn} onClick={() => handleUpvoteDesc(d.id)}>
                   👍 {d.upvotes}
                 </button>

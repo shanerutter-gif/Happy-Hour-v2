@@ -24,7 +24,7 @@ export default function ListDetailPage() {
     if (!listId) return;
     setLoading(true);
 
-    const { data: listData } = await supabase.from('lists').select('*').eq('id', listId).single();
+    const { data: listData } = await supabase.from('user_lists').select('*').eq('id', listId).single();
     setList(listData as List | null);
 
     const { data: itemData } = await supabase
@@ -67,7 +67,7 @@ export default function ListDetailPage() {
   const deleteList = async () => {
     if (!listId) return;
     await supabase.from('list_items').delete().eq('list_id', listId);
-    await supabase.from('lists').delete().eq('id', listId);
+    await supabase.from('user_lists').delete().eq('id', listId);
     showToast({ text: 'List deleted' });
     navigate(-1);
   };
@@ -89,7 +89,7 @@ export default function ListDetailPage() {
     <div className={styles.page}>
       <div className={styles.header}>
         <button className={styles.backBtn} onClick={() => navigate(-1)}>←</button>
-        <h1 className={styles.title}>{list?.emoji} {list?.title || 'List'}</h1>
+        <h1 className={styles.title}>{list?.cover_emoji} {list?.title || 'List'}</h1>
       </div>
 
       {list?.description && <p className={styles.desc}>{list.description}</p>}

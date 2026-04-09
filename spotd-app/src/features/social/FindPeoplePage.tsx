@@ -39,7 +39,7 @@ export default function FindPeoplePage() {
     // Check follow status
     if (user && raw.length) {
       const { data: follows } = await supabase
-        .from('follows')
+        .from('user_follows')
         .select('following_id')
         .eq('follower_id', user.id)
         .in('following_id', raw.map((p) => p.id));
@@ -60,9 +60,9 @@ export default function FindPeoplePage() {
     if (!person) return;
 
     if (person.isFollowing) {
-      await supabase.from('follows').delete().eq('follower_id', user.id).eq('following_id', personId);
+      await supabase.from('user_follows').delete().eq('follower_id', user.id).eq('following_id', personId);
     } else {
-      await supabase.from('follows').insert({ follower_id: user.id, following_id: personId });
+      await supabase.from('user_follows').insert({ follower_id: user.id, following_id: personId });
     }
     setResults((prev) => prev.map((p) =>
       p.id === personId ? { ...p, isFollowing: !p.isFollowing } : p

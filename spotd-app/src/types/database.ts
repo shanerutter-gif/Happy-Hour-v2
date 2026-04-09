@@ -70,16 +70,19 @@ export interface Venue {
   id: string;
   name: string;
   type: 'hh' | 'event';
+  event_type: string | null;
   neighborhood: string;
-  city: string;
+  city_slug: string;
   address: string;
   lat: number | null;
   lng: number | null;
   when_text: string;
+  hours: string | null;
   days: string[];
   deals: string[];
   amenities: string[];
   photo_url: string | null;
+  photo_urls: string[] | null;
   yelp_url: string | null;
   yelp_rating: number | null;
   google_rating: number | null;
@@ -89,6 +92,7 @@ export interface Venue {
   fire_count: number;
   claimed: boolean;
   featured: boolean;
+  is_hero: boolean;
   created_at: string;
 }
 
@@ -96,6 +100,8 @@ export interface Profile {
   id: string;
   display_name: string;
   avatar_url: string | null;
+  avatar_emoji: string | null;
+  header_url: string | null;
   bio: string | null;
   city: string;
   neighborhood: string | null;
@@ -150,7 +156,7 @@ export interface List {
   user_id: string;
   title: string;
   description: string | null;
-  emoji: string;
+  cover_emoji: string;
   is_public: boolean;
   item_count: number;
   created_at: string;
@@ -196,7 +202,7 @@ export interface VenueDescription {
   id: string;
   venue_id: string;
   user_id: string;
-  text: string;
+  description_text: string;
   tags: string[];
   upvotes: number;
   created_at: string;
