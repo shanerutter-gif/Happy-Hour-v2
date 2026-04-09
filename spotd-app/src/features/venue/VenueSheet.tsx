@@ -247,7 +247,7 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
   const checkAndAwardBadges = async () => {
     if (!user) return;
     const [checkInsRes, reviewsRes, followingRes, badgesRes] = await Promise.all([
-      supabase.from('check_ins').select('venue_id, neighborhood').eq('user_id', user.id),
+      supabase.from('check_ins').select('venue_id, neighborhood, date, created_at').eq('user_id', user.id),
       supabase.from('reviews').select('id').eq('user_id', user.id),
       supabase.from('user_follows').select('following_id').eq('follower_id', user.id),
       supabase.from('user_badges').select('badge_key').eq('user_id', user.id),
@@ -270,6 +270,20 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
     if (reviewCount >= 10) award('critic');
     if (reviewCount >= 25) award('top_reviewer');
     if (followingCount >= 5) award('social');
+    // Streak badges — week-over-week consecutive check-ins
+    const weekSet = new Set(checkIns.map((c: { date: string | null; created_at: string }) => {
+      const d = new Date(c.date || c.created_at);
+      const jan1 = new Date(d.getFullYear(), 0, 1);
+      return `${d.getFullYear()}-W${Math.ceil(((d.getTime() - jan1.getTime()) / 86400000 + 1) / 7)}`;
+    }));
+    const weeks = [...weekSet].sort();
+    let maxStreak = 1, cur = 1;
+    for (let i = 1; i < weeks.length; i++) {
+      cur = weeks[i] > weeks[i - 1] ? cur + 1 : 1;
+      maxStreak = Math.max(maxStreak, cur);
+    }
+    if (maxStreak >= 4) award('streak_4');
+    if (maxStreak >= 8) award('streak_8');
   };
 
   const handleCheckIn = async () => {

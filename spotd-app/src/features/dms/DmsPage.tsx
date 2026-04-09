@@ -1,18 +1,24 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, type TouchEvent as ReactTouchEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { showToast } from '../../components/ui/Toast';
 import styles from './DmsPage.module.css';
 
+// Swipe-to-delete state
+const swipeState: { startX: number; el: HTMLElement | null } = { startX: 0, el: null };
+
 interface Thread {
   id: string;
   participants: string[];
   last_message: string | null;
   last_message_at: string | null;
+  is_group?: boolean;
+  name?: string | null;
   other_name?: string;
   other_avatar?: string;
   unread_count?: number;
+  member_names?: string[];
 }
 
 interface Message {
@@ -47,7 +53,12 @@ export default function DmsPage() {
 
     const raw = (data || []) as Thread[];
 
-    const otherIds = raw.map((t) => t.participants.find((p) => p !== user.id)).filter(Boolean) as string[];
+    // Collect all non-self participant IDs across all threads
+    const allOtherIds = new Set<string>();
+    raw.forEach((t) => {
+      t.participants.filter((p) => p !== user.id).forEach((id) => allOtherIds.add(id));
+    });
+    const otherIds = [...allOtherIds];
     if (otherIds.length) {
       const { data: profiles } = await supabase
         .from('profiles')
@@ -55,11 +66,22 @@ export default function DmsPage() {
         .in('id', otherIds);
       const pMap = new Map((profiles || []).map((p: { id: string; display_name: string; avatar_url: string }) => [p.id, p]));
       raw.forEach((t) => {
-        const otherId = t.participants.find((p) => p !== user!.id);
-        const profile = otherId ? pMap.get(otherId) : undefined;
-        if (profile) {
-          t.other_name = profile.display_name;
-          t.other_avatar = profile.avatar_url;
+        const others = t.participants.filter((p) => p !== user!.id);
+        const isGroup = others.length > 1;
+        t.is_group = isGroup;
+        if (isGroup) {
+          // Group: show custom name or concatenated first names
+          t.member_names = others.map((id) => {
+            const prof = pMap.get(id);
+            return prof ? (prof.display_name || 'User').split(' ')[0] : 'User';
+          });
+          t.other_name = t.name || t.member_names.join(', ');
+        } else {
+          const profile = others[0] ? pMap.get(others[0]) : undefined;
+          if (profile) {
+            t.other_name = profile.display_name;
+            t.other_avatar = profile.avatar_url;
+          }
         }
       });
     }
@@ -137,6 +159,44 @@ export default function DmsPage() {
     };
   }, [threadId]);
 
+  // --- Swipe-to-delete ---
+  const handleSwipeStart = (e: ReactTouchEvent) => {
+    swipeState.startX = e.touches[0].clientX;
+    swipeState.el = e.currentTarget as HTMLElement;
+  };
+
+  const handleSwipeMove = (e: ReactTouchEvent) => {
+    if (!swipeState.el) return;
+    const dx = e.touches[0].clientX - swipeState.startX;
+    if (dx < 0) {
+      const clamped = Math.max(dx, -80);
+      swipeState.el.style.transform = `translateX(${clamped}px)`;
+    }
+  };
+
+  const handleSwipeEnd = (threadIdToDelete: string) => {
+    if (!swipeState.el) return;
+    const rect = swipeState.el.getBoundingClientRect();
+    const currentX = parseFloat(swipeState.el.style.transform.replace(/[^-\d.]/g, '')) || 0;
+    if (currentX < -50) {
+      // Show delete button — keep swiped
+      swipeState.el.style.transform = 'translateX(-70px)';
+      swipeState.el.dataset.swiped = threadIdToDelete;
+    } else {
+      swipeState.el.style.transform = 'translateX(0)';
+    }
+    swipeState.el = null;
+  };
+
+  const deleteThread = async (tid: string) => {
+    if (!user) return;
+    // Delete messages then thread
+    await supabase.from('dm_messages').delete().eq('thread_id', tid);
+    await supabase.from('dm_threads').delete().eq('id', tid);
+    setThreads((prev) => prev.filter((t) => t.id !== tid));
+    showToast({ text: 'Conversation deleted' });
+  };
+
   const sendMessage = async () => {
     if (!input.trim() || !threadId || !user) return;
     const content = input.trim();
@@ -190,7 +250,16 @@ export default function DmsPage() {
       <div className={styles.page}>
         <div className={styles.threadHeader}>
           <button className={styles.backBtn} onClick={() => navigate('/dms')}>←</button>
-          <span className={styles.threadName}>{thread?.other_name || 'Chat'}</span>
+          <div>
+            <span className={styles.threadName}>{thread?.other_name || 'Chat'}</span>
+            {thread?.is_group && thread.member_names && (
+              <div className={styles.memberPills}>
+                {thread.member_names.map((name, i) => (
+                  <span key={i} className={styles.memberPill}>{name}</span>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
         <div className={styles.messages}>
           {messages.map((msg) => (
@@ -256,27 +325,38 @@ export default function DmsPage() {
           </div>
         ) : (
           threads.map((t) => (
-            <button
-              key={t.id}
-              className={styles.threadRow}
-              onClick={() => navigate(`/dms/${t.id}`)}
-            >
-              <div className={styles.threadAvatar}>
-                {t.other_avatar ? (
-                  <img src={t.other_avatar} alt="" />
-                ) : (
-                  <span>{(t.other_name || 'U').slice(0, 2).toUpperCase()}</span>
-                )}
+            <div key={t.id} className={styles.threadSwipeWrap}>
+              <div
+                className={styles.threadSwipeInner}
+                onTouchStart={handleSwipeStart}
+                onTouchMove={handleSwipeMove}
+                onTouchEnd={() => handleSwipeEnd(t.id)}
+              >
+                <button
+                  className={styles.threadRow}
+                  onClick={() => navigate(`/dms/${t.id}`)}
+                >
+                  <div className={styles.threadAvatar}>
+                    {t.is_group ? (
+                      <span>👥</span>
+                    ) : t.other_avatar ? (
+                      <img src={t.other_avatar} alt="" />
+                    ) : (
+                      <span>{(t.other_name || 'U').slice(0, 2).toUpperCase()}</span>
+                    )}
+                  </div>
+                  <div className={styles.threadBody}>
+                    <span className={styles.threadTitle}>{t.other_name || 'User'}</span>
+                    <span className={styles.threadPreview}>{t.last_message || 'No messages'}</span>
+                  </div>
+                  <div className={styles.threadRight}>
+                    <span className={styles.threadTime}>{timeAgo(t.last_message_at)}</span>
+                    {(t.unread_count || 0) > 0 && <span className={styles.unreadBadge}>{t.unread_count}</span>}
+                  </div>
+                </button>
               </div>
-              <div className={styles.threadBody}>
-                <span className={styles.threadTitle}>{t.other_name || 'User'}</span>
-                <span className={styles.threadPreview}>{t.last_message || 'No messages'}</span>
-              </div>
-              <div className={styles.threadRight}>
-                <span className={styles.threadTime}>{timeAgo(t.last_message_at)}</span>
-                {(t.unread_count || 0) > 0 && <span className={styles.unreadBadge}>{t.unread_count}</span>}
-              </div>
-            </button>
+              <button className={styles.swipeDelete} onClick={() => deleteThread(t.id)}>Delete</button>
+            </div>
           ))
         )}
       </div>
