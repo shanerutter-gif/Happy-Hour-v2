@@ -426,6 +426,18 @@ export default function DmsPage() {
           <div className={styles.empty}>
             <span>💬</span>
             <p>No messages yet</p>
+            <button className={styles.inviteBtn} onClick={async () => {
+              const text = 'Check out Spotd — find the best happy hours, events & nightlife near you!';
+              const url = window.location.origin;
+              if (navigator.share) {
+                await navigator.share({ title: 'Spotd', text, url }).catch(() => {});
+              } else {
+                await navigator.clipboard.writeText(url);
+                showToast({ text: 'Link copied!', type: 'success' });
+              }
+            }}>
+              📤 Invite a friend to Spotd
+            </button>
           </div>
         ) : (
           threads.map((t) => (

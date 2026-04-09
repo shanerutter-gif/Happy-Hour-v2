@@ -24,6 +24,20 @@
 }
 .empty span { font-size: 40px; }
 
+.inviteBtn {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin-top: 8px; padding: 10px 20px;
+  background: none; border: 2px solid var(--coral);
+  border-radius: 50px; cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px; font-weight: 700;
+  color: var(--coral);
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.inviteBtn:active {
+  background: var(--coral); color: #fff;
+}
+
 /* Thread row */
 .threadRow {
   display: flex; align-items: center; gap: 12px;

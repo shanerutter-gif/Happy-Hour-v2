@@ -177,6 +177,17 @@ export default function SocialPage() {
   const spotSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const spotFileRef = useRef<HTMLInputElement>(null);
 
+  // Social nudge — shown first 3 visits (matching vanilla maybeShowSocialNudge)
+  const [showNudge, setShowNudge] = useState(false);
+  useEffect(() => {
+    const KEY = 'spotd_social_nudge';
+    const seen = parseInt(localStorage.getItem(KEY) || '0', 10);
+    if (seen >= 3) return;
+    localStorage.setItem(KEY, String(seen + 1));
+    const timer = setTimeout(() => setShowNudge(true), 400);
+    return () => clearTimeout(timer);
+  }, []);
+
   const loadFeed = useCallback(async () => {
     if (!currentCity) return;
     setLoading(true);
@@ -1041,6 +1052,20 @@ export default function SocialPage() {
           )}
         </div>
       </Sheet>
+
+      {/* Social nudge overlay */}
+      {showNudge && (
+        <div className={styles.nudgeOverlay} onClick={() => setShowNudge(false)}>
+          <div className={styles.nudgeCard} onClick={e => e.stopPropagation()}>
+            <div className={styles.nudgeIcon}>
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" /></svg>
+            </div>
+            <h3 className={styles.nudgeTitle}>Share your night out</h3>
+            <p className={styles.nudgeDesc}>Check in at a spot and add a photo — it shows up in this feed for everyone in the city.</p>
+            <button className={styles.nudgeBtn} onClick={() => setShowNudge(false)}>Got it</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -352,9 +352,9 @@ export default function ProfilePage() {
       return hoods.size >= 5;
     }},
     { key: 'critic', icon: '⭐', label: 'Critic', check: () => userReviews.length >= 10 },
-    { key: 'social', icon: '🤝', label: 'Social Butterfly', check: () => followersCount >= 5 },
-    { key: 'streak_4', icon: '🔥', label: '4-Week Streak', check: () => (profile?.streak || 0) >= 28 },
-    { key: 'streak_8', icon: '🔥', label: '8-Week Streak', check: () => (profile?.streak || 0) >= 56 },
+    { key: 'social', icon: '🤝', label: 'Social Butterfly', check: () => followingCount >= 5 },
+    { key: 'streak_4', icon: '🔥', label: '4-Week Streak', check: () => (profile?.streak || 0) >= 4 },
+    { key: 'streak_8', icon: '🔥', label: '8-Week Streak', check: () => (profile?.streak || 0) >= 8 },
     { key: 'top_reviewer', icon: '✏️', label: 'Top Reviewer', check: () => userReviews.length >= 25 },
   ];
   const earnedBadges = BADGE_DEFS.filter(b => b.check());
@@ -497,7 +497,7 @@ export default function ProfilePage() {
         ) : null}
 
         {profile?.streak && profile.streak > 0 ? (
-          <span className={styles.streakBadge}>🔥 {profile.streak} day streak</span>
+          <span className={styles.streakBadge}>🔥 {profile.streak}-week streak</span>
         ) : null}
 
         {/* Earned badges */}
