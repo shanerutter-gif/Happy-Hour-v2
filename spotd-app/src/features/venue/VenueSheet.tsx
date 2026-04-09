@@ -59,6 +59,9 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
   // Add-to-list state
   const [showListPicker, setShowListPicker] = useState(false);
   const [userLists, setUserLists] = useState<{ id: string; title: string; cover_emoji: string; hasVenue: boolean }[]>([]);
+  // Tag friends after check-in
+  const [showTagFriends, setShowTagFriends] = useState(false);
+  const [tagFriendsList, setTagFriendsList] = useState<{ id: string; display_name: string; avatar_url: string | null; tagged: boolean }[]>([]);
   // Daily check-in count
   const [todayCheckInCount, setTodayCheckInCount] = useState(0);
   // Admin edit state
@@ -205,6 +208,68 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
     }
   }, [open, loadReviews, checkGoing, loadGoingCount, loadGoingAvatars, loadDescriptions, checkVenueFollow, loadVenuePhotos, loadTodayCheckIns, loadUserLists]);
 
+  // Load following list for tag-friends overlay
+  const loadTagFriends = useCallback(async () => {
+    if (!user) return;
+    const { data: follows } = await supabase
+      .from('user_follows')
+      .select('following_id')
+      .eq('follower_id', user.id);
+    const ids = (follows || []).map((f: { following_id: string }) => f.following_id);
+    if (!ids.length) return;
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, display_name, avatar_url')
+      .in('id', ids);
+    setTagFriendsList((profiles || []).map((p: { id: string; display_name: string; avatar_url: string | null }) => ({
+      id: p.id, display_name: p.display_name, avatar_url: p.avatar_url, tagged: false,
+    })));
+  }, [user]);
+
+  const tagFriend = async (toUserId: string) => {
+    if (!user) return;
+    await supabase.from('activity_feed').insert({
+      user_id: toUserId,
+      activity_type: 'tagged_at',
+      venue_id: venue.id,
+      venue_name: venue.name,
+      neighborhood: venue.neighborhood,
+      city_slug: venue.city_slug,
+      meta: { tagged_by: user.id },
+    });
+    setTagFriendsList(prev => prev.map(f => f.id === toUserId ? { ...f, tagged: true } : f));
+    showToast({ text: 'Tagged!', type: 'success' });
+  };
+
+  // Check and award badges after check-in
+  const checkAndAwardBadges = async () => {
+    if (!user) return;
+    const [checkInsRes, reviewsRes, followingRes, badgesRes] = await Promise.all([
+      supabase.from('check_ins').select('venue_id, neighborhood').eq('user_id', user.id),
+      supabase.from('reviews').select('id').eq('user_id', user.id),
+      supabase.from('user_follows').select('following_id').eq('follower_id', user.id),
+      supabase.from('user_badges').select('badge_key').eq('user_id', user.id),
+    ]);
+    const checkIns = checkInsRes.data || [];
+    const reviewCount = (reviewsRes.data || []).length;
+    const followingCount = (followingRes.data || []).length;
+    const earned = new Set((badgesRes.data || []).map((b: { badge_key: string }) => b.badge_key));
+    const award = (key: string) => {
+      if (!earned.has(key)) {
+        supabase.from('user_badges').insert({ user_id: user!.id, badge_key: key });
+      }
+    };
+    if (checkIns.length >= 1) award('first_checkin');
+    const venueCounts: Record<string, number> = {};
+    checkIns.forEach((c: { venue_id: string }) => { venueCounts[c.venue_id] = (venueCounts[c.venue_id] || 0) + 1; });
+    if (Object.values(venueCounts).some(c => c >= 3)) award('regular');
+    const hoods = new Set(checkIns.map((c: { neighborhood: string | null }) => c.neighborhood).filter(Boolean));
+    if (hoods.size >= 5) award('explorer');
+    if (reviewCount >= 10) award('critic');
+    if (reviewCount >= 25) award('top_reviewer');
+    if (followingCount >= 5) award('social');
+  };
+
   const handleCheckIn = async () => {
     if (!user) {
       showToast({ text: 'Sign in to check in', type: 'error' });
@@ -242,9 +307,13 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
       setTodayCheckInCount((c) => c + 1);
       loadGoingAvatars();
       showToast({ text: `Checked in to ${venue.name}!`, type: 'success' });
+      // Badge awarding (background, no await)
+      checkAndAwardBadges();
+      // Show tag friends overlay
+      loadTagFriends().then(() => setShowTagFriends(true));
       // Prompt for push after first check-in
       if (!localStorage.getItem('pushBannerDismissed') && 'Notification' in window && Notification.permission === 'default') {
-        setTimeout(() => setShowPushPrompt(true), 1500);
+        setTimeout(() => setShowPushPrompt(true), 2500);
       }
     }
   };
@@ -955,6 +1024,30 @@ export function VenueSheet({ venue, open, onClose, isFavorite, onToggleFavorite 
           </>
         )}
       </div>
+
+      {/* Tag friends overlay */}
+      {showTagFriends && tagFriendsList.length > 0 && (
+        <div className={styles.tagOverlay}>
+          <div className={styles.tagTitle}>Tag a friend at {venue.name}</div>
+          <div className={styles.tagSub}>They&apos;ll see it in their feed</div>
+          <div className={styles.tagGrid}>
+            {tagFriendsList.map(f => (
+              <button
+                key={f.id}
+                className={[styles.tagChip, f.tagged && styles.tagChipTagged].filter(Boolean).join(' ')}
+                onClick={() => !f.tagged && tagFriend(f.id)}
+              >
+                <span className={styles.tagChipAvatar}>
+                  {f.avatar_url ? <img src={f.avatar_url} alt="" /> : f.display_name.slice(0, 2).toUpperCase()}
+                </span>
+                <span className={styles.tagChipName}>{f.display_name}</span>
+                {f.tagged && <span>✓</span>}
+              </button>
+            ))}
+          </div>
+          <button className={styles.tagSkip} onClick={() => setShowTagFriends(false)}>Skip</button>
+        </div>
+      )}
 
       {showPushPrompt && (
         <PushPrompt trigger="action" />
