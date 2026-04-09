@@ -11,6 +11,7 @@
     { "source": "/list/:listId", "destination": "/index.html" }
   ],
   "routes": [
+    { "src": "/list/(.+)",                  "dest": "/index.html" },
     { "src": "/spots/(.+)",                 "dest": "/api/spots.js?slug=$1" },
     { "src": "/blog/([^.]+)$",              "dest": "/api/blog-post.js?slug=$1" },
     { "src": "/sitemap-venues.xml",         "dest": "/api/sitemap-venues.js" },
