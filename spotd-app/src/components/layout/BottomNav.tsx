@@ -48,7 +48,7 @@ export function BottomNav() {
     : '?';
 
   return (
-    <nav className={styles.nav}>
+    <nav className={styles.nav} data-tt="nav">
       {TABS.map((tab) => {
         const isActive = tab.path === '/'
           ? pathname === '/' || pathname.startsWith('/explore')
