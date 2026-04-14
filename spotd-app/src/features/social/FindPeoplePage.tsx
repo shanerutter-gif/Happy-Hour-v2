@@ -46,7 +46,7 @@ export default function FindPeoplePage() {
           .select('id, display_name, avatar_url, avatar_emoji, bio')
           .in('id', ids);
         setFollowingList(
-          (data || []).map((p: PersonResult) => ({ ...p, isFollowing: true }))
+          (data || []).map((p) => ({ ...p, isFollowing: true }))
         );
       }
       setLoadingFollowing(false);
