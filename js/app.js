@@ -3197,6 +3197,7 @@ async function renderGiveawayPage() {
         <details class="gw-faq"><summary>What counts as a check-in?</summary><p>Tapping "Check in" on a venue page. We allow one per venue per day so it stays honest.</p></details>
         <details class="gw-faq"><summary>How is the winner picked?</summary><p>Random draw, weighted by entries. Each entry = one ticket in the drawing. More entries = better odds.</p></details>
         <details class="gw-faq"><summary>What's the prize?</summary><p>A $25 gift card to any restaurant or bar currently listed on Spotd — winner picks the venue. We'll email you to confirm which one once you win.</p></details>
+        <details class="gw-faq"><summary>What if the venue doesn't sell digital gift cards?</summary><p>Most places do, but if your pick doesn't, you can swap to a $25 digital DoorDash card (still food, still a vibe) or a $25 digital Visa card (universal — works almost anywhere). Same $25, same week, just a different format.</p></details>
         <details class="gw-faq"><summary>What if my favorite spot isn't on Spotd?</summary><p>We can only redeem at venues currently active on Spotd. If your top pick isn't on yet, suggest it via the "Add a spot" button — we add new venues regularly.</p></details>
         <details class="gw-faq"><summary>Do I have to be in San Diego?</summary><p>For now, yes. Spotd is San Diego-only at launch.</p></details>
       </section>
