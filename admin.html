@@ -3694,6 +3694,11 @@ in San Diego</textarea>
   function goUserPage(p) { _userPage = p; renderUserTable(); document.getElementById('page-users').scrollTop = 0; }
 
   function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  // Like escHtml, but converts newlines to <br> so multi-paragraph copy in
+  // textareas renders with the line breaks the user typed.
+  function escHtmlMultiline(s) {
+    return escHtml(String(s ?? '')).replace(/\r\n?/g, '\n').replace(/\n/g, '<br>');
+  }
 
   // ── TOP VENUES ────────────────────────────────────────
   let _topVenueData = null;
@@ -6127,7 +6132,7 @@ in San Diego</textarea>
         <div style="font-size:11px;font-weight:700;color:#E8943A;text-transform:uppercase;letter-spacing:1.2px;margin-bottom:6px;font-family:'DM Sans',Arial,sans-serif">${escHtml(s.label)}</div>
         <div style="font-size:22px;font-weight:700;color:#2A1F14;margin-bottom:4px;font-family:'DM Sans',Arial,sans-serif">${escHtml(s.title)}</div>
         <div style="font-size:13px;color:#9E8E7E;margin-bottom:12px;font-family:'DM Sans',Arial,sans-serif">${escHtml(s.meta)}</div>
-        ${s.body ? `<div style="font-size:15px;line-height:24px;color:#5A4A3A;margin-bottom:8px;font-family:'DM Sans',Arial,sans-serif">${escHtml(s.body)}</div>` : ''}
+        ${s.body ? `<div style="font-size:15px;line-height:24px;color:#5A4A3A;margin-bottom:8px;font-family:'DM Sans',Arial,sans-serif">${escHtmlMultiline(s.body)}</div>` : ''}
         ${s.deal1 ? `<div style="font-size:15px;color:#5A4A3A;line-height:24px;font-family:'DM Sans',Arial,sans-serif">${s.emoji1 || ''} ${escHtml(s.deal1)}</div>` : ''}
         ${s.deal2 ? `<div style="font-size:15px;color:#5A4A3A;line-height:24px;margin-top:2px;font-family:'DM Sans',Arial,sans-serif">${s.emoji2 || ''} ${escHtml(s.deal2)}</div>` : ''}
       </div>`;
@@ -6141,7 +6146,7 @@ in San Diego</textarea>
       <div style="background:#FFFCF8;padding:48px 40px 32px">
         <div style="font-size:12px;font-weight:700;color:#FF6B4A;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px;font-family:'DM Sans',Arial,sans-serif">${escHtml(heroEyebrow)}</div>
         <div style="font-size:36px;line-height:44px;font-weight:700;color:#2A1F14;margin-bottom:20px;font-family:'DM Sans',Arial,sans-serif">${escHtml(heroHeadline)}</div>
-        <div style="font-size:16px;line-height:26px;color:#5A4A3A;font-family:'DM Sans',Arial,sans-serif">${escHtml(heroBody)}</div>
+        <div style="font-size:16px;line-height:26px;color:#5A4A3A;font-family:'DM Sans',Arial,sans-serif">${escHtmlMultiline(heroBody)}</div>
         ${heroImgHtml}
       </div>
       ${sectionsHtml}
@@ -6204,7 +6209,7 @@ in San Diego</textarea>
         </mj-text>`;
       if (s.body) mjml += `
         <mj-text align="left" font-size="15px" line-height="24px" color="#5A4A3A" padding-bottom="8px" padding-top="0" padding-left="0" padding-right="0">
-          <span style="mso-line-height-rule:exactly;font-size:15px;line-height:24px;font-family:'DM Sans',Arial,sans-serif;color:#5A4A3A;">${escHtml(s.body)}</span>
+          <span style="mso-line-height-rule:exactly;font-size:15px;line-height:24px;font-family:'DM Sans',Arial,sans-serif;color:#5A4A3A;">${escHtmlMultiline(s.body)}</span>
         </mj-text>`;
       if (s.deal1) mjml += `
         <mj-text align="left" font-size="15px" line-height="24px" color="#5A4A3A" padding="0">
@@ -6272,7 +6277,7 @@ in San Diego</textarea>
           <span style="mso-line-height-rule:exactly;font-size:40px;line-height:48px;font-family:'DM Sans',Arial,sans-serif;font-weight:700;color:#2A1F14;">${escHtml(heroHeadline)}</span>
         </mj-text>
         <mj-text align="left" font-size="16px" line-height="26px" color="#5A4A3A" padding="0">
-          <span style="mso-line-height-rule:exactly;font-size:16px;line-height:26px;font-family:'DM Sans',Arial,sans-serif;color:#5A4A3A;">${escHtml(heroBody)}</span>
+          <span style="mso-line-height-rule:exactly;font-size:16px;line-height:26px;font-family:'DM Sans',Arial,sans-serif;color:#5A4A3A;">${escHtmlMultiline(heroBody)}</span>
         </mj-text>${heroImgMjml}
       </mj-column>
     </mj-section>
