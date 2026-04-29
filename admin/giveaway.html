@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Spotd · Giveaway Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@400;500;700;800;900&family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --bg: #F5EFE6; --card: #FFFFFF; --text: #2A1F14; --muted: rgba(42,31,20,0.55);
+      --coral: #FF6B4A; --amber: #E8943A; --border: rgba(42,31,20,0.10);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg); padding: 24px; color: var(--text);
+      font-family: 'DM Sans', system-ui, sans-serif; line-height: 1.5;
+      max-width: 1100px; margin: 0 auto;
+    }
+    h1 {
+      font-family: 'Cabinet Grotesk', sans-serif;
+      font-weight: 900; font-size: 30px; letter-spacing: -0.5px;
+      margin: 0 0 18px;
+    }
+    h2 { font-family: 'Cabinet Grotesk', sans-serif; font-size: 18px; margin: 0 0 12px; }
+    .admin-card {
+      background: var(--card); border-radius: 14px; padding: 20px;
+      margin-bottom: 16px; box-shadow: 0 2px 8px rgba(42,31,20,0.05);
+    }
+    .nav { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+    .nav a {
+      padding: 6px 12px; border-radius: 999px; font-size: 13px; font-weight: 600;
+      background: var(--card); color: var(--text); border: 1px solid var(--border);
+      text-decoration: none;
+    }
+    .nav a.active { background: var(--coral); color: #fff; border-color: var(--coral); }
+    table { width: 100%; border-collapse: collapse; }
+    th, td {
+      text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border);
+      font-size: 14px; vertical-align: top;
+    }
+    th {
+      font-family: 'Cabinet Grotesk', sans-serif;
+      font-weight: 700; background: rgba(42,31,20,0.04);
+      font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    tr:last-child td { border-bottom: 0; }
+    .pill {
+      padding: 3px 10px; border-radius: 999px; font-size: 11px;
+      font-family: 'DM Mono', monospace; font-weight: 500;
+      display: inline-block;
+    }
+    .pill-pending   { background: #FFE9D6; color: #B05A18; }
+    .pill-sent      { background: #D6F2DD; color: #1F6B3A; }
+    .pill-delivered { background: #2A1F14; color: #F5EFE6; }
+    button.action {
+      background: var(--coral); color: #fff; border: none;
+      padding: 7px 14px; border-radius: 8px; cursor: pointer;
+      font-weight: 600; font-size: 13px; font-family: 'DM Sans', sans-serif;
+    }
+    button.action:hover { filter: brightness(0.95); }
+    button.action.secondary { background: #2A1F14; color: #F5EFE6; }
+    button.action:disabled { opacity: 0.5; cursor: not-allowed; }
+    .stat {
+      display: inline-block; padding: 8px 14px; background: var(--bg);
+      border-radius: 8px; margin-right: 8px; margin-bottom: 6px;
+      font-family: 'DM Mono', monospace; font-size: 13px;
+    }
+    .stat strong { font-weight: 700; }
+    .empty { color: var(--muted); font-style: italic; padding: 20px 0; text-align: center; }
+    code {
+      background: var(--bg); padding: 2px 8px; border-radius: 6px;
+      font-family: 'DM Mono', monospace; font-size: 13px;
+    }
+    .small { font-size: 12px; color: var(--muted); }
+    .login-prompt {
+      max-width: 380px; margin: 80px auto; text-align: center;
+      background: var(--card); padding: 32px; border-radius: 14px;
+    }
+    .login-prompt input {
+      width: 100%; padding: 10px 12px; margin: 6px 0;
+      border: 1px solid var(--border); border-radius: 8px;
+      font-family: inherit; font-size: 14px;
+    }
+    .login-prompt button { width: 100%; padding: 10px; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <h1>Giveaway Admin</h1>
+  <div class="nav">
+    <a href="/admin.html">← Main admin</a>
+    <a href="/admin/giveaway.html" class="active">Giveaway</a>
+  </div>
+
+  <div id="content">
+    <div class="admin-card"><p class="empty">Loading…</p></div>
+  </div>
+
+  <script type="module">
+    const SUPABASE_URL      = 'https://opcskuzbdfrlnyhraysk.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_M97B-GmwsRF6xPVahp_ytw_49nI9igs';
+    const ADMIN_EMAILS      = ['shanerutter@gmail.com'];
+
+    const { createClient } = supabase;
+    const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const $ = (sel) => document.querySelector(sel);
+    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({
+      '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+    }[c]));
+
+    // ── AUTH ──────────────────────────────────────────
+    function readStoredSession() {
+      const ref = SUPABASE_URL.match(/\/\/([^.]+)\./)?.[1] || '';
+      const key = `sb-${ref}-auth-token`;
+      try {
+        const raw = localStorage.getItem(key);
+        if (!raw) return null;
+        return JSON.parse(raw);
+      } catch (e) { return null; }
+    }
+
+    async function getCurrentUser() {
+      const stored = readStoredSession();
+      if (stored?.access_token && stored?.refresh_token) {
+        await sb.auth.setSession({
+          access_token: stored.access_token,
+          refresh_token: stored.refresh_token,
+        });
+      }
+      const { data: { user } } = await sb.auth.getUser();
+      return user;
+    }
+
+    function renderLogin(message) {
+      document.getElementById('content').innerHTML = `
+        <div class="login-prompt">
+          <h2 style="margin-bottom:10px">Admin sign in</h2>
+          ${message ? `<p class="small" style="margin-bottom:14px;color:#C0392B">${esc(message)}</p>` : ''}
+          <p class="small" style="margin-bottom:14px">Sign in with the admin email to view this page.</p>
+          <input type="email" id="aiEmail" placeholder="you@example.com" autocomplete="email" />
+          <input type="password" id="aiPass" placeholder="Password" autocomplete="current-password" />
+          <button class="action" id="aiBtn">Sign in</button>
+        </div>`;
+      document.getElementById('aiBtn').addEventListener('click', async () => {
+        const email = document.getElementById('aiEmail').value.trim();
+        const pass  = document.getElementById('aiPass').value;
+        if (!email || !pass) return;
+        const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+        if (error) { renderLogin(error.message); return; }
+        if (data?.session) {
+          const ref = SUPABASE_URL.match(/\/\/([^.]+)\./)?.[1] || '';
+          const key = `sb-${ref}-auth-token`;
+          localStorage.setItem(key, JSON.stringify(data.session));
+        }
+        location.reload();
+      });
+    }
+
+    // ── PAGE TEMPLATE ─────────────────────────────────
+    function renderShell() {
+      document.getElementById('content').innerHTML = `
+        <div class="admin-card">
+          <h2>This Week</h2>
+          <div id="thisWeekStats"><span class="empty">Loading…</span></div>
+          <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+            <button class="action" id="pickWinnerBtn">Pick winner now (override cron)</button>
+            <button class="action secondary" id="refreshBtn">Refresh</button>
+          </div>
+          <p class="small" style="margin-top:10px">
+            "Pick winner now" runs the edge function for the previous ISO week.
+            It is idempotent — running twice for the same week is a no-op.
+          </p>
+        </div>
+
+        <div class="admin-card">
+          <h2>Past Winners</h2>
+          <div id="winnersWrap"><p class="empty">Loading…</p></div>
+        </div>
+
+        <div class="admin-card">
+          <h2>Top Referrers (last 30 days)</h2>
+          <div id="referrersWrap"><p class="empty">Loading…</p></div>
+        </div>`;
+
+      document.getElementById('pickWinnerBtn').addEventListener('click', pickWinnerNow);
+      document.getElementById('refreshBtn').addEventListener('click', loadAll);
+    }
+
+    // ── DATA LOADERS ──────────────────────────────────
+    async function loadThisWeek() {
+      try {
+        const { data: weekStart } = await sb.rpc('current_week_start_pt');
+        const [{ count: totalEntries }, { data: rows }] = await Promise.all([
+          sb.from('giveaway_entries').select('*', { count: 'exact', head: true }).eq('week_start', weekStart),
+          sb.from('giveaway_entries').select('user_id').eq('week_start', weekStart),
+        ]);
+        const uniqueUsers = new Set((rows || []).map(r => r.user_id)).size;
+        $('#thisWeekStats').innerHTML = `
+          <span class="stat">Week of <strong>${esc(weekStart)}</strong></span>
+          <span class="stat"><strong>${totalEntries ?? 0}</strong> total entries</span>
+          <span class="stat"><strong>${uniqueUsers}</strong> users in pool</span>`;
+      } catch (e) {
+        $('#thisWeekStats').innerHTML = `<p class="empty">Error: ${esc(e.message)}</p>`;
+      }
+    }
+
+    async function loadWinners() {
+      try {
+        const { data, error } = await sb
+          .from('giveaway_winners')
+          .select('week_start, winner_user_id, winner_entry_count, total_entries, prize_status, prize_notes, profiles(display_name)')
+          .order('week_start', { ascending: false })
+          .limit(20);
+        if (error) throw error;
+        const rows = data || [];
+        if (!rows.length) {
+          $('#winnersWrap').innerHTML = '<p class="empty">No winners yet — first pick runs Monday 9 AM PT.</p>';
+          return;
+        }
+        $('#winnersWrap').innerHTML = `
+          <table>
+            <thead><tr>
+              <th>Week</th><th>Winner</th><th>Entries (winner / pool)</th>
+              <th>Status</th><th>Actions</th>
+            </tr></thead>
+            <tbody>
+              ${rows.map(w => `
+                <tr>
+                  <td>${esc(w.week_start)}</td>
+                  <td>
+                    <div>${esc(w.profiles?.display_name || w.winner_user_id)}</div>
+                    <div class="small"><code>${esc(w.winner_user_id)}</code></div>
+                  </td>
+                  <td>${w.winner_entry_count} / ${w.total_entries}</td>
+                  <td><span class="pill pill-${esc(w.prize_status)}">${esc(w.prize_status)}</span></td>
+                  <td>
+                    ${w.prize_status === 'pending' ? `<button class="action" data-mark-sent="${esc(w.week_start)}">Mark sent</button>` : ''}
+                    ${w.prize_status === 'sent'    ? `<button class="action secondary" data-mark-delivered="${esc(w.week_start)}">Mark delivered</button>` : ''}
+                  </td>
+                </tr>`).join('')}
+            </tbody>
+          </table>`;
+        $('#winnersWrap').addEventListener('click', async (e) => {
+          const sentBtn = e.target.closest('[data-mark-sent]');
+          const delBtn  = e.target.closest('[data-mark-delivered]');
+          if (sentBtn) {
+            await sb.from('giveaway_winners').update({ prize_status: 'sent' }).eq('week_start', sentBtn.dataset.markSent);
+            loadWinners();
+          }
+          if (delBtn) {
+            await sb.from('giveaway_winners').update({ prize_status: 'delivered' }).eq('week_start', delBtn.dataset.markDelivered);
+            loadWinners();
+          }
+        }, { once: true });
+      } catch (e) {
+        $('#winnersWrap').innerHTML = `<p class="empty">Error: ${esc(e.message)}</p>`;
+      }
+    }
+
+    async function loadReferrers() {
+      try {
+        const { data, error } = await sb.rpc('top_referrers_30d');
+        if (error) throw error;
+        const rows = data || [];
+        if (!rows.length) {
+          $('#referrersWrap').innerHTML = '<p class="empty">No referrals yet.</p>';
+          return;
+        }
+        $('#referrersWrap').innerHTML = `
+          <table>
+            <thead><tr>
+              <th>User</th><th>Code</th>
+              <th>Total Referred</th><th>Active This Week</th>
+            </tr></thead>
+            <tbody>
+              ${rows.map(r => `
+                <tr>
+                  <td>
+                    <div>${esc(r.display_name || r.email || r.user_id)}</div>
+                    ${r.email ? `<div class="small">${esc(r.email)}</div>` : ''}
+                  </td>
+                  <td><code>${esc(r.code)}</code></td>
+                  <td>${r.total_referred}</td>
+                  <td>${r.active_this_week}</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>`;
+      } catch (e) {
+        $('#referrersWrap').innerHTML = `<p class="empty">Error: ${esc(e.message)}</p>`;
+      }
+    }
+
+    async function pickWinnerNow() {
+      const btn = document.getElementById('pickWinnerBtn');
+      if (!confirm('Pick a winner for last week now?')) return;
+      btn.disabled = true; btn.textContent = 'Picking…';
+      try {
+        const { data, error } = await sb.functions.invoke('pick-giveaway-winner');
+        if (error) throw error;
+        if (data?.ok) {
+          alert(`Winner picked: ${data.winner_email || data.winner_user_id} (${data.winner_entry_count} of ${data.total_pool} entries) for week ${data.week_start}`);
+        } else {
+          alert(data?.message || 'Edge function returned no winner — check the logs.');
+        }
+        loadWinners();
+        loadThisWeek();
+      } catch (e) {
+        alert('Error: ' + (e.message || e));
+      } finally {
+        btn.disabled = false; btn.textContent = 'Pick winner now (override cron)';
+      }
+    }
+
+    async function loadAll() {
+      await Promise.all([loadThisWeek(), loadWinners(), loadReferrers()]);
+    }
+
+    // ── BOOT ──────────────────────────────────────────
+    (async function init() {
+      const user = await getCurrentUser();
+      if (!user) { renderLogin(); return; }
+      if (!ADMIN_EMAILS.includes(user.email)) {
+        document.getElementById('content').innerHTML = `
+          <div class="admin-card"><h2>Unauthorized</h2>
+            <p class="small">Signed in as ${esc(user.email)}, but this page is admin-only.</p>
+          </div>`;
+        return;
+      }
+      renderShell();
+      loadAll();
+    })();
+  </script>
+</body>
+</html>

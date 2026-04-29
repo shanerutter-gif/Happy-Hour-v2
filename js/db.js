@@ -330,6 +330,10 @@ async function handleOAuthCallback() {
       triggerLoopsOnboarding(user.email, user.user_metadata?.full_name, user.id, 'google-oauth');
     }
 
+    // Apply any pending referral code captured before the OAuth redirect.
+    // No-op if there's no stashed code or the user was already referred.
+    try { await applyPendingReferral(user.id); } catch(e) {}
+
     // GA custom event — detect provider from user metadata
     if (typeof gtag === 'function') {
       const provider = user.app_metadata?.provider || 'oauth';
@@ -1477,4 +1481,149 @@ async function fetchTodayCheckInsWithProfiles(citySlug) {
       .eq('date', today);
     return data || [];
   } catch(e) { return []; }
+}
+
+// ════════════════════════════════════════════════════════
+// GIVEAWAY + REFERRAL SYSTEM
+// ════════════════════════════════════════════════════════
+
+const PENDING_REFERRAL_KEY = 'spotd_pending_referral';
+
+// Capture ?ref= from the URL on first load and stash it for the signup step.
+function captureReferralFromURL() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('ref');
+    if (code) sessionStorage.setItem(PENDING_REFERRAL_KEY, code.toUpperCase());
+    return sessionStorage.getItem(PENDING_REFERRAL_KEY) || null;
+  } catch(e) { return null; }
+}
+
+function getPendingReferralCode() {
+  try { return sessionStorage.getItem(PENDING_REFERRAL_KEY) || null; } catch(e) { return null; }
+}
+
+function setPendingReferralCode(code) {
+  try {
+    if (!code) sessionStorage.removeItem(PENDING_REFERRAL_KEY);
+    else       sessionStorage.setItem(PENDING_REFERRAL_KEY, String(code).toUpperCase());
+  } catch(e) {}
+}
+
+// Apply a stashed referral code to the freshly-signed-up user.
+// Looks up the referrer by code, inserts a row in `referrals`, and sets
+// profiles.referred_by. Idempotent: safe to call multiple times.
+async function applyPendingReferral(newUserId) {
+  if (!newUserId) return null;
+  let code = null;
+  try { code = sessionStorage.getItem(PENDING_REFERRAL_KEY); } catch(e) {}
+  if (!code) return null;
+
+  try {
+    const { data: codeRow, error: codeErr } = await db
+      .from('referral_codes')
+      .select('user_id')
+      .eq('code', code.toUpperCase())
+      .maybeSingle();
+
+    if (codeErr || !codeRow) {
+      sessionStorage.removeItem(PENDING_REFERRAL_KEY);
+      return null;
+    }
+    if (codeRow.user_id === newUserId) {
+      sessionStorage.removeItem(PENDING_REFERRAL_KEY);
+      return null;
+    }
+
+    const { error: refErr } = await db.from('referrals').insert({
+      referrer_id:        codeRow.user_id,
+      referee_id:         newUserId,
+      referral_code_used: code.toUpperCase(),
+    });
+
+    // Unique violation = already referred; treat as success.
+    if (refErr && refErr.code !== '23505') {
+      console.warn('applyPendingReferral insert error', refErr);
+    }
+
+    if (!refErr || refErr.code === '23505') {
+      try {
+        await db.from('profiles')
+          .update({ referred_by: codeRow.user_id })
+          .eq('id', newUserId);
+      } catch(e) {}
+    }
+
+    sessionStorage.removeItem(PENDING_REFERRAL_KEY);
+    return codeRow.user_id;
+  } catch(e) {
+    console.warn('applyPendingReferral error', e);
+    return null;
+  }
+}
+
+async function getMyReferralCode() {
+  if (!currentUser) return null;
+  try {
+    const { data } = await db.from('referral_codes')
+      .select('code')
+      .eq('user_id', currentUser.id)
+      .maybeSingle();
+    return data?.code || null;
+  } catch(e) { return null; }
+}
+
+// { total, self, referral } for the current ISO week (PT).
+async function getMyEntriesThisWeek() {
+  if (!currentUser) return { total: 0, self: 0, referral: 0 };
+  try {
+    const { data: weekStart, error: wsErr } = await db.rpc('current_week_start_pt');
+    if (wsErr) throw wsErr;
+    const { data: entries } = await db.from('giveaway_entries')
+      .select('entry_type')
+      .eq('user_id', currentUser.id)
+      .eq('week_start', weekStart);
+    const rows     = entries || [];
+    const self     = rows.filter(e => e.entry_type === 'self').length;
+    const referral = rows.filter(e => e.entry_type === 'referral_bonus').length;
+    return { total: self + referral, self, referral, weekStart };
+  } catch(e) {
+    console.warn('getMyEntriesThisWeek error', e);
+    return { total: 0, self: 0, referral: 0 };
+  }
+}
+
+async function getMyReferralStats() {
+  if (!currentUser) return { totalReferred: 0, activeThisWeek: 0 };
+  try {
+    const { count: totalReferred } = await db.from('referrals')
+      .select('*', { count: 'exact', head: true })
+      .eq('referrer_id', currentUser.id);
+
+    const { data: weekStart } = await db.rpc('current_week_start_pt');
+    const { count: activeThisWeek } = await db.from('giveaway_entries')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', currentUser.id)
+      .eq('week_start', weekStart)
+      .eq('entry_type', 'referral_bonus');
+
+    return {
+      totalReferred:   totalReferred  ?? 0,
+      activeThisWeek:  activeThisWeek ?? 0,
+    };
+  } catch(e) {
+    return { totalReferred: 0, activeThisWeek: 0 };
+  }
+}
+
+// Public read; used to show "last week's winner".
+async function getLastWeekWinner() {
+  try {
+    const { data } = await db.from('giveaway_winners')
+      .select('week_start, winner_user_id, total_entries, winner_entry_count, prize_status, profiles!inner(display_name, avatar_url)')
+      .order('week_start', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    return data || null;
+  } catch(e) { return null; }
 }

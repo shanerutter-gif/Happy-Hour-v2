@@ -167,6 +167,8 @@ document.addEventListener('DOMContentLoaded', () => {
   loadSiteCopy();
   renderCityGrid();
   renderNav(currentUser);
+  // Capture ?ref=CODE from URL into sessionStorage for the signup step
+  if (typeof captureReferralFromURL === 'function') captureReferralFromURL();
   if (typeof obInit === 'function') obInit();
   const ffg = document.getElementById('favFilterGroup');
   if (ffg) ffg.style.display = currentUser ? '' : 'none';
@@ -2562,6 +2564,10 @@ function renderAuth(mode) {
       <input type="checkbox" id="aSmsConsent">
       <span class="consent-text">I agree to receive promotional texts from Spotd. Message & data rates may apply. Reply STOP to unsubscribe.</span>
     </label>
+    <div class="field-group">
+      <div class="field-label">Referral code <span style="font-weight:400;color:var(--muted)">(optional)</span></div>
+      <input class="field" id="aReferral" type="text" maxlength="6" placeholder="e.g. SHANE7" autocapitalize="characters" autocorrect="off" spellcheck="false" value="${esc((typeof getPendingReferralCode==='function' ? getPendingReferralCode() : '') || '')}">
+    </div>
     ` : ''}
     ${si ? `<button class="auth-forgot" onclick="doForgot()">Forgot password?</button>` : ''}
     <button class="btn-submit" id="authBtn" type="submit" style="width:100%;margin-top:4px">${si ? 'Sign In' : 'Create Account'}</button>
@@ -2599,6 +2605,11 @@ async function doAuth(mode) {
   const password =  document.getElementById('aPass')?.value  || '';
   if (!email || !password) { showToast('Please fill in all fields'); btn.disabled = false; btn.textContent = mode === 'signin' ? 'Sign In' : 'Create Account'; return; }
   if(typeof haptic==='function')haptic('medium');
+  // Stash any referral code typed into the signup form before we kick off the API call
+  if (mode === 'signup') {
+    const refTyped = (document.getElementById('aReferral')?.value || '').trim();
+    if (refTyped && typeof setPendingReferralCode === 'function') setPendingReferralCode(refTyped);
+  }
   try {
     const result = mode === 'signup'
       ? await authSignUp(email, password, (document.getElementById('aName')?.value || '').trim())
@@ -2614,6 +2625,10 @@ async function doAuth(mode) {
           sms_consent: smsConsent,
           sms_consent_at: smsConsent ? new Date().toISOString() : null,
         });
+      }
+      // Apply pending referral code (from URL ?ref= or form input)
+      if (typeof applyPendingReferral === 'function') {
+        try { await applyPendingReferral(currentUser.id); } catch(e) {}
       }
     }
     closeOverlay('authOverlay');
@@ -2858,6 +2873,32 @@ async function renderProfile(user) {
       </div>
     </div>
 
+    <!-- Giveaway tile -->
+    <section class="giveaway-tile" id="giveawayTile">
+      <div class="giveaway-tile__header">
+        <span class="giveaway-tile__badge">$25 Weekly Giveaway</span>
+        <span class="giveaway-tile__entries" id="giveawayEntryCount">…</span>
+      </div>
+      <div class="giveaway-tile__progress">
+        <div class="giveaway-tile__row">
+          <span>This week</span>
+          <strong id="giveawayPersonalEntry">…</strong>
+        </div>
+        <div class="giveaway-tile__row">
+          <span>Referral bonuses</span>
+          <strong id="giveawayReferralBonus">+0</strong>
+        </div>
+        <div class="giveaway-tile__row">
+          <span>Your code</span>
+          <strong id="giveawayMyCode" class="giveaway-tile__code">—</strong>
+        </div>
+      </div>
+      <p class="giveaway-tile__hint" id="giveawayHint">
+        Check in, leave a review, or share a photo to enter this week.
+      </p>
+      <button class="giveaway-tile__cta" id="giveawayCTA" onclick="openReferralShareSheet()">Share my code</button>
+    </section>
+
     ${!localStorage.getItem('spotd-idea-banner-dismissed') ? `
     <div class="pf-idea-banner" id="ideaBanner">
       <button class="pf-idea-close" onclick="dismissIdeaBanner()" title="Dismiss">&times;</button>
@@ -2942,6 +2983,65 @@ async function renderProfile(user) {
         ).join('')}</div>` : '<div class="pf-empty">No neighborhoods found yet.</div>'}
       </div>
     </div>`;
+
+  // Hydrate the giveaway tile after the profile HTML is in the DOM
+  renderGiveawayTile().catch(() => {});
+}
+
+async function renderGiveawayTile() {
+  const tile = document.getElementById('giveawayTile');
+  if (!tile) return;
+  if (!currentUser) { tile.style.display = 'none'; return; }
+
+  try {
+    const [entries, code] = await Promise.all([
+      getMyEntriesThisWeek(),
+      getMyReferralCode(),
+    ]);
+
+    const entryCountEl = document.getElementById('giveawayEntryCount');
+    if (entryCountEl) {
+      entryCountEl.textContent = `${entries.total} ${entries.total === 1 ? 'entry' : 'entries'}`;
+    }
+    const personalEl = document.getElementById('giveawayPersonalEntry');
+    if (personalEl) {
+      personalEl.textContent = entries.self > 0 ? '✓ Entered' : 'Not entered yet';
+    }
+    const referralEl = document.getElementById('giveawayReferralBonus');
+    if (referralEl) referralEl.textContent = `+${entries.referral}`;
+
+    const codeEl = document.getElementById('giveawayMyCode');
+    if (codeEl) codeEl.textContent = code || '—';
+
+    const hintEl = document.getElementById('giveawayHint');
+    if (hintEl) {
+      hintEl.textContent = entries.self === 0
+        ? 'Check in, leave a review, or share a photo to enter this week.'
+        : "You're entered. Invite friends — every active friend = +1 bonus entry.";
+    }
+  } catch(e) {
+    console.warn('renderGiveawayTile error', e);
+  }
+}
+
+async function openReferralShareSheet() {
+  if (!currentUser) { openAuth('signin'); return; }
+  const code = await getMyReferralCode();
+  if (!code) { showToast('Referral code not ready yet — try again in a moment'); return; }
+  const link = `https://spotd.biz/?ref=${encodeURIComponent(code)}`;
+  const text = `Find the best happy hours in San Diego with Spotd. Use my code ${code} or sign up here: ${link}`;
+  try {
+    if (navigator.share) {
+      await navigator.share({ title: 'Join me on Spotd', text, url: link });
+      return;
+    }
+  } catch(e) { /* user cancelled */ }
+  try {
+    await navigator.clipboard.writeText(link);
+    showToast('Referral link copied');
+  } catch(e) {
+    showToast(`Your code: ${code}`);
+  }
 }
 
 function switchMyTab(tab, btn) {
@@ -3879,7 +3979,13 @@ async function doGoingTonight(venueId, btn) {
     showToast('Checked in!');
     // Fire DB write and streak check in background
     addCheckIn({ userId: currentUser.id, venueId, citySlug: state.city.slug, date: today })
-      .then(() => { checkStreakAfterCheckIn(); })
+      .then(() => {
+        checkStreakAfterCheckIn();
+        // Refresh the giveaway tile if the profile is currently open
+        if (typeof renderGiveawayTile === 'function' && document.getElementById('giveawayTile')) {
+          renderGiveawayTile();
+        }
+      })
       .catch(() => {});
     setTimeout(() => maybeOpenPhotoCheckin(venueId), 600);
   }

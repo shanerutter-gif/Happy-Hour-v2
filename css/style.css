@@ -4746,3 +4746,76 @@ button:not([disabled]),
 
 /* ── Profile tab active with gradient underline ── */
 .profile-tab.active { color: var(--coral); border-bottom-color: var(--coral); }
+
+/* ── Giveaway tile (profile) ── */
+.giveaway-tile {
+  background: linear-gradient(135deg, #FF6B4A 0%, #E8943A 100%);
+  border-radius: 16px;
+  padding: 18px;
+  color: #FFFFFF;
+  margin: 16px 0 8px;
+  box-shadow: 0 4px 14px rgba(255, 107, 74, 0.22);
+}
+.giveaway-tile__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.giveaway-tile__badge {
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+.giveaway-tile__entries {
+  background: rgba(255,255,255,0.22);
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.giveaway-tile__progress {
+  background: rgba(255,255,255,0.14);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+.giveaway-tile__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  font-size: 14px;
+  gap: 8px;
+}
+.giveaway-tile__row strong {
+  font-family: 'DM Mono', monospace;
+  font-weight: 600;
+}
+.giveaway-tile__code {
+  letter-spacing: 1px;
+}
+.giveaway-tile__hint {
+  font-size: 13px;
+  opacity: 0.95;
+  margin: 0 0 12px 0;
+  line-height: 1.4;
+}
+.giveaway-tile__cta {
+  width: 100%;
+  background: #FFFFFF;
+  color: #FF6B4A;
+  border: none;
+  border-radius: 10px;
+  padding: 12px;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  transition: transform .1s ease;
+}
+.giveaway-tile__cta:active { transform: scale(0.98); }
