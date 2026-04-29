@@ -6048,6 +6048,14 @@ in San Diego</textarea>
 
   function ebRenderSectionList() {
     const el = document.getElementById('eb-sections');
+    if (!_ebSections.length) {
+      el.innerHTML = `
+        <div style="background:var(--card);border:1px dashed var(--border2);border-radius:12px;padding:24px;text-align:center;color:var(--muted);font-size:13px">
+          No content sections — your email will just have the hero.
+          <div style="margin-top:8px;font-size:12px;color:var(--muted2)">Use the <strong>+ Add</strong> button up top to add one.</div>
+        </div>`;
+      return;
+    }
     el.innerHTML = _ebSections.map((s, i) => `
       <div class="eb-section-card${i === 0 ? ' open' : ''}" id="eb-sec-${i}">
         <div class="eb-section-card-header" onclick="document.getElementById('eb-sec-${i}').classList.toggle('open')">
@@ -6085,7 +6093,6 @@ in San Diego</textarea>
   }
 
   function ebRemoveSection(i) {
-    if (_ebSections.length <= 1) return;
     _ebSections.splice(i, 1);
     ebRenderSectionList();
     ebRender();
