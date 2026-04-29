@@ -1341,6 +1341,7 @@ async function enterCity(slug, name, stateCode) {
   document.getElementById('cityBarName').textContent = `${name}, ${stateCode}`;
   document.title = `Spotd — ${name} Happy Hours & Events`;
   renderNav(currentUser);
+  if (typeof maybeShowGiveawayBanner === 'function') maybeShowGiveawayBanner();
 
   // Reset
   state.showFilter = 'all';
@@ -3128,6 +3129,154 @@ async function submitReferralCodeEntry() {
   // Re-render the tile so the fallback link disappears
   if (typeof renderGiveawayTile === 'function') setTimeout(renderGiveawayTile, 200);
   setTimeout(closeReferralCodeEntry, 1100);
+}
+
+// ── GIVEAWAY BANNER + LANDING PAGE ──────────────────
+const GIVEAWAY_BANNER_KEY = 'spotd-giveaway-banner-dismissed';
+
+function maybeShowGiveawayBanner() {
+  const banner = document.getElementById('giveawayBanner');
+  if (!banner) return;
+  if (localStorage.getItem(GIVEAWAY_BANNER_KEY)) { banner.style.display = 'none'; return; }
+  banner.style.display = '';
+}
+
+function dismissGiveawayBanner() {
+  try { localStorage.setItem(GIVEAWAY_BANNER_KEY, '1'); } catch (e) {}
+  const banner = document.getElementById('giveawayBanner');
+  if (banner) banner.style.display = 'none';
+  if (typeof haptic === 'function') haptic('light');
+}
+
+async function openGiveawayPage() {
+  if (typeof haptic === 'function') haptic('light');
+  openSubPage('giveawayPage');
+  await renderGiveawayPage();
+}
+
+function _giveawayMonday(weekStart) {
+  if (!weekStart) return '';
+  try {
+    const d = new Date(`${weekStart}T00:00:00`);
+    return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+  } catch (e) { return weekStart; }
+}
+
+async function renderGiveawayPage() {
+  const wrap = document.getElementById('giveawayPageContent');
+  if (!wrap) return;
+
+  // Skeleton first so the page feels responsive
+  wrap.innerHTML = `
+    <div class="gw-page">
+      <section class="gw-hero">
+        <div class="gw-hero__kicker">$25 every Monday</div>
+        <h1 class="gw-hero__title">Win a Spotd<br>Weekly Giveaway</h1>
+        <p class="gw-hero__sub">A digital gift card, on us — every week, to a Spotd member who's out exploring San Diego.</p>
+      </section>
+      <div id="giveawayPageStats" class="gw-stats-card">
+        <div class="gw-stats-loading">Loading your entries…</div>
+      </div>
+      <section class="gw-section">
+        <h2 class="gw-h2">How to enter</h2>
+        <div class="gw-steps">
+          <div class="gw-step"><div class="gw-step__num">1</div><div class="gw-step__body"><strong>Be active during the week.</strong> Do any of these once between Monday and Sunday and you're entered:
+            <ul class="gw-step__list"><li>Check in at any venue</li><li>Leave a review</li><li>Share a photo or video in social</li></ul>
+          </div></div>
+          <div class="gw-step"><div class="gw-step__num">2</div><div class="gw-step__body"><strong>Stack the odds with referrals.</strong> Share your code. Every active friend = +1 entry every week they stay active.</div></div>
+          <div class="gw-step"><div class="gw-step__num">3</div><div class="gw-step__body"><strong>Monday — winner picked.</strong> If you win, we'll email you to send your gift card (Visa, Amazon, Starbucks, or DoorDash — your call).</div></div>
+        </div>
+      </section>
+      <section class="gw-section" id="giveawayPageWinnersSection" style="display:none">
+        <h2 class="gw-h2">Recent winners</h2>
+        <div id="giveawayPageWinners"></div>
+      </section>
+      <section class="gw-section">
+        <h2 class="gw-h2">FAQ</h2>
+        <details class="gw-faq"><summary>Can I enter more than once?</summary><p>Yes — through referrals. You get one personal entry per week regardless of how many things you do, but every friend who signs up with your code and stays active adds another entry to your name.</p></details>
+        <details class="gw-faq"><summary>What counts as a check-in?</summary><p>Tapping "Check in" on a venue page. We allow one per venue per day so it stays honest.</p></details>
+        <details class="gw-faq"><summary>How is the winner picked?</summary><p>Random draw, weighted by entries. Each entry = one ticket in the drawing. More entries = better odds.</p></details>
+        <details class="gw-faq"><summary>What's the prize?</summary><p>A $25 digital gift card. We let the winner pick which one.</p></details>
+        <details class="gw-faq"><summary>Do I have to be in San Diego?</summary><p>For now, yes. Spotd is San Diego-only at launch.</p></details>
+      </section>
+      <p class="gw-fineprint">No purchase necessary. Open to Spotd members 21+ with a valid US address. One entry per active week, plus referral bonuses. Winners announced Monday at 9 AM PT. Spotd reserves the right to disqualify suspicious activity.</p>
+    </div>`;
+
+  // Hydrate live stats
+  const statsEl = document.getElementById('giveawayPageStats');
+  if (statsEl) {
+    if (!currentUser) {
+      statsEl.innerHTML = `
+        <div class="gw-stats-signedout">
+          <div class="gw-stats-signedout__title">Make a free account to enter</div>
+          <div class="gw-stats-signedout__sub">Takes 10 seconds. No credit card.</div>
+          <button class="gw-cta-primary" onclick="closeSubPage('giveawayPage');openAuth('signup')">Create my account</button>
+        </div>`;
+    } else {
+      try {
+        const [entries, code, stats] = await Promise.all([
+          getMyEntriesThisWeek(),
+          getMyReferralCode(),
+          typeof getMyReferralStats === 'function' ? getMyReferralStats() : Promise.resolve({ totalReferred: 0, activeThisWeek: 0 }),
+        ]);
+        const monday = _giveawayMonday(entries.weekStart);
+        statsEl.innerHTML = `
+          <div class="gw-stats-grid">
+            <div class="gw-stat">
+              <div class="gw-stat__num">${entries.total}</div>
+              <div class="gw-stat__lbl">${entries.total === 1 ? 'entry' : 'entries'} this week</div>
+            </div>
+            <div class="gw-stat">
+              <div class="gw-stat__num">+${entries.referral}</div>
+              <div class="gw-stat__lbl">referral bonus</div>
+            </div>
+            <div class="gw-stat">
+              <div class="gw-stat__num">${stats.totalReferred}</div>
+              <div class="gw-stat__lbl">friends invited</div>
+            </div>
+          </div>
+          <div class="gw-code-row">
+            <div class="gw-code-row__label">Your referral code</div>
+            <div class="gw-code-row__code">${esc(code || '—')}</div>
+          </div>
+          <button class="gw-cta-primary" onclick="openReferralShareSheet()">📤 Share my code</button>
+          <p class="gw-stats-foot">${monday ? `Drawing for the week of ${esc(monday)}.` : ''} ${entries.self === 0 ? 'You’re not entered yet — check in, review, or post to lock in.' : 'You’re in. Good luck.'}</p>`;
+      } catch (e) {
+        statsEl.innerHTML = `<div class="gw-stats-loading">Could not load your entries.</div>`;
+      }
+    }
+  }
+
+  // Recent winners (public read)
+  try {
+    const { data: winners } = await db.from('giveaway_winners')
+      .select('week_start, winner_user_id, winner_entry_count, total_entries, profiles(display_name, avatar_url)')
+      .order('week_start', { ascending: false })
+      .limit(5);
+    if (winners && winners.length) {
+      const sec = document.getElementById('giveawayPageWinnersSection');
+      const list = document.getElementById('giveawayPageWinners');
+      if (sec) sec.style.display = '';
+      if (list) {
+        list.innerHTML = winners.map(w => {
+          const p = w.profiles || {};
+          const initials = (p.display_name || '?').split(' ').map(x => x[0]).slice(0,2).join('').toUpperCase();
+          const avatar = p.avatar_url
+            ? `<img src="${esc(p.avatar_url)}" alt="">`
+            : `<span class="gw-winner__initials">${esc(initials)}</span>`;
+          return `
+            <div class="gw-winner">
+              <div class="gw-winner__avatar">${avatar}</div>
+              <div class="gw-winner__body">
+                <div class="gw-winner__name">${esc(p.display_name || 'A Spotd member')}</div>
+                <div class="gw-winner__meta">Week of ${esc(_giveawayMonday(w.week_start))} · ${w.winner_entry_count} of ${w.total_entries} tickets</div>
+              </div>
+              <div class="gw-winner__prize">$25</div>
+            </div>`;
+        }).join('');
+      }
+    }
+  } catch (e) { /* leave winners section hidden on error */ }
 }
 
 async function openReferralShareSheet() {

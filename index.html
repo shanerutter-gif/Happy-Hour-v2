@@ -411,6 +411,17 @@
   </div>
 
   <div class="controls" id="controls">
+    <!-- Giveaway promo banner (dismissible). Hidden by default; app.js shows it
+         on home for users who haven't dismissed it. -->
+    <button class="giveaway-banner" id="giveawayBanner" type="button"
+            onclick="openGiveawayPage()" style="display:none">
+      <span class="giveaway-banner__emoji">🎁</span>
+      <span class="giveaway-banner__text">Enter our weekly $25 giveaway</span>
+      <span class="giveaway-banner__cta">See how →</span>
+      <span class="giveaway-banner__close" role="button" tabindex="0"
+            aria-label="Dismiss banner"
+            onclick="event.stopPropagation();dismissGiveawayBanner()">×</span>
+    </button>
     <div class="controls-top">
       <input class="search-box" id="searchBox" type="text" placeholder="Search venues, neighborhoods…" oninput="debounceSearch()" autocomplete="off" autocorrect="off">
       <button class="clear-all-btn" id="clearAllBtn" onclick="clearAllVisible()">Clear</button>
@@ -540,6 +551,18 @@
     <span class="sub-page-title">Followers</span>
   </div>
   <div id="followersContent" style="padding:8px 0;overflow-y:auto;"></div>
+</div>
+
+<!-- GIVEAWAY LANDING SUB-PAGE -->
+
+<div id="giveawayPage" class="sub-page" style="display:none">
+  <div class="sub-page-header">
+    <button class="sub-page-back" onclick="closeSubPage('giveawayPage')">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+    </button>
+    <span class="sub-page-title">Weekly Giveaway</span>
+  </div>
+  <div id="giveawayPageContent"></div>
 </div>
 
 <!-- ACTIVITY FEED SUB-PAGE -->
