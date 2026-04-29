@@ -439,8 +439,8 @@
       page.innerHTML = `
         <div class="page-title">🎁 Weekly Giveaway</div>
         <div class="page-sub">
-          $25 gift card every Monday. Each entry = one ticket.
-          Reach out manually to the winner via email.
+          $25 gift card to any restaurant or bar on Spotd — winner picks the venue.
+          Each entry = one ticket. Reach out manually to the winner via email.
         </div>
 
         <!-- Week selector -->

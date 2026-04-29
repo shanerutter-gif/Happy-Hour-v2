@@ -3172,7 +3172,7 @@ async function renderGiveawayPage() {
       <section class="gw-hero">
         <div class="gw-hero__kicker">$25 every Monday</div>
         <h1 class="gw-hero__title">Win a Spotd<br>Weekly Giveaway</h1>
-        <p class="gw-hero__sub">A digital gift card, on us — every week, to a Spotd member who's out exploring San Diego.</p>
+        <p class="gw-hero__sub">A $25 gift card to any restaurant or bar on Spotd — your pick. One winner every Monday.</p>
       </section>
       <div id="giveawayPageStats" class="gw-stats-card">
         <div class="gw-stats-loading">Loading your entries…</div>
@@ -3184,7 +3184,7 @@ async function renderGiveawayPage() {
             <ul class="gw-step__list"><li>Check in at any venue</li><li>Leave a review</li><li>Share a photo or video in social</li></ul>
           </div></div>
           <div class="gw-step"><div class="gw-step__num">2</div><div class="gw-step__body"><strong>Stack the odds with referrals.</strong> Share your code. Every active friend = +1 entry every week they stay active.</div></div>
-          <div class="gw-step"><div class="gw-step__num">3</div><div class="gw-step__body"><strong>Monday — winner picked.</strong> If you win, we'll email you to send your gift card (Visa, Amazon, Starbucks, or DoorDash — your call).</div></div>
+          <div class="gw-step"><div class="gw-step__num">3</div><div class="gw-step__body"><strong>Monday — winner picked.</strong> If you win, we'll email you to find out which Spotd restaurant or bar you want the $25 gift card for.</div></div>
         </div>
       </section>
       <section class="gw-section" id="giveawayPageWinnersSection" style="display:none">
@@ -3196,7 +3196,8 @@ async function renderGiveawayPage() {
         <details class="gw-faq"><summary>Can I enter more than once?</summary><p>Yes — through referrals. You get one personal entry per week regardless of how many things you do, but every friend who signs up with your code and stays active adds another entry to your name.</p></details>
         <details class="gw-faq"><summary>What counts as a check-in?</summary><p>Tapping "Check in" on a venue page. We allow one per venue per day so it stays honest.</p></details>
         <details class="gw-faq"><summary>How is the winner picked?</summary><p>Random draw, weighted by entries. Each entry = one ticket in the drawing. More entries = better odds.</p></details>
-        <details class="gw-faq"><summary>What's the prize?</summary><p>A $25 digital gift card. We let the winner pick which one.</p></details>
+        <details class="gw-faq"><summary>What's the prize?</summary><p>A $25 gift card to any restaurant or bar currently listed on Spotd — winner picks the venue. We'll email you to confirm which one once you win.</p></details>
+        <details class="gw-faq"><summary>What if my favorite spot isn't on Spotd?</summary><p>We can only redeem at venues currently active on Spotd. If your top pick isn't on yet, suggest it via the "Add a spot" button — we add new venues regularly.</p></details>
         <details class="gw-faq"><summary>Do I have to be in San Diego?</summary><p>For now, yes. Spotd is San Diego-only at launch.</p></details>
       </section>
       <p class="gw-fineprint">No purchase necessary. Open to Spotd members 21+ with a valid US address. One entry per active week, plus referral bonuses. Winners announced Monday at 9 AM PT. Spotd reserves the right to disqualify suspicious activity.</p>
