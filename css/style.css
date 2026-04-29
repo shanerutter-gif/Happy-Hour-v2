@@ -1773,6 +1773,37 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   object-fit: cover;
 }
 .dm-thread-info { flex: 1; min-width: 0; overflow: hidden; }
+
+/* Share-to-DM picker row — overrides swipe-row layout from .dm-thread-row */
+.dm-share-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: visible;
+  border-radius: 12px;
+  padding: 4px 4px 4px 0;
+  cursor: pointer;
+}
+.dm-share-row:active { background: var(--bg2); }
+.dm-share-row .dm-thread-main {
+  flex: 1 1 auto;
+  max-width: none;
+  min-width: 0;
+  padding: 10px 12px;
+  background: transparent;
+}
+.dm-share-send-btn {
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #FF6B4A, #FF8559);
+  color: #fff;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: .3px;
+  padding: 7px 16px;
+  border-radius: 50px;
+  margin-right: 4px;
+}
 .dm-thread-name {
   font-family: 'Cabinet Grotesk', sans-serif;
   font-weight: 700;
