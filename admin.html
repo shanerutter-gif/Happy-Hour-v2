@@ -2853,7 +2853,12 @@ in San Diego</textarea>
     }
     _token = data.access_token;
     _adminUser = data.user;
-    localStorage.setItem(LS_KEY, JSON.stringify({ token: _token, user: _adminUser }));
+    localStorage.setItem(LS_KEY, JSON.stringify({
+      token:         _token,
+      user:          _adminUser,
+      refresh_token: data.refresh_token || null,
+      expires_at:    data.expires_at    || null,
+    }));
     enterApp();
   }
 

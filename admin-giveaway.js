@@ -25,6 +25,10 @@
   function session() {
     try { return JSON.parse(localStorage.getItem(LS_KEY) || '{}'); } catch (e) { return {}; }
   }
+  function saveSession(patch) {
+    const s = session();
+    localStorage.setItem(LS_KEY, JSON.stringify({ ...s, ...patch }));
+  }
   function hdrs() {
     const s = session();
     return {
@@ -33,14 +37,74 @@
       'Authorization': 'Bearer ' + (s.token || SUPABASE_ANON),
     };
   }
+
+  // Use the persisted refresh_token to mint a fresh access_token.
+  // Returns true on success, false if the refresh token is missing or rejected
+  // (in which case the user has to sign in again).
+  let _refreshInFlight = null;
+  async function tryRefreshSession() {
+    if (_refreshInFlight) return _refreshInFlight;
+    const s = session();
+    if (!s.refresh_token) return false;
+    _refreshInFlight = (async () => {
+      try {
+        const r = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON },
+          body:    JSON.stringify({ refresh_token: s.refresh_token }),
+        });
+        const data = await r.json();
+        if (!r.ok || !data.access_token) {
+          // refresh token is no good; clear stale session bits but leave user
+          // info so the existing login form pre-fills the email if you want.
+          saveSession({ token: null, refresh_token: null, expires_at: null });
+          return false;
+        }
+        saveSession({
+          token:         data.access_token,
+          refresh_token: data.refresh_token || s.refresh_token,
+          expires_at:    data.expires_at    || null,
+          user:          data.user || s.user,
+        });
+        return true;
+      } catch (e) {
+        return false;
+      } finally {
+        _refreshInFlight = null;
+      }
+    })();
+    return _refreshInFlight;
+  }
+
+  function isJwtExpiredError(payload) {
+    if (!payload) return false;
+    const msg  = (payload.message || payload.error || payload.code || '').toString().toLowerCase();
+    return msg.includes('jwt expired') || msg.includes('jwt_expired') || payload.code === 'PGRST301';
+  }
+
   async function rpc(name, body) {
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`, {
+    const send = () => fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`, {
       method:  'POST',
       headers: hdrs(),
       body:    JSON.stringify(body || {}),
     });
-    const text = await r.text();
+
+    let r = await send();
+    let text = await r.text();
     let data; try { data = text ? JSON.parse(text) : null; } catch (e) { data = text; }
+
+    // Auto-refresh on JWT expiry: refresh + retry once
+    if ((r.status === 401 || r.status === 403) && isJwtExpiredError(data)) {
+      const ok = await tryRefreshSession();
+      if (ok) {
+        r = await send();
+        text = await r.text();
+        try { data = text ? JSON.parse(text) : null; } catch (e) { data = text; }
+      } else {
+        throw new Error('Session expired — please refresh the page and sign in again.');
+      }
+    }
+
     if (!r.ok) throw new Error((data && (data.message || data.error)) || `HTTP ${r.status}`);
     return data;
   }
