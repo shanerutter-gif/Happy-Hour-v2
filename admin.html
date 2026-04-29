@@ -4174,32 +4174,41 @@ in San Diego</textarea>
 
     demoSetProgress(86, 'Creating demo social profiles…');
 
-    // 1. Create auth users one at a time (admin API doesn't support bulk)
+    // 1. Create auth users one at a time (admin API doesn't support bulk).
+    //    The handle_new_user trigger pre-creates the profiles row, so we PATCH it right after
+    //    to set display_name / avatar / bio reliably. We deliberately leave username NULL so
+    //    nothing demo-y appears on the profile page (the @handle line only renders if username is set).
+    //    Demo identity is tracked via auth.users.user_metadata.demo = true (admin-only field).
     const profiles = [];
     for (let i = 0; i < userCount; i++) {
-      const tag    = Math.random().toString(36).slice(2, 8);
-      const handle = _pick(SOCIAL_HANDLES) + Math.floor(Math.random() * 999);
-      const email  = `demo+${tag}@spotd-demo.local`;
+      const tag    = Math.random().toString(36).slice(2, 10);
+      const email  = `spotd-${tag}@spotd-demo.local`;
       const password = 'D3mo!' + Math.random().toString(36).slice(2, 12);
+      const display_name = _pick(FIRST_NAMES) + ' ' + _pick(LAST_NAMES).slice(0,1) + '.';
+      const avatar_emoji = _pick(SOCIAL_AVATAR_EMOJIS);
+      const bio          = _pick(SOCIAL_BIOS);
+
       try {
         const r = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
           method: 'POST',
           headers: svcHeaders(),
           body: JSON.stringify({ email, password, email_confirm: true, user_metadata: { demo: true } }),
         });
-        if (!r.ok) { console.warn('demo user create failed', r.status); continue; }
+        if (!r.ok) { console.warn('demo user create failed', r.status, await r.text().catch(()=>'')); continue; }
         const u = await r.json();
         if (!u?.id) continue;
-        profiles.push({
-          id:            u.id,
-          display_name:  _pick(FIRST_NAMES) + ' ' + _pick(LAST_NAMES).slice(0,1) + '.',
-          username:      DEMO_USERNAME_PREFIX + handle,
-          avatar_emoji:  _pick(SOCIAL_AVATAR_EMOJIS),
-          bio:           _pick(SOCIAL_BIOS),
-          is_public:     true,
+
+        // Update the trigger-created profile row. Username intentionally left null.
+        const pr = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${u.id}`, {
+          method: 'PATCH',
+          headers: { ...svcHeaders(), 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ display_name, avatar_emoji, bio, is_public: true }),
         });
+        if (!pr.ok) console.warn('profile patch failed', u.id, pr.status, await pr.text().catch(()=>''));
+
+        profiles.push({ id: u.id, display_name });
       } catch(e) { console.warn('demo user create exception', e); }
-      if (i % 5 === 0) demoSetProgress(86 + (i / userCount) * 4, `Creating demo social profiles… (${i+1}/${userCount})`);
+      if (i % 5 === 0) demoSetProgress(86 + (i / userCount) * 6, `Creating demo social profiles… (${i+1}/${userCount})`);
     }
 
     if (!profiles.length) {
@@ -4207,16 +4216,7 @@ in San Diego</textarea>
       return { users: 0, posts: 0 };
     }
 
-    // 2. Insert profile rows in one batch
-    demoSetProgress(91, 'Saving profiles…');
-    const profRes = await fetch(`${SUPABASE_URL}/rest/v1/profiles`, {
-      method: 'POST',
-      headers: { ...svcHeaders(), 'Prefer': 'return=minimal,resolution=merge-duplicates' },
-      body: JSON.stringify(profiles),
-    });
-    if (!profRes.ok) { console.warn('profile insert failed', await profRes.text()); }
-
-    // 3. Build a mix of posts. Distribution: 40% photo, 30% review, 20% check-in note, 10% favorite.
+    // 2. Build a mix of posts. Distribution: 40% photo, 30% review, 20% check-in note, 10% favorite.
     demoSetProgress(93, 'Building social posts…');
     const photoRows = [];
     const activityRows = [];
@@ -4317,13 +4317,26 @@ in San Diego</textarea>
     demoSetStatus('🗑 Clearing demo data…', 'info');
     document.getElementById('demo-progress-wrap').style.display = 'none';
     try {
-      // Demo social profiles are tagged with username starting with `demo_` — collect their IDs first.
-      // Use a broad like + strict client-side filter (PostgREST treats `_` as a SQL single-char wildcard).
+      // Demo users are tagged via auth.users.user_metadata.demo = true.
+      // Paginate through the admin users list, collect IDs where that flag is set.
+      // Also fall back to the legacy `demo_` username prefix so older demo data still cleans up.
+      const demoIdSet = new Set();
+      let page = 1;
+      while (page <= 50) {
+        const r = await fetch(`${SUPABASE_URL}/auth/v1/admin/users?page=${page}&per_page=200`, { headers: svcHeaders() });
+        if (!r.ok) break;
+        const data = await r.json();
+        const users = data.users || [];
+        if (!users.length) break;
+        users.forEach(u => { if (u.user_metadata?.demo === true) demoIdSet.add(u.id); });
+        if (users.length < 200) break;
+        page++;
+      }
+      // Legacy fallback — old demo profiles (pre-fix) had `username` starting with `demo_`.
       const profRes = await fetch(`${SUPABASE_URL}/rest/v1/profiles?select=id,username&username=like.demo*`, { headers: svcHeaders() });
-      const demoProfiles = profRes.ok ? await profRes.json() : [];
-      const demoIds = demoProfiles
-        .filter(p => p.username && p.username.startsWith(DEMO_USERNAME_PREFIX))
-        .map(p => p.id);
+      const legacy = profRes.ok ? await profRes.json() : [];
+      legacy.filter(p => p.username && p.username.startsWith(DEMO_USERNAME_PREFIX)).forEach(p => demoIdSet.add(p.id));
+      const demoIds = [...demoIdSet];
 
       // Delete all reviews with null user_id (these are all guest demo reviews)
       const r1 = await fetch(`${SUPABASE_URL}/rest/v1/reviews?user_id=is.null`, { method: 'DELETE', headers: svcHeaders() });
