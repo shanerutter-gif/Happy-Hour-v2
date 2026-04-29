@@ -6322,10 +6322,9 @@ ${sectionsMjml}
     const mjml = ebGenerateMjml();
     const subject = (document.getElementById('eb-subject')?.value || 'email').replace(/[^a-zA-Z0-9-_ ]/g, '').trim().replace(/\s+/g, '-').toLowerCase() || 'email';
 
-    // Use JSZip-like approach with manual zip creation via Blob
-    // Simple approach: create a zip with one file using compression-less zip
-    const filename = `${subject}.mjml`;
-    const zipBlob = createSimpleZip(filename, mjml);
+    // Loops requires the inner file to be named exactly index.mjml.
+    // The outer .zip filename can still reflect the subject for clarity.
+    const zipBlob = createSimpleZip('index.mjml', mjml);
     const a = document.createElement('a');
     a.href = URL.createObjectURL(zipBlob);
     a.download = `${subject}.zip`;
