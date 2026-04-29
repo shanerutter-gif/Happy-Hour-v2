@@ -10,11 +10,14 @@ const OB_KEY = 'spotd-ob-complete';
 // ── STATE ──────────────────────────────────────────────
 const obState = {
   screen: 0,
-  totalScreens: 5,
+  totalScreens: 6,
   selectedVibes: new Set(),
   selectedNeighborhood: null,
+  selectedAttribution: null,  // e.g. 'instagram', 'tiktok', 'friend'
   liveCount: 47,
 };
+
+const OB_ATTRIBUTION_KEY = 'spotd_pending_attribution';
 
 const OB_NEIGHBORHOODS = [
   { name: 'North Park',    deals: 8,  popular: true  },
@@ -101,7 +104,7 @@ function _obShuffle(arr) {
 }
 
 // Endowed progress — starts partially filled
-const OB_PROGRESS = [20, 40, 58, 76, 92];
+const OB_PROGRESS = [18, 35, 52, 68, 84, 96];
 
 // ── VISIBILITY ─────────────────────────────────────────
 function obShouldShow() {
@@ -210,7 +213,24 @@ function obGoTo(idx) {
   obUpdateProgress(idx);
 
   if (idx === 3) obRenderNeighborhoods();
-  if (idx === 4) obUpdateSignupScreen();
+  if (idx === 5) obUpdateSignupScreen();
+}
+
+// ── ATTRIBUTION (Screen 4) ────────────────────────────
+function obSelectAttribution(source, el) {
+  if (typeof haptic === 'function') haptic('medium');
+  document.querySelectorAll('.ob-attr-btn').forEach(b => b.classList.remove('ob-attr-btn--selected'));
+  if (el) el.classList.add('ob-attr-btn--selected');
+  obState.selectedAttribution = source;
+  try { sessionStorage.setItem(OB_ATTRIBUTION_KEY, source); } catch (e) {}
+  // Auto-advance so the user doesn't have to tap a second time
+  setTimeout(() => obNext(), 350);
+}
+
+function obAttributionSkip() {
+  obState.selectedAttribution = null;
+  try { sessionStorage.removeItem(OB_ATTRIBUTION_KEY); } catch (e) {}
+  obNext();
 }
 
 function obNext() {

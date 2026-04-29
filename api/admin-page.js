@@ -8,6 +8,7 @@ export const config = { runtime: 'edge' };
 const SCRIPT_TAGS = [
   '<script src="/admin-claims.js" defer></script>',
   '<script src="/admin-giveaway.js" defer></script>',
+  '<script src="/admin-attribution.js" defer></script>',
 ];
 
 // Fetch the static admin.html from the same deployment's raw GitHub source so

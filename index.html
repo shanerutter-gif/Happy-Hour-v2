@@ -832,6 +832,7 @@ if (window.spotdNative) {
     <span class="ob-dot"></span>
     <span class="ob-dot"></span>
     <span class="ob-dot"></span>
+    <span class="ob-dot"></span>
   </div>
 
   <!-- ── Screen 0: Entry ─────────────────────── -->
@@ -969,8 +970,68 @@ if (window.spotdNative) {
     </div>
   </div>
 
-  <!-- ── Screen 4: Signup ───────────────────── -->
+  <!-- ── Screen 4: Attribution ────────────────── -->
   <div class="ob-screen ob-screen--next" id="obScreen4">
+    <div class="ob-screen-inner">
+      <div class="ob-nav-row">
+        <button class="ob-back-btn" onclick="obBack()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+        </button>
+        <button class="ob-skip-btn" onclick="obAttributionSkip()">Skip</button>
+      </div>
+      <h2 class="ob-screen-title">How did you hear about us?</h2>
+      <p class="ob-screen-sub">Helps us know what's working — pick one.</p>
+
+      <div class="ob-attr-grid" id="obAttrGrid">
+        <button class="ob-attr-btn" data-source="instagram" onclick="obSelectAttribution('instagram',this)">
+          <span class="ob-attr-emoji">📸</span><span class="ob-attr-label">Instagram</span>
+        </button>
+        <button class="ob-attr-btn" data-source="tiktok" onclick="obSelectAttribution('tiktok',this)">
+          <span class="ob-attr-emoji">🎵</span><span class="ob-attr-label">TikTok</span>
+        </button>
+        <button class="ob-attr-btn" data-source="twitter" onclick="obSelectAttribution('twitter',this)">
+          <span class="ob-attr-emoji">𝕏</span><span class="ob-attr-label">X / Twitter</span>
+        </button>
+        <button class="ob-attr-btn" data-source="facebook" onclick="obSelectAttribution('facebook',this)">
+          <span class="ob-attr-emoji">📘</span><span class="ob-attr-label">Facebook</span>
+        </button>
+        <button class="ob-attr-btn" data-source="google" onclick="obSelectAttribution('google',this)">
+          <span class="ob-attr-emoji">🔎</span><span class="ob-attr-label">Google search</span>
+        </button>
+        <button class="ob-attr-btn" data-source="email" onclick="obSelectAttribution('email',this)">
+          <span class="ob-attr-emoji">📧</span><span class="ob-attr-label">Email / Newsletter</span>
+        </button>
+        <button class="ob-attr-btn" data-source="reddit" onclick="obSelectAttribution('reddit',this)">
+          <span class="ob-attr-emoji">👽</span><span class="ob-attr-label">Reddit</span>
+        </button>
+        <button class="ob-attr-btn" data-source="podcast" onclick="obSelectAttribution('podcast',this)">
+          <span class="ob-attr-emoji">🎙️</span><span class="ob-attr-label">Podcast</span>
+        </button>
+        <button class="ob-attr-btn" data-source="press" onclick="obSelectAttribution('press',this)">
+          <span class="ob-attr-emoji">📰</span><span class="ob-attr-label">Press / blog</span>
+        </button>
+        <button class="ob-attr-btn" data-source="event" onclick="obSelectAttribution('event',this)">
+          <span class="ob-attr-emoji">🎟️</span><span class="ob-attr-label">In-person event</span>
+        </button>
+        <button class="ob-attr-btn" data-source="app_store" onclick="obSelectAttribution('app_store',this)">
+          <span class="ob-attr-emoji">📱</span><span class="ob-attr-label">App Store</span>
+        </button>
+        <button class="ob-attr-btn" data-source="friend" onclick="obSelectAttribution('friend',this)">
+          <span class="ob-attr-emoji">🫶</span><span class="ob-attr-label">A cool friend</span>
+        </button>
+        <button class="ob-attr-btn" data-source="other" onclick="obSelectAttribution('other',this)">
+          <span class="ob-attr-emoji">✨</span><span class="ob-attr-label">Somewhere else</span>
+        </button>
+      </div>
+
+      <button class="ob-btn-secondary ob-btn-sticky" onclick="obAttributionSkip()">
+        Skip for now →
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Screen 5: Signup ───────────────────── -->
+  <div class="ob-screen ob-screen--next" id="obScreen5">
     <div class="ob-screen-inner ob-screen-inner--center">
       <div class="ob-nav-row" style="width:100%">
         <button class="ob-back-btn" onclick="obBack()">

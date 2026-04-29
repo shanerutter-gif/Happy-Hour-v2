@@ -333,6 +333,16 @@ async function handleOAuthCallback() {
     // Apply any pending referral code captured before the OAuth redirect.
     // No-op if there's no stashed code or the user was already referred.
     try { await applyPendingReferral(user.id); } catch(e) {}
+    // Persist any onboarding attribution that was stashed pre-redirect.
+    try { await applyPendingAttribution(user.id); } catch(e) {}
+    // Prompt for referral code post-signup if they didn't supply one.
+    setTimeout(() => {
+      try {
+        if (typeof window.maybeShowPostSignupReferralModal === 'function') {
+          window.maybeShowPostSignupReferralModal();
+        }
+      } catch (e) {}
+    }, 1500);
 
     // GA custom event — detect provider from user metadata
     if (typeof gtag === 'function') {
@@ -1626,4 +1636,94 @@ async function getLastWeekWinner() {
       .maybeSingle();
     return data || null;
   } catch(e) { return null; }
+}
+
+// ════════════════════════════════════════════════════════
+// SIGNUP ATTRIBUTION
+// ════════════════════════════════════════════════════════
+
+const PENDING_ATTRIBUTION_KEY = 'spotd_pending_attribution';
+
+function getPendingAttribution() {
+  try { return sessionStorage.getItem(PENDING_ATTRIBUTION_KEY) || null; } catch(e) { return null; }
+}
+
+// Write the stashed attribution (selected during onboarding) to the DB.
+// Idempotent: PK is user_id, so a second insert silently no-ops.
+async function applyPendingAttribution(newUserId) {
+  if (!newUserId) return null;
+  let source = null;
+  try { source = sessionStorage.getItem(PENDING_ATTRIBUTION_KEY); } catch(e) {}
+  if (!source) return null;
+
+  try {
+    const { error } = await db.from('signup_attributions').insert({
+      user_id: newUserId,
+      source:  source,
+    });
+    // 23505 = already recorded; treat as success
+    if (error && error.code !== '23505') {
+      console.warn('applyPendingAttribution error', error);
+    }
+  } catch(e) {
+    console.warn('applyPendingAttribution exception', e);
+  } finally {
+    try { sessionStorage.removeItem(PENDING_ATTRIBUTION_KEY); } catch(e) {}
+  }
+  return source;
+}
+
+// Has this user already been referred? Used to gate the post-signup
+// "Did someone refer you?" modal so it doesn't show for users who came in
+// via ?ref=CODE.
+async function userHasReferrer(userId) {
+  if (!userId) return false;
+  try {
+    const { data } = await db.from('referrals')
+      .select('referee_id')
+      .eq('referee_id', userId)
+      .maybeSingle();
+    return !!data;
+  } catch(e) { return false; }
+}
+
+// Apply a referral code typed in by the user post-signup (from the
+// "Did someone refer you?" modal or the profile-tile fallback).
+// Returns { ok, error, referrerId }.
+async function applyReferralCodeManually(code) {
+  if (!currentUser) return { ok: false, error: 'Not signed in' };
+  const clean = String(code || '').trim().toUpperCase();
+  if (!/^[A-Z0-9]{6}$/.test(clean)) return { ok: false, error: 'Code should be 6 letters/numbers' };
+
+  try {
+    const { data: codeRow } = await db.from('referral_codes')
+      .select('user_id')
+      .eq('code', clean)
+      .maybeSingle();
+    if (!codeRow) return { ok: false, error: "We couldn't find that code" };
+    if (codeRow.user_id === currentUser.id) return { ok: false, error: "Can't use your own code" };
+
+    const { error: refErr } = await db.from('referrals').insert({
+      referrer_id:        codeRow.user_id,
+      referee_id:         currentUser.id,
+      referral_code_used: clean,
+    });
+    if (refErr && refErr.code !== '23505') {
+      return { ok: false, error: refErr.message || 'Could not save referral' };
+    }
+    if (refErr && refErr.code === '23505') {
+      return { ok: false, error: 'You already entered a referral code' };
+    }
+
+    // Mirror onto profiles.referred_by for fast lookup
+    try {
+      await db.from('profiles')
+        .update({ referred_by: codeRow.user_id })
+        .eq('id', currentUser.id);
+    } catch(e) {}
+
+    return { ok: true, referrerId: codeRow.user_id };
+  } catch(e) {
+    return { ok: false, error: e.message || 'Unexpected error' };
+  }
 }

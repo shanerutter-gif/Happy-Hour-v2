@@ -2630,6 +2630,14 @@ async function doAuth(mode) {
       if (typeof applyPendingReferral === 'function') {
         try { await applyPendingReferral(currentUser.id); } catch(e) {}
       }
+      // Persist the attribution selected during onboarding
+      if (typeof applyPendingAttribution === 'function') {
+        try { await applyPendingAttribution(currentUser.id); } catch(e) {}
+      }
+      // If they didn't already supply a referral code, ask politely.
+      if (typeof maybeShowPostSignupReferralModal === 'function') {
+        setTimeout(() => maybeShowPostSignupReferralModal(), 1200);
+      }
     }
     closeOverlay('authOverlay');
     showToast(mode === 'signup' ? 'Account created!' : 'Welcome back!');
@@ -2897,6 +2905,9 @@ async function renderProfile(user) {
         Check in, leave a review, or share a photo to enter this week.
       </p>
       <button class="giveaway-tile__cta" id="giveawayCTA" onclick="openReferralShareSheet()">Share my code</button>
+      <button class="giveaway-tile__addcode" id="giveawayAddCode" onclick="openReferralCodeEntry()" style="display:none">
+        Got referred? Add a code →
+      </button>
     </section>
 
     ${!localStorage.getItem('spotd-idea-banner-dismissed') ? `
@@ -2994,9 +3005,10 @@ async function renderGiveawayTile() {
   if (!currentUser) { tile.style.display = 'none'; return; }
 
   try {
-    const [entries, code] = await Promise.all([
+    const [entries, code, referred] = await Promise.all([
       getMyEntriesThisWeek(),
       getMyReferralCode(),
+      typeof userHasReferrer === 'function' ? userHasReferrer(currentUser.id) : Promise.resolve(false),
     ]);
 
     const entryCountEl = document.getElementById('giveawayEntryCount');
@@ -3019,9 +3031,103 @@ async function renderGiveawayTile() {
         ? 'Check in, leave a review, or share a photo to enter this week.'
         : "You're entered. Invite friends — every active friend = +1 bonus entry.";
     }
+
+    // Fallback link: only show if the user wasn't referred (i.e. didn't use a code)
+    const addCodeEl = document.getElementById('giveawayAddCode');
+    if (addCodeEl) addCodeEl.style.display = referred ? 'none' : 'block';
   } catch(e) {
     console.warn('renderGiveawayTile error', e);
   }
+}
+
+// ── POST-SIGNUP REFERRAL PROMPT ─────────────────────
+// Shown once per user (tracked in localStorage), only if they have no
+// referrer recorded. Same prompt is also reachable from the giveaway tile.
+async function maybeShowPostSignupReferralModal() {
+  if (!currentUser) return;
+  if (localStorage.getItem('spotd-referral-prompt-seen')) return;
+  try {
+    if (typeof userHasReferrer === 'function' && await userHasReferrer(currentUser.id)) {
+      localStorage.setItem('spotd-referral-prompt-seen', '1');
+      return;
+    }
+  } catch(e) {}
+  openReferralCodeEntry({ firstTime: true });
+}
+
+function openReferralCodeEntry(opts) {
+  if (!currentUser) { openAuth('signin'); return; }
+  // Avoid duplicate modals
+  if (document.getElementById('referralCodeModal')) return;
+
+  const firstTime = !!(opts && opts.firstTime);
+  const overlay = document.createElement('div');
+  overlay.id = 'referralCodeModal';
+  overlay.className = 'ref-modal-overlay';
+  overlay.innerHTML = `
+    <div class="ref-modal" role="dialog" aria-modal="true" aria-labelledby="refModalTitle">
+      <button class="ref-modal__close" aria-label="Close" onclick="closeReferralCodeEntry()">&times;</button>
+      <div class="ref-modal__icon">🎁</div>
+      <h2 class="ref-modal__title" id="refModalTitle">Did someone refer you?</h2>
+      <p class="ref-modal__sub">
+        Drop their 6-character code and they get a bonus weekly giveaway entry every time you check in,
+        review, or post.
+      </p>
+      <div class="ref-modal__field">
+        <input type="text" id="refModalInput" maxlength="6" placeholder="e.g. SHANE7"
+               autocapitalize="characters" autocorrect="off" spellcheck="false" autocomplete="off"
+               onkeydown="if(event.key==='Enter')submitReferralCodeEntry()">
+      </div>
+      <div class="ref-modal__msg" id="refModalMsg"></div>
+      <button class="ref-modal__cta" id="refModalSubmit" onclick="submitReferralCodeEntry()">Apply code</button>
+      <button class="ref-modal__skip" onclick="closeReferralCodeEntry(${firstTime ? 'true' : 'false'})">${firstTime ? 'No thanks, skip' : 'Cancel'}</button>
+    </div>`;
+  document.body.appendChild(overlay);
+  setTimeout(() => {
+    overlay.classList.add('ref-modal-overlay--open');
+    document.getElementById('refModalInput')?.focus();
+  }, 10);
+
+  // Mark as seen so we don't auto-prompt again, even if they close it
+  if (firstTime) {
+    try { localStorage.setItem('spotd-referral-prompt-seen', '1'); } catch (e) {}
+  }
+}
+
+function closeReferralCodeEntry() {
+  const m = document.getElementById('referralCodeModal');
+  if (!m) return;
+  m.classList.remove('ref-modal-overlay--open');
+  setTimeout(() => m.remove(), 200);
+}
+
+async function submitReferralCodeEntry() {
+  const input = document.getElementById('refModalInput');
+  const msg   = document.getElementById('refModalMsg');
+  const btn   = document.getElementById('refModalSubmit');
+  if (!input || !msg || !btn) return;
+  const code = (input.value || '').trim().toUpperCase();
+  msg.className = 'ref-modal__msg';
+  msg.textContent = '';
+  if (code.length !== 6) {
+    msg.classList.add('ref-modal__msg--err');
+    msg.textContent = 'Codes are 6 characters';
+    return;
+  }
+  btn.disabled = true; btn.textContent = 'Applying…';
+  const result = await applyReferralCodeManually(code);
+  btn.disabled = false; btn.textContent = 'Apply code';
+  if (!result.ok) {
+    msg.classList.add('ref-modal__msg--err');
+    msg.textContent = result.error || 'Could not apply that code';
+    return;
+  }
+  msg.classList.add('ref-modal__msg--ok');
+  msg.textContent = 'Locked in. Thanks for repping the source! 🎉';
+  showToast('Referral applied');
+  // Re-render the tile so the fallback link disappears
+  if (typeof renderGiveawayTile === 'function') setTimeout(renderGiveawayTile, 200);
+  setTimeout(closeReferralCodeEntry, 1100);
 }
 
 async function openReferralShareSheet() {
