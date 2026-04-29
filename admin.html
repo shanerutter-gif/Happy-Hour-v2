@@ -2021,7 +2021,7 @@
 
       <div class="page" id="page-demo">
         <div class="page-title">🎭 Demo Data Generator</div>
-        <div class="page-sub">Seed fake users, reviews, and check-ins for demos. All generated data is tagged and can be fully removed.</div>
+        <div class="page-sub">Seed fake users, reviews, check-ins, and casual social-feed posts for demos. All generated data is tagged and can be fully removed.</div>
 
         <div id="demo-status" style="display:none;padding:12px 16px;border-radius:10px;font-size:13px;font-weight:500;margin-bottom:20px"></div>
 
@@ -2068,6 +2068,23 @@
                 </div>
                 <input type="checkbox" id="demo-do-checkins" checked style="width:16px;height:16px;accent-color:var(--coral);cursor:pointer">
               </label>
+              <label style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--bg2);border-radius:8px;cursor:pointer">
+                <div>
+                  <div style="font-size:13px;font-weight:600">📱 Social Posts</div>
+                  <div style="font-size:11px;color:var(--muted);margin-top:1px">Casual feed posts: photos, notes, reviews</div>
+                </div>
+                <input type="checkbox" id="demo-do-social" checked style="width:16px;height:16px;accent-color:var(--coral);cursor:pointer">
+              </label>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px">
+                <div>
+                  <label style="font-family:'DM Sans',sans-serif;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:6px">Social users</label>
+                  <input id="demo-social-users" type="number" value="30" min="5" max="100" style="width:100%;padding:9px 12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:14px;color:var(--text);outline:none;font-family:'DM Sans',sans-serif">
+                </div>
+                <div>
+                  <label style="font-family:'DM Sans',sans-serif;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:6px">Posts / user</label>
+                  <input id="demo-social-posts-per" type="number" value="2" min="1" max="5" style="width:100%;padding:9px 12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:14px;color:var(--text);outline:none;font-family:'DM Sans',sans-serif">
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -3984,6 +4001,54 @@ in San Diego</textarea>
     'Friendly staff and great atmosphere','The deals here are unbeatable','Love discovering spots like this','One of my favorite places in the city','Always a great time here',
   ];
 
+  // ── SOCIAL FEED DEMO CONTENT (casual / typos / lowercase) ─────
+  const DEMO_USERNAME_PREFIX = 'demo_';
+  const SOCIAL_HANDLES = [
+    'cocktailcat','sdbargoer','beachbum','tacotues','pintsoverpilates','margaritamonday','byobby','happyhourhero','sunsetsipper','wknd_warrior',
+    'lateshiftlana','bevsnbites','dive_diver','spritzwitch','one_more_round','barhopkidd','queso_queen','beerbeforeliquor','rosaeallday','vermouth_va',
+    'patiopplz','signaturecocktail','thirstythursday','margvibes','hopsnhighfives','bottomlessbri','mocktail_mike','cabernetcaper','pintglassgarden','shotcallerr',
+  ];
+  const SOCIAL_BIOS = [
+    'cocktails > coffee','just here for the deals','sd happy hour scout','margs n tacos','pls send 2-4-1','always on the patio','recommend me a dive','i live for happy hour','wino in training','beer flight enthusiast',
+  ];
+  const SOCIAL_CAPTIONS = [
+    'vibes immaculate','this place slapss','lowkey best happy hour rn','okay this round on me','tequila tuesday hits different','found the patio of dreams 🌴',
+    'when the deals are this gud u just say yes','round 2','idk why this isnt packed','quick one after work','they had me at $5 wells','trivia night was a blowout',
+    'the bartender remembered my name 🥹','sunset hits different here','why did no one tell me about this spot','bringing the whole crew next time','lowkey obsessed',
+    'okay this margerita is dangerous','3rd time this week dont judge','came for one drink stayed for four','my spot fr','the wings here >>>','lazy sunday energy',
+    'first time here wont be the last','date night winnnn','girl talk + spritzes 🍾','team happy hour ✅','the dj was actually fire','9pm me would like a word with 6pm me',
+    'ok the queso is unreal','bro','impromtu happy hour bc why not','currently ignoring my emails','someone come join lol','no thoughts just margs',
+  ];
+  const SOCIAL_NOTES = [
+    'who tryna meet up later 👀','bf finally got me to try this place','came w/ the work crew','running late but on my way',
+    'meeting kyle here at 6','solo happy hour bc i deserve it','the line is sooo not worth it tho lol jk','definitley back tomorow',
+    'birthday round on me 🎉','someone tell maddy im here','round 1 🍻','idk why im here on a tuesday but here we are',
+    'pre game spot achieved','seein how many margs i can get for $20','the vibes are vibing','my coworker said this place was mid… liar',
+  ];
+  const SOCIAL_REVIEWS_CASUAL = [
+    'okay actually fire happy hour. $6 margs and they pour heavy 10/10','vibes lowkey perfect on the patio. service was a bit slow but bartender was sweet',
+    'def coming back. tried the spicy marg and it changed me','solid spot. food was mid but the deals make up for it lol',
+    'the line moved faster than expected, drinks were strong, can confirm','idk why this place doesnt get more hype, deals are unmatched',
+    'came w my gf, we will b back. shoutout to the bartender w the mustache','3 stars only bc the music was way too loud i couldnt hear my date',
+    '$5 wells from 4-7? say less','the queso is illegal and i mean that as a complement',
+    'stopped in after work and ended up staying till close lmaoo. great group spot','ngl food took forever but drinks made it ok',
+    'bartender was actually so nice we tipped 30%','went on a tuesday and it was deadbut in a good way',
+    'okay actually obsessed. their old fashioned slaps','live music was fire. drinks priced fairly. will repeat',
+  ];
+  const SOCIAL_AVATAR_EMOJIS = ['🍺','🍹','🍸','🌮','🎉','🌊','🌴','🎸','🦋','🌺','🐬','🔥','🎨','🍕','🍷','🥂','🌅','🪩','🍔','🥑','🦊','🐳','🌙','⭐','🍻','🥃'];
+
+  // Generic photo URLs via picsum (deterministic per-seed, varied content)
+  function _picsum(seed) {
+    const cleanSeed = String(seed).replace(/[^a-zA-Z0-9]/g,'').slice(0, 20) || Math.random().toString(36).slice(2);
+    return `https://picsum.photos/seed/spotd-${cleanSeed}/800/1000`;
+  }
+
+  function _pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+  function _randPastDate(maxDaysAgo) {
+    const ms = Math.floor(Math.random() * maxDaysAgo * 24 * 60 * 60 * 1000);
+    return new Date(Date.now() - ms).toISOString();
+  }
+
   function demoSetStatus(msg, type) {
     const el = document.getElementById('demo-status');
     el.style.display = 'block';
@@ -4011,6 +4076,9 @@ in San Diego</textarea>
     const citySlug       = document.getElementById('demo-city').value;
     const doReviews      = document.getElementById('demo-do-reviews').checked;
     const doCheckins     = document.getElementById('demo-do-checkins').checked;
+    const doSocial       = document.getElementById('demo-do-social').checked;
+    const socialUsers    = Math.min(100, Math.max(5, parseInt(document.getElementById('demo-social-users').value) || 30));
+    const socialPostsPer = Math.min(5, Math.max(1, parseInt(document.getElementById('demo-social-posts-per').value) || 2));
 
     try {
       // Fetch venue IDs
@@ -4079,10 +4147,16 @@ in San Diego</textarea>
         }
       }
 
+      let socialNote = '';
+      if (doSocial) {
+        const socialResult = await runDemoSocialSeed({ citySlug, venueIds, userCount: socialUsers, postsPer: socialPostsPer });
+        socialNote = socialResult ? `${socialResult.posts} social posts (${socialResult.users} demo users)` : '';
+      }
+
       demoSetProgress(100, 'Done!');
       const reviewNote = doReviews ? `~${userCount * reviewsPerUser} reviews` : '';
       const checkinNote = doCheckins ? 'tonight check-ins' : '';
-      demoSetStatus(`✅ Generated ${[reviewNote, checkinNote].filter(Boolean).join(', ')} successfully`, 'success');
+      demoSetStatus(`✅ Generated ${[reviewNote, checkinNote, socialNote].filter(Boolean).join(', ')} successfully`, 'success');
 
     } catch(err) {
       demoSetStatus('❌ ' + err.message, 'error');
@@ -4092,17 +4166,185 @@ in San Diego</textarea>
     btn.disabled = false; btn.textContent = '🚀 Generate Demo Data';
   }
 
+  // Build casual social-feed posts: photos, check-in notes, reviews, favorites.
+  // Creates demo auth users (so each post has a real profile w/ name + avatar in the feed),
+  // then seeds a mix of post types across the past 14 days.
+  async function runDemoSocialSeed({ citySlug, venueIds, userCount, postsPer }) {
+    if (!venueIds || !venueIds.length) return null;
+
+    demoSetProgress(86, 'Creating demo social profiles…');
+
+    // 1. Create auth users one at a time (admin API doesn't support bulk)
+    const profiles = [];
+    for (let i = 0; i < userCount; i++) {
+      const tag    = Math.random().toString(36).slice(2, 8);
+      const handle = _pick(SOCIAL_HANDLES) + Math.floor(Math.random() * 999);
+      const email  = `demo+${tag}@spotd-demo.local`;
+      const password = 'D3mo!' + Math.random().toString(36).slice(2, 12);
+      try {
+        const r = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
+          method: 'POST',
+          headers: svcHeaders(),
+          body: JSON.stringify({ email, password, email_confirm: true, user_metadata: { demo: true } }),
+        });
+        if (!r.ok) { console.warn('demo user create failed', r.status); continue; }
+        const u = await r.json();
+        if (!u?.id) continue;
+        profiles.push({
+          id:            u.id,
+          display_name:  _pick(FIRST_NAMES) + ' ' + _pick(LAST_NAMES).slice(0,1) + '.',
+          username:      DEMO_USERNAME_PREFIX + handle,
+          avatar_emoji:  _pick(SOCIAL_AVATAR_EMOJIS),
+          bio:           _pick(SOCIAL_BIOS),
+          is_public:     true,
+        });
+      } catch(e) { console.warn('demo user create exception', e); }
+      if (i % 5 === 0) demoSetProgress(86 + (i / userCount) * 4, `Creating demo social profiles… (${i+1}/${userCount})`);
+    }
+
+    if (!profiles.length) {
+      console.warn('No demo profiles created — skipping social seed');
+      return { users: 0, posts: 0 };
+    }
+
+    // 2. Insert profile rows in one batch
+    demoSetProgress(91, 'Saving profiles…');
+    const profRes = await fetch(`${SUPABASE_URL}/rest/v1/profiles`, {
+      method: 'POST',
+      headers: { ...svcHeaders(), 'Prefer': 'return=minimal,resolution=merge-duplicates' },
+      body: JSON.stringify(profiles),
+    });
+    if (!profRes.ok) { console.warn('profile insert failed', await profRes.text()); }
+
+    // 3. Build a mix of posts. Distribution: 40% photo, 30% review, 20% check-in note, 10% favorite.
+    demoSetProgress(93, 'Building social posts…');
+    const photoRows = [];
+    const activityRows = [];
+    const todayCheckinRows = [];
+    const today = new Date().toISOString().split('T')[0];
+
+    for (const p of profiles) {
+      const n = Math.ceil(Math.random() * postsPer);
+      for (let j = 0; j < n; j++) {
+        const venueId = _pick(venueIds);
+        const created = _randPastDate(14);
+        const r = Math.random();
+
+        if (r < 0.40) {
+          // Photo post
+          photoRows.push({
+            user_id:      p.id,
+            venue_id:     venueId,
+            city_slug:    citySlug,
+            photo_url:    _picsum(p.id + j),
+            storage_path: null,
+            caption:      Math.random() > 0.2 ? _pick(SOCIAL_CAPTIONS) : null,
+            created_at:   created,
+          });
+        } else if (r < 0.70) {
+          // Review (casual w/ typos)
+          activityRows.push({
+            user_id:       p.id,
+            activity_type: 'review',
+            venue_id:      venueId,
+            meta:          { rating: Math.floor(Math.random() * 3) + 3, text: _pick(SOCIAL_REVIEWS_CASUAL) },
+            created_at:    created,
+          });
+        } else if (r < 0.90) {
+          // Check-in w/ a casual note
+          activityRows.push({
+            user_id:       p.id,
+            activity_type: 'check_in',
+            venue_id:      venueId,
+            meta:          Math.random() > 0.3 ? { note: _pick(SOCIAL_NOTES) } : {},
+            created_at:    created,
+          });
+          // ~30% of check-ins also seed a "going tonight" entry for today
+          if (Math.random() < 0.3) {
+            todayCheckinRows.push({ user_id: p.id, venue_id: venueId, city_slug: citySlug, date: today });
+          }
+        } else {
+          // Favorite
+          activityRows.push({
+            user_id:       p.id,
+            activity_type: 'favorite',
+            venue_id:      venueId,
+            meta:          {},
+            created_at:    created,
+          });
+        }
+      }
+    }
+
+    // Denormalize venue_name + neighborhood for activity_feed (the feed reads these directly)
+    if (activityRows.length) {
+      const uniqVenueIds = [...new Set(activityRows.map(a => a.venue_id))];
+      const vRes = await fetch(`${SUPABASE_URL}/rest/v1/venues?select=id,name,neighborhood&id=in.(${uniqVenueIds.join(',')})`, { headers: svcHeaders() });
+      const vMap = {};
+      if (vRes.ok) {
+        const vs = await vRes.json();
+        vs.forEach(v => { vMap[v.id] = v; });
+      }
+      activityRows.forEach(a => {
+        a.venue_name  = vMap[a.venue_id]?.name || null;
+        a.neighborhood = vMap[a.venue_id]?.neighborhood || null;
+      });
+    }
+
+    // 4. Insert in batches
+    const SBATCH = 200;
+    async function insertBatch(table, rows, label, pctStart, pctEnd) {
+      for (let i = 0; i < rows.length; i += SBATCH) {
+        demoSetProgress(pctStart + (i / Math.max(rows.length,1)) * (pctEnd - pctStart), `${label} ${i+1}–${Math.min(i+SBATCH, rows.length)} of ${rows.length}…`);
+        const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+          method: 'POST',
+          headers: { ...svcHeaders(), 'Prefer': 'return=minimal' },
+          body: JSON.stringify(rows.slice(i, i + SBATCH)),
+        });
+        if (!r.ok) console.warn(`${table} batch:`, r.status, await r.text());
+      }
+    }
+
+    await insertBatch('checkin_photos', photoRows,        'Inserting photo posts',   93, 96);
+    await insertBatch('activity_feed',  activityRows,     'Inserting activity posts', 96, 98);
+    await insertBatch('check_ins',      todayCheckinRows, 'Inserting tonight posts', 98, 99);
+
+    return { users: profiles.length, posts: photoRows.length + activityRows.length + todayCheckinRows.length };
+  }
+
   async function clearDemoData() {
-    if (!confirm('Delete all demo reviews and check-ins? This cannot be undone.')) return;
+    if (!confirm('Delete all demo reviews, check-ins, and social posts? This cannot be undone.')) return;
     demoSetStatus('🗑 Clearing demo data…', 'info');
     document.getElementById('demo-progress-wrap').style.display = 'none';
     try {
-      // Delete all reviews with null user_id (these are all demo/guest reviews)
+      // Demo social profiles are tagged with username starting with `demo_` — collect their IDs first.
+      // Use a broad like + strict client-side filter (PostgREST treats `_` as a SQL single-char wildcard).
+      const profRes = await fetch(`${SUPABASE_URL}/rest/v1/profiles?select=id,username&username=like.demo*`, { headers: svcHeaders() });
+      const demoProfiles = profRes.ok ? await profRes.json() : [];
+      const demoIds = demoProfiles
+        .filter(p => p.username && p.username.startsWith(DEMO_USERNAME_PREFIX))
+        .map(p => p.id);
+
+      // Delete all reviews with null user_id (these are all guest demo reviews)
       const r1 = await fetch(`${SUPABASE_URL}/rest/v1/reviews?user_id=is.null`, { method: 'DELETE', headers: svcHeaders() });
-      // Delete all check_ins with null user_id
+      // Delete all check_ins with null user_id (existing demo) + demo-user check_ins
       const r2 = await fetch(`${SUPABASE_URL}/rest/v1/check_ins?user_id=is.null`, { method: 'DELETE', headers: svcHeaders() });
+
+      // Wipe demo-user posts + auth users (cascades remove their profile rows)
+      if (demoIds.length) {
+        const idList = demoIds.join(',');
+        await fetch(`${SUPABASE_URL}/rest/v1/checkin_photos?user_id=in.(${idList})`, { method: 'DELETE', headers: svcHeaders() });
+        await fetch(`${SUPABASE_URL}/rest/v1/activity_feed?user_id=in.(${idList})`, { method: 'DELETE', headers: svcHeaders() });
+        await fetch(`${SUPABASE_URL}/rest/v1/check_ins?user_id=in.(${idList})`, { method: 'DELETE', headers: svcHeaders() });
+        // Delete auth users one-by-one (admin API has no bulk endpoint); profiles cascade.
+        for (const id of demoIds) {
+          try { await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${id}`, { method: 'DELETE', headers: svcHeaders() }); }
+          catch(e) { console.warn('auth delete fail', id, e); }
+        }
+      }
+
       if (!r1.ok || !r2.ok) throw new Error('Delete failed — check console');
-      demoSetStatus('✅ Cleared all demo reviews and check-ins.', 'success');
+      demoSetStatus(`✅ Cleared demo data (${demoIds.length} demo users removed).`, 'success');
     } catch(err) {
       demoSetStatus('❌ ' + err.message, 'error');
     }
