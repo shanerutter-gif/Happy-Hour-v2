@@ -5406,9 +5406,9 @@ async function dmOpenVenueSharePicker(venueId) {
     const myFirst = (currentUser?.user_metadata?.full_name || 'You').split(' ')[0];
     const name   = c.is_group ? (c.name || [myFirst,...others.map(id=>(pMap[id]?.display_name||'User').split(' ')[0])].join(', ')) : (pMap[others[0]]?.display_name || 'Spotd User');
     const avatar = c.is_group ? icn('users',20) : initialsAvatar(name, '', pMap[others[0]]?.avatar_emoji, pMap[others[0]]?.avatar_url);
-    return `<div class="dm-thread-row dm-share-row" data-name="${esc(name.toLowerCase())}" style="border-bottom:1px solid var(--bg2);" onclick="dmSendVenue('${venueId}','${c.id}');document.getElementById('dmSharePickerOverlay').remove()">
+    return `<div class="dm-thread-row dm-share-row" data-name="${esc(name.toLowerCase())}" onclick="dmSendVenue('${venueId}','${c.id}');document.getElementById('dmSharePickerOverlay').remove()">
       <div class="dm-thread-main"><div class="dm-thread-avatar">${avatar}</div><div class="dm-thread-info"><div class="dm-thread-name">${esc(name)}</div></div></div>
-      <div style="color:var(--coral);font-weight:700;font-size:13px;flex-shrink:0;padding-right:16px">Send</div>
+      <div class="dm-share-send-btn">Send</div>
     </div>`;
   }).join('');
 
@@ -5461,11 +5461,11 @@ function dmFilterSharePicker(query) {
       if (!searchResults || !users?.length) { if (searchResults) searchResults.style.display = 'none'; return; }
       searchResults.style.display = 'block';
       searchResults.innerHTML = `<div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:8px 0 6px">People</div>`
-        + users.map(u => `<div class="dm-thread-row" style="border-bottom:1px solid var(--bg2);cursor:pointer"
+        + users.map(u => `<div class="dm-thread-row dm-share-row"
           onclick="dmSendVenueToUser('${u.id}','${esc(u.display_name||'User')}')">
           <div class="dm-thread-main"><div class="dm-thread-avatar">${initialsAvatar(u.display_name || 'User', '', u.avatar_emoji, u.avatar_url)}</div>
           <div class="dm-thread-info"><div class="dm-thread-name">${esc(u.display_name || 'User')}</div></div></div>
-          <div style="color:var(--coral);font-weight:700;font-size:13px;flex-shrink:0;padding-right:16px">Send</div>
+          <div class="dm-share-send-btn">Send</div>
         </div>`).join('');
     } catch(e) {}
   }, 300);
