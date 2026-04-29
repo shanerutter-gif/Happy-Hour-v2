@@ -5,7 +5,10 @@
 
 export const config = { runtime: 'edge' };
 
-const SCRIPT_TAG = '<script src="/admin-claims.js" defer></script>';
+const SCRIPT_TAGS = [
+  '<script src="/admin-claims.js" defer></script>',
+  '<script src="/admin-giveaway.js" defer></script>',
+];
 
 // Fetch the static admin.html from the same deployment's raw GitHub source so
 // we always reflect the latest main branch. Cached at the edge.
@@ -18,12 +21,13 @@ export default async function handler() {
       return new Response('admin source unavailable', { status: 502 });
     }
     let html = await res.text();
-    if (!html.includes(SCRIPT_TAG)) {
+    for (const tag of SCRIPT_TAGS) {
+      if (html.includes(tag)) continue;
       // inject immediately before </body>; fallback to appending if not found
       if (html.includes('</body>')) {
-        html = html.replace('</body>', `${SCRIPT_TAG}\n</body>`);
+        html = html.replace('</body>', `${tag}\n</body>`);
       } else {
-        html += `\n${SCRIPT_TAG}\n`;
+        html += `\n${tag}\n`;
       }
     }
     return new Response(html, {
