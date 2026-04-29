@@ -1045,6 +1045,20 @@ function renderSocialItem(item, variant) {
   // HERO VARIANT — full-bleed photo/video card
   // ═══════════════════════════════════════════
   if (variant === 'hero') {
+    // Build the info overlay once — it's nested INSIDE sf-hero-media so its
+    // absolute `bottom: 0` is the bottom of the photo, not the bottom of the
+    // whole card (which would put it behind the action-bar row below).
+    const infoOverlay = `<div class="sf-hero-info">
+      <div class="sf-hero-user" ${profileClick}>
+        <div class="sf-hero-avatar">${avatarHtml}</div>
+        <span class="sf-hero-name">${esc(displayName)}</span>
+      </div>
+      <div class="sf-hero-venue" ${venueClick}>${esc(venueName)}</div>
+      <div class="sf-hero-meta">${neighborhood ? `<span>${esc(neighborhood)}</span><span class="sf-dot"></span>` : ''}<span>${timeAgo}</span></div>
+      ${caption ? `<div class="sf-hero-caption">${esc(caption)}</div>` : ''}
+      ${ratingHtml ? `<div class="sf-hero-rating">${ratingHtml}</div>` : ''}
+    </div>`;
+
     const mediaInner = videoUrl
       ? `<div class="sf-hero-media" onclick="toggleFeedVideo(this)">
           <video class="social-video" data-src="${esc(videoUrl)}" playsinline muted loop preload="none"
@@ -1053,25 +1067,17 @@ function renderSocialItem(item, variant) {
           <div class="social-video-play-overlay">${ICN.play || '▶'}</div>
           <div class="social-video-mute-btn" onclick="event.stopPropagation();toggleFeedVideoMute(this)">${ICN.volumeOff || '🔇'}</div>
           <div class="sf-hero-grad"></div>
+          ${infoOverlay}
         </div>`
       : `<div class="sf-hero-media" ${venueClick}>
           <img class="sf-hero-img" src="${esc(photoUrl)}" alt="${esc(venueName)}" loading="lazy"
             onerror="this.closest('.sf-hero').style.background='linear-gradient(135deg,#2A1F14,#1A1208)';this.remove()">
           <div class="sf-hero-grad"></div>
+          ${infoOverlay}
         </div>`;
 
     return `<div class="sf-hero">
       ${mediaInner}
-      <div class="sf-hero-info">
-        <div class="sf-hero-user" ${profileClick}>
-          <div class="sf-hero-avatar">${avatarHtml}</div>
-          <span class="sf-hero-name">${esc(displayName)}</span>
-        </div>
-        <div class="sf-hero-venue" ${venueClick}>${esc(venueName)}</div>
-        <div class="sf-hero-meta">${neighborhood ? `<span>${esc(neighborhood)}</span><span class="sf-dot"></span>` : ''}<span>${timeAgo}</span></div>
-        ${caption ? `<div class="sf-hero-caption">${esc(caption)}</div>` : ''}
-        ${ratingHtml ? `<div class="sf-hero-rating">${ratingHtml}</div>` : ''}
-      </div>
       ${actionBtns}
     </div>`;
   }

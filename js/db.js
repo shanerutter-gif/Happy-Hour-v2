@@ -569,6 +569,20 @@ async function _fireCheckinLoopsEvents(userId, venueId) {
 async function removeCheckIn(userId, venueId, date) {
   try {
     await db.from('check_ins').delete().eq('user_id', userId).eq('venue_id', venueId).eq('date', date);
+    // Also remove the matching activity_feed row so the social feed
+    // doesn't keep stale "Shane checked in at X" cards after un-check-in.
+    // Match by user + venue + same calendar day.
+    try {
+      const dayStart = `${date}T00:00:00`;
+      const dayEnd   = `${date}T23:59:59.999`;
+      await db.from('activity_feed')
+        .delete()
+        .eq('user_id', userId)
+        .eq('venue_id', venueId)
+        .eq('activity_type', 'check_in')
+        .gte('created_at', dayStart)
+        .lte('created_at', dayEnd);
+    } catch (e) { /* best-effort cleanup */ }
     return true;
   } catch(e) { return false; }
 }
@@ -1255,15 +1269,21 @@ async function fetchSocialFeed(citySlug, followingIds = [], limit = 60) {
     // Remove current user's own activity (they see it in their profile)
     // Actually keep it — seeing yourself in the city feed is a nice touch
 
-    // Dedupe: if a check_in and a photo share the same user+venue+day, keep only the photo
-    const photoKeys = new Set(
-      items
-        .filter(i => i.type === 'photo')
-        .map(i => `${i.user_id}-${i.venue_id}-${i.created_at?.slice(0,10)}`)
-    );
+    // Dedupe by (user, venue, day). A single check-in can surface from up to
+    // three sources at once: a photo post, the check_ins table ("going_tonight"),
+    // and the activity_feed row. Prefer photo > going_tonight > check_in so the
+    // user only ever sees one card.
+    const keyOf = (i) => `${i.user_id}-${i.venue_id}-${i.created_at?.slice(0,10)}`;
+    const photoKeys = new Set(items.filter(i => i.type === 'photo').map(keyOf));
+    const goingKeys = new Set(items.filter(i => i.type === 'going_tonight').map(keyOf));
     const deduped = items.filter(i => {
-      if (i.type !== 'check_in') return true;
-      return !photoKeys.has(`${i.user_id}-${i.venue_id}-${i.created_at?.slice(0,10)}`);
+      if (i.type === 'photo') return true;
+      const k = keyOf(i);
+      // going_tonight loses to a photo of the same check-in
+      if (i.type === 'going_tonight') return !photoKeys.has(k);
+      // check_in (activity_feed) loses to either a photo or a going_tonight
+      if (i.type === 'check_in') return !photoKeys.has(k) && !goingKeys.has(k);
+      return true;
     });
 
     // Sort: following first, then by recency within each group
