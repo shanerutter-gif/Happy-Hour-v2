@@ -2384,6 +2384,7 @@ in San Diego</textarea>
               <div class="eb-panel-title">Header Bar</div>
               <div class="eb-field"><label>Logo image URL</label><input type="text" id="eb-logo-url" value="https://opcskuzbdfrlnyhraysk.supabase.co/storage/v1/object/public/spotd-content/brand/spotd-logo.png" oninput="ebRender()"></div>
               <div class="eb-field"><label>Logo height (px)</label><input type="number" id="eb-logo-height" value="28" oninput="ebRender()"></div>
+              <div class="eb-field"><label>Logo width (px)</label><input type="number" id="eb-logo-width" value="65" oninput="ebRender()"></div>
               <div class="eb-field"><label>Right-side text</label><input type="text" id="eb-badge" value="Daily Deals" oninput="ebRender()"></div>
             </div>
 
@@ -6110,6 +6111,7 @@ in San Diego</textarea>
     const badge = document.getElementById('eb-badge')?.value || '';
     const logoUrl = document.getElementById('eb-logo-url')?.value || '';
     const logoHeight = document.getElementById('eb-logo-height')?.value || '28';
+    const logoWidth = document.getElementById('eb-logo-width')?.value || '65';
     const heroEyebrow = document.getElementById('eb-hero-eyebrow')?.value || '';
     const heroHeadline = document.getElementById('eb-hero-headline')?.value || '';
     const heroBody = document.getElementById('eb-hero-body')?.value || '';
@@ -6122,7 +6124,7 @@ in San Diego</textarea>
     const footerTagline = document.getElementById('eb-footer-tagline')?.value || '';
 
     const logoHtml = logoUrl
-      ? `<img src="${escHtml(logoUrl)}" alt="Spotd" style="height:${escHtml(logoHeight)}px;width:auto;display:block" height="${escHtml(logoHeight)}">`
+      ? `<img src="${escHtml(logoUrl)}" alt="Spotd" width="${escHtml(logoWidth)}" height="${escHtml(logoHeight)}" style="width:${escHtml(logoWidth)}px;height:${escHtml(logoHeight)}px;display:block;border:0;outline:none;text-decoration:none">`
       : `<span style="font-size:24px;font-weight:700;color:#FF6B4A;font-family:'DM Sans',Arial,sans-serif">Spot'd</span>`;
 
     const heroImgHtml = heroImg
@@ -6175,6 +6177,7 @@ in San Diego</textarea>
     const badge = document.getElementById('eb-badge')?.value || '';
     const logoUrl = document.getElementById('eb-logo-url')?.value || '';
     const logoHeight = document.getElementById('eb-logo-height')?.value || '28';
+    const logoWidth = document.getElementById('eb-logo-width')?.value || '65';
     const heroEyebrow = document.getElementById('eb-hero-eyebrow')?.value || '';
     const heroHeadline = document.getElementById('eb-hero-headline')?.value || '';
     const heroBody = document.getElementById('eb-hero-body')?.value || '';
@@ -6187,7 +6190,7 @@ in San Diego</textarea>
     const footerTagline = document.getElementById('eb-footer-tagline')?.value || '';
 
     const logoMjml = logoUrl
-      ? `<mj-image align="left" src="${escHtml(logoUrl)}" alt="Spotd" width="auto" height="${escHtml(logoHeight)}px" padding="0" css-class="logo"></mj-image>`
+      ? `<mj-image align="left" src="${escHtml(logoUrl)}" alt="Spotd" width="${escHtml(logoWidth)}px" height="${escHtml(logoHeight)}px" padding="0" css-class="logo"></mj-image>`
       : `<mj-text align="left" font-size="24px" font-weight="700" color="#FF6B4A" padding="0">
           <span style="mso-line-height-rule:exactly;font-size:24px;font-family:'DM Sans',Arial,sans-serif;font-weight:700;color:#FF6B4A;">Spot'd</span>
         </mj-text>`;
