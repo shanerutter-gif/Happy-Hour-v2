@@ -1230,14 +1230,13 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   inset: 0;
   z-index: 499;
   background: var(--bg);
-  display: flex;
+  display: none;
   flex-direction: column;
   overscroll-behavior: contain;
-  visibility: hidden;
   pointer-events: none;
 }
 .social-tab.tab-open {
-  visibility: visible;
+  display: flex;
   pointer-events: auto;
 }
 .social-header {
