@@ -179,6 +179,7 @@ function obPopulateDynamic() {
 }
 
 function obComplete() {
+  if (typeof track === 'function') track('onboarding_completed', { last_screen: obState.screen });
   localStorage.setItem(OB_KEY, '1');
   localStorage.removeItem('spotd-ob-pending');
   _obDismiss();
@@ -223,6 +224,7 @@ function obSelectAttribution(source, el) {
   if (el) el.classList.add('ob-attr-btn--selected');
   obState.selectedAttribution = source;
   try { sessionStorage.setItem(OB_ATTRIBUTION_KEY, source); } catch (e) {}
+  if (typeof track === 'function') track('attribution_selected', { source: source });
   // Auto-advance so the user doesn't have to tap a second time
   setTimeout(() => obNext(), 350);
 }
@@ -244,6 +246,7 @@ function obBack() {
 }
 
 function obSkip() {
+  if (typeof track === 'function') track('onboarding_skipped', { from_screen: obState.screen });
   obComplete();
 }
 

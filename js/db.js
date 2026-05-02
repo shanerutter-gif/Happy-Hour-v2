@@ -18,6 +18,31 @@ const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const ADMIN_EMAILS = ['shanerutter@gmail.com'];
 function isAdmin() { return currentUser && ADMIN_EMAILS.includes(currentUser.email); }
 
+// ── ANALYTICS ─────────────────────────────────────────
+// Single entry point for GA4 events. Safe no-op if gtag isn't loaded
+// (e.g. user disabled GA via ?disable_ga=true). Strips known PII keys
+// before sending. Snake_case event names; values are scalars only.
+function track(eventName, params) {
+  try {
+    if (typeof gtag !== 'function') return;
+    if (!eventName) return;
+    const safe = {};
+    if (params && typeof params === 'object') {
+      const blocked = new Set(['email','password','token','phone','full_name','display_name']);
+      for (const k of Object.keys(params)) {
+        if (blocked.has(k)) continue;
+        const v = params[k];
+        if (v == null) continue;
+        // Only allow scalar values; coerce booleans/numbers/strings.
+        if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') {
+          safe[k] = v;
+        }
+      }
+    }
+    gtag('event', String(eventName).slice(0, 40), safe);
+  } catch (e) { /* never let analytics break the app */ }
+}
+
 // ── AUTH STATE ─────────────────────────────────────────
 let currentUser   = null;
 let userFavorites = new Set();
@@ -226,6 +251,7 @@ async function authSignIn(email, password) {
 }
 
 async function authSignUp(email, password, displayName) {
+  track('signup_started', { method: 'email' });
   try {
     const res = await fetch('/api/auth', {
       method: 'POST',
@@ -233,13 +259,14 @@ async function authSignUp(email, password, displayName) {
       body: JSON.stringify({ mode: 'signup', email, password, name: displayName })
     });
     const data = await res.json();
-    if (data.error_description) return { error: { message: data.error_description } };
-    if (data.error)             return { error: { message: data.error } };
+    if (data.error_description) { track('signup_failed', { method: 'email' }); return { error: { message: data.error_description } }; }
+    if (data.error)             { track('signup_failed', { method: 'email' }); return { error: { message: data.error } }; }
     // Trigger onboarding email sequence (fire-and-forget)
     triggerLoopsOnboarding(email, displayName, data.user?.id, 'email-signup');
     if (data.access_token) return authSignIn(email, password);
     return { data, error: null };
   } catch (e) {
+    track('signup_failed', { method: 'email', reason: 'network' });
     return { error: { message: e.message } };
   }
 }
@@ -330,6 +357,10 @@ async function handleOAuthCallback() {
       triggerLoopsOnboarding(user.email, user.user_metadata?.full_name, user.id, 'google-oauth');
     }
 
+    const _provider = user.app_metadata?.provider || 'oauth';
+    const _isNew = !!(user.created_at && (Date.now() - new Date(user.created_at).getTime() < 60000));
+    track(_isNew ? 'signup_completed' : 'oauth_login', { method: _provider, new_user: _isNew });
+
     // Apply any pending referral code captured before the OAuth redirect.
     // No-op if there's no stashed code or the user was already referred.
     try { await applyPendingReferral(user.id); } catch(e) {}
@@ -343,13 +374,6 @@ async function handleOAuthCallback() {
         }
       } catch (e) {}
     }, 1500);
-
-    // GA custom event — detect provider from user metadata
-    if (typeof gtag === 'function') {
-      const provider = user.app_metadata?.provider || 'oauth';
-      const isNew = user.created_at && (Date.now() - new Date(user.created_at).getTime() < 60000);
-      gtag('event', isNew ? 'sign_up' : 'login', { method: provider });
-    }
 
     // Clean URL
     window.history.replaceState({}, document.title, window.location.pathname);
@@ -463,10 +487,16 @@ async function postReview({ itemId, itemType = 'venue', rating, text, guestName 
 
   const { data, error } = await client.from('reviews').insert(payload).select().single();
   if (error) console.error('postReview error:', error);
+  if (!error) {
+    track('review_submitted', { item_type: itemType, rating: rating, has_text: !!text });
+  }
   // Loops: first_review event
   if (!error && session?.user?.id) {
     db.from('reviews').select('id').eq('user_id', session.user.id).then(({ data: all }) => {
-      if (all?.length === 1) sendLoopsEvent('first_review', { itemId, itemType, rating });
+      if (all?.length === 1) {
+        sendLoopsEvent('first_review', { itemId, itemType, rating });
+        track('first_review', { item_type: itemType, rating: rating });
+      }
     }).catch(() => {});
   }
   return { data, error };
@@ -494,10 +524,14 @@ async function toggleFavorite(itemId, itemType = 'venue') {
   const id = String(itemId);
   if (isFavorite(id)) {
     await db.from('favorites').delete().eq('user_id', currentUser.id).eq('item_id', id);
-    userFavorites.delete(id); return false;
+    userFavorites.delete(id);
+    track('favorite_toggled', { item_type: itemType, saved: false });
+    return false;
   }
   await db.from('favorites').insert({ user_id: currentUser.id, item_id: id, item_type: itemType });
-  userFavorites.add(id); return true;
+  userFavorites.add(id);
+  track('favorite_toggled', { item_type: itemType, saved: true });
+  return true;
 }
 async function getFavoriteItems(userId) {
   const { data } = await db.from('favorites').select('item_id, item_type').eq('user_id', userId);
@@ -553,6 +587,7 @@ async function addCheckIn({ userId, venueId, citySlug, date, note }) {
     await checkAndAwardBadges(userId);
     // Loops events: first check-in + milestones
     _fireCheckinLoopsEvents(userId, venueId);
+    track('checkin_added', { venue_id: venueId, city_slug: citySlug, has_note: !!note });
     return true;
   } catch(e) { console.warn('addCheckIn error', e); return false; }
 }
@@ -560,15 +595,17 @@ async function _fireCheckinLoopsEvents(userId, venueId) {
   try {
     const { data } = await db.from('check_ins').select('id').eq('user_id', userId);
     const count = data?.length || 0;
-    if (count === 1) sendLoopsEvent('first_checkin', { venueId });
+    if (count === 1) { sendLoopsEvent('first_checkin', { venueId }); track('first_checkin', { venue_id: venueId }); }
     if (count === 3 || count === 5 || count === 10 || count === 25 || count === 50) {
       sendLoopsEvent('checkin_streak', { count, venueId });
+      track('checkin_milestone', { count: count, venue_id: venueId });
     }
   } catch(e) {}
 }
 async function removeCheckIn(userId, venueId, date) {
   try {
     await db.from('check_ins').delete().eq('user_id', userId).eq('venue_id', venueId).eq('date', date);
+    track('checkin_removed', { venue_id: venueId });
     // Also remove the matching activity_feed row so the social feed
     // doesn't keep stale "Shane checked in at X" cards after un-check-in.
     // Match by user + venue + same calendar day.
@@ -631,6 +668,7 @@ async function followUser(followerId, followingId) {
   try {
     const { error } = await db.from('user_follows').insert({ follower_id: followerId, following_id: followingId });
     if (error) { console.warn('followUser error:', error.message); return false; }
+    track('user_followed', {});
     // Loops: first_follow (for the person doing the follow)
     db.from('user_follows').select('id').eq('follower_id', followerId).then(({ data }) => {
       if (data?.length === 1) sendLoopsEvent('first_follow', { followingId });
@@ -779,6 +817,7 @@ async function followVenue(userId, venueId) {
   try {
     const { error } = await db.from('venue_follows').insert({ user_id: userId, venue_id: venueId });
     if (error) throw error;
+    track('venue_followed', { venue_id: venueId });
     return true;
   } catch(e) { return false; }
 }
@@ -932,6 +971,8 @@ async function saveCheckinPhoto({ userId, venueId, citySlug, photoUrl, storagePa
       photo_url: photoUrl, storage_path: storagePath, caption: caption || null
     }).select().single();
     if (error) throw error;
+    const isVideo = /\.(mp4|mov|webm)(\?|$)/i.test(photoUrl || '');
+    track(isVideo ? 'video_posted' : 'photo_posted', { venue_id: venueId, city_slug: citySlug, has_caption: !!caption });
     return data;
   } catch(e) { console.error('saveCheckinPhoto error', e); return null; }
 }
@@ -1033,6 +1074,7 @@ async function addComment(postId, postType, userId, text) {
       post_id: postId, post_type: postType, user_id: userId, text
     }).select().single();
     if (error) throw error;
+    track('comment_added', { post_type: postType });
     return data;
   } catch(e) { console.error('addComment:', e); return null; }
 }
@@ -1094,11 +1136,13 @@ async function toggleLike(postId, postType, userId) {
       .maybeSingle();
     if (existing) {
       await client.from('social_likes').delete().eq('id', existing.id);
+      track('like_toggled', { post_type: postType, liked: false });
       return { liked: false };
     } else {
       await client.from('social_likes').insert({ post_id: postId, post_type: postType, user_id: userId });
       // Loops: post_liked — fire for the liker (could trigger "your community is active" campaigns)
       sendLoopsEvent('post_liked', { postId, postType });
+      track('like_toggled', { post_type: postType, liked: true });
       return { liked: true };
     }
   } catch(e) { console.error('toggleLike:', e); return null; }
@@ -1582,6 +1626,7 @@ async function applyPendingReferral(newUserId) {
           .update({ referred_by: codeRow.user_id })
           .eq('id', newUserId);
       } catch(e) {}
+      if (!refErr) track('referral_applied', { source: 'pending_code' });
     }
 
     sessionStorage.removeItem(PENDING_REFERRAL_KEY);
@@ -1742,6 +1787,7 @@ async function applyReferralCodeManually(code) {
         .eq('id', currentUser.id);
     } catch(e) {}
 
+    track('referral_applied', { source: 'manual_modal' });
     return { ok: true, referrerId: codeRow.user_id };
   } catch(e) {
     return { ok: false, error: e.message || 'Unexpected error' };

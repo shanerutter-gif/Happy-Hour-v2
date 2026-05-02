@@ -1347,6 +1347,7 @@ async function enterCity(slug, name, stateCode) {
   document.getElementById('cityBarName').textContent = `${name}, ${stateCode}`;
   document.title = `Spotd — ${name} Happy Hours & Events`;
   renderNav(currentUser);
+  track('city_entered', { city_slug: slug });
   if (typeof maybeShowGiveawayBanner === 'function') maybeShowGiveawayBanner();
 
   // Reset
@@ -1698,7 +1699,11 @@ let _searchTimer = null;
 function debounceSearch() {
   clearTimeout(_searchTimer);
   _activeSuggestion = null; renderSuggestions();
-  _searchTimer = setTimeout(() => { applyFilters(); updateChips(); updateDot(); }, 250);
+  _searchTimer = setTimeout(() => {
+    applyFilters(); updateChips(); updateDot();
+    const q = (document.getElementById('searchBox')?.value || '').trim();
+    if (q.length >= 2) track('search', { query_length: q.length });
+  }, 250);
 }
 function applyFilters() {
   const search = (document.getElementById('searchBox')?.value || '').toLowerCase().trim();
@@ -2240,6 +2245,7 @@ async function openModal(id, type = 'venue') {
   const items = type === 'venue' ? state.venues : state.events;
   const item  = items.find(x => String(x.id) === String(id));
   if (!item) return;
+  track(type === 'event' ? 'event_modal_opened' : 'venue_modal_opened', { item_id: id });
   renderModal(item, type, []);
   openOverlay('modalOverlay');
   const reviews = await getCachedReviews(id, type);
@@ -2648,12 +2654,7 @@ async function doAuth(mode) {
     }
     closeOverlay('authOverlay');
     showToast(mode === 'signup' ? 'Account created!' : 'Welcome back!');
-    // GA custom event
-    if (typeof gtag === 'function') {
-      gtag('event', mode === 'signup' ? 'sign_up' : 'login', {
-        method: 'email',
-      });
-    }
+    track(mode === 'signup' ? 'signup_completed' : 'login', { method: 'email' });
   } catch(err) {
     showToast('Error: ' + (err.message || 'Something went wrong'));
     btn.disabled = false; btn.textContent = mode === 'signin' ? 'Sign In' : 'Create Account';
@@ -2661,7 +2662,7 @@ async function doAuth(mode) {
 }
 async function doGoogleSignIn() {
   if(typeof haptic==='function')haptic('medium');
-  if (typeof gtag === 'function') gtag('event', 'login_attempt', { method: 'google' });
+  track('login_attempt', { method: 'google' });
   const result = await authSignInWithGoogle();
   if (result.error) {
     showToast('Error: ' + result.error.message);
@@ -3068,6 +3069,7 @@ function openReferralCodeEntry(opts) {
   if (document.getElementById('referralCodeModal')) return;
 
   const firstTime = !!(opts && opts.firstTime);
+  track('referral_modal_shown', { trigger: firstTime ? 'post_signup' : 'manual' });
   const overlay = document.createElement('div');
   overlay.id = 'referralCodeModal';
   overlay.className = 'ref-modal-overlay';
@@ -3152,10 +3154,12 @@ function dismissGiveawayBanner() {
   const banner = document.getElementById('giveawayBanner');
   if (banner) banner.style.display = 'none';
   if (typeof haptic === 'function') haptic('light');
+  track('giveaway_banner_dismissed', {});
 }
 
 async function openGiveawayPage() {
   if (typeof haptic === 'function') haptic('light');
+  track('giveaway_banner_clicked', {});
   openSubPage('giveawayPage');
   await renderGiveawayPage();
 }
@@ -3171,6 +3175,7 @@ function _giveawayMonday(weekStart) {
 async function renderGiveawayPage() {
   const wrap = document.getElementById('giveawayPageContent');
   if (!wrap) return;
+  track('giveaway_page_viewed', { signed_in: !!currentUser });
 
   // Skeleton first so the page feels responsive
   wrap.innerHTML = `
@@ -3296,14 +3301,17 @@ async function openReferralShareSheet() {
   try {
     if (navigator.share) {
       await navigator.share({ title: 'Join me on Spotd', text, url: link });
+      track('referral_shared', { method: 'web_share' });
       return;
     }
   } catch(e) { /* user cancelled */ }
   try {
     await navigator.clipboard.writeText(link);
     showToast('Referral link copied');
+    track('referral_shared', { method: 'clipboard' });
   } catch(e) {
     showToast(`Your code: ${code}`);
+    track('referral_shared', { method: 'fallback_toast' });
   }
 }
 
@@ -3798,6 +3806,7 @@ function shareItem(id, type) {
   if(typeof haptic==='function')haptic('light');
   const items = type === 'venue' ? state.venues : state.events;
   const v = items.find(x => String(x.id) === String(id)); if (!v) return;
+  track(type === 'event' ? 'share_event' : 'share_venue', { item_id: id });
   const appUrl = 'https://apps.apple.com/us/app/spotd/id6760452388';
   const msg = type === 'venue'
     ? `Happy Hour at ${v.name}\n${v.neighborhood} — ${v.address}\n${v.hours}\n${(v.deals||[]).slice(0,2).join(' · ')}\n\nDownload Spotd: ${appUrl}`
@@ -3810,6 +3819,7 @@ function shareItem(id, type) {
 function toggleView() {
   if(typeof haptic==='function')haptic('light');
   const isMap = state.view === 'map'; state.view = isMap ? 'list' : 'map';
+  track('view_toggled', { view: state.view });
   document.getElementById('listView').classList.toggle('active', state.view === 'list');
   document.getElementById('mapView').classList.toggle('active',  state.view === 'map');
   document.getElementById('viewIcon').textContent = state.view === 'map' ? 'List' : 'Map';
@@ -3999,6 +4009,7 @@ function popupHTML(v) {
 }
 function getDirections(lat, lng, name) {
   if(typeof haptic==='function')haptic('light');
+  track('directions_clicked', { has_coords: !!(lat && lng) });
   const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
   window.open(url, '_blank');
 }
@@ -6402,7 +6413,7 @@ async function doDeletePost(postType, postId, btn) {
 // ── APPLE SIGN IN ────────────────────────────────────
 async function doAppleSignIn() {
   if(typeof haptic==='function')haptic('medium');
-  if (typeof gtag === 'function') gtag('event', 'login_attempt', { method: 'apple' });
+  track('login_attempt', { method: 'apple' });
   try {
     // On native iOS, use skipBrowserRedirect so we can route through ASWebAuthenticationSession
     if (window.spotdNative?.openOAuth) {
