@@ -112,18 +112,19 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans
 .modal-foot{padding:14px 24px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
 .field{display:flex;flex-direction:column;gap:5px}
 .field-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-family:‘DM Sans’,sans-serif}
-.field-input{padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);font-size:14px;color:var(--text);outline:none;font-family:‘DM Sans’,sans-serif;transition:border-color .15s;width:100%}
+.field-input{padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);font-size:14px;color:var(--text);outline:none;font-family:‘DM Sans’,sans-serif;transition:border-color .15s;width:100%;line-height:1.5}
 .field-input:focus{border-color:var(--coral)}
 .field-input::placeholder{color:var(--muted2)}
-textarea.field-input{min-height:70px;resize:vertical;line-height:1.5}
+textarea.field-input{min-height:160px;max-height:60vh;resize:vertical}
 .field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 @media(max-width:480px){.field-row{grid-template-columns:1fr}}
 select.field-input{cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url(“data:image/svg+xml,%3Csvg xmlns=‘http://www.w3.org/2000/svg’ width=‘10’ height=‘6’%3E%3Cpath d=‘M0 0l5 6 5-6z’ fill=’%23B0A898’/%3E%3C/svg%3E”);background-repeat:no-repeat;background-position:right 12px center;padding-right:30px}
 .subtask-edit-list{display:flex;flex-direction:column;gap:4px}
-.subtask-edit-row{display:flex;align-items:center;gap:8px}
-.subtask-edit-row input[type=checkbox]{width:16px;height:16px;accent-color:var(--coral);cursor:pointer;flex-shrink:0}
-.subtask-edit-row input[type=text]{flex:1;padding:7px 10px;background:var(--bg);border:1px solid var(--border);border-radius:var(--rxs);font-size:13px;color:var(--text);outline:none;font-family:‘DM Sans’,sans-serif}
-.subtask-edit-row input[type=text]:focus{border-color:var(--coral)}
+.subtask-edit-row{display:flex;align-items:flex-start;gap:8px}
+.subtask-edit-row input[type=checkbox]{width:16px;height:16px;accent-color:var(--coral);cursor:pointer;flex-shrink:0;margin-top:9px}
+.subtask-edit-row textarea.subtask-text{flex:1;padding:7px 10px;background:var(--bg);border:1px solid var(--border);border-radius:var(--rxs);font-size:13px;color:var(--text);outline:none;font-family:‘DM Sans’,sans-serif;line-height:1.5;resize:vertical;min-height:34px;max-height:240px;width:100%;display:block}
+.subtask-edit-row textarea.subtask-text:focus{border-color:var(--coral)}
+.subtask-remove{align-self:flex-start;margin-top:6px}
 .subtask-remove{background:none;border:none;cursor:pointer;color:var(--muted2);font-size:14px;padding:2px 6px;border-radius:4px;transition:all .1s;flex-shrink:0}
 .subtask-remove:hover{color:var(--error);background:rgba(192,57,43,0.08)}
 .btn-add-subtask{background:none;border:1px dashed var(--border2);border-radius:var(--rxs);padding:7px;cursor:pointer;font-size:12px;font-weight:600;color:var(--muted);font-family:‘DM Sans’,sans-serif;transition:all .12s}
@@ -175,7 +176,7 @@ select.field-input{cursor:pointer;-webkit-appearance:none;appearance:none;backgr
     </div>
     <div class="modal-body">
       <div class="field"><div class="field-label">Title</div><input class="field-input" id="fTitle" type="text" placeholder="What needs to be done?"></div>
-      <div class="field"><div class="field-label">Description</div><textarea class="field-input" id="fDesc" placeholder="Details, context, links…"></textarea></div>
+      <div class="field"><div class="field-label">Description</div><textarea class="field-input" id="fDesc" placeholder="Details, context, links…" oninput="_autogrow(this)"></textarea></div>
       <div class="field-row">
         <div class="field"><div class="field-label">Column</div><select class="field-input" id="fCol"><option value="backlog">Backlog</option><option value="todo">To Do</option><option value="inprogress">In Progress</option><option value="done">Done</option><option value="blocked">Blocked</option></select></div>
         <div class="field"><div class="field-label">Type</div><select class="field-input" id="fType"><option value="feature">Feature</option><option value="bug">Bug</option><option value="chore">Chore</option><option value="idea">Idea</option><option value="design">Design</option></select></div>
@@ -416,14 +417,20 @@ function openModal(id,defCol){
     document.getElementById('btnDelete').style.display='none';
   }
   renderSubtasks();document.getElementById('modalBg').classList.add('open');
+  // Size the description textarea to its current content.
+  _autogrow(document.getElementById('fDesc'));
   setTimeout(()=>document.getElementById('fTitle').focus(),100);
 }
 function closeModal(){document.getElementById('modalBg').classList.remove('open');editingId=null}
+// Make a textarea grow to fit its content (capped by its CSS max-height).
+function _autogrow(el){if(!el||el.tagName!=='TEXTAREA')return;el.style.height='auto';el.style.height=Math.min(el.scrollHeight+2,window.innerHeight*0.6)+'px'}
 
 function renderSubtasks(){
-  document.getElementById('subtaskList').innerHTML=editSubtasks.map((s,i)=>`<div class="subtask-edit-row"><input type="checkbox" ${s.done?'checked':''} onchange="editSubtasks[${i}].done=this.checked"><input type="text" value="${esc(s.text)}" placeholder="Subtask…" oninput="editSubtasks[${i}].text=this.value"><button class="subtask-remove" onclick="editSubtasks.splice(${i},1);renderSubtasks()">✕</button></div>`).join('');
+  document.getElementById('subtaskList').innerHTML=editSubtasks.map((s,i)=>`<div class="subtask-edit-row"><input type="checkbox" ${s.done?'checked':''} onchange="editSubtasks[${i}].done=this.checked"><textarea class="subtask-text" rows="1" placeholder="Subtask…" oninput="editSubtasks[${i}].text=this.value;_autogrow(this)">${esc(s.text)}</textarea><button class="subtask-remove" onclick="editSubtasks.splice(${i},1);renderSubtasks()">✕</button></div>`).join('');
+  // Autogrow each subtask textarea to fit its current content.
+  document.querySelectorAll('#subtaskList textarea.subtask-text').forEach(_autogrow);
 }
-function addSubtaskRow(){editSubtasks.push({text:'',done:false});renderSubtasks();const ins=document.querySelectorAll('#subtaskList input[type=text]');if(ins.length)ins[ins.length-1].focus()}
+function addSubtaskRow(){editSubtasks.push({text:'',done:false});renderSubtasks();const ins=document.querySelectorAll('#subtaskList textarea.subtask-text');if(ins.length)ins[ins.length-1].focus()}
 
 async function saveCard(){
   const title=document.getElementById('fTitle').value.trim();
