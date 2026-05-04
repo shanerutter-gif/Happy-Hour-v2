@@ -2511,11 +2511,17 @@ async function openModal(id, type = 'venue') {
       }
     });
   }
-  // Load UGC check-in photos + Locals Say descriptions
+  // Load UGC check-in photos + Locals Say descriptions + tagged posts feed
   if (type === 'venue') {
-    fetchCheckinPhotos(id).then(photos => {
-      const el = document.getElementById(`ugc-photos-${id}`);
-      if (el) el.innerHTML = renderCheckinPhotos(photos, id);
+    fetchCheckinPhotos(id).then(allPosts => {
+      // The strip is for visual posts (photo or editorial-with-hero) only.
+      const photoPosts = allPosts.filter(p => p.photo_url);
+      const elPhotos = document.getElementById(`ugc-photos-${id}`);
+      if (elPhotos) elPhotos.innerHTML = renderCheckinPhotos(photoPosts, id);
+      // The feed list shows ALL post types — text-only get included here.
+      const elPosts = document.getElementById(`venue-posts-${id}`);
+      if (elPosts) elPosts.innerHTML = renderVenuePosts(allPosts, id);
+      observeFeedVideos();
     });
     loadModalDescriptions(id);
   }
@@ -2677,6 +2683,7 @@ function renderModal(v, type, reviews) {
       ` : ''}
 
       ${isVenue ? `<div id="ugc-photos-${v.id}"></div>` : ''}
+      ${isVenue ? `<div id="venue-posts-${v.id}"></div>` : ''}
       <div class="s-div"></div>
       <div class="modal-section-label">Reviews</div>
       ${v.yelp_rating ? `<div class="modal-rating-summary">
@@ -3550,10 +3557,10 @@ function _renderComposerCompose() {
 
   document.getElementById('composerContent').innerHTML = `
     <div class="cp cp--full">
-      <header class="cp-header cp-header--full">
+      <header class="cp-header cp-header--full cp-header--noPost">
         <button class="cp-iconbtn" onclick="closeComposer()" aria-label="Close">✕</button>
         <div class="cp-tabs">${tabsHtml}</div>
-        <button class="cp-submit" id="cpSubmit" onclick="submitComposer()">Post</button>
+        <span></span>
       </header>
 
       <div class="cp-scroll">
@@ -3576,6 +3583,10 @@ function _renderComposerCompose() {
             ? 'Up to 5 photos. They render as a swipeable carousel. Tap any photo to edit it.'
             : 'Type @ to tag a friend. Add a venue if you want it linked to a spot.'
         }</p>
+      </div>
+
+      <div class="cp-post-bar">
+        <button class="cp-post-cta" id="cpSubmit" onclick="submitComposer()">Post</button>
       </div>
     </div>`;
 }
@@ -3718,11 +3729,13 @@ function _composerPickVenue() {
       <div id="cpVenueList" style="overflow-y:auto;padding:0 16px 16px"></div>
     </div>`;
   document.body.appendChild(overlay);
+  // Trigger CSS transition: must be in the next frame after .open is added
+  requestAnimationFrame(() => requestAnimationFrame(() => overlay.classList.add('open')));
   const renderList = (q) => {
     const ql = (q || '').toLowerCase().trim();
     const filtered = ql ? list.filter(v => (v.name||'').toLowerCase().includes(ql) || (v.neighborhood||'').toLowerCase().includes(ql)) : list;
     document.getElementById('cpVenueList').innerHTML = filtered.slice(0, 80).map(v => `
-      <button class="cp-venue-row" onclick='_composerSelectVenue(${JSON.stringify(v.id)}, ${JSON.stringify(v.name)}, ${JSON.stringify(v.neighborhood || "")});this.closest(".overlay").remove();'>
+      <button class="cp-venue-row" onclick='_composerSelectVenue(${JSON.stringify(v.id)}, ${JSON.stringify(v.name)}, ${JSON.stringify(v.neighborhood || "")});this.closest(".overlay").classList.remove("open");setTimeout(()=>this.closest(".overlay")?.remove(),200);'>
         <strong>${esc(v.name)}</strong>${v.neighborhood ? `<span class="cp-venue-row-meta"> · ${esc(v.neighborhood)}</span>` : ''}
       </button>`).join('');
   };
@@ -3741,37 +3754,49 @@ function _composerSelectVenue(id, name, neighborhood) {
 // ── @-mention autocomplete ────────────────────────────────────────
 let _composerMentionTimer = null;
 async function _composerHandleBodyInput(textarea) {
-  // Find the active @-mention prefix at the caret
+  // Find the active @-mention prefix at the caret. Allow @ at start of
+  // text, after whitespace, or after a newline — but not in the middle of
+  // a word (so an email like name@host doesn't trigger).
   const value = textarea.value;
   const caret = textarea.selectionStart || 0;
   const head = value.slice(0, caret);
   const m = head.match(/(?:^|\s)@([A-Za-z0-9_]{0,20})$/);
   const drop = document.getElementById('cpMentions');
   if (!drop) return;
-  if (!m) { drop.style.display = 'none'; return; }
+  if (!m) { drop.style.display = 'none'; drop.innerHTML = ''; return; }
   const q = m[1];
+
+  if (q.length === 0) {
+    drop.innerHTML = '<div class="cp-mention-hint">Keep typing to find friends…</div>';
+    drop.style.display = 'block';
+    return;
+  }
+
   // Debounce search to keep things snappy
   clearTimeout(_composerMentionTimer);
+  drop.style.display = 'block';
   _composerMentionTimer = setTimeout(async () => {
-    if (q.length === 0) {
-      // Show top following or empty
-      drop.innerHTML = '<div class="cp-mention-hint">Keep typing to find friends…</div>';
-      drop.style.display = 'block';
-      return;
-    }
     try {
       const results = await searchProfiles(q);
       if (!results.length) {
-        drop.innerHTML = '<div class="cp-mention-hint">No matches</div>';
-      } else {
-        drop.innerHTML = results.slice(0, 6).map(p => `
-          <button class="cp-mention-row" onclick="_composerInsertMention(${JSON.stringify(p.display_name || p.username || '').replace(/"/g,'&quot;')})">
-            <span class="cp-mention-avatar">${initialsAvatar(p.display_name || 'U', '', p.avatar_emoji, p.avatar_url)}</span>
-            <span class="cp-mention-name">${esc(p.display_name || 'User')}</span>
-          </button>`).join('');
+        drop.innerHTML = '<div class="cp-mention-hint">No matches for @' + esc(q) + '</div>';
+        return;
       }
-      drop.style.display = 'block';
-    } catch (e) { drop.style.display = 'none'; }
+      // Use data-name with esc() so quotes/special chars are safe.
+      // mousedown (not click) fires BEFORE the textarea blurs, so the click
+      // doesn't get cancelled when iOS re-focuses on insert.
+      drop.innerHTML = results.slice(0, 6).map(p => {
+        const name = (p.display_name || p.username || 'User').toString();
+        return `<button class="cp-mention-row" type="button" data-name="${esc(name)}"
+                  onmousedown="event.preventDefault();_composerInsertMention(this.dataset.name)"
+                  ontouchend="event.preventDefault();_composerInsertMention(this.dataset.name)">
+                  <span class="cp-mention-avatar">${initialsAvatar(name, '', p.avatar_emoji, p.avatar_url)}</span>
+                  <span class="cp-mention-name">${esc(name)}${officialBadge(p)}</span>
+                </button>`;
+      }).join('');
+    } catch (e) {
+      drop.innerHTML = '<div class="cp-mention-hint">Search unavailable</div>';
+    }
   }, 120);
 }
 function _composerInsertMention(name) {
@@ -3780,13 +3805,16 @@ function _composerInsertMention(name) {
   const caret = ta.selectionStart || 0;
   const head = ta.value.slice(0, caret);
   const tail = ta.value.slice(caret);
-  // Replace the active "@partial" with "@name "
-  const newHead = head.replace(/@([A-Za-z0-9_]{0,20})$/, `@${name.replace(/\s+/g,'')} `);
+  // Strip whitespace from the inserted handle so @Display Name → @DisplayName
+  const handle = String(name || '').trim().replace(/\s+/g, '');
+  // Replace the active "@partial" with "@handle "
+  const newHead = head.replace(/@([A-Za-z0-9_]{0,20})$/, `@${handle} `);
   ta.value = newHead + tail;
   const newPos = newHead.length;
   ta.setSelectionRange(newPos, newPos);
   ta.focus();
-  document.getElementById('cpMentions').style.display = 'none';
+  const drop = document.getElementById('cpMentions');
+  if (drop) { drop.style.display = 'none'; drop.innerHTML = ''; }
 }
 
 // ── Bake an edited photo (rotation + filter + brightness) into a new JPEG ──
@@ -5674,6 +5702,48 @@ async function tagFriend(toUserId, toName, venueId, venueName, chip) {
 // ══════════════════════════════════════════════
 
 // Render the UGC photos strip inside the venue modal
+// Posts (text + editorial + photo) tagged at this venue. Renders a
+// feed-style list using the existing renderSocialItem variants. The photo
+// strip above already covers the visual gallery, so this list focuses on
+// adding voice to the venue (status updates, op-eds about the place).
+function renderVenuePosts(posts, venueId) {
+  if (!posts || !posts.length) return '';
+  const items = posts.map(p => {
+    const type = p.post_type === 'editorial' ? 'editorial'
+              : p.post_type === 'text'      ? 'text'
+              :                               'photo';
+    return {
+      id:           `photo-${p.id}`,
+      post_id_raw:  p.id,
+      type,
+      user_id:      p.user_id,
+      venue_id:     p.venue_id,
+      photo_url:    p.photo_url,
+      media_urls:   Array.isArray(p.media_urls) ? p.media_urls : (p.photo_url ? [p.photo_url] : []),
+      caption:      p.caption || '',
+      title:        p.title || null,
+      body:         p.body || null,
+      created_at:   p.created_at,
+      profile:      p.profile || null,
+      _likeCount:   0,
+      _liked:       false,
+      _commentCount:0,
+      _saved:       false,
+    };
+  });
+  const editorial = items.filter(i => i.type === 'editorial');
+  const textOnly  = items.filter(i => i.type === 'text');
+  // Skip if there are no text/editorial posts — the photo strip already covers visuals.
+  if (!editorial.length && !textOnly.length) return '';
+  let html = `<div class="s-div"></div>
+    <div class="modal-section-label">Posts about this spot</div>
+    <div class="venue-posts-list">`;
+  editorial.forEach(i => { html += renderSocialItem(i, 'editorial'); });
+  textOnly.forEach(i => { html += renderSocialItem(i, 'wide'); });
+  html += '</div>';
+  return html;
+}
+
 function renderCheckinPhotos(photos, venueId) {
   if (!photos.length) return '';
   const isOwn = id => currentUser && id === currentUser.id;
