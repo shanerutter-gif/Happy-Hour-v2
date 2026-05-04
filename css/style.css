@@ -4819,6 +4819,57 @@ button:not([disabled]),
   transition: transform .1s ease;
 }
 .giveaway-tile__cta:active { transform: scale(0.98); }
+
+/* ── In-card check-in buttons (std + compact variants) ── */
+.card-std-checkin {
+  margin-top: 8px;
+  align-self: flex-start;
+  padding: 7px 14px;
+  border: none;
+  border-radius: 999px;
+  background: #FF6B4A;
+  color: #FFFFFF;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.2px;
+  cursor: pointer;
+  transition: background-color .15s, transform .1s, box-shadow .15s;
+  box-shadow: 0 1px 3px rgba(255, 107, 74, 0.25);
+  -webkit-tap-highlight-color: transparent;
+}
+.card-std-checkin:hover  { background: #E5543A; }
+.card-std-checkin:active { transform: scale(0.96); }
+.card-std-checkin.joined {
+  background: #2A1F14;
+  color: #F5EFE6;
+  box-shadow: none;
+}
+.card-compact-checkin {
+  margin-top: 8px;
+  align-self: flex-start;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 107, 74, 0.92);
+  color: #FFFFFF;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.2px;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  transition: background-color .15s, transform .1s;
+  -webkit-tap-highlight-color: transparent;
+}
+.card-compact-checkin:hover  { background: #E5543A; }
+.card-compact-checkin:active { transform: scale(0.96); }
+.card-compact-checkin.joined {
+  background: rgba(42, 31, 20, 0.9);
+  color: #F5EFE6;
+}
+
 .giveaway-tile__addcode {
   display: block;
   margin: 10px auto 0;

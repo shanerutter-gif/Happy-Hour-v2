@@ -2055,7 +2055,7 @@ function heroCardHTML(v, delay) {
         ${count} ${count === 1 ? 'person' : 'people'} going tonight
       </div>
       <button class="card-hero-going-btn${isMeIn ? ' joined' : ''}"
-        onclick="event.stopPropagation();doGoingTonight('${v.id}',this)">${isMeIn ? '✓ Going!' : '+ Join'}</button>
+        onclick="event.stopPropagation();doGoingTonight('${v.id}',this)">${isMeIn ? '✓ Checked In' : '+ Check In'}</button>
     </div>` : `
     <div class="card-hero-going">
       <div class="card-hero-going-left">Be the first one here tonight</div>
@@ -2106,6 +2106,8 @@ function compactCardHTML(v, delay) {
 
   const dealsHtml = deals.length ? deals.map(d => `<div class="card-compact-deal">${esc(d)}</div>`).join('') : '';
 
+  const isMeIn = state.goingByMe.has(v.id);
+
   return `<div class="card-compact" data-id="${v.id}"
     onclick="openModal('${v.id}','venue')" style="animation-delay:${delay}ms">
     <img class="card-compact-img" src="${photoUrl}" alt="${esc(v.name)}" loading="lazy"
@@ -2119,6 +2121,8 @@ function compactCardHTML(v, delay) {
       <div class="card-compact-sub">${esc(v.cuisine || '')}${v.yelp_rating ? ` · ★ ${v.yelp_rating}` : avg > 0 ? ` · ★ ${avg.toFixed(1)}` : ''}${count > 0 ? ` · 🔥 ${count}` : ''}</div>
       ${dealsHtml}
       ${localsSayInline(v.id)}
+      <button class="card-compact-checkin${isMeIn ? ' joined' : ''}" data-vid="${v.id}"
+        onclick="event.stopPropagation();doGoingTonight('${v.id}',this)">${isMeIn ? '✓ Checked In' : '+ Check In'}</button>
     </div>
   </div>`;
 }
@@ -2148,6 +2152,8 @@ function standardCardHTML(v, delay) {
       `<span class="${i < Math.round(avg) ? 's-lit' : 's-unlit'}">★</span>`
     ).join('')}<span class="s-count">(${cached.length || '—'})</span></div>`;
 
+  const isMeIn = state.goingByMe.has(v.id);
+
   return `<div class="card-std" data-id="${v.id}"
     onclick="openModal('${v.id}','venue')" style="animation-delay:${delay}ms">
     ${photoEl}
@@ -2157,6 +2163,8 @@ function standardCardHTML(v, delay) {
       ${deals.length ? deals.map(d => `<div class="card-std-deal">${esc(d)}</div>`).join('') : ''}
       ${localsSayInline(v.id)}
       ${count > 0 ? `<div class="card-std-going">🔥 ${count} going tonight</div>` : starsEl}
+      <button class="card-std-checkin${isMeIn ? ' joined' : ''}" data-vid="${v.id}"
+        onclick="event.stopPropagation();doGoingTonight('${v.id}',this)">${isMeIn ? '✓ Checked In' : '+ Check In'}</button>
     </div>
     <button class="card-std-fav${faved ? ' faved' : ''}"
       onclick="event.stopPropagation();doFavorite('${v.id}','venue',this);this.classList.toggle('faved');this.textContent=this.classList.contains('faved')?'★':'☆'">${faved ? '★' : '☆'}</button>
@@ -2351,6 +2359,12 @@ function renderModal(v, type, reviews) {
 
     ${isAdmin() && isVenue ? `<button class="admin-edit-btn" onclick="adminEditVenue('${v.id}')">✏️ Edit Venue</button>` : ''}
 
+    ${isVenue ? `
+    <div style="padding:0 16px 4px">
+      <button class="modal-checkin-cta" onclick="doGoingTonight('${v.id}', this)">${checkInBtnLabel(checkInCount, isMeIn)}</button>
+      ${checkInCount >= 2 ? `<div class="s-going-count" style="margin-top:6px">${ICN.fire} ${checkInCount} people checked in tonight</div>` : ''}
+    </div>` : ''}
+
     <div class="modal-body-inner">
       <div class="modal-loc-row">
         <span class="modal-hood">${esc(v.neighborhood || '')}</span>
@@ -2397,9 +2411,6 @@ function renderModal(v, type, reviews) {
             </div>`;
           }).join('')}</div>`;
         })()}
-        <div class="s-div"></div>
-        <button class="modal-checkin-cta" onclick="doGoingTonight('${v.id}', this)">${checkInBtnLabel(checkInCount, isMeIn)}</button>
-        ${checkInCount >= 2 ? `<div class="s-going-count">${ICN.fire} ${checkInCount} people checked in tonight</div>` : ''}
       ` : `
         <div class="s-div"></div>
         <div class="modal-section-label">About</div>
@@ -4291,6 +4302,7 @@ function checkInBtnLabel(count, isIn) {
 }
 
 function refreshCheckInCounters() {
+  // Verbose label buttons (modal hero CTA + legacy ones)
   document.querySelectorAll('.going-btn, .vcard-checkin-btn, .modal-checkin-cta').forEach(btn => {
     const card = btn.closest('[data-id]');
     const vid = card?.dataset.id || btn.dataset.vid;
@@ -4301,6 +4313,15 @@ function refreshCheckInCounters() {
     btn.classList.toggle('hot', isIn || count >= 1);
     if (!isIn && count < 1) btn.classList.remove('hot');
     btn.innerHTML = checkInBtnLabel(count, isIn);
+  });
+  // Simple label buttons (in-card buttons): hero/compact/std
+  document.querySelectorAll('.card-hero-going-btn, .card-std-checkin, .card-compact-checkin').forEach(btn => {
+    const card = btn.closest('[data-id]');
+    const vid = card?.dataset.id || btn.dataset.vid;
+    if (!vid) return;
+    const isIn = state.goingByMe.has(vid);
+    btn.classList.toggle('joined', isIn);
+    btn.textContent = isIn ? '✓ Checked In' : '+ Check In';
   });
 }
 
