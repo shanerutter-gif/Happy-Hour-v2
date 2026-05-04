@@ -4205,6 +4205,56 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 .admin-save-btn:hover { opacity: .9; }
 .admin-save-btn:disabled { opacity: .5; cursor: not-allowed; }
 
+/* Status pill above the form when a venue is deactivated */
+.admin-status-pill {
+  display: block;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  margin: 0 0 14px;
+  text-align: center;
+}
+.admin-status-pill--inactive {
+  background: rgba(192, 57, 43, 0.08);
+  color: #C0392B;
+  border: 1px solid rgba(192, 57, 43, 0.2);
+}
+
+/* Deactivate / Reactivate button — secondary destructive variant */
+.admin-deactivate-btn {
+  display: block; width: 100%; margin-top: 10px;
+  padding: 12px; border-radius: 12px;
+  background: transparent;
+  color: #C0392B;
+  border: 1.5px solid rgba(192, 57, 43, 0.3);
+  font-family: 'DM Sans', sans-serif; font-size: 14px;
+  font-weight: 700; cursor: pointer;
+  transition: background-color .15s, border-color .15s;
+}
+.admin-deactivate-btn:hover {
+  background: rgba(192, 57, 43, 0.06);
+  border-color: rgba(192, 57, 43, 0.5);
+}
+.admin-deactivate-btn:disabled { opacity: .5; cursor: not-allowed; }
+.admin-deactivate-btn--reactivate {
+  color: #1F6B3A;
+  border-color: rgba(31, 107, 58, 0.3);
+}
+.admin-deactivate-btn--reactivate:hover {
+  background: rgba(31, 107, 58, 0.06);
+  border-color: rgba(31, 107, 58, 0.5);
+}
+.admin-deactivate-hint {
+  margin-top: 8px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  color: rgba(42, 31, 20, 0.55);
+  line-height: 1.45;
+  text-align: center;
+}
+
 [data-theme="dark"] .admin-edit-btn { border-color: var(--coral); color: var(--coral); }
 [data-theme="dark"] .admin-edit-btn:hover { background: var(--coral); color: #fff; }
 [data-theme="dark"] .admin-field input,

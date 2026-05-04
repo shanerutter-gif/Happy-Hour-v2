@@ -6477,6 +6477,7 @@ function adminEditVenue(id) {
         <span class="admin-edit-title">Edit Venue</span>
         <button class="admin-edit-cancel" onclick="openModal('${id}','venue')">Cancel</button>
       </div>
+      ${v.active === false ? `<div class="admin-status-pill admin-status-pill--inactive">⚠ Currently hidden from users</div>` : ''}
       <div class="admin-field"><label>Name</label><input id="ae-name" value="${esc(v.name || '')}"></div>
       <div class="admin-field"><label>Neighborhood</label><input id="ae-neighborhood" value="${esc(v.neighborhood || '')}"></div>
       <div class="admin-field"><label>Address</label><input id="ae-address" value="${esc(v.address || '')}"></div>
@@ -6508,7 +6509,73 @@ function adminEditVenue(id) {
         <div class="admin-amenities">${amenityKeys.map(k => `<label class="admin-amenity-check"><input type="checkbox" data-key="${k}" ${v[k] ? 'checked' : ''}><span>${amenityLabels[k]}</span></label>`).join('')}</div>
       </div>
       <button class="admin-save-btn" onclick="adminSaveVenue('${id}')">Save Changes</button>
+      <button class="admin-deactivate-btn${v.active === false ? ' admin-deactivate-btn--reactivate' : ''}"
+              onclick="adminToggleVenueActive('${id}')">
+        ${v.active === false ? '↩ Reactivate venue' : '🚫 Deactivate venue'}
+      </button>
+      <div class="admin-deactivate-hint">
+        ${v.active === false
+          ? 'Reactivating will make this venue visible to users again.'
+          : "Deactivating hides the venue from the app immediately. It stays in the database — you can reactivate any time."}
+      </div>
     </div>`;
+}
+
+async function adminToggleVenueActive(id) {
+  if (!isAdmin() || !_accessToken) return;
+  const v = state.venues.find(x => x.id === id);
+  if (!v) return;
+  const turningOff = v.active !== false;
+  const verb = turningOff ? 'Deactivate' : 'Reactivate';
+  if (!confirm(`${verb} "${v.name}"?\n\n${turningOff
+    ? 'It will be hidden from users immediately. You can turn it back on from this same screen.'
+    : 'It will be visible to users again immediately.'}`)) return;
+
+  const btn = document.querySelector('.admin-deactivate-btn');
+  if (btn) { btn.disabled = true; btn.textContent = `${verb}…`; }
+
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/venues?id=eq.${id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${_accessToken}`,
+        'Prefer': 'return=minimal',
+      },
+      body: JSON.stringify({ active: !turningOff }),
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+
+    // Update local cache so the form reflects the new state without a re-fetch.
+    v.active = !turningOff;
+    // Drop deactivated venues from the in-memory list so cards/maps refresh.
+    if (turningOff) {
+      state.venues = state.venues.filter(x => x.id !== id);
+    }
+
+    if (typeof showToast === 'function') {
+      showToast(turningOff ? 'Venue deactivated' : 'Venue reactivated');
+    }
+    if (typeof haptic === 'function') haptic('success');
+
+    // Re-render the cards grid so the deactivated venue disappears.
+    if (typeof renderCards === 'function') renderCards();
+
+    if (turningOff) {
+      // Close the modal — the venue is no longer in state.
+      if (typeof closeOverlay === 'function') closeOverlay('modalOverlay');
+    } else {
+      // Re-render the edit form with updated active state.
+      adminEditVenue(id);
+    }
+  } catch (e) {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = turningOff ? '🚫 Deactivate venue' : '↩ Reactivate venue';
+    }
+    alert(`${verb} failed: ` + e.message);
+  }
 }
 
 async function adminSaveVenue(id) {
