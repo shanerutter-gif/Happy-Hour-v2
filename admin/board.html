@@ -3,7 +3,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Spotd · Project Board</title>
 <link href="https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@400;500;700;800;900&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -417,13 +417,24 @@ function openModal(id,defCol){
     document.getElementById('btnDelete').style.display='none';
   }
   renderSubtasks();document.getElementById('modalBg').classList.add('open');
-  // Size the description textarea to its current content.
-  _autogrow(document.getElementById('fDesc'));
+  // Defer autogrow until the modal is actually visible — scrollHeight is 0
+  // while the modal is still display:none/transitioning.
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    _autogrow(document.getElementById('fDesc'));
+    document.querySelectorAll('#subtaskList textarea.subtask-text').forEach(_autogrow);
+  }));
   setTimeout(()=>document.getElementById('fTitle').focus(),100);
 }
 function closeModal(){document.getElementById('modalBg').classList.remove('open');editingId=null}
 // Make a textarea grow to fit its content (capped by its CSS max-height).
-function _autogrow(el){if(!el||el.tagName!=='TEXTAREA')return;el.style.height='auto';el.style.height=Math.min(el.scrollHeight+2,window.innerHeight*0.6)+'px'}
+function _autogrow(el){
+  if(!el||el.tagName!=='TEXTAREA')return;
+  // When the modal is hidden, scrollHeight is 0 — leave a sane fallback.
+  el.style.height='auto';
+  const sh=el.scrollHeight;
+  if(sh<=0)return;
+  el.style.height=Math.min(sh+2,window.innerHeight*0.6)+'px';
+}
 
 function renderSubtasks(){
   document.getElementById('subtaskList').innerHTML=editSubtasks.map((s,i)=>`<div class="subtask-edit-row"><input type="checkbox" ${s.done?'checked':''} onchange="editSubtasks[${i}].done=this.checked"><textarea class="subtask-text" rows="1" placeholder="Subtask…" oninput="editSubtasks[${i}].text=this.value;_autogrow(this)">${esc(s.text)}</textarea><button class="subtask-remove" onclick="editSubtasks.splice(${i},1);renderSubtasks()">✕</button></div>`).join('');
