@@ -637,6 +637,14 @@
   </div>
 </div>
 
+<!-- Global post composer (text / photo / editorial). Built dynamically by openComposer(). -->
+<div class="overlay" id="composerOverlay" onclick="if(event.target===this)closeComposer()">
+  <div class="sheet sheet--tall">
+    <div class="sheet-handle"></div>
+    <div id="composerContent"></div>
+  </div>
+</div>
+
 <!-- APP DOWNLOAD BANNER (shown every visit, session-dismiss only) -->
 
 <div id="appDownloadBanner" style="display:none">
@@ -788,6 +796,9 @@ if (window.spotdNative) {
       </div>
     </div>
     <div id="socialFeedContent" class="social-feed-content"></div>
+
+    <!-- New post FAB — only when on the spotrs/feed tab -->
+    <button class="social-fab" id="socialFab" onclick="openComposer()" aria-label="New post" title="New post">＋</button>
   </div>
 
   <!-- ── YOUR NEWS TAB ────────────────────────────────── -->

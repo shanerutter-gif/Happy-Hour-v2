@@ -871,6 +871,7 @@ function showFeedTooltip() {
 let _socialLoading = false;
 let _socialItems = [];
 let _socialActiveTab = 'following';
+let _socialPinnedIds = new Set();
 
 async function loadSocialFeed() {
   if (_socialLoading) return;
@@ -882,7 +883,10 @@ async function loadSocialFeed() {
   try {
     const followingIds = currentUser ? await getFollowing(currentUser.id) : [];
     const citySlug = state.city?.slug || 'san-diego';
-    const items = await fetchSocialFeed(citySlug, followingIds, 60);
+    const [items, pinned] = await Promise.all([
+      fetchSocialFeed(citySlug, followingIds, 60),
+      fetchPinnedEditorialPosts(citySlug, 3),
+    ]);
 
     // Hydrate like + comment counts for each feed item
     if (items.length) {
@@ -900,6 +904,7 @@ async function loadSocialFeed() {
     }
 
     _socialItems = items;
+    _socialPinnedIds = new Set(pinned.map(p => `photo-${p.id}`));
     renderSocialTab(_socialActiveTab);
   } catch(e) {
     console.error('loadSocialFeed:', e);
@@ -918,11 +923,18 @@ function switchSocialTab(tab) {
 
 function renderSocialTab(tab) {
   const container = document.getElementById('socialFeedContent');
-  const filtered = tab === 'following'
+
+  // Pinned editorial posts always sit on top, in both Following and Public.
+  const pinned = _socialItems.filter(i => i.type === 'editorial' && _socialPinnedIds.has(i.id));
+
+  const tabFiltered = tab === 'following'
     ? _socialItems.filter(i => i.isFollowing)
     : _socialItems.filter(i => !i.isFollowing);
 
-  if (tab === 'following' && !filtered.length) {
+  // Don't show the pinned post twice if it would also appear in the tab.
+  const filtered = tabFiltered.filter(i => !pinned.some(p => p.id === i.id));
+
+  if (tab === 'following' && !filtered.length && !pinned.length) {
     const hasAnyFollowing = _socialItems.some(i => i.isFollowing);
     container.innerHTML = `
       <div class="social-empty">
@@ -936,7 +948,7 @@ function renderSocialTab(tab) {
     return;
   }
 
-  if (!filtered.length) {
+  if (!filtered.length && !pinned.length) {
     container.innerHTML = `
       <div class="social-empty">
         <div class="social-empty-icon">${icn('camera',32)}</div>
@@ -947,9 +959,13 @@ function renderSocialTab(tab) {
   }
 
   // ── Modular masonry layout ──
+  // Pinned editorials → top, distinct card style
   // Photo/video posts → full-width hero cards
   // Text-only posts → batched into 2-up compact rows with occasional full-width singles
   let html = '';
+  // Pinned editorial(s) at the top
+  pinned.forEach(item => { html += renderSocialItem(item, 'editorial'); });
+
   let textBatch = [];
   let batchIdx = 0;
 
@@ -967,7 +983,12 @@ function renderSocialTab(tab) {
   };
 
   filtered.forEach(item => {
-    const hasMedia = item.type === 'photo' || (item.type === 'check_in' && (item.meta?.photo_url || item.meta?.video_url));
+    if (item.type === 'editorial') {
+      flushTextBatch();
+      html += renderSocialItem(item, 'editorial');
+      return;
+    }
+    const hasMedia = item.type === 'photo' || (item.type === 'check_in' && (item.meta?.photo_url || item.meta?.video_url)) || (item.media_urls && item.media_urls.length);
     if (hasMedia) {
       flushTextBatch();
       html += renderSocialItem(item, 'hero');
@@ -1042,6 +1063,36 @@ function renderSocialItem(item, variant) {
     </div>`;
 
   // ═══════════════════════════════════════════
+  // EDITORIAL VARIANT — branded long-form post by an official account
+  // ═══════════════════════════════════════════
+  if (variant === 'editorial') {
+    const heroImg = (item.media_urls && item.media_urls[0]) || item.photo_url || '';
+    const titleHtml = item.title ? `<h2 class="sf-ed-title">${esc(item.title)}</h2>` : '';
+    const bodyHtml  = item.body
+      ? `<div class="sf-ed-body">${esc(item.body).split(/\n{2,}/).map(p => `<p>${p.replace(/\n/g,'<br>')}</p>`).join('')}</div>`
+      : (caption ? `<div class="sf-ed-body"><p>${esc(caption).replace(/\n/g,'<br>')}</p></div>` : '');
+    return `<article class="sf-editorial" data-post-id="${postId}">
+      <div class="sf-ed-pin">📌 Pinned by Spotd</div>
+      <header class="sf-ed-header">
+        <div class="sf-ed-author" ${profileClick}>
+          <div class="sf-ed-avatar">${avatarHtml}</div>
+          <div>
+            <div class="sf-ed-author-name">${esc(displayName)}${officialBadge(item.profile)}</div>
+            <div class="sf-ed-meta">${timeAgo}${item.edited ? ' · edited' : ''}</div>
+          </div>
+        </div>
+      </header>
+      ${heroImg ? `<div class="sf-ed-hero" ${venueClick}>
+        <img src="${esc(heroImg)}" alt="" loading="lazy" onerror="this.closest('.sf-ed-hero').remove()">
+      </div>` : ''}
+      ${titleHtml}
+      ${bodyHtml}
+      ${venue ? `<button class="sf-ed-venue-chip" ${venueClick}>${ICN.pin || '📍'} ${esc(venueName)}${neighborhood ? ' · ' + esc(neighborhood) : ''}</button>` : ''}
+      ${actionBtns}
+    </article>`;
+  }
+
+  // ═══════════════════════════════════════════
   // HERO VARIANT — full-bleed photo/video card
   // ═══════════════════════════════════════════
   if (variant === 'hero') {
@@ -1059,6 +1110,10 @@ function renderSocialItem(item, variant) {
       ${ratingHtml ? `<div class="sf-hero-rating">${ratingHtml}</div>` : ''}
     </div>`;
 
+    // Multi-photo carousel? When the post has 2+ images, render a swipeable strip.
+    const mediaList = Array.isArray(item.media_urls) ? item.media_urls.filter(Boolean) : [];
+    const isCarousel = !videoUrl && mediaList.length > 1;
+
     const mediaInner = videoUrl
       ? `<div class="sf-hero-media" onclick="toggleFeedVideo(this)">
           <video class="social-video" data-src="${esc(videoUrl)}" playsinline muted loop preload="none"
@@ -1066,6 +1121,20 @@ function renderSocialItem(item, variant) {
             onerror="this.closest('.sf-hero-media').remove()"></video>
           <div class="social-video-play-overlay">${ICN.play || '▶'}</div>
           <div class="social-video-mute-btn" onclick="event.stopPropagation();toggleFeedVideoMute(this)">${ICN.volumeOff || '🔇'}</div>
+          <div class="sf-hero-grad"></div>
+          ${infoOverlay}
+        </div>`
+      : isCarousel
+      ? `<div class="sf-hero-media sf-carousel">
+          <div class="sf-carousel-track">
+            ${mediaList.map((url, idx) => `
+              <div class="sf-carousel-slide" ${idx === 0 ? venueClick : ''}>
+                <img src="${esc(url)}" alt="${esc(venueName)} ${idx+1}/${mediaList.length}" loading="lazy">
+              </div>`).join('')}
+          </div>
+          <div class="sf-carousel-dots">
+            ${mediaList.map((_,i) => `<span class="sf-carousel-dot${i===0?' on':''}" data-i="${i}"></span>`).join('')}
+          </div>
           <div class="sf-hero-grad"></div>
           ${infoOverlay}
         </div>`
@@ -1249,6 +1318,20 @@ function observeFeedVideos() {
   document.querySelectorAll('.social-video-wrap').forEach(wrap => {
     _feedVideoPreloader.observe(wrap);
     _feedVideoObserver.observe(wrap);
+  });
+  // Multi-photo carousel: light up the active dot on scroll. CSS scroll-snap
+  // does the actual paging; this just keeps the indicator in sync.
+  document.querySelectorAll('.sf-carousel').forEach(carousel => {
+    if (carousel.dataset.wired) return;
+    carousel.dataset.wired = '1';
+    const track = carousel.querySelector('.sf-carousel-track');
+    const dots  = carousel.querySelectorAll('.sf-carousel-dot');
+    if (!track || !dots.length) return;
+    const onScroll = () => {
+      const i = Math.round(track.scrollLeft / track.clientWidth);
+      dots.forEach((d, j) => d.classList.toggle('on', j === i));
+    };
+    track.addEventListener('scroll', onScroll, { passive: true });
   });
 }
 
@@ -3148,6 +3231,225 @@ async function submitReferralCodeEntry() {
   // Re-render the tile so the fallback link disappears
   if (typeof renderGiveawayTile === 'function') setTimeout(renderGiveawayTile, 200);
   setTimeout(closeReferralCodeEntry, 1100);
+}
+
+// ════════════════════════════════════════════════════════
+// POST COMPOSER — text / photo (single + multi) / editorial
+// ════════════════════════════════════════════════════════
+
+let _composerType = 'text';      // 'text' | 'photo' | 'editorial'
+let _composerFiles = [];          // File[] for photo type
+let _composerVenue = null;        // {id, name, neighborhood} optional tag
+let _composerProfile = null;      // current user's profile (for is_official check)
+
+async function openComposer(opts = {}) {
+  if (!currentUser) { openAuth('signin'); return; }
+  if (typeof haptic === 'function') haptic('light');
+  // Fetch the profile so we know if this user can do editorial posts.
+  try {
+    if (!_composerProfile || _composerProfile.id !== currentUser.id) {
+      _composerProfile = await getProfile(currentUser.id);
+    }
+  } catch (e) { _composerProfile = null; }
+
+  _composerType  = opts.type || 'text';
+  _composerFiles = [];
+  _composerVenue = opts.venue || null;
+  renderComposer();
+  openOverlay('composerOverlay');
+  setTimeout(() => document.getElementById('cpBody')?.focus(), 150);
+}
+
+function closeComposer() {
+  closeOverlay('composerOverlay');
+  _composerFiles = [];
+}
+
+function _composerSwitchType(t) {
+  _composerType = t;
+  renderComposer();
+  setTimeout(() => document.getElementById('cpBody')?.focus(), 50);
+}
+
+function renderComposer() {
+  const isOfficial = !!(_composerProfile && _composerProfile.is_official);
+  const tabs = [
+    { id: 'text',     label: '💬 Status' },
+    { id: 'photo',    label: '📷 Photo' },
+  ];
+  if (isOfficial) tabs.push({ id: 'editorial', label: '✨ Editorial' });
+
+  const tabsHtml = tabs.map(t =>
+    `<button class="cp-type-tab${_composerType === t.id ? ' on' : ''}" onclick="_composerSwitchType('${t.id}')">${t.label}</button>`
+  ).join('');
+
+  const venueChip = _composerVenue
+    ? `<button class="cp-venue-chip cp-venue-chip--set" onclick="_composerClearVenue()">📍 ${esc(_composerVenue.name)} · tap to clear</button>`
+    : `<button class="cp-venue-chip" onclick="_composerPickVenue()">📍 Tag a venue (optional)</button>`;
+
+  const filesHtml = _composerFiles.length
+    ? `<div class="cp-thumbs">
+        ${_composerFiles.map((f, i) => `
+          <div class="cp-thumb">
+            <img src="${URL.createObjectURL(f)}" alt="">
+            <button class="cp-thumb-x" onclick="_composerRemoveFile(${i})">✕</button>
+          </div>`).join('')}
+      </div>`
+    : '';
+
+  const photoSection = _composerType === 'photo' ? `
+    <div class="cp-photo-block">
+      <label class="cp-photo-pick">
+        <input type="file" accept="image/*" multiple onchange="_composerAddFiles(this.files)" style="display:none">
+        <span class="cp-photo-pick-icon">📷</span>
+        <span>${_composerFiles.length ? 'Add more photos' : 'Pick up to 5 photos'}</span>
+      </label>
+      ${filesHtml}
+    </div>` : '';
+
+  const titleField = _composerType === 'editorial' ? `
+    <input class="cp-title-input" id="cpTitle" placeholder="Headline" maxlength="120" />
+    <div class="cp-pin-row">
+      <label><input type="checkbox" id="cpPin" checked> 📌 Pin to top of feed for 7 days</label>
+    </div>` : '';
+
+  const bodyPlaceholder = _composerType === 'text'      ? "What's the move tonight?"
+                       : _composerType === 'photo'      ? 'Add a caption (optional)…'
+                       :                                  'Write your editorial. Two newlines = paragraph break.';
+
+  const bodyMin = _composerType === 'editorial' ? 'min-height:180px' : 'min-height:90px';
+  const bodyMax = _composerType === 'text'      ? 280  : (_composerType === 'photo' ? 500 : 4000);
+
+  document.getElementById('composerContent').innerHTML = `
+    <div class="cp">
+      <div class="cp-header">
+        <button class="cp-cancel" onclick="closeComposer()">Cancel</button>
+        <div class="cp-tabs">${tabsHtml}</div>
+        <button class="cp-submit" id="cpSubmit" onclick="submitComposer()">Post</button>
+      </div>
+      ${titleField}
+      <textarea class="cp-body" id="cpBody" placeholder="${esc(bodyPlaceholder)}" maxlength="${bodyMax}" style="${bodyMin}"></textarea>
+      ${photoSection}
+      ${venueChip}
+      <p class="cp-hint">${
+        _composerType === 'editorial'
+          ? 'Editorial posts get a distinct card style and can be pinned to the top of the feed.'
+          : _composerType === 'photo'
+          ? 'Up to 5 photos. They render as a swipeable carousel.'
+          : 'Quick status. Add a venue tag if you want it linked to a spot.'
+      }</p>
+    </div>`;
+}
+
+function _composerAddFiles(fileList) {
+  const arr = Array.from(fileList || []);
+  for (const f of arr) {
+    if (_composerFiles.length >= 5) break;
+    if (!f.type.startsWith('image/')) continue;
+    if (f.size > 10 * 1024 * 1024) { showToast('Each photo must be under 10 MB'); continue; }
+    _composerFiles.push(f);
+  }
+  renderComposer();
+}
+function _composerRemoveFile(i) {
+  _composerFiles.splice(i, 1);
+  renderComposer();
+}
+function _composerClearVenue() {
+  _composerVenue = null;
+  renderComposer();
+}
+function _composerPickVenue() {
+  // Lightweight venue picker — uses the existing in-memory venues list.
+  const list = (state.venues || []).slice(0, 200);
+  if (!list.length) { showToast('Venues still loading — try again in a sec'); return; }
+  const overlay = document.createElement('div');
+  overlay.className = 'overlay';
+  overlay.style.zIndex = 10000;
+  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+  overlay.innerHTML = `
+    <div class="sheet sheet--tall" style="max-height:80vh;display:flex;flex-direction:column">
+      <div class="sheet-handle"></div>
+      <div style="padding:0 16px 8px"><input class="cp-venue-search" id="cpVenueSearch" placeholder="Search venues…"></div>
+      <div id="cpVenueList" style="overflow-y:auto;padding:0 16px 16px"></div>
+    </div>`;
+  document.body.appendChild(overlay);
+  const renderList = (q) => {
+    const ql = (q || '').toLowerCase().trim();
+    const filtered = ql ? list.filter(v => (v.name||'').toLowerCase().includes(ql) || (v.neighborhood||'').toLowerCase().includes(ql)) : list;
+    document.getElementById('cpVenueList').innerHTML = filtered.slice(0, 80).map(v => `
+      <button class="cp-venue-row" onclick='_composerSelectVenue(${JSON.stringify(v.id)}, ${JSON.stringify(v.name)}, ${JSON.stringify(v.neighborhood || "")});this.closest(".overlay").remove();'>
+        <strong>${esc(v.name)}</strong>${v.neighborhood ? `<span class="cp-venue-row-meta"> · ${esc(v.neighborhood)}</span>` : ''}
+      </button>`).join('');
+  };
+  renderList('');
+  setTimeout(() => {
+    const inp = document.getElementById('cpVenueSearch');
+    inp?.focus();
+    inp?.addEventListener('input', () => renderList(inp.value));
+  }, 100);
+}
+function _composerSelectVenue(id, name, neighborhood) {
+  _composerVenue = { id, name, neighborhood };
+  renderComposer();
+}
+
+async function submitComposer() {
+  if (!currentUser) { openAuth('signin'); return; }
+  const btn = document.getElementById('cpSubmit');
+  btn.disabled = true; btn.textContent = 'Posting…';
+  const body = (document.getElementById('cpBody')?.value || '').trim();
+  const title = (document.getElementById('cpTitle')?.value || '').trim();
+  const pin   = !!document.getElementById('cpPin')?.checked;
+
+  try {
+    if (_composerType === 'text') {
+      if (!body) { showToast('Type something first'); btn.disabled = false; btn.textContent = 'Post'; return; }
+      const ok = await saveTextPost({ text: body, venueId: _composerVenue?.id, citySlug: state.city?.slug });
+      if (!ok) throw new Error('save failed');
+    } else if (_composerType === 'photo') {
+      if (!_composerFiles.length) { showToast('Pick at least one photo'); btn.disabled = false; btn.textContent = 'Post'; return; }
+      // Upload sequentially to keep storage path predictable
+      const uploaded = [];
+      for (const file of _composerFiles) {
+        const up = await uploadCheckinPhoto(file, currentUser.id);
+        if (up) uploaded.push(up);
+      }
+      if (!uploaded.length) throw new Error('upload failed');
+      await saveCheckinPhoto({
+        userId:       currentUser.id,
+        venueId:      _composerVenue?.id || null,
+        citySlug:     state.city?.slug || 'san-diego',
+        photoUrl:     uploaded[0].url,
+        storagePath:  uploaded[0].storagePath,
+        mediaUrls:    uploaded.map(u => u.url),
+        caption:      body || null,
+        postType:     'photo',
+      });
+    } else if (_composerType === 'editorial') {
+      if (!title && !body) { showToast('Add a headline or some body text'); btn.disabled = false; btn.textContent = 'Post'; return; }
+      const uploaded = [];
+      for (const file of _composerFiles) {
+        const up = await uploadCheckinPhoto(file, currentUser.id);
+        if (up) uploaded.push(up);
+      }
+      await saveEditorialPost({
+        title,
+        body,
+        mediaUrls:        uploaded.map(u => u.url),
+        venueId:          _composerVenue?.id || null,
+        citySlug:         state.city?.slug || 'san-diego',
+        pinnedUntilDays:  pin ? 7 : null,
+      });
+    }
+    showToast('Posted');
+    closeComposer();
+    if (typeof loadSocialFeed === 'function') loadSocialFeed();
+  } catch (e) {
+    console.error('submitComposer error', e);
+    btn.disabled = false; btn.textContent = 'Post';
+    showToast('Could not post — try again');
+  }
 }
 
 // ── GIVEAWAY BANNER + LANDING PAGE ──────────────────

@@ -958,7 +958,7 @@ async function deleteActivityPost(postId, postType, meta) {
   return true;
 }
 
-async function saveCheckinPhoto({ userId, venueId, citySlug, photoUrl, storagePath, caption }) {
+async function saveCheckinPhoto({ userId, venueId, citySlug, photoUrl, storagePath, caption, mediaUrls, postType, title, body, pinnedUntil }) {
   try {
     const session = getSession();
     const client  = session?.access_token
@@ -966,15 +966,95 @@ async function saveCheckinPhoto({ userId, venueId, citySlug, photoUrl, storagePa
           global: { headers: { Authorization: `Bearer ${session.access_token}` } }
         })
       : db;
-    const { data, error } = await client.from('checkin_photos').insert({
-      user_id: userId, venue_id: venueId, city_slug: citySlug,
-      photo_url: photoUrl, storage_path: storagePath, caption: caption || null
-    }).select().single();
+    const payload = {
+      user_id: userId,
+      venue_id: venueId || null,
+      city_slug: citySlug,
+      photo_url: photoUrl || (Array.isArray(mediaUrls) && mediaUrls[0]) || null,
+      storage_path: storagePath || null,
+      caption: caption || null,
+      media_urls: Array.isArray(mediaUrls) && mediaUrls.length ? mediaUrls : (photoUrl ? [photoUrl] : null),
+      post_type: postType || 'photo',
+      title: title || null,
+      body: body || null,
+      pinned_until: pinnedUntil || null,
+    };
+    const { data, error } = await client.from('checkin_photos').insert(payload).select().single();
     if (error) throw error;
     const isVideo = /\.(mp4|mov|webm)(\?|$)/i.test(photoUrl || '');
-    track(isVideo ? 'video_posted' : 'photo_posted', { venue_id: venueId, city_slug: citySlug, has_caption: !!caption });
+    const eventName = postType === 'editorial' ? 'editorial_posted'
+                    : postType === 'text'      ? 'status_posted'
+                    : isVideo                  ? 'video_posted'
+                                               : 'photo_posted';
+    track(eventName, { venue_id: venueId || null, city_slug: citySlug, has_caption: !!caption, media_count: payload.media_urls?.length || 0 });
     return data;
   } catch(e) { console.error('saveCheckinPhoto error', e); return null; }
+}
+
+// Quick text-only status post. Optional venue tag.
+async function saveTextPost({ text, venueId, citySlug }) {
+  if (!currentUser) return null;
+  if (!text || !text.trim()) return null;
+  return saveCheckinPhoto({
+    userId:    currentUser.id,
+    venueId:   venueId || null,
+    citySlug:  citySlug || (typeof state !== 'undefined' && state?.city?.slug) || 'san-diego',
+    caption:   text.trim(),
+    postType:  'text',
+  });
+}
+
+// Editorial post (officials only — client gates via is_official check).
+async function saveEditorialPost({ title, body, mediaUrls, venueId, citySlug, pinnedUntilDays }) {
+  if (!currentUser) return null;
+  const pinnedUntil = pinnedUntilDays
+    ? new Date(Date.now() + pinnedUntilDays * 86400000).toISOString()
+    : null;
+  return saveCheckinPhoto({
+    userId:    currentUser.id,
+    venueId:   venueId || null,
+    citySlug:  citySlug || (typeof state !== 'undefined' && state?.city?.slug) || 'san-diego',
+    title:     title || null,
+    body:      body || null,
+    mediaUrls: Array.isArray(mediaUrls) ? mediaUrls : null,
+    postType:  'editorial',
+    pinnedUntil,
+  });
+}
+
+// Edit caption / title / body of a post you own (RLS enforces ownership).
+async function updateMyPost(postId, { caption, title, body, pinnedUntilDays }) {
+  if (!currentUser) return { error: 'Not signed in' };
+  const session = getSession();
+  if (!session?.access_token) return { error: 'No auth' };
+  const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    global: { headers: { Authorization: `Bearer ${session.access_token}` } }
+  });
+  const patch = { edited: true, updated_at: new Date().toISOString() };
+  if (typeof caption !== 'undefined') patch.caption = caption || null;
+  if (typeof title   !== 'undefined') patch.title   = title   || null;
+  if (typeof body    !== 'undefined') patch.body    = body    || null;
+  if (typeof pinnedUntilDays !== 'undefined') {
+    patch.pinned_until = pinnedUntilDays ? new Date(Date.now() + pinnedUntilDays * 86400000).toISOString() : null;
+  }
+  const { error } = await client.from('checkin_photos').update(patch).eq('id', postId).eq('user_id', currentUser.id);
+  if (error) return { error: error.message };
+  track('post_edited', {});
+  return { ok: true };
+}
+
+// Currently-pinned editorial posts for a city. Used to render at top of feed.
+async function fetchPinnedEditorialPosts(citySlug, limit = 3) {
+  try {
+    const { data } = await db.from('checkin_photos')
+      .select('id, user_id, venue_id, photo_url, media_urls, caption, title, body, post_type, city_slug, pinned_until, created_at, edited')
+      .eq('city_slug', citySlug)
+      .eq('post_type', 'editorial')
+      .gt('pinned_until', new Date().toISOString())
+      .order('pinned_until', { ascending: false })
+      .limit(limit);
+    return data || [];
+  } catch(e) { return []; }
 }
 
 async function fetchCheckinPhotos(venueId, limit = 20) {
@@ -1208,9 +1288,9 @@ async function fetchSocialFeed(citySlug, followingIds = [], limit = 60) {
 
     // Parallel fetch all four sources
     const [photosRes, activityRes, goingRes] = await Promise.allSettled([
-      // 1. Photo check-ins (city-wide, last 7 days)
+      // 1. Posts (city-wide, last 30 days). post_type covers photo / text / editorial.
       db.from('checkin_photos')
-        .select('id, user_id, venue_id, photo_url, caption, city_slug, created_at')
+        .select('id, user_id, venue_id, photo_url, media_urls, caption, title, body, post_type, city_slug, pinned_until, edited, created_at')
         .eq('city_slug', citySlug)
         .gte('created_at', thirtyDaysAgo)
         .order('created_at', { ascending: false })
@@ -1267,19 +1347,27 @@ async function fetchSocialFeed(citySlug, followingIds = [], limit = 60) {
     const followSet = new Set(followingIds);
 
     const items = [
-      // Photo check-ins
+      // Posts (photo / text / editorial — all live in checkin_photos)
       ...photos.map(r => ({
-        id:          `photo-${r.id}`,
-        type:        'photo',
-        user_id:     r.user_id,
-        venue_id:    r.venue_id,
-        photo_url:   r.photo_url,
-        caption:     r.caption || '',
-        venue_name:  null, // resolved client-side via state.venues
+        id:           `photo-${r.id}`,
+        post_id_raw:  r.id,
+        type:         r.post_type === 'editorial' ? 'editorial'
+                    : r.post_type === 'text'      ? 'text'
+                    :                               'photo',
+        user_id:      r.user_id,
+        venue_id:     r.venue_id,
+        photo_url:    r.photo_url,
+        media_urls:   Array.isArray(r.media_urls) ? r.media_urls : (r.photo_url ? [r.photo_url] : []),
+        caption:      r.caption || '',
+        title:        r.title || null,
+        body:         r.body || null,
+        pinned_until: r.pinned_until || null,
+        edited:       !!r.edited,
+        venue_name:   null,
         neighborhood: null,
-        created_at:  r.created_at,
-        profile:     pMap[r.user_id] || null,
-        isFollowing: followSet.has(r.user_id),
+        created_at:   r.created_at,
+        profile:      pMap[r.user_id] || null,
+        isFollowing:  followSet.has(r.user_id),
       })),
 
       // Activity feed events (dedupe check-ins that also have a photo)
