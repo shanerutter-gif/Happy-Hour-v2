@@ -5477,15 +5477,34 @@ button:not([disabled]),
 .cp-cancel:hover { color: #2A1F14; }
 .cp-submit { color: #FF6B4A; font-weight: 700; }
 .cp-submit:disabled { opacity: .5; cursor: not-allowed; }
-.cp-tabs { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
-.cp-type-tab {
-  border: 1px solid rgba(42,31,20,.12);
-  background: #FFFFFF; color: rgba(42,31,20,.7);
-  padding: 6px 10px; border-radius: 999px;
-  font-size: 12px; font-weight: 600; cursor: pointer;
-  font-family: 'DM Sans', sans-serif;
+/* Segmented control: one rounded container with equal-width tabs */
+.cp-tabs {
+  display: inline-flex;
+  background: rgba(42,31,20,0.06);
+  border-radius: 999px;
+  padding: 3px;
+  justify-self: center;
+  max-width: 100%;
 }
-.cp-type-tab.on { background: #FF6B4A; color: #FFFFFF; border-color: #FF6B4A; }
+.cp-type-tab {
+  flex: 1 1 0;
+  min-width: 72px;
+  border: none; cursor: pointer;
+  background: transparent;
+  color: rgba(42,31,20,.65);
+  padding: 7px 14px;
+  border-radius: 999px;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 700; font-size: 13px;
+  letter-spacing: 0.1px;
+  transition: background-color .15s, color .15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.cp-type-tab.on {
+  background: #FFFFFF;
+  color: #2A1F14;
+  box-shadow: 0 1px 3px rgba(42,31,20,.10), 0 1px 0 rgba(42,31,20,.04);
+}
 .cp-title-input {
   width: 100%; padding: 12px 14px; margin-bottom: 8px;
   border: 1px solid rgba(42,31,20,.12); border-radius: 10px;
@@ -5523,11 +5542,15 @@ button:not([disabled]),
 }
 .cp-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .cp-thumb-x {
-  position: absolute; top: 4px; right: 4px;
+  position: absolute; top: 5px; right: 5px;
   width: 22px; height: 22px; border-radius: 50%;
   background: rgba(0,0,0,.6); color: #fff; border: none; cursor: pointer;
-  font-size: 12px; line-height: 1;
+  font-size: 11px; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  user-select: none;
+  z-index: 2;
 }
+.cp-thumb-x:hover { background: rgba(0,0,0,.78); }
 .cp-venue-chip {
   display: inline-flex; align-items: center; gap: 6px;
   margin-top: 10px;
@@ -5604,16 +5627,44 @@ button:not([disabled]),
 }
 .cp-hint--center { text-align: center; }
 
-/* Per-photo thumbnail edit + remove buttons */
-.cp-thumb { position: relative; transition: transform .12s; cursor: grab; }
-.cp-thumb:active { cursor: grabbing; transform: scale(.97); }
-.cp-thumb--over { box-shadow: 0 0 0 3px #FF6B4A; }
+/* Per-photo thumbnail — entire tile is tappable to open the editor */
+.cp-thumb {
+  position: relative;
+  width: 96px; height: 96px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #F5EFE6;
+  border: 2px solid rgba(42,31,20,0.08);
+  padding: 0;
+  cursor: pointer;
+  transition: transform .12s ease, border-color .15s ease, box-shadow .15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.cp-thumb:hover { border-color: rgba(255,107,74,0.6); }
+.cp-thumb:active { transform: scale(.97); }
+.cp-thumb--over { border-color: #FF6B4A; box-shadow: 0 0 0 3px rgba(255,107,74,0.25); }
 .cp-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; transition: filter .15s; }
-.cp-thumb-edit {
-  position: absolute; left: 4px; top: 4px;
-  width: 22px; height: 22px; border-radius: 50%;
-  background: rgba(0,0,0,.55); color: #fff; border: none;
-  font-size: 11px; line-height: 1; cursor: pointer;
+.cp-thumb-overlay {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  padding: 14px 6px 4px;
+  background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.65) 100%);
+  color: #FFFFFF;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 700; font-size: 11px;
+  text-align: center;
+  letter-spacing: 0.2px;
+  pointer-events: none;
+}
+.cp-thumb-edited {
+  position: absolute; left: 6px; top: 6px;
+  background: #FF6B4A; color: #FFFFFF;
+  border-radius: 999px;
+  padding: 2px 7px;
+  font-family: 'DM Mono', monospace;
+  font-size: 9px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.4px;
+  pointer-events: none;
 }
 
 /* Per-photo captions */

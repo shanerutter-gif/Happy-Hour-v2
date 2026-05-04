@@ -3475,27 +3475,34 @@ function renderComposer() {
 function _renderComposerCompose() {
   const isOfficial = !!(_composerProfile && _composerProfile.is_official);
   const tabs = [
-    { id: 'text',     label: '💬 Status' },
-    { id: 'photo',    label: '📷 Photo' },
+    { id: 'text',     label: 'Status' },
+    { id: 'photo',    label: 'Photo' },
   ];
-  if (isOfficial) tabs.push({ id: 'editorial', label: '✨ Editorial' });
+  if (isOfficial) tabs.push({ id: 'editorial', label: 'Editorial' });
   const tabsHtml = tabs.map(t =>
     `<button class="cp-type-tab${_composerType === t.id ? ' on' : ''}" onclick="_composerSwitchType('${t.id}')">${t.label}</button>`
   ).join('');
 
-  // Per-photo thumbnails (with filter previewed) + drag handles
+  // Per-photo thumbnails — the whole tile is tappable to open the editor.
+  // Drag-to-reorder still works; X removes; the edit affordance is the
+  // tile itself + a visible "Edit" caption overlay.
+  const editedBadge = (p) => (p.filter !== 'none' || p.brightness !== 1 || p.rotation)
+    ? '<span class="cp-thumb-edited">edited</span>' : '';
   const thumbsHtml = _composerPhotos.length
     ? `<div class="cp-thumbs" id="cpThumbsList">
         ${_composerPhotos.map((p, i) => `
-          <div class="cp-thumb" draggable="true" data-i="${i}"
+          <button type="button" class="cp-thumb" data-i="${i}"
+            draggable="true"
+            onclick="_composerOpenEdit(${i})"
             ondragstart="_composerDragStart(event,${i})"
             ondragover="event.preventDefault();this.classList.add('cp-thumb--over')"
             ondragleave="this.classList.remove('cp-thumb--over')"
             ondrop="_composerDrop(event,${i})">
             <img src="${esc(p.src)}" alt="" style="filter:${_filterCssForId(p.filter)} brightness(${p.brightness||1}); transform: rotate(${p.rotation||0}deg)">
-            <button class="cp-thumb-edit" onclick="_composerOpenEdit(${i})" title="Edit">✎</button>
-            <button class="cp-thumb-x" onclick="_composerRemovePhoto(${i})">✕</button>
-          </div>`).join('')}
+            <span class="cp-thumb-overlay">Tap to edit</span>
+            ${editedBadge(p)}
+            <span class="cp-thumb-x" onclick="event.stopPropagation();_composerRemovePhoto(${i})" role="button" aria-label="Remove">✕</span>
+          </button>`).join('')}
        </div>` : '';
 
   const photoSection = _composerType === 'photo' ? `
@@ -3506,7 +3513,7 @@ function _renderComposerCompose() {
         <span>${_composerPhotos.length ? 'Add more photos' : 'Pick up to 5 photos'}</span>
       </label>
       ${thumbsHtml}
-      ${_composerPhotos.length > 1 ? `<div class="cp-hint cp-hint--center">Drag to reorder · ✎ to edit · ✕ to remove</div>` : ''}
+      ${_composerPhotos.length ? `<div class="cp-hint cp-hint--center">${_composerPhotos.length > 1 ? 'Drag to reorder · ' : ''}Tap a photo to apply filters, brightness, rotate</div>` : ''}
     </div>` : '';
 
   // Per-photo caption fields shown after thumbs (each photo gets one)
@@ -3566,7 +3573,7 @@ function _renderComposerCompose() {
           _composerType === 'editorial'
             ? 'Editorial posts get a distinct card style and can be pinned to the top of the feed.'
             : _composerType === 'photo'
-            ? 'Up to 5 photos. They render as a swipeable carousel. Tap ✎ on a thumbnail to edit it.'
+            ? 'Up to 5 photos. They render as a swipeable carousel. Tap any photo to edit it.'
             : 'Type @ to tag a friend. Add a venue if you want it linked to a spot.'
         }</p>
       </div>
