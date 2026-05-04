@@ -5444,7 +5444,7 @@ button:not([disabled]),
   box-shadow: 0 1px 4px rgba(0,0,0,0.25);
 }
 
-/* ── Floating Action Button (new post) on the spotrs/feed tab ── */
+/* ── Floating Action Button (new post) on the friends/feed tab ── */
 .social-fab {
   position: fixed; right: 18px;
   bottom: calc(78px + env(safe-area-inset-bottom));

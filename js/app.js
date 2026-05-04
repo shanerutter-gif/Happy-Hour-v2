@@ -287,7 +287,7 @@ function renderBottomNav(user) {
       </button>
       <button class="bottom-nav-btn" id="bnSocial" onclick="bottomNavSocial(this)">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-1a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v1"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-1a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        <span>The Spotrs</span>
+        <span>Friends</span>
       </button>
       <button class="bottom-nav-post" id="bnPost" onclick="openComposer()" aria-label="New post" title="New post">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
