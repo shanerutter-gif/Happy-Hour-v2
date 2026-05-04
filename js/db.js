@@ -958,7 +958,7 @@ async function deleteActivityPost(postId, postType, meta) {
   return true;
 }
 
-async function saveCheckinPhoto({ userId, venueId, citySlug, photoUrl, storagePath, caption, mediaUrls, postType, title, body, pinnedUntil }) {
+async function saveCheckinPhoto({ userId, venueId, citySlug, photoUrl, storagePath, caption, mediaUrls, mediaCaptions, postType, title, body, pinnedUntil, visibility }) {
   try {
     const session = getSession();
     const client  = session?.access_token
@@ -974,10 +974,12 @@ async function saveCheckinPhoto({ userId, venueId, citySlug, photoUrl, storagePa
       storage_path: storagePath || null,
       caption: caption || null,
       media_urls: Array.isArray(mediaUrls) && mediaUrls.length ? mediaUrls : (photoUrl ? [photoUrl] : null),
+      media_captions: Array.isArray(mediaCaptions) ? mediaCaptions : null,
       post_type: postType || 'photo',
       title: title || null,
       body: body || null,
       pinned_until: pinnedUntil || null,
+      visibility: visibility || 'public',
     };
     const { data, error } = await client.from('checkin_photos').insert(payload).select().single();
     if (error) throw error;
@@ -992,7 +994,7 @@ async function saveCheckinPhoto({ userId, venueId, citySlug, photoUrl, storagePa
 }
 
 // Quick text-only status post. Optional venue tag.
-async function saveTextPost({ text, venueId, citySlug }) {
+async function saveTextPost({ text, venueId, citySlug, visibility }) {
   if (!currentUser) return null;
   if (!text || !text.trim()) return null;
   return saveCheckinPhoto({
@@ -1001,6 +1003,7 @@ async function saveTextPost({ text, venueId, citySlug }) {
     citySlug:  citySlug || (typeof state !== 'undefined' && state?.city?.slug) || 'san-diego',
     caption:   text.trim(),
     postType:  'text',
+    visibility: visibility || 'public',
   });
 }
 
@@ -1444,8 +1447,9 @@ async function fetchSocialFeed(citySlug, followingIds = [], limit = 60) {
     // Parallel fetch all four sources
     const [photosRes, activityRes, goingRes] = await Promise.allSettled([
       // 1. Posts (city-wide, last 30 days). post_type covers photo / text / editorial.
+      //    Friends-only posts get filtered client-side (followingIds drives it).
       db.from('checkin_photos')
-        .select('id, user_id, venue_id, photo_url, media_urls, caption, title, body, post_type, city_slug, pinned_until, edited, created_at')
+        .select('id, user_id, venue_id, photo_url, media_urls, media_captions, caption, title, body, post_type, city_slug, pinned_until, edited, visibility, created_at')
         .eq('city_slug', citySlug)
         .gte('created_at', thirtyDaysAgo)
         .order('created_at', { ascending: false })
@@ -1501,28 +1505,39 @@ async function fetchSocialFeed(citySlug, followingIds = [], limit = 60) {
     // Normalise into a unified shape
     const followSet = new Set(followingIds);
 
+    // Filter out 'friends'-only posts the current viewer can't see.
+    // Visible if: it's the viewer's own post, OR the viewer follows the author.
+    const myId = currentUser?.id || null;
+    const visiblePhotos = photos.filter(r => {
+      if (r.visibility !== 'friends') return true;
+      if (r.user_id === myId) return true;
+      return followSet.has(r.user_id);
+    });
+
     const items = [
       // Posts (photo / text / editorial — all live in checkin_photos)
-      ...photos.map(r => ({
-        id:           `photo-${r.id}`,
-        post_id_raw:  r.id,
-        type:         r.post_type === 'editorial' ? 'editorial'
-                    : r.post_type === 'text'      ? 'text'
-                    :                               'photo',
-        user_id:      r.user_id,
-        venue_id:     r.venue_id,
-        photo_url:    r.photo_url,
-        media_urls:   Array.isArray(r.media_urls) ? r.media_urls : (r.photo_url ? [r.photo_url] : []),
-        caption:      r.caption || '',
-        title:        r.title || null,
-        body:         r.body || null,
-        pinned_until: r.pinned_until || null,
-        edited:       !!r.edited,
-        venue_name:   null,
-        neighborhood: null,
-        created_at:   r.created_at,
-        profile:      pMap[r.user_id] || null,
-        isFollowing:  followSet.has(r.user_id),
+      ...visiblePhotos.map(r => ({
+        id:             `photo-${r.id}`,
+        post_id_raw:    r.id,
+        type:           r.post_type === 'editorial' ? 'editorial'
+                      : r.post_type === 'text'      ? 'text'
+                      :                               'photo',
+        user_id:        r.user_id,
+        venue_id:       r.venue_id,
+        photo_url:      r.photo_url,
+        media_urls:     Array.isArray(r.media_urls) ? r.media_urls : (r.photo_url ? [r.photo_url] : []),
+        media_captions: Array.isArray(r.media_captions) ? r.media_captions : null,
+        caption:        r.caption || '',
+        title:          r.title || null,
+        body:           r.body || null,
+        pinned_until:   r.pinned_until || null,
+        edited:         !!r.edited,
+        visibility:     r.visibility || 'public',
+        venue_name:     null,
+        neighborhood:   null,
+        created_at:     r.created_at,
+        profile:        pMap[r.user_id] || null,
+        isFollowing:    followSet.has(r.user_id),
       })),
 
       // Activity feed events (dedupe check-ins that also have a photo)

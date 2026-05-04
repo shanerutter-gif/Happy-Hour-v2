@@ -3403,24 +3403,48 @@ async function submitReferralCodeEntry() {
 // POST COMPOSER — text / photo (single + multi) / editorial
 // ════════════════════════════════════════════════════════
 
-let _composerType = 'text';      // 'text' | 'photo' | 'editorial'
-let _composerFiles = [];          // File[] for photo type
-let _composerVenue = null;        // {id, name, neighborhood} optional tag
-let _composerProfile = null;      // current user's profile (for is_official check)
+// ── State ─────────────────────────────────────────────────────────
+// Composer is full-screen with multi-step flow for the photo path:
+//   pick → edit → caption (with options like venue, friends, visibility).
+// _composerPhotos holds rich per-photo state (file, filter, brightness,
+// rotation, crop offsets, caption). Order in this array is the upload
+// order, which is also the carousel render order.
+
+let _composerType    = 'text';      // 'text' | 'photo' | 'editorial'
+let _composerStep    = 'compose';   // 'compose' | 'edit' (only for photo)
+let _composerEditIdx = 0;           // when in 'edit' step, which photo
+let _composerVenue   = null;        // { id, name, neighborhood }
+let _composerProfile = null;        // current user's profile (for is_official)
+let _composerVisibility = 'public'; // 'public' | 'friends'
+let _composerPhotos  = [];          // [{ file, src, rotation, filter, brightness, caption }]
+
+const COMPOSER_FILTERS = [
+  { id: 'none',    label: 'None',    css: 'none' },
+  { id: 'warm',    label: 'Warm',    css: 'saturate(1.18) hue-rotate(-6deg) brightness(1.04) contrast(1.04)' },
+  { id: 'cool',    label: 'Cool',    css: 'saturate(1.05) hue-rotate(8deg) brightness(0.98) contrast(1.05)' },
+  { id: 'mono',    label: 'Mono',    css: 'grayscale(1) contrast(1.08)' },
+  { id: 'vintage', label: 'Vintage', css: 'sepia(.5) saturate(1.3) contrast(.95) brightness(1.02)' },
+  { id: 'pop',     label: 'Pop',     css: 'saturate(1.55) contrast(1.18) brightness(1.02)' },
+  { id: 'soft',    label: 'Soft',    css: 'saturate(.9) contrast(.9) brightness(1.06)' },
+];
+function _filterCssForId(id) {
+  return (COMPOSER_FILTERS.find(f => f.id === id) || COMPOSER_FILTERS[0]).css;
+}
 
 async function openComposer(opts = {}) {
   if (!currentUser) { openAuth('signin'); return; }
   if (typeof haptic === 'function') haptic('light');
-  // Fetch the profile so we know if this user can do editorial posts.
   try {
     if (!_composerProfile || _composerProfile.id !== currentUser.id) {
       _composerProfile = await getProfile(currentUser.id);
     }
   } catch (e) { _composerProfile = null; }
 
-  _composerType  = opts.type || 'text';
-  _composerFiles = [];
-  _composerVenue = opts.venue || null;
+  _composerType    = opts.type || 'text';
+  _composerStep    = 'compose';
+  _composerPhotos  = [];
+  _composerVenue   = opts.venue || null;
+  _composerVisibility = 'public';
   renderComposer();
   openOverlay('composerOverlay');
   setTimeout(() => document.getElementById('cpBody')?.focus(), 150);
@@ -3428,49 +3452,73 @@ async function openComposer(opts = {}) {
 
 function closeComposer() {
   closeOverlay('composerOverlay');
-  _composerFiles = [];
+  // Free object URLs we created
+  _composerPhotos.forEach(p => { if (p.src && p.src.startsWith('blob:')) URL.revokeObjectURL(p.src); });
+  _composerPhotos = [];
+  _composerStep = 'compose';
 }
 
 function _composerSwitchType(t) {
   _composerType = t;
+  if (t !== 'photo') _composerStep = 'compose';
   renderComposer();
   setTimeout(() => document.getElementById('cpBody')?.focus(), 50);
 }
 
+// ── Render router ────────────────────────────────────────────────
 function renderComposer() {
+  if (_composerType === 'photo' && _composerStep === 'edit') return _renderComposerEdit();
+  return _renderComposerCompose();
+}
+
+// ── Step: compose ────────────────────────────────────────────────
+function _renderComposerCompose() {
   const isOfficial = !!(_composerProfile && _composerProfile.is_official);
   const tabs = [
     { id: 'text',     label: '💬 Status' },
     { id: 'photo',    label: '📷 Photo' },
   ];
   if (isOfficial) tabs.push({ id: 'editorial', label: '✨ Editorial' });
-
   const tabsHtml = tabs.map(t =>
     `<button class="cp-type-tab${_composerType === t.id ? ' on' : ''}" onclick="_composerSwitchType('${t.id}')">${t.label}</button>`
   ).join('');
 
-  const venueChip = _composerVenue
-    ? `<button class="cp-venue-chip cp-venue-chip--set" onclick="_composerClearVenue()">📍 ${esc(_composerVenue.name)} · tap to clear</button>`
-    : `<button class="cp-venue-chip" onclick="_composerPickVenue()">📍 Tag a venue (optional)</button>`;
-
-  const filesHtml = _composerFiles.length
-    ? `<div class="cp-thumbs">
-        ${_composerFiles.map((f, i) => `
-          <div class="cp-thumb">
-            <img src="${URL.createObjectURL(f)}" alt="">
-            <button class="cp-thumb-x" onclick="_composerRemoveFile(${i})">✕</button>
+  // Per-photo thumbnails (with filter previewed) + drag handles
+  const thumbsHtml = _composerPhotos.length
+    ? `<div class="cp-thumbs" id="cpThumbsList">
+        ${_composerPhotos.map((p, i) => `
+          <div class="cp-thumb" draggable="true" data-i="${i}"
+            ondragstart="_composerDragStart(event,${i})"
+            ondragover="event.preventDefault();this.classList.add('cp-thumb--over')"
+            ondragleave="this.classList.remove('cp-thumb--over')"
+            ondrop="_composerDrop(event,${i})">
+            <img src="${esc(p.src)}" alt="" style="filter:${_filterCssForId(p.filter)} brightness(${p.brightness||1}); transform: rotate(${p.rotation||0}deg)">
+            <button class="cp-thumb-edit" onclick="_composerOpenEdit(${i})" title="Edit">✎</button>
+            <button class="cp-thumb-x" onclick="_composerRemovePhoto(${i})">✕</button>
           </div>`).join('')}
-      </div>`
-    : '';
+       </div>` : '';
 
   const photoSection = _composerType === 'photo' ? `
     <div class="cp-photo-block">
       <label class="cp-photo-pick">
         <input type="file" accept="image/*" multiple onchange="_composerAddFiles(this.files)" style="display:none">
         <span class="cp-photo-pick-icon">📷</span>
-        <span>${_composerFiles.length ? 'Add more photos' : 'Pick up to 5 photos'}</span>
+        <span>${_composerPhotos.length ? 'Add more photos' : 'Pick up to 5 photos'}</span>
       </label>
-      ${filesHtml}
+      ${thumbsHtml}
+      ${_composerPhotos.length > 1 ? `<div class="cp-hint cp-hint--center">Drag to reorder · ✎ to edit · ✕ to remove</div>` : ''}
+    </div>` : '';
+
+  // Per-photo caption fields shown after thumbs (each photo gets one)
+  const perPhotoCaptions = _composerType === 'photo' && _composerPhotos.length > 1 ? `
+    <div class="cp-percap">
+      <div class="cp-section-label">Per-photo captions (optional)</div>
+      ${_composerPhotos.map((p, i) => `
+        <div class="cp-percap-row">
+          <img src="${esc(p.src)}" alt="" style="filter:${_filterCssForId(p.filter)} brightness(${p.brightness||1});transform:rotate(${p.rotation||0}deg)">
+          <input type="text" maxlength="120" placeholder="Caption for photo ${i+1}…"
+                 value="${esc(p.caption || '')}" oninput="_composerSetPhotoCaption(${i}, this.value)">
+        </div>`).join('')}
     </div>` : '';
 
   const titleField = _composerType === 'editorial' ? `
@@ -3482,51 +3530,174 @@ function renderComposer() {
   const bodyPlaceholder = _composerType === 'text'      ? "What's the move tonight?"
                        : _composerType === 'photo'      ? 'Add a caption (optional)…'
                        :                                  'Write your editorial. Two newlines = paragraph break.';
-
-  const bodyMin = _composerType === 'editorial' ? 'min-height:180px' : 'min-height:90px';
   const bodyMax = _composerType === 'text'      ? 280  : (_composerType === 'photo' ? 500 : 4000);
 
+  // Options row: venue / visibility
+  const venueBtn = _composerVenue
+    ? `<button class="cp-opt cp-opt--set" onclick="_composerClearVenue()">📍 ${esc(_composerVenue.name)}</button>`
+    : `<button class="cp-opt" onclick="_composerPickVenue()">📍 Tag a venue</button>`;
+  const visBtn = `
+    <button class="cp-opt${_composerVisibility === 'friends' ? ' cp-opt--set' : ''}" onclick="_composerToggleVisibility()">
+      ${_composerVisibility === 'friends' ? '👥 Friends only' : '🌍 Public'}
+    </button>`;
+
   document.getElementById('composerContent').innerHTML = `
-    <div class="cp">
-      <div class="cp-header">
-        <button class="cp-cancel" onclick="closeComposer()">Cancel</button>
+    <div class="cp cp--full">
+      <header class="cp-header cp-header--full">
+        <button class="cp-iconbtn" onclick="closeComposer()" aria-label="Close">✕</button>
         <div class="cp-tabs">${tabsHtml}</div>
         <button class="cp-submit" id="cpSubmit" onclick="submitComposer()">Post</button>
+      </header>
+
+      <div class="cp-scroll">
+        ${titleField}
+        <textarea class="cp-body" id="cpBody" placeholder="${esc(bodyPlaceholder)}" maxlength="${bodyMax}"
+                  oninput="_composerHandleBodyInput(this)"></textarea>
+        <div id="cpMentions" class="cp-mentions" style="display:none"></div>
+        ${photoSection}
+        ${perPhotoCaptions}
+
+        <div class="cp-options-row">
+          ${venueBtn}
+          ${visBtn}
+        </div>
+
+        <p class="cp-hint">${
+          _composerType === 'editorial'
+            ? 'Editorial posts get a distinct card style and can be pinned to the top of the feed.'
+            : _composerType === 'photo'
+            ? 'Up to 5 photos. They render as a swipeable carousel. Tap ✎ on a thumbnail to edit it.'
+            : 'Type @ to tag a friend. Add a venue if you want it linked to a spot.'
+        }</p>
       </div>
-      ${titleField}
-      <textarea class="cp-body" id="cpBody" placeholder="${esc(bodyPlaceholder)}" maxlength="${bodyMax}" style="${bodyMin}"></textarea>
-      ${photoSection}
-      ${venueChip}
-      <p class="cp-hint">${
-        _composerType === 'editorial'
-          ? 'Editorial posts get a distinct card style and can be pinned to the top of the feed.'
-          : _composerType === 'photo'
-          ? 'Up to 5 photos. They render as a swipeable carousel.'
-          : 'Quick status. Add a venue tag if you want it linked to a spot.'
-      }</p>
     </div>`;
 }
 
+// ── Step: edit (canvas-based per-photo editor) ──────────────────
+function _renderComposerEdit() {
+  const p = _composerPhotos[_composerEditIdx];
+  if (!p) { _composerStep = 'compose'; return _renderComposerCompose(); }
+
+  const filtersHtml = COMPOSER_FILTERS.map(f =>
+    `<button class="cp-filter${p.filter === f.id ? ' on' : ''}" onclick="_composerSetFilter('${f.id}')">
+       <span class="cp-filter-thumb"><img src="${esc(p.src)}" alt="" style="filter:${f.css} brightness(${p.brightness||1});transform:rotate(${p.rotation||0}deg)"></span>
+       <span class="cp-filter-label">${f.label}</span>
+     </button>`
+  ).join('');
+
+  document.getElementById('composerContent').innerHTML = `
+    <div class="cp cp--full cp-edit">
+      <header class="cp-header cp-header--full">
+        <button class="cp-iconbtn" onclick="_composerBackToCompose()" aria-label="Back">‹</button>
+        <div class="cp-edit-title">Edit photo ${_composerEditIdx + 1} of ${_composerPhotos.length}</div>
+        <button class="cp-submit" onclick="_composerBackToCompose()">Done</button>
+      </header>
+
+      <div class="cp-edit-canvas">
+        <img id="cpEditImg" src="${esc(p.src)}" alt=""
+             style="filter:${_filterCssForId(p.filter)} brightness(${p.brightness||1}); transform: rotate(${p.rotation||0}deg)">
+      </div>
+
+      <div class="cp-edit-tools">
+        <button class="cp-edit-tool" onclick="_composerRotate()">⟲ Rotate 90°</button>
+        <label class="cp-edit-slider">
+          <span>Brightness</span>
+          <input type="range" min="0.6" max="1.5" step="0.02"
+                 value="${p.brightness || 1}" oninput="_composerSetBrightness(this.value)">
+        </label>
+      </div>
+
+      <div class="cp-filters" id="cpFilters">${filtersHtml}</div>
+    </div>`;
+}
+
+// ── Photo state mutators ────────────────────────────────────────
 function _composerAddFiles(fileList) {
   const arr = Array.from(fileList || []);
+  let added = 0;
   for (const f of arr) {
-    if (_composerFiles.length >= 5) break;
+    if (_composerPhotos.length >= 5) break;
     if (!f.type.startsWith('image/')) continue;
     if (f.size > 10 * 1024 * 1024) { showToast('Each photo must be under 10 MB'); continue; }
-    _composerFiles.push(f);
+    _composerPhotos.push({
+      file: f,
+      src: URL.createObjectURL(f),
+      rotation: 0,           // 0 | 90 | 180 | 270
+      filter: 'none',
+      brightness: 1,
+      caption: '',
+    });
+    added++;
   }
   renderComposer();
 }
-function _composerRemoveFile(i) {
-  _composerFiles.splice(i, 1);
+function _composerRemovePhoto(i) {
+  const p = _composerPhotos[i];
+  if (p?.src?.startsWith('blob:')) URL.revokeObjectURL(p.src);
+  _composerPhotos.splice(i, 1);
   renderComposer();
 }
-function _composerClearVenue() {
-  _composerVenue = null;
+function _composerSetPhotoCaption(i, value) {
+  if (_composerPhotos[i]) _composerPhotos[i].caption = value;
+  // Don't full re-render on every keystroke
+}
+function _composerOpenEdit(i) {
+  _composerEditIdx = i;
+  _composerStep = 'edit';
+  renderComposer();
+}
+function _composerBackToCompose() {
+  _composerStep = 'compose';
+  renderComposer();
+}
+function _composerSetFilter(id) {
+  if (_composerPhotos[_composerEditIdx]) _composerPhotos[_composerEditIdx].filter = id;
+  // Live-update the preview without full re-render
+  const img = document.getElementById('cpEditImg');
+  const p = _composerPhotos[_composerEditIdx];
+  if (img && p) img.style.filter = `${_filterCssForId(p.filter)} brightness(${p.brightness || 1})`;
+  document.querySelectorAll('.cp-filter').forEach(b => b.classList.remove('on'));
+  event?.currentTarget?.classList?.add('on');
+}
+function _composerSetBrightness(v) {
+  const val = parseFloat(v);
+  if (_composerPhotos[_composerEditIdx]) _composerPhotos[_composerEditIdx].brightness = val;
+  const img = document.getElementById('cpEditImg');
+  const p = _composerPhotos[_composerEditIdx];
+  if (img && p) img.style.filter = `${_filterCssForId(p.filter)} brightness(${val})`;
+  // Also re-render the filter strip thumbs to reflect new brightness
+  document.querySelectorAll('.cp-filter-thumb img').forEach((thumb, idx) => {
+    const f = COMPOSER_FILTERS[idx];
+    if (f) thumb.style.filter = `${f.css} brightness(${val})`;
+  });
+}
+function _composerRotate() {
+  const p = _composerPhotos[_composerEditIdx];
+  if (!p) return;
+  p.rotation = (p.rotation + 90) % 360;
+  renderComposer();
+}
+
+// Drag-to-reorder (HTML5 DnD; on iOS, pressing-and-holding the thumb works)
+let _composerDragFromIdx = null;
+function _composerDragStart(e, i) { _composerDragFromIdx = i; e.dataTransfer.effectAllowed = 'move'; }
+function _composerDrop(e, i) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('cp-thumb--over');
+  if (_composerDragFromIdx == null || _composerDragFromIdx === i) return;
+  const [moved] = _composerPhotos.splice(_composerDragFromIdx, 1);
+  _composerPhotos.splice(i, 0, moved);
+  _composerDragFromIdx = null;
+  renderComposer();
+}
+
+// ── Options ──────────────────────────────────────────────────────
+function _composerClearVenue() { _composerVenue = null; renderComposer(); }
+function _composerToggleVisibility() {
+  _composerVisibility = _composerVisibility === 'friends' ? 'public' : 'friends';
   renderComposer();
 }
 function _composerPickVenue() {
-  // Lightweight venue picker — uses the existing in-memory venues list.
   const list = (state.venues || []).slice(0, 200);
   if (!list.length) { showToast('Venues still loading — try again in a sec'); return; }
   const overlay = document.createElement('div');
@@ -3560,43 +3731,145 @@ function _composerSelectVenue(id, name, neighborhood) {
   renderComposer();
 }
 
+// ── @-mention autocomplete ────────────────────────────────────────
+let _composerMentionTimer = null;
+async function _composerHandleBodyInput(textarea) {
+  // Find the active @-mention prefix at the caret
+  const value = textarea.value;
+  const caret = textarea.selectionStart || 0;
+  const head = value.slice(0, caret);
+  const m = head.match(/(?:^|\s)@([A-Za-z0-9_]{0,20})$/);
+  const drop = document.getElementById('cpMentions');
+  if (!drop) return;
+  if (!m) { drop.style.display = 'none'; return; }
+  const q = m[1];
+  // Debounce search to keep things snappy
+  clearTimeout(_composerMentionTimer);
+  _composerMentionTimer = setTimeout(async () => {
+    if (q.length === 0) {
+      // Show top following or empty
+      drop.innerHTML = '<div class="cp-mention-hint">Keep typing to find friends…</div>';
+      drop.style.display = 'block';
+      return;
+    }
+    try {
+      const results = await searchProfiles(q);
+      if (!results.length) {
+        drop.innerHTML = '<div class="cp-mention-hint">No matches</div>';
+      } else {
+        drop.innerHTML = results.slice(0, 6).map(p => `
+          <button class="cp-mention-row" onclick="_composerInsertMention(${JSON.stringify(p.display_name || p.username || '').replace(/"/g,'&quot;')})">
+            <span class="cp-mention-avatar">${initialsAvatar(p.display_name || 'U', '', p.avatar_emoji, p.avatar_url)}</span>
+            <span class="cp-mention-name">${esc(p.display_name || 'User')}</span>
+          </button>`).join('');
+      }
+      drop.style.display = 'block';
+    } catch (e) { drop.style.display = 'none'; }
+  }, 120);
+}
+function _composerInsertMention(name) {
+  const ta = document.getElementById('cpBody');
+  if (!ta) return;
+  const caret = ta.selectionStart || 0;
+  const head = ta.value.slice(0, caret);
+  const tail = ta.value.slice(caret);
+  // Replace the active "@partial" with "@name "
+  const newHead = head.replace(/@([A-Za-z0-9_]{0,20})$/, `@${name.replace(/\s+/g,'')} `);
+  ta.value = newHead + tail;
+  const newPos = newHead.length;
+  ta.setSelectionRange(newPos, newPos);
+  ta.focus();
+  document.getElementById('cpMentions').style.display = 'none';
+}
+
+// ── Bake an edited photo (rotation + filter + brightness) into a new JPEG ──
+function _composerBakePhoto(p) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const rot = (p.rotation || 0) % 360;
+      const swap = rot === 90 || rot === 270;
+      const w = swap ? img.naturalHeight : img.naturalWidth;
+      const h = swap ? img.naturalWidth  : img.naturalHeight;
+      // Cap output dimension to avoid massive uploads
+      const MAX = 2048;
+      const scale = Math.min(1, MAX / Math.max(w, h));
+      const dw = Math.round(w * scale), dh = Math.round(h * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width = dw; canvas.height = dh;
+      const ctx = canvas.getContext('2d');
+      ctx.imageSmoothingQuality = 'high';
+      ctx.filter = `${_filterCssForId(p.filter)} brightness(${p.brightness || 1})`;
+      ctx.translate(dw / 2, dh / 2);
+      ctx.rotate(rot * Math.PI / 180);
+      const drawW = swap ? dh : dw;
+      const drawH = swap ? dw : dh;
+      ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
+      canvas.toBlob((blob) => {
+        if (!blob) return reject(new Error('canvas toBlob failed'));
+        // Wrap blob into a File so the existing upload path keeps working.
+        const file = new File([blob], (p.file?.name || 'photo') + '.jpg', { type: 'image/jpeg' });
+        resolve(file);
+      }, 'image/jpeg', 0.9);
+    };
+    img.onerror = reject;
+    img.src = p.src;
+  });
+}
+
 async function submitComposer() {
   if (!currentUser) { openAuth('signin'); return; }
   const btn = document.getElementById('cpSubmit');
   btn.disabled = true; btn.textContent = 'Posting…';
-  const body = (document.getElementById('cpBody')?.value || '').trim();
+  const body  = (document.getElementById('cpBody')?.value || '').trim();
   const title = (document.getElementById('cpTitle')?.value || '').trim();
   const pin   = !!document.getElementById('cpPin')?.checked;
 
   try {
     if (_composerType === 'text') {
       if (!body) { showToast('Type something first'); btn.disabled = false; btn.textContent = 'Post'; return; }
-      const ok = await saveTextPost({ text: body, venueId: _composerVenue?.id, citySlug: state.city?.slug });
+      const ok = await saveTextPost({
+        text: body,
+        venueId: _composerVenue?.id,
+        citySlug: state.city?.slug,
+        visibility: _composerVisibility,
+      });
       if (!ok) throw new Error('save failed');
     } else if (_composerType === 'photo') {
-      if (!_composerFiles.length) { showToast('Pick at least one photo'); btn.disabled = false; btn.textContent = 'Post'; return; }
-      // Upload sequentially to keep storage path predictable
+      if (!_composerPhotos.length) { showToast('Pick at least one photo'); btn.disabled = false; btn.textContent = 'Post'; return; }
+      // Bake edits → upload → save
       const uploaded = [];
-      for (const file of _composerFiles) {
-        const up = await uploadCheckinPhoto(file, currentUser.id);
+      for (const p of _composerPhotos) {
+        btn.textContent = `Uploading ${uploaded.length + 1}/${_composerPhotos.length}…`;
+        const baked = (p.filter !== 'none' || p.brightness !== 1 || p.rotation)
+          ? await _composerBakePhoto(p)
+          : p.file;
+        const up = await uploadCheckinPhoto(baked, currentUser.id);
         if (up) uploaded.push(up);
       }
       if (!uploaded.length) throw new Error('upload failed');
+      btn.textContent = 'Posting…';
       await saveCheckinPhoto({
-        userId:       currentUser.id,
-        venueId:      _composerVenue?.id || null,
-        citySlug:     state.city?.slug || 'san-diego',
-        photoUrl:     uploaded[0].url,
-        storagePath:  uploaded[0].storagePath,
-        mediaUrls:    uploaded.map(u => u.url),
-        caption:      body || null,
-        postType:     'photo',
+        userId:        currentUser.id,
+        venueId:       _composerVenue?.id || null,
+        citySlug:      state.city?.slug || 'san-diego',
+        photoUrl:      uploaded[0].url,
+        storagePath:   uploaded[0].storagePath,
+        mediaUrls:     uploaded.map(u => u.url),
+        mediaCaptions: _composerPhotos.map(p => p.caption || ''),
+        caption:       body || null,
+        postType:      'photo',
+        visibility:    _composerVisibility,
       });
     } else if (_composerType === 'editorial') {
       if (!title && !body) { showToast('Add a headline or some body text'); btn.disabled = false; btn.textContent = 'Post'; return; }
       const uploaded = [];
-      for (const file of _composerFiles) {
-        const up = await uploadCheckinPhoto(file, currentUser.id);
+      for (const p of _composerPhotos) {
+        const baked = (p.filter !== 'none' || p.brightness !== 1 || p.rotation)
+          ? await _composerBakePhoto(p)
+          : p.file;
+        const up = await uploadCheckinPhoto(baked, currentUser.id);
         if (up) uploaded.push(up);
       }
       await saveEditorialPost({
