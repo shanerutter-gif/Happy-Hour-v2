@@ -920,7 +920,85 @@ function switchSocialTab(tab) {
   _socialActiveTab = tab;
   document.getElementById('socialSubFollowing').classList.toggle('active', tab === 'following');
   document.getElementById('socialSubPublic').classList.toggle('active', tab === 'public');
+  document.getElementById('socialSubTrending')?.classList.toggle('active', tab === 'trending');
+  if (tab === 'trending') { renderTrendingTab(); return; }
   renderSocialTab(tab);
+}
+
+async function renderTrendingTab() {
+  const container = document.getElementById('socialFeedContent');
+  if (!container) return;
+  container.innerHTML = '<div class="social-loading"><div class="social-spinner"></div></div>';
+  try {
+    const citySlug = state.city?.slug || 'san-diego';
+    const trending = await db.rpc('trending_posts', { p_city_slug: citySlug, p_days: 7, p_limit: 30 });
+    const rows = (trending && trending.data) || [];
+    if (!rows.length) {
+      container.innerHTML = `<div class="social-empty"><div class="social-empty-icon">🔥</div><div class="social-empty-title">Nothing trending yet</div><div class="social-empty-sub">Once posts pick up likes and comments, they'll surface here.</div></div>`;
+      return;
+    }
+    // Hydrate full post + profile + venue
+    const photoIds = rows.filter(r => r.post_id?.startsWith('photo-')).map(r => r.post_id.slice(6));
+    const { data: posts } = await db.from('checkin_photos')
+      .select('id, user_id, venue_id, photo_url, media_urls, caption, title, body, post_type, city_slug, created_at, edited')
+      .in('id', photoIds);
+    const userIds  = [...new Set((posts || []).map(p => p.user_id))];
+    const venueIds = [...new Set((posts || []).map(p => p.venue_id).filter(Boolean))];
+    const [pRes, vRes] = await Promise.all([
+      userIds.length ? db.from('profiles').select('id, display_name, avatar_emoji, avatar_url, username, is_official').in('id', userIds) : Promise.resolve({ data: [] }),
+      venueIds.length ? db.from('venues').select('id, name, neighborhood').in('id', venueIds) : Promise.resolve({ data: [] }),
+    ]);
+    const pMap = {}; (pRes.data || []).forEach(p => pMap[p.id] = p);
+    const vMap = {}; (vRes.data || []).forEach(v => vMap[v.id] = v);
+    const byId = {}; (posts || []).forEach(p => byId[`photo-${p.id}`] = p);
+
+    const items = rows.map(r => {
+      const p = byId[r.post_id];
+      if (!p) return null;
+      return {
+        id:           r.post_id,
+        post_id_raw:  p.id,
+        type:         p.post_type === 'editorial' ? 'editorial' : p.post_type === 'text' ? 'text' : 'photo',
+        user_id:      p.user_id,
+        venue_id:     p.venue_id,
+        photo_url:    p.photo_url,
+        media_urls:   Array.isArray(p.media_urls) ? p.media_urls : (p.photo_url ? [p.photo_url] : []),
+        caption:      p.caption || '',
+        title:        p.title,
+        body:         p.body,
+        edited:       !!p.edited,
+        created_at:   p.created_at,
+        venue_name:   vMap[p.venue_id]?.name || null,
+        neighborhood: vMap[p.venue_id]?.neighborhood || null,
+        profile:      pMap[p.user_id] || null,
+        _likeCount:   Number(r.likes) || 0,
+        _commentCount:Number(r.comments) || 0,
+        _trendingScore:Number(r.score) || 0,
+      };
+    }).filter(Boolean);
+
+    // Hydrate liked + saved state for the visible set
+    const ids = items.map(i => i.id);
+    const [likesMap, savedSet] = await Promise.all([
+      fetchLikesBulk(ids),
+      fetchMySavesBulk(ids),
+    ]);
+    items.forEach(i => {
+      i._liked = currentUser ? (likesMap[i.id] || []).includes(currentUser.id) : false;
+      i._saved = savedSet.has(i.id);
+    });
+
+    let html = `<div style="padding:10px 16px 4px;font-size:12px;color:var(--muted);font-weight:600">Top posts in the last 7 days</div>`;
+    items.forEach(item => {
+      if (item.type === 'editorial') html += renderSocialItem(item, 'editorial');
+      else html += renderSocialItem(item, 'hero');
+    });
+    container.innerHTML = html;
+    observeFeedVideos();
+  } catch (e) {
+    console.error('renderTrendingTab error', e);
+    container.innerHTML = '<div class="social-empty"><div class="social-empty-sub">Could not load trending — try refreshing.</div></div>';
+  }
 }
 
 function renderSocialTab(tab) {
@@ -1152,6 +1230,7 @@ function renderSocialItem(item, variant) {
         </div>`;
 
     return `<div class="sf-hero">
+      <button class="sf-fullscreen-btn" onclick="event.stopPropagation();openImmersiveViewer('${postId}')" title="Full screen" aria-label="Full screen">⤢</button>
       ${mediaInner}
       ${actionBtns}
     </div>`;
@@ -6744,12 +6823,14 @@ function openReportMenu(contentType, contentId, userId, isOwn) {
   const meta = window._socialPostMeta?.[contentId] || null;
 
   if (isOwn === true) {
-    // Own post — show delete option
+    // Own post — show edit + delete options
+    const canEdit = contentId.startsWith('photo-'); // edit only supported for posts in checkin_photos table
     overlay.innerHTML = `
       <div class="sheet">
         <div class="sheet-handle"></div>
         <div style="font-weight:800;font-size:17px;margin-bottom:16px">Post Options</div>
         <div style="display:flex;flex-direction:column;gap:8px">
+          ${canEdit ? `<button class="report-option" onclick="dismissOverlay(this.closest('.overlay'));openEditPost('${contentId}')">Edit post</button>` : ''}
           <button class="report-option report-option--block" id="deletePostBtn" onclick="doDeletePost('${contentType}','${contentId}',this)">Delete this post</button>
         </div>
       </div>`;
@@ -6810,6 +6891,169 @@ async function doBlockUser(userId, btn) {
     const overlay = btn?.closest('.overlay');
     if (overlay) dismissOverlay(overlay);
   }
+}
+
+// ════════════════════════════════════════════════════════
+// IMMERSIVE FEED VIEWER — full-screen swipeable
+// Triggered by a "fullscreen" button on each card; uses the current
+// _socialItems array as the navigable set so the experience stays in
+// sync with whichever tab the user was on.
+// ════════════════════════════════════════════════════════
+
+let _immersiveItems = [];
+let _immersiveIndex = 0;
+
+function openImmersiveViewer(startPostId) {
+  // Build the list from whatever's currently visible
+  const tab = _socialActiveTab;
+  const pinned = _socialItems.filter(i => i.type === 'editorial' && _socialPinnedIds.has(i.id));
+  const tabFiltered = tab === 'following'
+    ? _socialItems.filter(i => i.isFollowing)
+    : tab === 'public'
+    ? _socialItems.filter(i => !i.isFollowing)
+    : _socialItems;
+  const allVisible = [...pinned, ...tabFiltered.filter(i => !pinned.some(p => p.id === i.id))];
+  // Only items with media (photo posts + multi-photo + editorial with hero image) work in immersive.
+  _immersiveItems = allVisible.filter(i =>
+    (i.media_urls && i.media_urls.length) || i.photo_url || i.meta?.photo_url || i.meta?.video_url
+  );
+  if (!_immersiveItems.length) { showToast('Nothing to view'); return; }
+  const idx = Math.max(0, _immersiveItems.findIndex(i => i.id === startPostId));
+  _immersiveIndex = idx >= 0 ? idx : 0;
+
+  let overlay = document.getElementById('immersiveViewer');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'immersiveViewer';
+    overlay.className = 'imv';
+    document.body.appendChild(overlay);
+  }
+  overlay.innerHTML = `
+    <button class="imv-close" onclick="closeImmersiveViewer()">✕</button>
+    <div class="imv-track" id="imvTrack">
+      ${_immersiveItems.map((i, n) => `<div class="imv-slide" data-idx="${n}" data-post-id="${i.id}">${_immersiveSlideHTML(i)}</div>`).join('')}
+    </div>`;
+  overlay.classList.add('imv--open');
+  document.body.style.overflow = 'hidden';
+
+  // Snap to the start index after layout
+  requestAnimationFrame(() => {
+    const track = document.getElementById('imvTrack');
+    if (track) track.scrollTop = _immersiveIndex * track.clientHeight;
+    _immersiveBindScroll();
+  });
+}
+
+function closeImmersiveViewer() {
+  const overlay = document.getElementById('immersiveViewer');
+  if (!overlay) return;
+  overlay.classList.remove('imv--open');
+  document.body.style.overflow = '';
+  setTimeout(() => overlay.remove(), 200);
+}
+
+function _immersiveSlideHTML(item) {
+  const photo = (item.media_urls && item.media_urls[0]) || item.photo_url || item.meta?.photo_url || '';
+  const profile = item.profile || {};
+  const name = profile.display_name || 'Someone';
+  const avatar = initialsAvatar(name, '', profile.avatar_emoji, profile.avatar_url);
+  const venueName = (state.venues || []).find(v => String(v.id) === String(item.venue_id))?.name || item.venue_name || '';
+  const caption = item.caption || item.body || '';
+  const liked = item._liked;
+  const likes = item._likeCount || 0;
+  const saved = item._saved;
+  const cmts = item._commentCount || 0;
+  return `
+    <div class="imv-media">
+      ${photo ? `<img src="${esc(photo)}" alt="" loading="lazy">` : '<div class="imv-noimage"></div>'}
+      <div class="imv-grad"></div>
+    </div>
+    <div class="imv-rail">
+      <button class="imv-rail-btn${liked ? ' on' : ''}" onclick="event.stopPropagation();doToggleLike('${item.id}','${item.type}',this);this.classList.toggle('on')">
+        ${liked ? '❤️' : '🤍'}<span>${likes || ''}</span>
+      </button>
+      <button class="imv-rail-btn" onclick="event.stopPropagation();openCommentsSheet('${item.id}','${item.type}')">💬<span>${cmts || ''}</span></button>
+      <button class="imv-rail-btn${saved ? ' on' : ''}" onclick="event.stopPropagation();doToggleSave('${item.id}','${item.type}',this);this.classList.toggle('on')">${saved ? '🔖' : '🏷️'}</button>
+    </div>
+    <div class="imv-info">
+      <div class="imv-info-user">
+        <div class="imv-info-avatar">${avatar}</div>
+        <div class="imv-info-name">${esc(name)}${officialBadge(profile)}</div>
+      </div>
+      ${venueName ? `<div class="imv-info-venue" onclick="closeImmersiveViewer();openModal('${item.venue_id}','venue')">📍 ${esc(venueName)}</div>` : ''}
+      ${caption ? `<div class="imv-info-caption">${esc(caption)}</div>` : ''}
+    </div>`;
+}
+
+function _immersiveBindScroll() {
+  const track = document.getElementById('imvTrack');
+  if (!track || track.dataset.bound) return;
+  track.dataset.bound = '1';
+  let raf;
+  track.addEventListener('scroll', () => {
+    if (raf) cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(() => {
+      const i = Math.round(track.scrollTop / track.clientHeight);
+      if (i !== _immersiveIndex) {
+        _immersiveIndex = i;
+        if (typeof haptic === 'function') haptic('light');
+      }
+    });
+  }, { passive: true });
+}
+
+async function openEditPost(postId) {
+  if (!currentUser) { openAuth('signin'); return; }
+  if (!postId.startsWith('photo-')) return;
+  const realId = postId.slice(6);
+  // Pull the latest from DB so we edit the source of truth
+  let post = null;
+  try {
+    const { data } = await db.from('checkin_photos')
+      .select('id, post_type, title, body, caption, pinned_until, user_id')
+      .eq('id', realId).maybeSingle();
+    post = data;
+  } catch (e) {}
+  if (!post || post.user_id !== currentUser.id) { showToast('Could not load post'); return; }
+
+  const isEditorial = post.post_type === 'editorial';
+  const overlay = document.createElement('div');
+  overlay.className = 'overlay';
+  overlay.id = 'editPostOverlay';
+  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+  overlay.innerHTML = `
+    <div class="sheet sheet--tall">
+      <div class="sheet-handle"></div>
+      <div class="cp">
+        <div class="cp-header">
+          <button class="cp-cancel" onclick="document.getElementById('editPostOverlay').remove()">Cancel</button>
+          <div style="font-family:'Cabinet Grotesk',sans-serif;font-weight:800;font-size:16px">Edit post</div>
+          <button class="cp-submit" id="cpEditSave">Save</button>
+        </div>
+        ${isEditorial ? `<input class="cp-title-input" id="cpEditTitle" placeholder="Headline" maxlength="120" value="${esc(post.title || '')}">` : ''}
+        <textarea class="cp-body" id="cpEditBody" placeholder="${isEditorial ? 'Body' : 'Caption'}" style="min-height:160px">${esc(isEditorial ? (post.body || '') : (post.caption || ''))}</textarea>
+        ${isEditorial ? `<div class="cp-pin-row"><label><input type="checkbox" id="cpEditPin" ${post.pinned_until && new Date(post.pinned_until) > new Date() ? 'checked' : ''}> 📌 Pin (or extend pin) for 7 days</label></div>` : ''}
+        <p class="cp-hint">Saved edits show an "edited" tag on the post.</p>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  setTimeout(() => document.getElementById('cpEditBody')?.focus(), 100);
+
+  document.getElementById('cpEditSave').addEventListener('click', async () => {
+    const btn = document.getElementById('cpEditSave');
+    btn.disabled = true; btn.textContent = 'Saving…';
+    const bodyText = document.getElementById('cpEditBody').value.trim();
+    const titleText = isEditorial ? document.getElementById('cpEditTitle').value.trim() : null;
+    const pin = isEditorial ? !!document.getElementById('cpEditPin')?.checked : null;
+    const patch = isEditorial
+      ? { title: titleText, body: bodyText, pinnedUntilDays: pin ? 7 : 0 }
+      : { caption: bodyText };
+    const res = await updateMyPost(realId, patch);
+    if (res?.error) { showToast('Save failed'); btn.disabled = false; btn.textContent = 'Save'; return; }
+    showToast('Post updated');
+    overlay.remove();
+    if (typeof loadSocialFeed === 'function') loadSocialFeed();
+  });
 }
 
 async function doDeletePost(postType, postId, btn) {
