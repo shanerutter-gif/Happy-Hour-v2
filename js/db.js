@@ -452,7 +452,7 @@ async function fetchReviews(itemId, itemType = 'venue') {
     const userIds = [...new Set(reviews.map(r => r.user_id).filter(Boolean))];
     if (userIds.length) {
       const { data: profiles } = await db.from('profiles')
-        .select('id, display_name, avatar_emoji, avatar_url')
+        .select('id, display_name, avatar_emoji, avatar_url, is_official')
         .in('id', userIds);
       const pMap = {};
       (profiles || []).forEach(p => { pMap[p.id] = p; });
@@ -646,7 +646,7 @@ async function fetchActivityFeed(userIds, limit = 30) {
     const rows = data || [];
     const ids = [...new Set(rows.map(r => r.user_id).filter(Boolean))];
     if (ids.length) {
-      const { data: profiles } = await db.from('profiles').select('id, display_name, avatar_emoji, avatar_url, username').in('id', ids);
+      const { data: profiles } = await db.from('profiles').select('id, display_name, avatar_emoji, avatar_url, username, is_official').in('id', ids);
       const pMap = {};
       (profiles || []).forEach(p => { pMap[p.id] = p; });
       rows.forEach(r => { r.profiles = pMap[r.user_id] || null; });
@@ -717,7 +717,7 @@ async function isFollowing(followerId, followingId) {
 async function fetchPublicProfile(userId) {
   try {
     const { data, error } = await db.from('profiles')
-      .select('id, display_name, bio, avatar_emoji, avatar_url, username, digest_enabled, is_public')
+      .select('id, display_name, bio, avatar_emoji, avatar_url, username, digest_enabled, is_public, is_official')
       .eq('id', userId)
       .maybeSingle();
     if (error) {
@@ -735,7 +735,7 @@ async function fetchPublicProfile(userId) {
 async function searchProfiles(query) {
   try {
     const { data, error } = await db.from('profiles')
-      .select('id, display_name, avatar_emoji, avatar_url, bio')
+      .select('id, display_name, avatar_emoji, avatar_url, bio, is_official')
       .not('display_name', 'is', null)
       .ilike('display_name', `%${query}%`)
       .limit(15);
@@ -990,7 +990,7 @@ async function fetchCheckinPhotos(venueId, limit = 20) {
     const userIds = [...new Set(rows.map(r => r.user_id).filter(Boolean))];
     if (userIds.length) {
       const { data: profiles } = await db.from('profiles')
-        .select('id, display_name, avatar_emoji, avatar_url').in('id', userIds);
+        .select('id, display_name, avatar_emoji, avatar_url, is_official').in('id', userIds);
       const pMap = {};
       (profiles || []).forEach(p => { pMap[p.id] = p; });
       rows.forEach(r => { r.profile = pMap[r.user_id] || null; });
@@ -1056,7 +1056,7 @@ async function fetchComments(postId, postType) {
       .limit(50);
     if (!data || !data.length) return [];
     const uids = [...new Set(data.map(c => c.user_id))];
-    const { data: profiles } = await db.from('profiles').select('id, display_name, avatar_emoji, avatar_url').in('id', uids);
+    const { data: profiles } = await db.from('profiles').select('id, display_name, avatar_emoji, avatar_url, is_official').in('id', uids);
     const pmap = Object.fromEntries((profiles||[]).map(p => [p.id, p]));
     return data.map(c => ({ ...c, profile: pmap[c.user_id] || {} }));
   } catch(e) { console.error('fetchComments:', e); return []; }
@@ -1185,7 +1185,7 @@ async function fetchMyPostActivity(userId) {
     const userIds = [...new Set([...(likes||[]).map(l=>l.user_id), ...(comments||[]).map(c=>c.user_id)])];
     const profiles = {};
     if (userIds.length) {
-      const { data: pdata } = await db.from('profiles').select('id, display_name, avatar_emoji, avatar_url').in('id', userIds);
+      const { data: pdata } = await db.from('profiles').select('id, display_name, avatar_emoji, avatar_url, is_official').in('id', userIds);
       (pdata || []).forEach(p => { profiles[p.id] = p; });
     }
 
@@ -1248,7 +1248,7 @@ async function fetchSocialFeed(citySlug, followingIds = [], limit = 60) {
     const pMap = {};
     if (allUserIds.length) {
       const { data: profiles } = await db.from('profiles')
-        .select('id, display_name, avatar_emoji, avatar_url, username')
+        .select('id, display_name, avatar_emoji, avatar_url, username, is_official')
         .in('id', allUserIds);
       (profiles || []).forEach(p => { pMap[p.id] = p; });
     }

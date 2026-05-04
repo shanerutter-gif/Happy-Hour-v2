@@ -5378,3 +5378,45 @@ button:not([disabled]),
   line-height: 1.55;
   margin: 24px 0 0;
 }
+
+/* ── Spotd "Official" editorial badge ── */
+.official-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  vertical-align: middle;
+  margin-left: 4px;
+  padding: 1px 7px 1px 5px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #FF6B4A 0%, #E8943A 100%);
+  color: #FFFFFF;
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-weight: 800;
+  font-size: 10px;
+  letter-spacing: 0.3px;
+  line-height: 1;
+  text-shadow: none;
+  position: relative;
+  top: -1px;
+  white-space: nowrap;
+}
+.official-badge__check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: #FFFFFF;
+  color: #FF6B4A;
+  font-size: 9px;
+  font-weight: 900;
+  line-height: 1;
+}
+.official-badge__label {
+  letter-spacing: 0.4px;
+}
+/* On dark/photo overlays (sf-hero-name etc.), stay legible. */
+.sf-hero-name .official-badge,
+.sf-compact-name .official-badge {
+  box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+}

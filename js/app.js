@@ -1051,7 +1051,7 @@ function renderSocialItem(item, variant) {
     const infoOverlay = `<div class="sf-hero-info">
       <div class="sf-hero-user" ${profileClick}>
         <div class="sf-hero-avatar">${avatarHtml}</div>
-        <span class="sf-hero-name">${esc(displayName)}</span>
+        <span class="sf-hero-name">${esc(displayName)}${officialBadge(item.profile)}</span>
       </div>
       <div class="sf-hero-venue" ${venueClick}>${esc(venueName)}</div>
       <div class="sf-hero-meta">${neighborhood ? `<span>${esc(neighborhood)}</span><span class="sf-dot"></span>` : ''}<span>${timeAgo}</span></div>
@@ -1089,7 +1089,7 @@ function renderSocialItem(item, variant) {
     return `<div class="sf-compact">
       <div class="sf-compact-header" ${profileClick}>
         <div class="sf-compact-avatar">${avatarHtml}</div>
-        <span class="sf-compact-name">${esc(displayName)}</span>
+        <span class="sf-compact-name">${esc(displayName)}${officialBadge(item.profile)}</span>
       </div>
       <div class="sf-compact-body" ${venueClick}>
         <div class="sf-compact-venue">${esc(venueName)}</div>
@@ -1114,7 +1114,7 @@ function renderSocialItem(item, variant) {
   return `<div class="sf-wide">
     <div class="sf-wide-header" ${profileClick}>
       <div class="sf-wide-avatar">${avatarHtml}</div>
-      <span class="sf-wide-hname">${esc(displayName)}</span>
+      <span class="sf-wide-hname">${esc(displayName)}${officialBadge(item.profile)}</span>
     </div>
     <div class="sf-wide-body" ${venueClick}>
       <div class="sf-wide-headline">
@@ -2867,7 +2867,7 @@ async function renderProfile(user) {
         ${avatarUrl ? `<img src="${esc(avatarUrl)}" alt="Profile">` : initialsAvatar(displayName, 'initials-avatar--lg', profile?.avatar_emoji)}
         <div class="pf-avatar-cam">${icn('camera',11)}</div>
       </div>
-      <div class="pf-name">${esc(displayName)}</div>
+      <div class="pf-name">${esc(displayName)}${officialBadge(profile)}</div>
       ${profile?.bio
         ? `<div class="pf-bio">${esc(profile.bio)}</div>`
         : `<div class="pf-bio--empty" onclick="openProfileSettings()">+ add a bio</div>`}
@@ -4162,6 +4162,13 @@ function avgFromList(r)    { return r.length ? r.reduce((s,x) => s+x.rating, 0)/
 function starHTML(rating, max=5, size=13) { return Array.from({length:max},(_,i)=>`<span style="font-size:${size}px;color:${i<Math.round(rating)?'var(--amber)':'var(--border2)'}">★</span>`).join(''); }
 function fmtDate(iso)      { return new Date(iso).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }
 function showToast(msg)    { document.querySelectorAll('.toast').forEach(t=>t.remove()); const t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),2600); }
+
+// Badge for Spotd-run editorial accounts. Returns an empty string for
+// regular users so it can be inlined safely after any display name.
+function officialBadge(profile) {
+  if (!profile || !profile.is_official) return '';
+  return ' <span class="official-badge" title="Spotd Editor"><span class="official-badge__check">✓</span><span class="official-badge__label">Spotd</span></span>';
+}
 function shareSpotd() {
   if(typeof haptic==='function')haptic('light');
   const text = 'Check out Spotd — find the best happy hours, events & nightlife near you!';
@@ -4379,7 +4386,7 @@ async function renderPublicProfile(userId) {
       <div class="pf-avatar">
         ${avatarUrl ? `<img src="${esc(avatarUrl)}" alt="Profile">` : initialsAvatar(displayName, 'initials-avatar--lg', profile.avatar_emoji)}
       </div>
-      <div class="pf-name">${esc(displayName)}</div>
+      <div class="pf-name">${esc(displayName)}${officialBadge(profile)}</div>
       ${profile.username ? `<div style="font-size:13px;color:var(--muted);margin-bottom:4px">@${esc(profile.username)}</div>` : ''}
       ${profile.bio ? `<div class="pf-bio">${esc(profile.bio)}</div>` : ''}
       ${badges.length ? `<div class="pf-badges">${badges.map(b => {
