@@ -1339,7 +1339,51 @@ async function toggleLike(postId, postType, userId) {
   } catch(e) { console.error('toggleLike:', e); return null; }
 }
 
-// ── ACTIVITY NOTIFICATIONS ────────────────────────────
+// ── NOTIFICATIONS (table-backed, with read state) ─────
+// Returns the user's most recent notifications, hydrated with the actor's
+// profile. Empty array if not signed in or on error.
+async function fetchMyNotifications(limit = 50) {
+  if (!currentUser) return [];
+  try {
+    const { data, error } = await db.from('notifications')
+      .select('id, actor_id, type, post_id, post_type, preview, created_at, read_at')
+      .eq('user_id', currentUser.id)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    if (error || !data?.length) return data || [];
+    const actorIds = [...new Set(data.map(n => n.actor_id).filter(Boolean))];
+    if (actorIds.length) {
+      const { data: profiles } = await db.from('profiles')
+        .select('id, display_name, avatar_emoji, avatar_url, username, is_official')
+        .in('id', actorIds);
+      const pMap = {};
+      (profiles || []).forEach(p => { pMap[p.id] = p; });
+      data.forEach(n => { n.actor = pMap[n.actor_id] || null; });
+    }
+    return data;
+  } catch (e) { return []; }
+}
+
+async function fetchUnreadNotificationCount() {
+  if (!currentUser) return 0;
+  try {
+    const { count } = await db.from('notifications')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', currentUser.id)
+      .is('read_at', null);
+    return count || 0;
+  } catch (e) { return 0; }
+}
+
+async function markAllNotificationsRead() {
+  if (!currentUser) return false;
+  try {
+    await db.rpc('mark_all_notifications_read');
+    return true;
+  } catch (e) { return false; }
+}
+
+// ── ACTIVITY NOTIFICATIONS (legacy — kept for backwards compat) ─────
 // Fetch likes and comments on the current user's posts
 async function fetchMyPostActivity(userId) {
   try {

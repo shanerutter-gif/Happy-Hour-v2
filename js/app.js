@@ -4045,51 +4045,72 @@ async function openSocialNotifications() {
   const container = document.getElementById('socialFeedContent');
   container.innerHTML = '<div class="social-loading"><div class="social-spinner"></div></div>';
 
-  // Mark as seen
-  localStorage.setItem('spotd-notif-seen', new Date().toISOString());
-  const dot = document.getElementById('socialNotifDot');
-  if (dot) dot.style.display = 'none';
+  const items = await fetchMyNotifications(80);
 
-  const items = await fetchMyPostActivity(currentUser.id);
+  // Mark all read on view (next render of the bell will hide the badge)
+  await markAllNotificationsRead();
+  const dot = document.getElementById('socialNotifDot');
+  if (dot) { dot.style.display = 'none'; dot.textContent = ''; }
+
   if (!items.length) {
-    container.innerHTML = `<div class="social-empty"><div class="social-empty-title">No notifications yet</div><div class="social-empty-sub">When people like or comment on your posts, you'll see it here</div></div>`;
+    container.innerHTML = `<div class="social-empty"><div class="social-empty-icon">🔔</div><div class="social-empty-title">No notifications yet</div><div class="social-empty-sub">When people like, comment on, or follow you, you'll see it here</div></div>`;
     return;
   }
 
-  container.innerHTML = `<div style="padding:12px 16px 8px;font-size:14px;font-weight:700;color:var(--text)">Activity</div>` +
+  const labelFor = (n) => {
+    if (n.type === 'follow')  return 'started following you';
+    if (n.type === 'like')    return 'liked your post';
+    if (n.type === 'comment') return n.preview ? `commented: "${esc((n.preview || '').slice(0,80))}"` : 'commented on your post';
+    if (n.type === 'mention') return 'mentioned you';
+    return 'interacted with you';
+  };
+  const iconFor = (t) => t === 'like' ? (ICN.heartFill || '❤️')
+                       : t === 'comment' ? (ICN.comment || '💬')
+                       : t === 'follow' ? '👤'
+                       : '✨';
+  const onClick = (n) => {
+    if (n.type === 'follow' && n.actor_id) return `openPublicProfile('${n.actor_id}')`;
+    if (n.post_id && n.post_type) return `openCommentsSheet('${n.post_id}','${n.post_type}')`;
+    return `void(0)`;
+  };
+
+  container.innerHTML = `<div class="notif-header">
+      <div class="notif-header-title">Activity</div>
+      <button class="notif-back" onclick="loadSocialFeed()">Back</button>
+    </div>` +
     items.map(n => {
-      const name = n.profile.display_name || 'Someone';
-      const avatar = initialsAvatar(name, '', n.profile.avatar_emoji, n.profile.avatar_url);
+      const actor = n.actor || {};
+      const name = actor.display_name || 'Someone';
+      const avatar = initialsAvatar(name, '', actor.avatar_emoji, actor.avatar_url);
       const time = fmtDate(n.created_at);
-      if (n.type === 'like') {
-        return `<div class="notif-row" onclick="showToast('${esc(name)} liked your post')">
-          ${avatar}
-          <div class="notif-body"><span class="notif-name">${esc(name)}</span> liked your post <span class="notif-time">${time}</span></div>
-          <span class="notif-icon">${ICN.heartFill || '❤️'}</span>
-        </div>`;
-      } else {
-        return `<div class="notif-row" onclick="showToast('${esc(name)}: ${esc(n.text?.slice(0,40) || '')}')">
-          ${avatar}
-          <div class="notif-body"><span class="notif-name">${esc(name)}</span> commented: "${esc((n.text || '').slice(0, 60))}" <span class="notif-time">${time}</span></div>
-          <span class="notif-icon">${ICN.comment || '💬'}</span>
-        </div>`;
-      }
-    }).join('') +
-    `<div style="padding:16px;text-align:center"><button class="social-refresh-btn" style="width:auto;border-radius:12px;padding:8px 20px;font-size:12px;font-weight:600" onclick="loadSocialFeed()">Back to Feed</button></div>`;
+      const unread = !n.read_at;
+      return `<div class="notif-row${unread ? ' notif-row--unread' : ''}" onclick="${onClick(n)}">
+        ${avatar}
+        <div class="notif-body">
+          <span class="notif-name">${esc(name)}${officialBadge(actor)}</span> ${labelFor(n)}
+          <span class="notif-time">${time}</span>
+        </div>
+        <span class="notif-icon">${iconFor(n.type)}</span>
+      </div>`;
+    }).join('');
 }
 
-// Check for unseen notifications and show dot
 async function checkSocialNotifications() {
   if (!currentUser) return;
   try {
-    const items = await fetchMyPostActivity(currentUser.id);
-    if (!items.length) return;
-    const lastSeen = localStorage.getItem('spotd-notif-seen');
-    const unseenCount = lastSeen
-      ? items.filter(n => new Date(n.created_at) > new Date(lastSeen)).length
-      : items.length;
+    const count = await fetchUnreadNotificationCount();
     const dot = document.getElementById('socialNotifDot');
-    if (dot) dot.style.display = unseenCount > 0 ? '' : 'none';
+    if (!dot) return;
+    if (count > 0) {
+      dot.style.display = '';
+      // Render a number badge if > 0; the original was a tiny dot.
+      dot.textContent = count > 99 ? '99+' : String(count);
+      dot.classList.add('notif-dot--count');
+    } else {
+      dot.style.display = 'none';
+      dot.textContent = '';
+      dot.classList.remove('notif-dot--count');
+    }
   } catch(e) {}
 }
 

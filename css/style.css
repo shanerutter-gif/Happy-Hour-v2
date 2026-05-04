@@ -5639,3 +5639,31 @@ button:not([disabled]),
   color: rgba(42,31,20,.55);
 }
 .pf-saved-subtab.on { background: #FFFFFF; color: #2A1F14; box-shadow: 0 1px 3px rgba(42,31,20,.06); }
+
+/* ── Notifications ── */
+.notif-dot--count {
+  width: auto !important; height: auto !important;
+  min-width: 18px; padding: 1px 5px;
+  border-radius: 9px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 10px; font-weight: 700;
+  background: #FF6B4A !important; color: #FFFFFF;
+  text-align: center; line-height: 16px;
+}
+.notif-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px 8px;
+}
+.notif-header-title {
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-weight: 800; font-size: 18px; color: #2A1F14;
+}
+.notif-back {
+  background: transparent; border: none; cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 600; font-size: 13px; color: #FF6B4A;
+}
+.notif-row--unread {
+  background: rgba(255, 107, 74, 0.06);
+  border-left: 3px solid #FF6B4A;
+}
