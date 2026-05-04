@@ -3423,6 +3423,29 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 .bottom-nav-btn.active svg { transform: scale(1.05); }
 .bottom-nav-btn:active { opacity: .7; }
 .bottom-nav-btn::after { display: none; }
+
+/* ── Centered "+ post" button in the bottom nav ── */
+.bottom-nav-post {
+  flex: 0 0 auto;
+  width: 56px; height: 56px;
+  align-self: center;
+  margin: 0 6px;
+  border: none; cursor: pointer;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #FF6B4A 0%, #E8943A 100%);
+  color: #FFFFFF;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 6px 18px rgba(255, 107, 74, 0.42), inset 0 1px 0 rgba(255,255,255,0.35);
+  transition: transform .12s ease, box-shadow .15s ease, filter .15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.bottom-nav-post:hover  { filter: brightness(1.04); }
+.bottom-nav-post:active { transform: scale(0.93); box-shadow: 0 3px 10px rgba(255, 107, 74, 0.4); }
+.bottom-nav-post svg { display: block; }
+
+/* Old floating FAB — hidden now that the action lives in the nav. Kept as a
+   no-op selector in case any cached HTML still references it. */
+.social-fab { display: none !important; }
 .bn-avatar {
   width: 28px; height: 28px; border-radius: 50%;
   background: var(--teal); color: #fff;
