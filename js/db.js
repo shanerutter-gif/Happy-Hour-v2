@@ -1199,6 +1199,117 @@ async function fetchLikesBulk(postIds) {
   } catch(e) { console.error('fetchLikesBulk:', e); return {}; }
 }
 
+// ── POST SAVES (bookmarks) ────────────────────────────
+// Returns the set of post IDs the current user has saved, for the
+// given list of post IDs. Used to set the bookmark icon state.
+async function fetchMySavesBulk(postIds) {
+  try {
+    if (!currentUser || !postIds.length) return new Set();
+    const { data } = await db.from('post_saves')
+      .select('post_id')
+      .eq('user_id', currentUser.id)
+      .in('post_id', postIds);
+    return new Set((data || []).map(r => r.post_id));
+  } catch(e) { return new Set(); }
+}
+
+async function toggleSavePost(postId, postType) {
+  if (!currentUser) return { error: 'Not signed in' };
+  try {
+    const session = getSession();
+    const client = session?.access_token
+      ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+          global: { headers: { Authorization: `Bearer ${session.access_token}` } }
+        })
+      : db;
+    const { data: existing } = await client.from('post_saves')
+      .select('id')
+      .eq('user_id', currentUser.id)
+      .eq('post_id', postId)
+      .maybeSingle();
+    if (existing) {
+      await client.from('post_saves').delete().eq('id', existing.id);
+      track('post_unsaved', { post_type: postType });
+      return { saved: false };
+    }
+    await client.from('post_saves').insert({
+      user_id: currentUser.id, post_id: postId, post_type: postType
+    });
+    track('post_saved', { post_type: postType });
+    return { saved: true };
+  } catch(e) { return { error: e.message }; }
+}
+
+// All posts the current user has saved, in reverse-chronological order.
+// Returns hydrated post objects (currently only `photo`-flavored entries
+// from checkin_photos — same as fetchSocialFeed normalizes).
+async function fetchMySavedPosts(limit = 60) {
+  if (!currentUser) return [];
+  try {
+    const { data: saves } = await db.from('post_saves')
+      .select('post_id, post_type, created_at')
+      .eq('user_id', currentUser.id)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    if (!saves || !saves.length) return [];
+
+    // Pull photo posts in one shot (the only post-type with rich content today)
+    const photoIds = saves
+      .filter(s => s.post_id?.startsWith('photo-'))
+      .map(s => s.post_id.slice(6));
+    let photos = [];
+    if (photoIds.length) {
+      const { data } = await db.from('checkin_photos')
+        .select('id, user_id, venue_id, photo_url, media_urls, caption, title, body, post_type, city_slug, created_at, edited')
+        .in('id', photoIds);
+      photos = data || [];
+    }
+
+    // Build a map keyed by post_id
+    const byId = {};
+    photos.forEach(p => { byId[`photo-${p.id}`] = p; });
+
+    // Hydrate profiles + venues
+    const userIds  = [...new Set(photos.map(p => p.user_id).filter(Boolean))];
+    const venueIds = [...new Set(photos.map(p => p.venue_id).filter(Boolean))];
+    const [pRes, vRes] = await Promise.all([
+      userIds.length
+        ? db.from('profiles').select('id, display_name, avatar_emoji, avatar_url, username, is_official').in('id', userIds)
+        : Promise.resolve({ data: [] }),
+      venueIds.length
+        ? db.from('venues').select('id, name, neighborhood').in('id', venueIds)
+        : Promise.resolve({ data: [] }),
+    ]);
+    const pMap = {}; (pRes.data || []).forEach(p => pMap[p.id] = p);
+    const vMap = {}; (vRes.data || []).forEach(v => vMap[v.id] = v);
+
+    return saves.map(s => {
+      const r = byId[s.post_id];
+      if (!r) return null;
+      return {
+        id:           `photo-${r.id}`,
+        post_id_raw:  r.id,
+        type:         r.post_type === 'editorial' ? 'editorial'
+                    : r.post_type === 'text'      ? 'text'
+                    :                               'photo',
+        user_id:      r.user_id,
+        venue_id:     r.venue_id,
+        photo_url:    r.photo_url,
+        media_urls:   Array.isArray(r.media_urls) ? r.media_urls : (r.photo_url ? [r.photo_url] : []),
+        caption:      r.caption || '',
+        title:        r.title || null,
+        body:         r.body || null,
+        edited:       !!r.edited,
+        venue_name:   vMap[r.venue_id]?.name || null,
+        neighborhood: vMap[r.venue_id]?.neighborhood || null,
+        created_at:   r.created_at,
+        profile:      pMap[r.user_id] || null,
+        savedAt:      s.created_at,
+      };
+    }).filter(Boolean);
+  } catch(e) { console.error('fetchMySavedPosts:', e); return []; }
+}
+
 async function toggleLike(postId, postType, userId) {
   try {
     const session = getSession();

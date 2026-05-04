@@ -888,18 +888,20 @@ async function loadSocialFeed() {
       fetchPinnedEditorialPosts(citySlug, 3),
     ]);
 
-    // Hydrate like + comment counts for each feed item
+    // Hydrate like + comment + saved state for each feed item
     if (items.length) {
       const postIds = items.map(i => i.id).filter(Boolean);
-      const [likesMap, commentCounts] = await Promise.all([
+      const [likesMap, commentCounts, savedSet] = await Promise.all([
         fetchLikesBulk(postIds),
         fetchCommentCountsBulk(postIds),
+        fetchMySavesBulk(postIds),
       ]);
       items.forEach(item => {
         const likers = likesMap[item.id] || [];
         item._likeCount = likers.length;
         item._liked = currentUser ? likers.includes(currentUser.id) : false;
         item._commentCount = commentCounts[item.id] || 0;
+        item._saved = savedSet.has(item.id);
       });
     }
 
@@ -1051,10 +1053,14 @@ function renderSocialItem(item, variant) {
   const videoPoster = item.meta?.video_poster || '';
 
   // ── Action buttons (shared) — orange gradient pills ──
+  const isSaved = !!item._saved;
   const actionBtns = `
     <div class="sf-actions">
       <button class="sf-action-btn${isLiked ? ' sf-liked' : ''}" id="like-${postId}" onclick="event.stopPropagation();doToggleLike('${postId}','${postType}',this)">
         ${isLiked ? ICN.heartFill : ICN.heart}${likeCount ? `<span>${likeCount}</span>` : ''}
+      </button>
+      <button class="sf-action-btn sf-action-save${isSaved ? ' sf-saved' : ''}" data-post-id="${postId}" data-post-type="${postType}" onclick="event.stopPropagation();doToggleSave('${postId}','${postType}',this)" title="${isSaved ? 'Unsave' : 'Save'}">
+        ${isSaved ? '🔖' : '🏷️'}
       </button>
       <button class="sf-action-btn" onclick="event.stopPropagation();openCommentsSheet('${postId}','${postType}')">
         ${ICN.comment}${commentCount ? `<span>${commentCount}</span>` : ''}
@@ -1350,6 +1356,75 @@ async function doToggleLike(postId, postType, btn) {
     const newCount = Math.max(0, currentCount - 1);
     btn.innerHTML = `${ICN.heart}${newCount ? `<span>${newCount}</span>` : ''}`;
   }
+}
+
+function switchSavedSubtab(which, btn) {
+  document.querySelectorAll('.pf-saved-subtab').forEach(b => b.classList.remove('on'));
+  if (btn) btn.classList.add('on');
+  const spots = document.getElementById('my-saved-spots');
+  const posts = document.getElementById('my-saved-posts');
+  if (!spots || !posts) return;
+  if (which === 'posts') {
+    spots.style.display = 'none';
+    posts.style.display = 'block';
+    renderSavedPosts();
+  } else {
+    spots.style.display = 'block';
+    posts.style.display = 'none';
+  }
+}
+
+async function renderSavedPosts() {
+  const wrap = document.getElementById('my-saved-posts');
+  if (!wrap) return;
+  if (!currentUser) { wrap.innerHTML = '<div class="pf-empty">Sign in to see your saved posts</div>'; return; }
+  wrap.innerHTML = '<div class="pf-empty" id="my-saved-posts-loading"><div class="pf-empty-icon">🔖</div>Loading…</div>';
+  try {
+    const items = await fetchMySavedPosts(60);
+    if (!items.length) {
+      wrap.innerHTML = '<div class="pf-empty"><div class="pf-empty-icon">🔖</div>No saved posts yet — tap the bookmark icon on any post</div>';
+      return;
+    }
+    // Hydrate likes + comments + saved (always saved here; we know that)
+    const postIds = items.map(i => i.id);
+    const [likesMap, commentCounts] = await Promise.all([
+      fetchLikesBulk(postIds),
+      fetchCommentCountsBulk(postIds),
+    ]);
+    items.forEach(item => {
+      const likers = likesMap[item.id] || [];
+      item._likeCount = likers.length;
+      item._liked = likers.includes(currentUser.id);
+      item._commentCount = commentCounts[item.id] || 0;
+      item._saved = true;
+    });
+    let html = '';
+    items.forEach(item => {
+      if (item.type === 'editorial') html += renderSocialItem(item, 'editorial');
+      else if (item.media_urls?.length || item.photo_url) html += renderSocialItem(item, 'hero');
+      else html += renderSocialItem(item, 'wide');
+    });
+    wrap.innerHTML = html;
+    observeFeedVideos();
+  } catch (e) {
+    wrap.innerHTML = '<div class="pf-empty">Could not load saved posts</div>';
+  }
+}
+
+async function doToggleSave(postId, postType, btn) {
+  if (!currentUser) { openAuth('signin'); return; }
+  if (typeof haptic === 'function') haptic('light');
+  const result = await toggleSavePost(postId, postType);
+  if (result?.error) { showToast(result.error); return; }
+  const saved = !!result?.saved;
+  // Sync every visible button for this post (a single post can render in
+  // multiple places, e.g. feed + saved tab).
+  document.querySelectorAll(`.sf-action-save[data-post-id="${postId}"]`).forEach(b => {
+    b.classList.toggle('sf-saved', saved);
+    b.title = saved ? 'Unsave' : 'Save';
+    b.textContent = saved ? '🔖' : '🏷️';
+  });
+  showToast(saved ? 'Saved' : 'Removed');
 }
 
 async function doSignOut() { await authSignOut(); showToast('Signed out'); }
@@ -3068,17 +3143,26 @@ async function renderProfile(user) {
       </div>
 
       <div id="my-tab-saved" style="display:none">
-        ${favSpots.length ? favSpots.map(v =>
-          `<div class="pf-row" onclick="closeProfile();openModal('${v.id}','${v.event_type?'event':'venue'}')">
-            <div class="pf-row-icon">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
-            </div>
-            <div class="pf-row-body">
-              <div class="pf-row-name">${esc(v.name)}</div>
-              <div class="pf-row-meta">${esc(v.neighborhood||'')} · ${esc(v.hours||'')}</div>
-            </div>
-          </div>`
-        ).join('') : '<div class="pf-empty"><div class="pf-empty-icon">🔖</div>No saved spots yet — tap ★ on any venue</div>'}
+        <div class="pf-saved-subtabs">
+          <button class="pf-saved-subtab on" onclick="switchSavedSubtab('spots',this)">Spots</button>
+          <button class="pf-saved-subtab" onclick="switchSavedSubtab('posts',this)">Posts</button>
+        </div>
+        <div id="my-saved-spots">
+          ${favSpots.length ? favSpots.map(v =>
+            `<div class="pf-row" onclick="closeProfile();openModal('${v.id}','${v.event_type?'event':'venue'}')">
+              <div class="pf-row-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+              </div>
+              <div class="pf-row-body">
+                <div class="pf-row-name">${esc(v.name)}</div>
+                <div class="pf-row-meta">${esc(v.neighborhood||'')} · ${esc(v.hours||'')}</div>
+              </div>
+            </div>`
+          ).join('') : '<div class="pf-empty"><div class="pf-empty-icon">🔖</div>No saved spots yet — tap ★ on any venue</div>'}
+        </div>
+        <div id="my-saved-posts" style="display:none">
+          <div class="pf-empty" id="my-saved-posts-loading"><div class="pf-empty-icon">🔖</div>Loading…</div>
+        </div>
       </div>
 
       <div id="my-tab-lists" style="display:none">
