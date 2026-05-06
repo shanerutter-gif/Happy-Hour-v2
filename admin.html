@@ -1870,6 +1870,7 @@
               <button class="push-audience-btn sel" onclick="selectPushAudience('all', this)">All Users</button>
               <button class="push-audience-btn" onclick="selectPushAudience('web', this)">Web Only</button>
               <button class="push-audience-btn" onclick="selectPushAudience('ios', this)">iOS Only</button>
+              <button class="push-audience-btn" onclick="selectPushAudience('me', this)">🧪 Just Me (test)</button>
             </div>
           </div>
 
@@ -4631,16 +4632,24 @@ in San Diego</textarea>
     status.textContent = '';
 
     try {
-      // Build the request — filter by platform if not "all"
-      let tokenQuery = `${SUPABASE_URL}/rest/v1/push_tokens?select=user_id`;
-      if (pushAudience !== 'all') {
+      // Build the request — filter by platform/user if not "all"
+      let user_ids = undefined;
+
+      if (pushAudience === 'me') {
+        // "Just me" — only push to tokens registered to the signed-in admin
+        const myId = _adminUser?.id || JSON.parse(localStorage.getItem(LS_KEY) || '{}')?.user?.id;
+        if (!myId) throw new Error('Could not resolve your user id — sign out and back in');
+        // Verify the admin actually has at least one push_tokens row
+        const tokRes = await fetch(`${SUPABASE_URL}/rest/v1/push_tokens?select=token,platform&user_id=eq.${myId}`, { headers: svcHeaders() });
+        const toks = await tokRes.json();
+        if (!Array.isArray(toks) || !toks.length) {
+          throw new Error('No push tokens found for your account. Open Spotd in Safari → enable notifications, or open the iOS app once.');
+        }
+        user_ids = [myId];
+      } else if (pushAudience !== 'all') {
+        let tokenQuery = `${SUPABASE_URL}/rest/v1/push_tokens?select=user_id`;
         const platformFilter = pushAudience === 'ios' ? 'platform=in.(ios,native)' : `platform=eq.${pushAudience}`;
         tokenQuery += `&${platformFilter}`;
-      }
-
-      // Get user IDs for the audience
-      let user_ids = undefined;
-      if (pushAudience !== 'all') {
         const tokRes = await fetch(tokenQuery, { headers: svcHeaders() });
         const toks = await tokRes.json();
         if (Array.isArray(toks) && toks.length) {
