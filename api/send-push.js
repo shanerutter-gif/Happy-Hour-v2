@@ -64,14 +64,23 @@ export default async function handler(req) {
   const errors = [];
 
   for (const { token, platform } of tokens) {
+    // Token tag — first 8 chars of the device token (or endpoint host for web)
+    // — included in error messages so the admin UI can tell which device failed.
+    let tag_id;
+    try {
+      tag_id = platform === 'web'
+        ? (() => { try { return new URL(JSON.parse(token).endpoint).host; } catch { return 'web'; } })()
+        : (token || '').slice(0, 8);
+    } catch { tag_id = 'unknown'; }
+
     try {
       if (platform === 'web') {
-        if (!vapidPrivateKey) { errors.push({ platform, error: 'VAPID_PRIVATE_KEY not set' }); continue; }
+        if (!vapidPrivateKey) { errors.push({ platform, tag: tag_id, error: 'VAPID_PRIVATE_KEY not set' }); continue; }
         await sendWebPush(token, payload, vapidPrivateKey);
         sent++;
       } else if (platform === 'ios' || platform === 'native') {
         if (!apnsKeyBase64 || !apnsKeyId || !apnsTeamId) {
-          errors.push({ platform, error: 'APNs env vars not configured' });
+          errors.push({ platform, tag: tag_id, error: 'APNs env vars not configured' });
           continue;
         }
         await sendApnsPush(token, { title, body: msgBody, url: url || '/', tag: tag || 'spotd' }, {
@@ -80,7 +89,11 @@ export default async function handler(req) {
         sent++;
       }
     } catch (e) {
-      errors.push({ platform, error: e.message });
+      // Also console.error so the failure shows up in Vercel runtime logs
+      // — the API response only carries it back to admin callers, not to
+      // trigger-driven calls from Postgres.
+      console.error('[send-push]', platform, tag_id, e.message);
+      errors.push({ platform, tag: tag_id, error: e.message });
     }
   }
 
