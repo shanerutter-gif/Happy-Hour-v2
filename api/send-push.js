@@ -91,11 +91,15 @@ export default async function handler(req) {
         sent++;
       }
     } catch (e) {
-      // Also console.error so the failure shows up in Vercel runtime logs
-      // — the API response only carries it back to admin callers, not to
-      // trigger-driven calls from Postgres.
-      console.error('[send-push]', platform, tag_id, e.message);
-      errors.push({ platform, tag: tag_id, error: e.message });
+      // Capture as much diagnostic info as we can — many push failures
+      // surface as opaque "Network connection lost" without name/code.
+      const detail = [
+        e.name || 'Error',
+        e.message || 'unknown',
+        e.cause ? `(cause: ${e.cause.message || e.cause})` : '',
+      ].filter(Boolean).join(' · ');
+      console.error('[send-push]', platform, tag_id, detail);
+      errors.push({ platform, tag: tag_id, error: detail });
     }
   }
 
@@ -104,7 +108,15 @@ export default async function handler(req) {
 
 // ── APNs Push (iOS) via HTTP/2-compatible fetch ──
 async function sendApnsPush(deviceToken, { title, body, url, tag }, { keyBase64, keyId, teamId, bundleId }) {
-  const jwt = await createApnsJwt(keyBase64, keyId, teamId);
+  let jwt;
+  try {
+    jwt = await createApnsJwt(keyBase64, keyId, teamId);
+  } catch (e) {
+    throw new Error(`APNs JWT build failed (check APNS_KEY_BASE64 / APNS_KEY_ID / APNS_TEAM_ID): ${e.message}`);
+  }
+  if (!deviceToken || deviceToken.length !== 64) {
+    throw new Error(`APNs token format invalid (expected 64 hex chars, got ${deviceToken?.length ?? 0})`);
+  }
   const apnsPayload = JSON.stringify({
     aps: {
       alert: { title, body },
