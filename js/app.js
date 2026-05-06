@@ -875,6 +875,7 @@ let _socialLoading = false;
 let _socialItems = [];
 let _socialActiveTab = 'following';
 let _socialPinnedIds = new Set();
+let _socialStories = [];
 
 async function loadSocialFeed() {
   if (_socialLoading) return;
@@ -886,10 +887,12 @@ async function loadSocialFeed() {
   try {
     const followingIds = currentUser ? await getFollowing(currentUser.id) : [];
     const citySlug = state.city?.slug || 'san-diego';
-    const [items, pinned] = await Promise.all([
+    const [items, pinned, stories] = await Promise.all([
       fetchSocialFeed(citySlug, followingIds, 60),
       fetchPinnedEditorialPosts(citySlug, 3),
+      fetchActiveStories(citySlug, 30),
     ]);
+    _socialStories = stories || [];
 
     // Hydrate like + comment + saved state for each feed item
     if (items.length) {
@@ -1007,6 +1010,9 @@ async function renderTrendingTab() {
 function renderSocialTab(tab) {
   const container = document.getElementById('socialFeedContent');
 
+  // Stories strip always at the very top (if any active)
+  const storiesHtml = _socialStories.length ? renderStoriesStrip(_socialStories) : '';
+
   // Pinned editorial posts always sit on top, in both Following and Public.
   const pinned = _socialItems.filter(i => i.type === 'editorial' && _socialPinnedIds.has(i.id));
 
@@ -1042,10 +1048,11 @@ function renderSocialTab(tab) {
   }
 
   // ── Modular masonry layout ──
-  // Pinned editorials → top, distinct card style
+  // Stories strip → very top
+  // Pinned editorials → above feed, distinct card style
   // Photo/video posts → full-width hero cards
   // Text-only posts → batched into 2-up compact rows with occasional full-width singles
-  let html = '';
+  let html = storiesHtml;
   // Pinned editorial(s) at the top
   pinned.forEach(item => { html += renderSocialItem(item, 'editorial'); });
 
@@ -2511,6 +2518,30 @@ async function openModal(id, type = 'venue') {
       }
     });
   }
+  // Load going-out intents (next 12h)
+  if (type === 'venue') {
+    fetchVenueGoingTonight(id).then(rows => {
+      const el = document.getElementById(`going-tonight-${id}`);
+      if (!el || !rows.length) return;
+      const fmt = ts => new Date(ts).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+      el.innerHTML = `
+        <div class="going-tonight-strip">
+          <div class="going-tonight-strip__label">Going tonight</div>
+          <div class="going-tonight-strip__list">
+            ${rows.slice(0, 8).map(r => `
+              <div class="going-tonight-chip" onclick="openPublicProfile('${r.user_id}')">
+                <span class="going-tonight-chip__avatar">${initialsAvatar(r.display_name || 'User', '', r.avatar_emoji, r.avatar_url)}</span>
+                <span class="going-tonight-chip__name">${esc((r.display_name || 'User').split(' ')[0])}${r.is_official ? officialBadge(r) : ''}</span>
+                <span class="going-tonight-chip__time">${fmt(r.going_at)}</span>
+              </div>`).join('')}
+          </div>
+        </div>`;
+    });
+  }
+  // Load venue takes (quick comments)
+  if (type === 'venue') {
+    renderVenueTakes(id);
+  }
   // Load UGC check-in photos + Locals Say descriptions + tagged posts feed
   if (type === 'venue') {
     fetchCheckinPhotos(id).then(allPosts => {
@@ -2607,8 +2638,12 @@ function renderModal(v, type, reviews) {
 
     ${isVenue ? `
     <div style="padding:0 16px 4px">
-      <button class="modal-checkin-cta" onclick="doGoingTonight('${v.id}', this)">${checkInBtnLabel(checkInCount, isMeIn)}</button>
+      <div style="display:flex;gap:8px;align-items:stretch">
+        <button class="modal-checkin-cta" style="flex:1" onclick="doGoingTonight('${v.id}', this)">${checkInBtnLabel(checkInCount, isMeIn)}</button>
+        <button class="modal-going-cta" onclick="openGoingIntentSheet('${v.id}','${esc(v.name)}')" title="I'm going tonight">🍻 Going</button>
+      </div>
       ${checkInCount >= 2 ? `<div class="s-going-count" style="margin-top:6px">${ICN.fire} ${checkInCount} people checked in tonight</div>` : ''}
+      <div id="going-tonight-${v.id}"></div>
     </div>` : ''}
 
     <div class="modal-body-inner">
@@ -2683,6 +2718,7 @@ function renderModal(v, type, reviews) {
       ` : ''}
 
       ${isVenue ? `<div id="ugc-photos-${v.id}"></div>` : ''}
+      ${isVenue ? `<div id="venue-takes-${v.id}"></div>` : ''}
       ${isVenue ? `<div id="venue-posts-${v.id}"></div>` : ''}
       <div class="s-div"></div>
       <div class="modal-section-label">Reviews</div>
@@ -3114,7 +3150,7 @@ async function renderProfile(user) {
         ${avatarUrl ? `<img src="${esc(avatarUrl)}" alt="Profile">` : initialsAvatar(displayName, 'initials-avatar--lg', profile?.avatar_emoji)}
         <div class="pf-avatar-cam">${icn('camera',11)}</div>
       </div>
-      <div class="pf-name">${esc(displayName)}${officialBadge(profile)}</div>
+      <div class="pf-name">${esc(displayName)}${officialBadge(profile)}<span id="pf-streak-${user.id}" class="pf-streak" style="display:none"></span></div>
       ${profile?.bio
         ? `<div class="pf-bio">${esc(profile.bio)}</div>`
         : `<div class="pf-bio--empty" onclick="openProfileSettings()">+ add a bio</div>`}
@@ -3174,6 +3210,19 @@ async function renderProfile(user) {
       <button class="giveaway-tile__addcode" id="giveawayAddCode" onclick="openReferralCodeEntry()" style="display:none">
         Got referred? Add a code →
       </button>
+    </section>
+
+    <!-- Friends leaderboard (last 30d) -->
+    <section class="pf-lb-section">
+      <div class="pf-lb-header">
+        <div class="pf-lb-title">🏆 Friend leaderboard <span class="pf-lb-window">last 30 days</span></div>
+      </div>
+      <div class="pf-lb-tabs">
+        <button class="pf-lb-tab on" data-metric="checkins" onclick="renderFriendLeaderboard('checkins')">Check-ins</button>
+        <button class="pf-lb-tab" data-metric="posts" onclick="renderFriendLeaderboard('posts')">Posts</button>
+        <button class="pf-lb-tab" data-metric="referrals" onclick="renderFriendLeaderboard('referrals')">Referrals</button>
+      </div>
+      <div id="pf-leaderboard"></div>
     </section>
 
     ${!localStorage.getItem('spotd-idea-banner-dismissed') ? `
@@ -3272,6 +3321,37 @@ async function renderProfile(user) {
 
   // Hydrate the giveaway tile after the profile HTML is in the DOM
   renderGiveawayTile().catch(() => {});
+  // Hydrate streak pill (only show if 1+)
+  fetchUserWeeklyStreak(user.id).then(n => {
+    const el = document.getElementById(`pf-streak-${user.id}`);
+    if (!el) return;
+    if (n >= 1) {
+      el.style.display = '';
+      el.textContent = `🔥 ${n}-week streak`;
+    }
+  });
+  // Hydrate the friend leaderboard (default: check-ins)
+  renderFriendLeaderboard('checkins');
+}
+
+async function renderFriendLeaderboard(metric) {
+  const wrap = document.getElementById('pf-leaderboard');
+  if (!wrap) return;
+  document.querySelectorAll('.pf-lb-tab').forEach(b => b.classList.toggle('on', b.dataset.metric === metric));
+  wrap.innerHTML = '<div class="pf-empty">Loading…</div>';
+  const rows = await fetchFriendLeaderboard(metric);
+  if (!rows.length) {
+    wrap.innerHTML = '<div class="pf-empty"><div class="pf-empty-icon">🏆</div>Follow friends to see who’s most active</div>';
+    return;
+  }
+  const labelFor = (m) => m === 'checkins' ? 'check-ins' : m === 'posts' ? 'posts' : 'referrals';
+  wrap.innerHTML = rows.map((r, i) => `
+    <div class="pf-lb-row" onclick="openPublicProfile('${r.user_id}')">
+      <div class="pf-lb-rank">${i + 1}</div>
+      <div class="pf-lb-avatar">${initialsAvatar(r.display_name || 'User', '', r.avatar_emoji, r.avatar_url)}</div>
+      <div class="pf-lb-name">${esc(r.display_name || 'User')}${r.is_official ? officialBadge(r) : ''}</div>
+      <div class="pf-lb-score">${r.score} ${labelFor(metric)}</div>
+    </div>`).join('');
 }
 
 async function renderGiveawayTile() {
@@ -3423,6 +3503,7 @@ let _composerEditIdx = 0;           // when in 'edit' step, which photo
 let _composerVenue   = null;        // { id, name, neighborhood }
 let _composerProfile = null;        // current user's profile (for is_official)
 let _composerVisibility = 'public'; // 'public' | 'friends'
+let _composerStory   = false;       // post as a 24h Story
 let _composerPhotos  = [];          // [{ file, src, rotation, filter, brightness, caption }]
 
 const COMPOSER_FILTERS = [
@@ -3452,6 +3533,7 @@ async function openComposer(opts = {}) {
   _composerPhotos  = [];
   _composerVenue   = opts.venue || null;
   _composerVisibility = 'public';
+  _composerStory   = !!opts.story;
   renderComposer();
   openOverlay('composerOverlay');
   setTimeout(() => document.getElementById('cpBody')?.focus(), 150);
@@ -3554,6 +3636,10 @@ function _renderComposerCompose() {
     <button class="cp-opt${_composerVisibility === 'friends' ? ' cp-opt--set' : ''}" onclick="_composerToggleVisibility()">
       ${_composerVisibility === 'friends' ? '👥 Friends only' : '🌍 Public'}
     </button>`;
+  const storyBtn = _composerType === 'photo' ? `
+    <button class="cp-opt${_composerStory ? ' cp-opt--set' : ''}" onclick="_composerToggleStory()">
+      ${_composerStory ? '✨ Story · 24h' : '✨ Make a Story'}
+    </button>` : '';
 
   document.getElementById('composerContent').innerHTML = `
     <div class="cp cp--full">
@@ -3574,6 +3660,7 @@ function _renderComposerCompose() {
         <div class="cp-options-row">
           ${venueBtn}
           ${visBtn}
+          ${storyBtn}
         </div>
 
         <p class="cp-hint">${
@@ -3713,6 +3800,10 @@ function _composerDrop(e, i) {
 function _composerClearVenue() { _composerVenue = null; renderComposer(); }
 function _composerToggleVisibility() {
   _composerVisibility = _composerVisibility === 'friends' ? 'public' : 'friends';
+  renderComposer();
+}
+function _composerToggleStory() {
+  _composerStory = !_composerStory;
   renderComposer();
 }
 function _composerPickVenue() {
@@ -3896,6 +3987,7 @@ async function submitComposer() {
         caption:       body || null,
         postType:      'photo',
         visibility:    _composerVisibility,
+        expiresAt:     _composerStory ? new Date(Date.now() + 24*3600*1000).toISOString() : null,
       });
     } else if (_composerType === 'editorial') {
       if (!title && !body) { showToast('Add a headline or some body text'); btn.disabled = false; btn.textContent = 'Post'; return; }
@@ -5702,6 +5794,51 @@ async function tagFriend(toUserId, toName, venueId, venueName, chip) {
 // ══════════════════════════════════════════════
 
 // Render the UGC photos strip inside the venue modal
+async function renderVenueTakes(venueId) {
+  const wrap = document.getElementById(`venue-takes-${venueId}`);
+  if (!wrap) return;
+  const takes = await fetchVenueTakes(venueId, 30);
+  const composer = currentUser ? `
+    <div class="vt-composer">
+      <input type="text" id="vt-input-${venueId}" placeholder="Quick take? '$5 margs are the move'" maxlength="280">
+      <button onclick="submitVenueTake('${venueId}')">Post</button>
+    </div>` : '';
+  if (!takes.length && !currentUser) { wrap.innerHTML = ''; return; }
+  wrap.innerHTML = `
+    <div class="s-div"></div>
+    <div class="modal-section-label">Quick takes</div>
+    ${composer}
+    <div class="vt-list" id="vt-list-${venueId}">
+      ${takes.length ? takes.map(t => {
+        const p = t.profile || {};
+        const isMe = currentUser && t.user_id === currentUser.id;
+        return `<div class="vt-row">
+          <div class="vt-avatar">${initialsAvatar(p.display_name || 'User', '', p.avatar_emoji, p.avatar_url)}</div>
+          <div class="vt-body">
+            <div class="vt-name" onclick="closeOverlay('modalOverlay');openPublicProfile('${t.user_id}')">${esc(p.display_name || 'User')}${p.is_official ? officialBadge(p) : ''} <span class="vt-time">${fmtDate(t.created_at)}</span></div>
+            <div class="vt-text">${esc(t.text)}</div>
+          </div>
+          ${isMe ? `<button class="vt-delete" onclick="deleteVenueTakeUI('${t.id}','${venueId}')">✕</button>` : ''}
+        </div>`;
+      }).join('') : '<div class="vt-empty">Be the first with a quick take.</div>'}
+    </div>`;
+}
+async function submitVenueTake(venueId) {
+  const inp = document.getElementById(`vt-input-${venueId}`);
+  if (!inp) return;
+  const text = inp.value.trim();
+  if (!text) return;
+  const res = await postVenueTake(venueId, text);
+  if (res?.error) { showToast('Could not post'); return; }
+  inp.value = '';
+  renderVenueTakes(venueId);
+}
+async function deleteVenueTakeUI(takeId, venueId) {
+  if (!confirm('Delete this take?')) return;
+  await deleteVenueTake(takeId);
+  renderVenueTakes(venueId);
+}
+
 // Posts (text + editorial + photo) tagged at this venue. Renders a
 // feed-style list using the existing renderSocialItem variants. The photo
 // strip above already covers the visual gallery, so this list focuses on
@@ -7249,6 +7386,152 @@ async function doBlockUser(userId, btn) {
     const overlay = btn?.closest('.overlay');
     if (overlay) dismissOverlay(overlay);
   }
+}
+
+// ════════════════════════════════════════════════════════
+// GOING-TONIGHT INTENT SHEET
+// ════════════════════════════════════════════════════════
+function openGoingIntentSheet(venueId, venueName) {
+  if (!currentUser) { openAuth('signin'); return; }
+  // Default to 7pm local today; if it's already past 7pm, default to current time + 1h.
+  const now = new Date();
+  const seven = new Date();
+  seven.setHours(19, 0, 0, 0);
+  const def = now > seven ? new Date(now.getTime() + 3600 * 1000) : seven;
+  const isoLocal = (d) => {
+    const tzOffset = d.getTimezoneOffset() * 60000;
+    return new Date(d.getTime() - tzOffset).toISOString().slice(0, 16);
+  };
+  const overlay = document.createElement('div');
+  overlay.className = 'overlay';
+  overlay.style.zIndex = 10000;
+  overlay.onclick = (e) => { if (e.target === overlay) { overlay.classList.remove('open'); setTimeout(() => overlay.remove(), 200); } };
+  overlay.innerHTML = `
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <div class="going-sheet">
+        <div class="going-sheet__title">Going to ${esc(venueName)} 🍻</div>
+        <div class="going-sheet__sub">Friends will get a push so they can join you.</div>
+        <label class="going-sheet__label">When?</label>
+        <input type="datetime-local" id="goingSheetTime" value="${isoLocal(def)}" class="going-sheet__time">
+        <label class="going-sheet__label">Quick note (optional)</label>
+        <input type="text" id="goingSheetMsg" placeholder="At the bar by 8" maxlength="120" class="going-sheet__msg">
+        <button class="going-sheet__cta" id="goingSheetCta">Post intent</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  requestAnimationFrame(() => requestAnimationFrame(() => overlay.classList.add('open')));
+  document.getElementById('goingSheetCta').addEventListener('click', async () => {
+    const btn = document.getElementById('goingSheetCta');
+    btn.disabled = true; btn.textContent = 'Posting…';
+    const local = document.getElementById('goingSheetTime').value;
+    const msg = document.getElementById('goingSheetMsg').value.trim();
+    if (!local) { showToast('Pick a time'); btn.disabled = false; btn.textContent = 'Post intent'; return; }
+    const goingAt = new Date(local).toISOString();
+    const res = await postGoingIntent({ venueId, goingAt, message: msg });
+    if (res?.error) { showToast('Could not post'); btn.disabled = false; btn.textContent = 'Post intent'; return; }
+    showToast('Posted — friends notified');
+    overlay.classList.remove('open');
+    setTimeout(() => overlay.remove(), 200);
+    // Refresh modal display
+    if (typeof openModal === 'function') openModal(venueId, 'venue');
+  });
+}
+
+// ════════════════════════════════════════════════════════
+// STORIES — 24h ephemeral posts
+// ════════════════════════════════════════════════════════
+
+function renderStoriesStrip(stories) {
+  // First tile is "Add Story" for the current user; then everyone else.
+  const myTile = currentUser ? `
+    <button class="stry-tile stry-tile--add" onclick="openComposer({type:'photo',story:true})">
+      <div class="stry-avatar stry-avatar--add">+</div>
+      <div class="stry-name">Your Story</div>
+    </button>` : '';
+  const tiles = stories.map(s => `
+    <button class="stry-tile" onclick="openStoryViewer('${s.user_id}')">
+      <div class="stry-avatar stry-ring">
+        ${initialsAvatar(s.display_name || 'User', '', s.avatar_emoji, s.avatar_url)}
+      </div>
+      <div class="stry-name">${esc((s.display_name || 'User').split(' ')[0])}${s.is_official ? officialBadge(s) : ''}</div>
+    </button>`).join('');
+  return `<div class="stry-strip">${myTile}${tiles}</div>`;
+}
+
+let _storyViewerItems = [];
+let _storyViewerIdx = 0;
+let _storyViewerTimer = null;
+const STORY_DURATION_MS = 5000;
+
+async function openStoryViewer(userId) {
+  if (typeof haptic === 'function') haptic('light');
+  const items = await fetchUserStories(userId);
+  if (!items.length) { showToast('Story expired'); return; }
+  // Resolve the author profile for display in the viewer
+  const meta = _socialStories.find(s => s.user_id === userId)
+    || { display_name: 'User', avatar_url: null, avatar_emoji: null, is_official: false };
+  _storyViewerItems = items;
+  _storyViewerIdx = 0;
+
+  let overlay = document.getElementById('storyViewer');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'storyViewer';
+    overlay.className = 'stryv';
+    document.body.appendChild(overlay);
+  }
+  const renderFrame = () => {
+    const it = _storyViewerItems[_storyViewerIdx];
+    if (!it) { closeStoryViewer(); return; }
+    const photo = it.photo_url || (Array.isArray(it.media_urls) && it.media_urls[0]) || '';
+    const dots = _storyViewerItems.map((_, i) => `<span class="stryv-pip${i === _storyViewerIdx ? ' active' : i < _storyViewerIdx ? ' done' : ''}"></span>`).join('');
+    overlay.innerHTML = `
+      <div class="stryv-pips">${dots}</div>
+      <button class="stryv-close" onclick="closeStoryViewer()">✕</button>
+      <header class="stryv-header">
+        <div class="stryv-avatar">${initialsAvatar(meta.display_name || 'User', '', meta.avatar_emoji, meta.avatar_url)}</div>
+        <div class="stryv-name">${esc(meta.display_name || 'User')}${officialBadge(meta)}</div>
+        <div class="stryv-time">${fmtDate(it.created_at)}</div>
+      </header>
+      <div class="stryv-zone stryv-zone--prev" onclick="storyPrev()"></div>
+      <div class="stryv-zone stryv-zone--next" onclick="storyNext()"></div>
+      <div class="stryv-media">
+        <img src="${esc(photo)}" alt="">
+      </div>
+      ${it.caption ? `<div class="stryv-caption">${esc(it.caption)}</div>` : ''}`;
+    overlay.classList.add('stryv--open');
+    document.body.style.overflow = 'hidden';
+    clearTimeout(_storyViewerTimer);
+    _storyViewerTimer = setTimeout(storyNext, STORY_DURATION_MS);
+  };
+  window.__storyRender = renderFrame;
+  renderFrame();
+}
+
+function storyPrev() {
+  if (_storyViewerIdx <= 0) { closeStoryViewer(); return; }
+  _storyViewerIdx -= 1;
+  if (typeof haptic === 'function') haptic('light');
+  if (window.__storyRender) window.__storyRender();
+}
+function storyNext() {
+  if (_storyViewerIdx >= _storyViewerItems.length - 1) { closeStoryViewer(); return; }
+  _storyViewerIdx += 1;
+  if (typeof haptic === 'function') haptic('light');
+  if (window.__storyRender) window.__storyRender();
+}
+function closeStoryViewer() {
+  clearTimeout(_storyViewerTimer);
+  const overlay = document.getElementById('storyViewer');
+  if (overlay) {
+    overlay.classList.remove('stryv--open');
+    document.body.style.overflow = '';
+    setTimeout(() => overlay.remove(), 200);
+  }
+  _storyViewerItems = [];
+  _storyViewerIdx = 0;
+  window.__storyRender = null;
 }
 
 // ════════════════════════════════════════════════════════

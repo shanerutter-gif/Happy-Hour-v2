@@ -958,7 +958,7 @@ async function deleteActivityPost(postId, postType, meta) {
   return true;
 }
 
-async function saveCheckinPhoto({ userId, venueId, citySlug, photoUrl, storagePath, caption, mediaUrls, mediaCaptions, postType, title, body, pinnedUntil, visibility }) {
+async function saveCheckinPhoto({ userId, venueId, citySlug, photoUrl, storagePath, caption, mediaUrls, mediaCaptions, postType, title, body, pinnedUntil, visibility, expiresAt }) {
   try {
     const session = getSession();
     const client  = session?.access_token
@@ -980,6 +980,7 @@ async function saveCheckinPhoto({ userId, venueId, citySlug, photoUrl, storagePa
       body: body || null,
       pinned_until: pinnedUntil || null,
       visibility: visibility || 'public',
+      expires_at: expiresAt || null,
     };
     const { data, error } = await client.from('checkin_photos').insert(payload).select().single();
     if (error) throw error;
@@ -1044,6 +1045,104 @@ async function updateMyPost(postId, { caption, title, body, pinnedUntilDays }) {
   if (error) return { error: error.message };
   track('post_edited', {});
   return { ok: true };
+}
+
+// ── VENUE TAKES (quick comments on a venue) ──────────────────────
+async function fetchVenueTakes(venueId, limit = 30) {
+  try {
+    const { data } = await db.from('venue_takes')
+      .select('id, user_id, text, created_at')
+      .eq('venue_id', venueId)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    if (!data?.length) return [];
+    const userIds = [...new Set(data.map(r => r.user_id).filter(Boolean))];
+    const { data: profiles } = await db.from('profiles')
+      .select('id, display_name, avatar_emoji, avatar_url, is_official')
+      .in('id', userIds);
+    const pMap = {};
+    (profiles || []).forEach(p => { pMap[p.id] = p; });
+    return data.map(r => ({ ...r, profile: pMap[r.user_id] || null }));
+  } catch (e) { return []; }
+}
+async function postVenueTake(venueId, text) {
+  if (!currentUser) return { error: 'Not signed in' };
+  const session = getSession();
+  if (!session?.access_token) return { error: 'No auth' };
+  const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    global: { headers: { Authorization: `Bearer ${session.access_token}` } }
+  });
+  const { error } = await client.from('venue_takes').insert({
+    venue_id: venueId, user_id: currentUser.id, text: text.trim()
+  });
+  if (error) return { error: error.message };
+  track('venue_take_posted', { venue_id: venueId });
+  return { ok: true };
+}
+async function deleteVenueTake(takeId) {
+  if (!currentUser) return false;
+  const session = getSession();
+  if (!session?.access_token) return false;
+  const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    global: { headers: { Authorization: `Bearer ${session.access_token}` } }
+  });
+  const { error } = await client.from('venue_takes').delete().eq('id', takeId).eq('user_id', currentUser.id);
+  return !error;
+}
+
+// ── STREAKS & LEADERBOARDS ────────────────────────────────────────
+async function fetchUserWeeklyStreak(userId) {
+  if (!userId) return 0;
+  try {
+    const { data } = await db.rpc('user_weekly_streak', { p_user_id: userId });
+    return Number(data) || 0;
+  } catch (e) { return 0; }
+}
+async function fetchFriendLeaderboard(metric) {
+  if (!currentUser) return [];
+  try {
+    const { data } = await db.rpc('friend_leaderboard', { p_metric: metric });
+    return data || [];
+  } catch (e) { return []; }
+}
+
+// ── GOING-OUT INTENTS ────────────────────────────────────────────
+async function postGoingIntent({ venueId, goingAt, message }) {
+  if (!currentUser) return { error: 'Not signed in' };
+  const session = getSession();
+  if (!session?.access_token) return { error: 'No auth' };
+  const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    global: { headers: { Authorization: `Bearer ${session.access_token}` } }
+  });
+  const { error } = await client.from('going_intents').insert({
+    user_id: currentUser.id, venue_id: venueId, going_at: goingAt, message: message || null
+  });
+  if (error) return { error: error.message };
+  track('going_intent_posted', { venue_id: venueId });
+  return { ok: true };
+}
+
+async function fetchVenueGoingTonight(venueId) {
+  try {
+    const { data } = await db.rpc('venue_going_tonight', { p_venue_id: venueId });
+    return data || [];
+  } catch (e) { return []; }
+}
+
+// Active 24h stories for a city, grouped by author for the strip UI.
+async function fetchActiveStories(citySlug, limit = 30) {
+  try {
+    const { data } = await db.rpc('active_stories', { p_city_slug: citySlug, p_limit: limit });
+    return data || [];
+  } catch (e) { return []; }
+}
+
+// All active stories for a single user (for the viewer).
+async function fetchUserStories(userId) {
+  try {
+    const { data } = await db.rpc('user_active_stories', { p_user_id: userId });
+    return data || [];
+  } catch (e) { return []; }
 }
 
 // Currently-pinned editorial posts for a city. Used to render at top of feed.
