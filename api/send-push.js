@@ -35,7 +35,39 @@ export default async function handler(req) {
     return json({ error: 'Invalid JSON' }, 400);
   }
 
-  const { user_ids, title, body: msgBody, url, tag, sandbox } = body;
+  const { user_ids, title, body: msgBody, url, tag, sandbox, diagnose } = body;
+
+  // Diagnostic mode: build the JWT, return its header+claims (NOT the
+  // signature), don't actually call Apple. Lets us verify env vars are
+  // configured correctly without sending anything.
+  if (diagnose) {
+    const out = {
+      env: {
+        VAPID_PRIVATE_KEY:  vapidPrivateKey ? `set (${vapidPrivateKey.length} chars)` : 'MISSING',
+        APNS_KEY_BASE64:    apnsKeyBase64   ? `set (${apnsKeyBase64.length} chars)`  : 'MISSING',
+        APNS_KEY_ID:        apnsKeyId       || 'MISSING',
+        APNS_TEAM_ID:       apnsTeamId      || 'MISSING',
+        APNS_BUNDLE_ID:     apnsBundleId,
+      },
+    };
+    if (apnsKeyBase64 && apnsKeyId && apnsTeamId) {
+      try {
+        const decoded = atob(apnsKeyBase64);
+        out.apns_key_first_30_chars  = decoded.slice(0, 30);
+        out.apns_key_starts_with_pem = decoded.startsWith('-----BEGIN PRIVATE KEY-----');
+        const jwt = await createApnsJwt(apnsKeyBase64, apnsKeyId, apnsTeamId);
+        const [h, c] = jwt.split('.');
+        out.jwt_header = JSON.parse(atob(h.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((h.length + 3) % 4)));
+        out.jwt_claims = JSON.parse(atob(c.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((c.length + 3) % 4)));
+        out.jwt_built_ok = true;
+      } catch (e) {
+        out.jwt_built_ok = false;
+        out.jwt_error = e.message;
+      }
+    }
+    return json(out);
+  }
+
   if (!title || !msgBody) {
     return json({ error: 'title and body are required' }, 400);
   }
