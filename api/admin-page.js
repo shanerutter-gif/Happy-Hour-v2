@@ -11,15 +11,24 @@ const SCRIPT_TAGS = [
   '<script src="/admin-attribution.js" defer></script>',
 ];
 
-// Fetch the static admin.html from the same deployment's raw GitHub source so
-// we always reflect the latest main branch. Cached at the edge.
-const SOURCE_URL = 'https://raw.githubusercontent.com/shanerutter-gif/Happy-Hour-v2/main/admin.html';
+// Fetch admin.html from the GitHub Contents API instead of raw.githubusercontent.com.
+// raw.githubusercontent.com aggressively caches for ~5 min, which delays admin
+// updates even after a successful Vercel deploy. The Contents API serves the
+// latest commit on main with a much shorter cache, so the admin reflects pushes
+// almost immediately.
+const SOURCE_URL = 'https://api.github.com/repos/shanerutter-gif/Happy-Hour-v2/contents/admin.html?ref=main';
 
 export default async function handler() {
   try {
-    const res = await fetch(SOURCE_URL, { cache: 'no-store' });
+    const res = await fetch(SOURCE_URL, {
+      cache: 'no-store',
+      headers: {
+        'Accept':     'application/vnd.github.raw',
+        'User-Agent': 'spotd-admin-page',
+      },
+    });
     if (!res.ok) {
-      return new Response('admin source unavailable', { status: 502 });
+      return new Response('admin source unavailable: ' + res.status, { status: 502 });
     }
     let html = await res.text();
     for (const tag of SCRIPT_TAGS) {
@@ -35,7 +44,9 @@ export default async function handler() {
       status: 200,
       headers: {
         'Content-Type':  'text/html; charset=utf-8',
-        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+        // Short edge cache so a deploy reflects within ~10s, not 60s+.
+        // Browsers won't cache (no-store) so a refresh always re-fetches.
+        'Cache-Control': 'public, s-maxage=10, stale-while-revalidate=30',
       },
     });
   } catch (e) {
