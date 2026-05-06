@@ -40,8 +40,9 @@ export default async function handler(req) {
     return json({ error: 'title and body are required' }, 400);
   }
 
-  // Fetch push tokens from Supabase
-  let query = `${supabaseUrl}/rest/v1/push_tokens?select=token,platform`;
+  // Fetch push tokens from Supabase. Web platform is currently excluded
+  // (see continue in the loop below); pre-filter so denominators are honest.
+  let query = `${supabaseUrl}/rest/v1/push_tokens?select=token,platform&platform=in.(ios,native)`;
   if (user_ids?.length) {
     query += `&user_id=in.(${user_ids.join(',')})`;
   }
@@ -75,9 +76,10 @@ export default async function handler(req) {
 
     try {
       if (platform === 'web') {
-        if (!vapidPrivateKey) { errors.push({ platform, tag: tag_id, error: 'VAPID_PRIVATE_KEY not set' }); continue; }
-        await sendWebPush(token, payload, vapidPrivateKey);
-        sent++;
+        // Web push currently disabled — VAPID keypair mismatch with the
+        // hardcoded public key. iOS-only deployment, so skip cleanly
+        // rather than logging noisy 403s for every trigger.
+        continue;
       } else if (platform === 'ios' || platform === 'native') {
         if (!apnsKeyBase64 || !apnsKeyId || !apnsTeamId) {
           errors.push({ platform, tag: tag_id, error: 'APNs env vars not configured' });
