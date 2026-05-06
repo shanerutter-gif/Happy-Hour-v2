@@ -35,7 +35,7 @@ export default async function handler(req) {
     return json({ error: 'Invalid JSON' }, 400);
   }
 
-  const { user_ids, title, body: msgBody, url, tag } = body;
+  const { user_ids, title, body: msgBody, url, tag, sandbox } = body;
   if (!title || !msgBody) {
     return json({ error: 'title and body are required' }, 400);
   }
@@ -86,7 +86,7 @@ export default async function handler(req) {
           continue;
         }
         await sendApnsPush(token, { title, body: msgBody, url: url || '/', tag: tag || 'spotd' }, {
-          keyBase64: apnsKeyBase64, keyId: apnsKeyId, teamId: apnsTeamId, bundleId: apnsBundleId,
+          keyBase64: apnsKeyBase64, keyId: apnsKeyId, teamId: apnsTeamId, bundleId: apnsBundleId, sandbox: !!sandbox,
         });
         sent++;
       }
@@ -107,7 +107,7 @@ export default async function handler(req) {
 }
 
 // ── APNs Push (iOS) via HTTP/2-compatible fetch ──
-async function sendApnsPush(deviceToken, { title, body, url, tag }, { keyBase64, keyId, teamId, bundleId }) {
+async function sendApnsPush(deviceToken, { title, body, url, tag }, { keyBase64, keyId, teamId, bundleId, sandbox }) {
   let jwt;
   try {
     jwt = await createApnsJwt(keyBase64, keyId, teamId);
@@ -128,8 +128,10 @@ async function sendApnsPush(deviceToken, { title, body, url, tag }, { keyBase64,
     tag: tag || 'spotd',
   });
 
-  // Use production APNs endpoint
-  const endpoint = `https://api.push.apple.com/3/device/${deviceToken}`;
+  // Production vs sandbox APNs endpoint. Tokens from TestFlight or Xcode
+  // dev builds only validate against sandbox; App Store builds use production.
+  const host = sandbox ? 'api.sandbox.push.apple.com' : 'api.push.apple.com';
+  const endpoint = `https://${host}/3/device/${deviceToken}`;
   const res = await fetch(endpoint, {
     method: 'POST',
     headers: {

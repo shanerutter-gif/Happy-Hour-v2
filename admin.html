@@ -1870,6 +1870,10 @@
               <button class="push-audience-btn sel" onclick="selectPushAudience('all', this)">All Users (iOS)</button>
               <button class="push-audience-btn" onclick="selectPushAudience('me', this)">🧪 Just Me (test)</button>
             </div>
+            <label style="display:flex;align-items:center;gap:8px;margin-top:10px;cursor:pointer;font-size:13px;text-transform:none;letter-spacing:0;color:var(--muted)">
+              <input type="checkbox" id="push-sandbox-toggle">
+              Use APNs sandbox (TestFlight / Xcode dev builds)
+            </label>
           </div>
 
           <div class="push-field">
@@ -4657,7 +4661,8 @@ in San Diego</textarea>
         }
       }
 
-      const payload = { title, body: body, url: url || '/', tag: 'admin-push' };
+      const sandbox = !!document.getElementById('push-sandbox-toggle')?.checked;
+      const payload = { title, body: body, url: url || '/', tag: 'admin-push', sandbox };
       if (user_ids) payload.user_ids = user_ids;
 
       const res = await fetch('/api/send-push', {
