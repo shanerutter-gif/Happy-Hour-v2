@@ -474,6 +474,16 @@
     .eb-btn-primary:hover { background:var(--coral2); }
     .eb-btn-secondary { background:var(--bg2); color:var(--text); border:1px solid var(--border); }
     .eb-btn-secondary:hover { background:var(--border); }
+    .eb-btn:disabled { opacity:.5; cursor:not-allowed; }
+    .eb-tpl-row { display:flex; gap:8px; margin-bottom:8px; align-items:stretch; }
+    .eb-tpl-row:last-child { margin-bottom:0; }
+    .eb-tpl-select, .eb-tpl-name {
+      flex:1; min-width:0;
+      padding:10px 12px; background:var(--bg); border:1px solid var(--border);
+      border-radius:10px; font-size:13px; color:var(--text);
+      font-family:'DM Sans',sans-serif; outline:none;
+    }
+    .eb-tpl-select:focus, .eb-tpl-name:focus { border-color:var(--coral); }
     @media(max-width:900px) {
       .eb-layout { flex-direction:column; height:auto; }
       .eb-sidebar { width:100%; }
@@ -2424,6 +2434,23 @@ in San Diego</textarea>
               <div class="eb-field"><label>Copyright tagline</label><input type="text" id="eb-footer-tagline" value="3 fresh deals, every single day." oninput="ebRender()"></div>
             </div>
 
+            <!-- Templates -->
+            <div class="eb-panel">
+              <div class="eb-panel-title">Saved Templates</div>
+              <div class="eb-tpl-row">
+                <select class="eb-tpl-select" id="eb-tpl-select" onchange="ebTplOnSelectChange()">
+                  <option value="">— pick a template to load —</option>
+                </select>
+                <button class="eb-btn eb-btn-secondary" onclick="ebTplLoad()" id="eb-tpl-load-btn" disabled>Load</button>
+                <button class="eb-btn eb-btn-secondary" onclick="ebTplDelete()" id="eb-tpl-delete-btn" disabled title="Delete selected template">🗑</button>
+              </div>
+              <div class="eb-tpl-row">
+                <input type="text" class="eb-tpl-name" id="eb-tpl-name" placeholder="Template name (e.g. Daily Deals · Weekday)">
+                <button class="eb-btn eb-btn-primary" onclick="ebTplSave()">💾 Save as template</button>
+              </div>
+              <div id="eb-tpl-status" style="font-size:12px;color:var(--muted);margin-top:6px"></div>
+            </div>
+
             <!-- Actions -->
             <div class="eb-btn-row">
               <button class="eb-btn eb-btn-primary" onclick="ebExportMjml()">⬇ Export MJML (.zip)</button>
@@ -3416,6 +3443,7 @@ in San Diego</textarea>
       setTimeout(window._assetPreviewUpdate, 100);
     }
     if (page === 'blog') loadBlogPosts();
+    if (page === 'email-builder') { try { ebTplLoadList(); } catch(e){} }
   }
 
   // ── HERO PICKER ──────────────────────────────────────
@@ -6428,6 +6456,158 @@ ${sectionsMjml}
   function ebCopyHtml() {
     const html = document.getElementById('eb-preview-frame').innerHTML;
     navigator.clipboard.writeText(html).then(() => showToast('HTML copied to clipboard'));
+  }
+
+  // ── TEMPLATES ────────────────────────────────────────────────────────
+  // Snapshot/restore the entire email-builder state so users can save a
+  // configured email and reload it later. Persists in public.email_templates
+  // (admin-gated by is_giveaway_admin RLS).
+
+  // All builder field IDs we read/write. Keep this list in sync with the
+  // form. New fields added later just need to be appended here.
+  const EB_FIELD_IDS = [
+    'eb-subject', 'eb-preview', 'eb-badge',
+    'eb-logo-url', 'eb-logo-height', 'eb-logo-width',
+    'eb-hero-eyebrow', 'eb-hero-headline', 'eb-hero-body', 'eb-hero-img',
+    'eb-cta-headline', 'eb-cta-btn', 'eb-cta-url',
+    'eb-footer-text', 'eb-footer-company', 'eb-footer-tagline',
+  ];
+
+  function _ebSnapshot() {
+    const fields = {};
+    EB_FIELD_IDS.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) fields[id] = el.value;
+    });
+    return {
+      version: 1,
+      fields,
+      sections: JSON.parse(JSON.stringify(_ebSections || [])),
+    };
+  }
+
+  function _ebRestore(payload) {
+    if (!payload || typeof payload !== 'object') return;
+    const fields = payload.fields || {};
+    EB_FIELD_IDS.forEach(id => {
+      const el = document.getElementById(id);
+      if (el && typeof fields[id] !== 'undefined') el.value = fields[id];
+    });
+    if (Array.isArray(payload.sections)) {
+      _ebSections = payload.sections.map(s => ({ ...s }));
+      ebRenderSectionList();
+    }
+    ebRender();
+  }
+
+  let _ebTplCache = [];
+
+  async function ebTplLoadList() {
+    const sel    = document.getElementById('eb-tpl-select');
+    const status = document.getElementById('eb-tpl-status');
+    if (!sel) return;
+    try {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/email_templates?select=id,name,description,updated_at&order=updated_at.desc`, { headers: svcHeaders() });
+      const rows = await r.json();
+      _ebTplCache = Array.isArray(rows) ? rows : [];
+      sel.innerHTML = '<option value="">— pick a template to load —</option>' +
+        _ebTplCache.map(t => `<option value="${escHtml(t.id)}">${escHtml(t.name)}${t.updated_at ? ' · ' + new Date(t.updated_at).toLocaleDateString() : ''}</option>`).join('');
+      ebTplOnSelectChange();
+      if (status) status.textContent = _ebTplCache.length ? `${_ebTplCache.length} saved` : 'No saved templates yet';
+    } catch (e) {
+      if (status) status.textContent = 'Could not load templates: ' + e.message;
+    }
+  }
+
+  function ebTplOnSelectChange() {
+    const id = document.getElementById('eb-tpl-select')?.value;
+    const has = !!id;
+    const loadBtn = document.getElementById('eb-tpl-load-btn');
+    const delBtn  = document.getElementById('eb-tpl-delete-btn');
+    if (loadBtn) loadBtn.disabled = !has;
+    if (delBtn)  delBtn.disabled  = !has;
+  }
+
+  async function ebTplSave() {
+    const nameInput = document.getElementById('eb-tpl-name');
+    const status    = document.getElementById('eb-tpl-status');
+    const name = (nameInput?.value || '').trim();
+    if (!name) { if (status) { status.textContent = 'Give the template a name first'; status.style.color = 'var(--error)'; } return; }
+    const payload = _ebSnapshot();
+
+    // If a template with this name already exists, overwrite it. Cleaner UX
+    // than letting the user accumulate "Daily Deals", "Daily Deals (1)", …
+    const existing = _ebTplCache.find(t => t.name.toLowerCase() === name.toLowerCase());
+    try {
+      if (existing) {
+        const r = await fetch(`${SUPABASE_URL}/rest/v1/email_templates?id=eq.${existing.id}`, {
+          method: 'PATCH',
+          headers: { ...svcHeaders(), 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ payload, name }),
+        });
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        if (status) { status.textContent = `Updated "${name}"`; status.style.color = 'var(--success, #2A7A5A)'; }
+      } else {
+        const r = await fetch(`${SUPABASE_URL}/rest/v1/email_templates`, {
+          method: 'POST',
+          headers: { ...svcHeaders(), 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ name, payload }),
+        });
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        if (status) { status.textContent = `Saved "${name}"`; status.style.color = 'var(--success, #2A7A5A)'; }
+      }
+      nameInput.value = '';
+      await ebTplLoadList();
+      // Auto-select the just-saved template so Load/Delete are immediately wired
+      const sel = document.getElementById('eb-tpl-select');
+      const match = _ebTplCache.find(t => t.name === name);
+      if (sel && match) { sel.value = match.id; ebTplOnSelectChange(); }
+    } catch (e) {
+      if (status) { status.textContent = 'Save failed: ' + e.message; status.style.color = 'var(--error)'; }
+    }
+  }
+
+  async function ebTplLoad() {
+    const id = document.getElementById('eb-tpl-select')?.value;
+    if (!id) return;
+    const status = document.getElementById('eb-tpl-status');
+    try {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/email_templates?id=eq.${id}&select=name,payload`, { headers: svcHeaders() });
+      const rows = await r.json();
+      const row = Array.isArray(rows) ? rows[0] : null;
+      if (!row) throw new Error('Template not found');
+      _ebRestore(row.payload);
+      // Bump last_used_at — fire and forget
+      fetch(`${SUPABASE_URL}/rest/v1/email_templates?id=eq.${id}`, {
+        method: 'PATCH',
+        headers: { ...svcHeaders(), 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ last_used_at: new Date().toISOString() }),
+      }).catch(() => {});
+      if (status) { status.textContent = `Loaded "${row.name}"`; status.style.color = 'var(--success, #2A7A5A)'; }
+      showToast('Template loaded');
+    } catch (e) {
+      if (status) { status.textContent = 'Load failed: ' + e.message; status.style.color = 'var(--error)'; }
+    }
+  }
+
+  async function ebTplDelete() {
+    const sel = document.getElementById('eb-tpl-select');
+    const id = sel?.value;
+    if (!id) return;
+    const tpl = _ebTplCache.find(t => t.id === id);
+    if (!confirm(`Delete template "${tpl?.name || 'this template'}"?`)) return;
+    const status = document.getElementById('eb-tpl-status');
+    try {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/email_templates?id=eq.${id}`, {
+        method: 'DELETE',
+        headers: { ...svcHeaders(), 'Prefer': 'return=minimal' },
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      if (status) { status.textContent = `Deleted`; status.style.color = 'var(--muted)'; }
+      await ebTplLoadList();
+    } catch (e) {
+      if (status) { status.textContent = 'Delete failed: ' + e.message; status.style.color = 'var(--error)'; }
+    }
   }
 
   // Initialize sections on first load
