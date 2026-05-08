@@ -2639,12 +2639,12 @@ function renderModal(v, type, reviews) {
     ${isAdmin() && isVenue ? `<button class="admin-edit-btn" onclick="adminEditVenue('${v.id}')">✏️ Edit Venue</button>` : ''}
 
     ${isVenue ? `
-    <div style="padding:0 16px 4px">
-      <div style="display:flex;gap:8px;align-items:stretch">
-        <button class="modal-checkin-cta" style="flex:1" onclick="doGoingTonight('${v.id}', this)">${checkInBtnLabel(checkInCount, isMeIn)}</button>
+    <div class="modal-cta-bar">
+      <div class="modal-cta-row">
+        <button class="modal-checkin-cta" onclick="doGoingTonight('${v.id}', this)">${checkInBtnLabel(checkInCount, isMeIn)}</button>
         <button class="modal-going-cta" onclick="openGoingIntentSheet('${v.id}','${esc(v.name)}')" title="I'm going tonight">🍻 Going</button>
       </div>
-      ${checkInCount >= 2 ? `<div class="s-going-count" style="margin-top:6px">${ICN.fire} ${checkInCount} people checked in tonight</div>` : ''}
+      ${checkInCount >= 2 ? `<div class="s-going-count">${ICN.fire} ${checkInCount} people checked in tonight</div>` : ''}
       <div id="going-tonight-${v.id}"></div>
     </div>` : ''}
 

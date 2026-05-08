@@ -4903,54 +4903,57 @@ button:not([disabled]),
 }
 .giveaway-tile__cta:active { transform: scale(0.98); }
 
-/* ── In-card check-in buttons (std + compact variants) ── */
-.card-std-checkin {
-  margin-top: 8px;
+/* ── In-card check-in buttons (hero / std / compact variants) ──
+   All three share the same coral→amber gradient pill language for
+   consistency with the modal Check In CTA. The "joined" state flips
+   to charcoal so checked-in spots read as a different status while
+   still feeling like part of the same family. */
+.card-std-checkin,
+.card-compact-checkin,
+.card-hero-going-btn {
   align-self: flex-start;
-  padding: 7px 14px;
+  margin-top: 8px;
+  padding: 8px 16px;
   border: none;
   border-radius: 999px;
-  background: #FF6B4A;
+  background: linear-gradient(135deg, #FF6B4A 0%, #E8943A 100%);
   color: #FFFFFF;
   font-family: 'DM Sans', sans-serif;
   font-weight: 700;
   font-size: 12px;
-  letter-spacing: 0.2px;
+  letter-spacing: -0.05px;
   cursor: pointer;
-  transition: background-color .15s, transform .1s, box-shadow .15s;
-  box-shadow: 0 1px 3px rgba(255, 107, 74, 0.25);
+  box-shadow: 0 2px 8px rgba(255, 107, 74, 0.30);
+  transition: transform .12s var(--ease-spring, cubic-bezier(.32,.72,0,1)),
+              box-shadow .15s var(--ease-soft),
+              filter .15s var(--ease-soft);
   -webkit-tap-highlight-color: transparent;
+  white-space: nowrap;
 }
-.card-std-checkin:hover  { background: #E5543A; }
-.card-std-checkin:active { transform: scale(0.96); }
-.card-std-checkin.joined {
+.card-std-checkin:hover,
+.card-compact-checkin:hover,
+.card-hero-going-btn:hover { filter: brightness(1.04); }
+.card-std-checkin:active,
+.card-compact-checkin:active,
+.card-hero-going-btn:active {
+  transform: scale(0.94);
+  box-shadow: 0 1px 4px rgba(255, 107, 74, 0.25);
+}
+.card-std-checkin.joined,
+.card-compact-checkin.joined,
+.card-hero-going-btn.joined {
   background: #2A1F14;
   color: #F5EFE6;
   box-shadow: none;
+  filter: none;
 }
+
+/* Compact card overlay variant — slightly smaller + safe over photos */
 .card-compact-checkin {
-  margin-top: 8px;
-  align-self: flex-start;
-  padding: 6px 12px;
-  border: none;
-  border-radius: 999px;
-  background: rgba(255, 107, 74, 0.92);
-  color: #FFFFFF;
-  font-family: 'DM Sans', sans-serif;
-  font-weight: 700;
+  padding: 7px 14px;
   font-size: 11px;
-  letter-spacing: 0.2px;
-  cursor: pointer;
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
-  transition: background-color .15s, transform .1s;
-  -webkit-tap-highlight-color: transparent;
-}
-.card-compact-checkin:hover  { background: #E5543A; }
-.card-compact-checkin:active { transform: scale(0.96); }
-.card-compact-checkin.joined {
-  background: rgba(42, 31, 20, 0.9);
-  color: #F5EFE6;
 }
 
 .giveaway-tile__addcode {
@@ -5749,16 +5752,50 @@ button:not([disabled]),
 /* ── Going Out CTA + crowd strip on venue modal ── */
 .modal-going-cta {
   flex-shrink: 0;
-  background: rgba(255,107,74,.10);
-  color: #FF6B4A;
-  border: 1.5px solid rgba(255,107,74,.35);
-  border-radius: 12px;
-  padding: 12px 14px;
+  /* Outlined-on-cream variant of the gradient — pairs visually with
+     the solid gradient Check In button. Gradient border via background-clip
+     trick: outer gradient + inner cream fill. */
+  background:
+    linear-gradient(var(--card), var(--card)) padding-box,
+    linear-gradient(135deg, var(--coral) 0%, var(--amber) 100%) border-box;
+  color: var(--coral);
+  border: 2px solid transparent;
+  border-radius: 50px;
+  padding: 13px 22px;
   font-family: 'DM Sans', sans-serif;
   font-weight: 700; font-size: 14px;
+  letter-spacing: -.1px;
   cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px;
+  transition: transform .15s var(--ease-spring, cubic-bezier(.32,.72,0,1)),
+              box-shadow .15s var(--ease-soft);
+  -webkit-tap-highlight-color: transparent;
 }
-.modal-going-cta:active { background: rgba(255,107,74,.18); }
+.modal-going-cta:hover  { box-shadow: 0 4px 14px rgba(255,107,74,0.18); }
+.modal-going-cta:active { transform: scale(.96); }
+
+/* When Check In + Going are paired in the same row, kill the top
+   margin on Check In so the row sits flush — modal-checkin-cta has
+   margin-top: 14px in its own rule which double-stacks otherwise. */
+.modal-going-cta + .modal-checkin-cta,
+.modal-checkin-cta + .modal-going-cta { margin-top: 0; }
+
+/* Wrapper for the Check In + Going pair so both buttons are equal
+   height, properly spaced, and don't fight individual margin rules. */
+.modal-cta-bar { padding: 0 16px 4px; }
+.modal-cta-row {
+  display: flex; align-items: stretch; gap: 8px;
+}
+.modal-cta-row .modal-checkin-cta {
+  flex: 1; min-width: 0;
+  margin-top: 0; /* override the standalone margin */
+  justify-content: center;
+}
+.modal-cta-row .modal-going-cta {
+  /* Fill the row exactly — sit at the same baseline as Check In */
+  flex: 0 0 auto;
+}
+.modal-cta-bar .s-going-count { margin-top: 8px; }
 .going-tonight-strip { margin-top: 12px; }
 .going-tonight-strip__label {
   font-family: 'Cabinet Grotesk', sans-serif;
