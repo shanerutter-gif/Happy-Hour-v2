@@ -3345,16 +3345,26 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   font-weight: 900; font-size: 22px;
   color: var(--ink); letter-spacing: -.5px;
 }
+/* Top header action buttons. Cleaner pattern: flat icon-only circles
+   that read as one row of utility actions, no white-card-with-shadow.
+   Active state gets a subtle ink-06 wash so the press is acknowledged. */
+.social-header-right { display: flex; align-items: center; gap: 2px; }
 .social-refresh-btn {
-  width: 36px; height: 36px; border-radius: 50%;
-  background: var(--card); border: 1px solid var(--border2);
+  width: 38px; height: 38px; border-radius: 50%;
+  background: transparent;
+  border: none;
   display: flex; align-items: center; justify-content: center;
-  color: var(--muted); cursor: pointer;
-  transition: transform .15s cubic-bezier(.34,1.56,.64,1), background .15s;
+  color: var(--ink-65, var(--muted));
+  cursor: pointer;
   position: relative;
-  box-shadow: var(--shadow);
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color var(--motion-fast, .15s) var(--ease-soft, cubic-bezier(.4,0,.2,1)),
+              transform var(--motion-fast, .15s) var(--ease-spring, cubic-bezier(.32,.72,0,1)),
+              color var(--motion-fast, .15s) var(--ease-soft, cubic-bezier(.4,0,.2,1));
 }
-.social-refresh-btn:active { transform: scale(.88); }
+.social-refresh-btn:hover  { color: var(--ink-95, var(--text)); background: var(--ink-06); }
+.social-refresh-btn:active { transform: scale(.92); background: var(--ink-12); }
+.social-refresh-btn svg { display: block; }
 .social-notif-dot {
   position: absolute; top: 2px; right: 2px;
   width: 9px; height: 9px; border-radius: 50%;
@@ -6185,9 +6195,16 @@ button:not([disabled]),
 .sf-carousel-dot.on { background: #FFFFFF; transform: scale(1.25); }
 
 /* ── Save (bookmark) action button ── */
-.sf-action-save { transition: transform .12s ease; }
-.sf-action-save:active { transform: scale(.92); }
-.sf-action-save.sf-saved { color: #FF6B4A; }
+.sf-action-save { transition: transform .12s var(--ease-spring, cubic-bezier(.32,.72,0,1)); }
+.sf-action-save:active { transform: scale(.88); }
+.sf-action-save.sf-saved { color: #FF6B4A !important; }
+@keyframes savePop {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(0.78); }
+  60%  { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+.sf-action-save.sf-saved svg { animation: savePop 0.42s var(--ease-snap, cubic-bezier(.18,.89,.32,1.28)); }
 
 /* ── Saved subtabs on profile (Spots / Posts) ── */
 .pf-saved-subtabs {

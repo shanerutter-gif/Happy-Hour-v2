@@ -1147,8 +1147,8 @@ function renderSocialItem(item, variant) {
       <button class="sf-action-btn${isLiked ? ' sf-liked' : ''}" id="like-${postId}" onclick="event.stopPropagation();doToggleLike('${postId}','${postType}',this)">
         ${isLiked ? ICN.heartFill : ICN.heart}${likeCount ? `<span>${likeCount}</span>` : ''}
       </button>
-      <button class="sf-action-btn sf-action-save${isSaved ? ' sf-saved' : ''}" data-post-id="${postId}" data-post-type="${postType}" onclick="event.stopPropagation();doToggleSave('${postId}','${postType}',this)" title="${isSaved ? 'Unsave' : 'Save'}">
-        ${isSaved ? '🔖' : '🏷️'}
+      <button class="sf-action-btn sf-action-save${isSaved ? ' sf-saved' : ''}" data-post-id="${postId}" data-post-type="${postType}" onclick="event.stopPropagation();doToggleSave('${postId}','${postType}',this)" title="${isSaved ? 'Unsave' : 'Save'}" aria-pressed="${isSaved}">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="${isSaved ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
       </button>
       <button class="sf-action-btn" onclick="event.stopPropagation();openCommentsSheet('${postId}','${postType}')">
         ${ICN.comment}${commentCount ? `<span>${commentCount}</span>` : ''}
@@ -1511,7 +1511,9 @@ async function doToggleSave(postId, postType, btn) {
   document.querySelectorAll(`.sf-action-save[data-post-id="${postId}"]`).forEach(b => {
     b.classList.toggle('sf-saved', saved);
     b.title = saved ? 'Unsave' : 'Save';
-    b.textContent = saved ? '🔖' : '🏷️';
+    b.setAttribute('aria-pressed', saved ? 'true' : 'false');
+    const svg = b.querySelector('svg');
+    if (svg) svg.setAttribute('fill', saved ? 'currentColor' : 'none');
   });
   showToast(saved ? 'Saved' : 'Removed');
 }
@@ -3034,10 +3036,41 @@ const BADGE_DEFS = {
 async function openProfile() {
   if (!currentUser) { openAuth('signin'); return; }
   const page = document.getElementById('profilePage');
+  // Paint a skeleton FIRST so the page slides in with content shape,
+  // not an empty div that fills 300ms later (which is the flicker).
+  const content = document.getElementById('profileContent');
+  if (content && !content.dataset.userId) content.innerHTML = _profileSkeletonHTML();
   page.classList.add('profile-page--open');
   document.getElementById('bnProfile')?.classList.add('active');
   document.getElementById('bnFeed')?.classList.remove('active');
   await renderProfile(currentUser);
+  if (content) content.dataset.userId = currentUser.id;
+}
+function _profileSkeletonHTML() {
+  // Mirrors the live profile layout: header, banner area, avatar + name,
+  // stats row, leaderboard, tabs. Pulses via .skel class.
+  return `
+    <div style="padding:0">
+      <div class="pf-header" style="opacity:.5">
+        <img src="/spotd_logo_v5.png" alt="" class="header-logo-img" style="opacity:.4">
+      </div>
+      <div class="pf-card" style="text-align:center;padding-top:18px">
+        <div class="skel skel--avatar" style="width:96px;height:96px;margin:0 auto 14px"></div>
+        <div class="skel skel--title" style="width:140px;margin:0 auto 10px"></div>
+        <div class="skel skel--text" style="width:200px;margin:0 auto"></div>
+      </div>
+      <div class="pf-stats">
+        ${[0,1,2,3].map(() => `
+          <div class="pf-stat">
+            <div class="skel" style="width:32px;height:22px;margin:0 auto 4px;border-radius:4px"></div>
+            <div class="skel" style="width:60px;height:11px;margin:0 auto;border-radius:3px"></div>
+          </div>`).join('')}
+      </div>
+      <div style="padding:14px 16px">
+        <div class="skel" style="height:160px;border-radius:16px;margin-bottom:14px"></div>
+        <div class="skel" style="height:200px;border-radius:14px"></div>
+      </div>
+    </div>`;
 }
 function closeProfile() {
   const page = document.getElementById('profilePage');
@@ -7614,7 +7647,9 @@ function _immersiveSlideHTML(item) {
         ${liked ? '❤️' : '🤍'}<span>${likes || ''}</span>
       </button>
       <button class="imv-rail-btn" onclick="event.stopPropagation();openCommentsSheet('${item.id}','${item.type}')">💬<span>${cmts || ''}</span></button>
-      <button class="imv-rail-btn${saved ? ' on' : ''}" onclick="event.stopPropagation();doToggleSave('${item.id}','${item.type}',this);this.classList.toggle('on')">${saved ? '🔖' : '🏷️'}</button>
+      <button class="imv-rail-btn${saved ? ' on' : ''}" onclick="event.stopPropagation();doToggleSave('${item.id}','${item.type}',this);this.classList.toggle('on')">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="${saved ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+      </button>
     </div>
     <div class="imv-info">
       <div class="imv-info-user">
