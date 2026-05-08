@@ -6351,3 +6351,256 @@ button:not([disabled]),
   text-shadow: 0 1px 4px rgba(0,0,0,0.5);
   max-height: 30vh; overflow-y: auto;
 }
+
+/* ════════════════════════════════════════════════════════════════
+   DESIGN SYSTEM v1 — additive layer on top of the existing palette.
+   Applies tighter type, ink scale, motion easing, and a few global
+   polishes (photo filter, heart pop, card press, skeleton, nav pill).
+   ════════════════════════════════════════════════════════════════ */
+
+:root, [data-theme="light"] {
+  /* Neutral ink scale — for everything that ISN'T the primary action.
+     Used to pull coral back to where it belongs. */
+  --ink-95: #2A1F14;            /* primary text */
+  --ink-80: rgba(42,31,20,.78);
+  --ink-65: rgba(42,31,20,.62);
+  --ink-45: rgba(42,31,20,.45); /* muted */
+  --ink-25: rgba(42,31,20,.22);
+  --ink-12: rgba(42,31,20,.10); /* hairline borders */
+  --ink-06: rgba(42,31,20,.05); /* subtle bg */
+  /* Motion easing */
+  --ease-spring: cubic-bezier(.32, .72, 0, 1);
+  --ease-snap:   cubic-bezier(.18, .89, .32, 1.28);
+  --ease-soft:   cubic-bezier(.4, 0, .2, 1);
+  --motion-fast: 150ms;
+  --motion:      220ms;
+  --motion-slow: 320ms;
+}
+[data-theme="dark"] {
+  --ink-95: #EDE5D8;
+  --ink-80: rgba(237,229,216,.78);
+  --ink-65: rgba(237,229,216,.62);
+  --ink-45: rgba(237,229,216,.45);
+  --ink-25: rgba(237,229,216,.22);
+  --ink-12: rgba(237,229,216,.10);
+  --ink-06: rgba(237,229,216,.05);
+}
+
+/* Better text rendering everywhere — antialiasing, kerning, ligatures.
+   Single line that lifts every screen. */
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: 'kern', 'liga', 'cv11';
+}
+
+/* Tighten display typography — Cabinet Grotesk wants less line-height
+   than the browser default, and slightly negative letter-spacing for
+   tabular density at large sizes. */
+h1, h2, .sf-hero-venue, .sf-ed-title, .pf-name, .gw-hero__title,
+.modal-hero-name, .s-name {
+  letter-spacing: -0.018em;
+  line-height: 1.12;
+}
+
+/* Body copy: enforce a comfortable reading rhythm. */
+.sf-hero-caption, .sf-ed-body p, .gw-hero__sub, .gw-step__body,
+.modal-deal-item, .pf-bio, .vt-text {
+  line-height: 1.5;
+}
+
+/* Tabular numerals for stat-style numbers — keeps counts in lockstep
+   instead of dancing as users like/comment. */
+.pf-snum, .kpi-value, .gw-stat__num, .stat,
+.giveaway-tile__entries, .pf-lb-score, .pf-streak,
+.sf-actions span {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Global photo cohesion ──
+   Subtle filter applied to every user-generated photo so phone snaps
+   in dim bars feel intentional rather than random. */
+.sf-hero-img,
+.sf-carousel-slide img,
+.sf-ed-hero img,
+.modal-hero-wrap img,
+.ugc-photo-thumb img,
+.cp-thumb img,
+.gw-winner__avatar img,
+.imv-media img,
+.stryv-media img {
+  filter: saturate(1.06) contrast(1.025);
+}
+
+/* ── Card press + tap feedback (motion polish) ──
+   Subtle scale on press with spring easing — feels like the card
+   acknowledges you. Applied to all interactive cards. */
+.card, .card-hero, .card-compact, .card-std,
+.sf-hero, .sf-editorial, .sf-compact, .sf-wide,
+.pf-row, .gw-step, .pf-lb-row, .vt-row,
+.cp-thumb, .stry-tile, .giveaway-tile {
+  transition: transform var(--motion-fast) var(--ease-spring),
+              box-shadow var(--motion-fast) var(--ease-soft),
+              border-color var(--motion-fast) var(--ease-soft);
+}
+.card:active, .card-hero:active, .card-compact:active, .card-std:active,
+.sf-hero:active, .sf-editorial:active,
+.pf-row:active, .pf-lb-row:active, .stry-tile:active {
+  transform: scale(0.985);
+}
+
+/* ── Heart pop animation ──
+   Bumps the like icon when toggled on — micro-moment users feel daily. */
+@keyframes heartPop {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(0.7); }
+  60%  { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+.sf-action-btn.sf-liked svg,
+.imv-rail-btn.on {
+  animation: heartPop 0.42s var(--ease-snap);
+}
+
+/* ── Skeleton loaders ──
+   Reusable shimmer block — apply via .skel class on placeholder divs.
+   Replaces the spinner-on-blank pattern with content-shaped rectangles. */
+@keyframes skelPulse {
+  0%, 100% { opacity: 0.5; }
+  50%      { opacity: 1; }
+}
+.skel {
+  background: linear-gradient(90deg, var(--ink-06), var(--ink-12), var(--ink-06));
+  background-size: 200% 100%;
+  border-radius: 8px;
+  animation: skelPulse 1.4s ease-in-out infinite;
+}
+.skel--text   { height: 14px; margin: 6px 0; border-radius: 4px; }
+.skel--title  { height: 22px; margin: 8px 0; border-radius: 4px; width: 60%; }
+.skel--photo  { aspect-ratio: 4/5; width: 100%; border-radius: 16px; }
+.skel--avatar { width: 38px; height: 38px; border-radius: 50%; }
+
+/* ── Bottom nav active pill ──
+   Replaces the subtle background tint with a proper rounded pill that
+   the active tab sits in. Lifts perceived quality. */
+.bottom-nav-btn { position: relative; }
+.bottom-nav-btn.active::before {
+  content: '';
+  position: absolute; inset: 4px;
+  background: rgba(255,107,74,0.10);
+  border-radius: 14px;
+  z-index: -1;
+  animation: navPillIn 200ms var(--ease-spring);
+}
+@keyframes navPillIn {
+  from { transform: scale(0.85); opacity: 0; }
+  to   { transform: scale(1);    opacity: 1; }
+}
+
+/* ── Coral pullback ──
+   Coral reserved for primary actions only. These secondary surfaces
+   move to the neutral ink scale so the coral has more meaning. */
+.sf-action-btn:not(.sf-liked):not(.sf-saved) {
+  color: var(--ink-65) !important;
+}
+.cp-opt:not(.cp-opt--set) { color: var(--ink-65); }
+.cp-cancel { color: var(--ink-45); }
+.cp-iconbtn { background: var(--ink-06); color: var(--ink-95); }
+
+/* Hairline borders on cards — replaces heavy clay shadows on
+   internal-to-modal lists with a simpler, modern flat look. Light
+   touch — only applies where we're NOT trying for the lifted feel. */
+.pf-row, .pf-lb-row, .vt-row, .notif-row,
+.cp-mention-row, .cp-venue-row {
+  border-bottom: 1px solid var(--ink-06);
+  transition: background-color var(--motion-fast) var(--ease-soft);
+}
+.pf-row:active, .pf-lb-row:active,
+.cp-mention-row:active, .cp-venue-row:active {
+  background-color: var(--ink-06);
+}
+
+/* ── Empty-state polish ──
+   Existing empty states tend to use 🥃-style emoji at huge size with
+   a generic message. Tighten typography + add a subtle coral wash
+   behind the icon for warmth. */
+.social-empty, .pf-empty, .gw-empty {
+  padding: 48px 24px;
+  text-align: center;
+}
+.social-empty-icon, .pf-empty-icon {
+  display: inline-flex;
+  align-items: center; justify-content: center;
+  width: 72px; height: 72px;
+  margin: 0 auto 14px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, var(--coral-dim), transparent 70%);
+  font-size: 32px;
+}
+.social-empty-title, .pf-empty {
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-weight: 800; font-size: 17px;
+  color: var(--ink-95);
+  letter-spacing: -0.01em;
+  margin-bottom: 6px;
+}
+.social-empty-sub {
+  font-size: 14px; color: var(--ink-65);
+  line-height: 1.45; max-width: 28ch; margin: 0 auto;
+}
+
+/* ── Subtler card shadow — keep clay character but reduce weight ──
+   The existing clay shadow stack is heavy; on smaller cards it reads
+   as 'puffy'. Trim 30% on every-day cards. */
+.sf-hero, .sf-editorial,
+.giveaway-tile,
+.pf-card,
+.gw-stats-card,
+.pf-lb-section {
+  box-shadow:
+    3px 3px 12px rgba(42,31,20,0.07),
+    -2px -2px 8px rgba(255,255,255,0.55),
+    inset 0 1px 0 rgba(255,255,255,0.45);
+}
+[data-theme="dark"] .sf-hero,
+[data-theme="dark"] .sf-editorial,
+[data-theme="dark"] .giveaway-tile,
+[data-theme="dark"] .pf-card,
+[data-theme="dark"] .gw-stats-card,
+[data-theme="dark"] .pf-lb-section {
+  box-shadow:
+    3px 3px 12px rgba(0,0,0,0.4),
+    -1px -1px 6px rgba(255,200,150,0.025);
+}
+
+/* ── Avatar status dot ──
+   Pulsing coral dot on avatars when the person checked in within the
+   last hour — visible signal of 'live now' activity. Apply via
+   .avatar--live wrapper (added by JS where applicable). */
+.avatar--live { position: relative; }
+.avatar--live::after {
+  content: '';
+  position: absolute;
+  right: 0; bottom: 0;
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: var(--coral);
+  border: 2px solid var(--card);
+  animation: liveDot 1.6s var(--ease-soft) infinite;
+}
+@keyframes liveDot {
+  0%, 100% { box-shadow: 0 0 0 0 var(--coral-glow); }
+  50%      { box-shadow: 0 0 0 6px transparent; }
+}
+
+/* ── Reduce motion respect ──
+   Disable animations for users who've set 'reduce motion' in OS prefs.
+   Standard accessibility courtesy. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
