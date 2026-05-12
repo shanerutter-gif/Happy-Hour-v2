@@ -17,8 +17,11 @@ export default async function handler() {
   }
 
   try {
+    // Only include venues with a real photo. Photoless venues render as grey
+    // placeholder cards — keep them out of Google's index until the enrichment
+    // pass populates photo_url. See api/admin-enrich-venues.js.
     const res = await fetch(
-      `${supabaseUrl}/rest/v1/venues?active=eq.true&select=name,updated_at`,
+      `${supabaseUrl}/rest/v1/venues?active=eq.true&photo_url=not.is.null&select=name,updated_at`,
       { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } }
     );
     const venues = res.ok ? await res.json() : [];
