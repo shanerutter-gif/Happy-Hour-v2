@@ -839,12 +839,12 @@ async function submitSpotExperience() {
     window._pendingAddSpotVideo = null;
     window._pendingCoverDataUrl = null;
     dismissOverlay(document.querySelector('.overlay.open'));
-    showToast('Spot shared!');
     _socialLoading = false;
     loadSocialFeed();
+    showPostSuccess({ title: 'Spot shared!', sub: 'Live on the feed now' });
   } catch(e) {
     console.error('submitSpotExperience error:', e);
-    showToast('Could not post — try again');
+    showPostFailure({ sub: 'Your spot details are still here — try again.' });
   }
   if (btn) { btn.disabled = false; btn.textContent = 'Share with the feed'; }
 }
@@ -4041,13 +4041,22 @@ async function submitComposer() {
         pinnedUntilDays:  pin ? 7 : null,
       });
     }
-    showToast('Posted');
     closeComposer();
     if (typeof loadSocialFeed === 'function') loadSocialFeed();
+    const subMap = {
+      photo:     _composerStory ? 'Your story is live for 24h' :
+                 (_composerVisibility === 'friends' ? 'Shared with friends' : 'Shared to your city'),
+      text:      _composerVisibility === 'friends' ? 'Shared with friends' : 'Posted to your feed',
+      editorial: 'Editorial published',
+    };
+    showPostSuccess({ title: 'Posted!', sub: subMap[_composerType] || '' });
   } catch (e) {
     console.error('submitComposer error', e);
     btn.disabled = false; btn.textContent = 'Post';
-    showToast('Could not post — try again');
+    showPostFailure({
+      sub: 'Your draft is still here — give it another go.',
+      onRetry: () => submitComposer(),
+    });
   }
 }
 
@@ -5084,6 +5093,79 @@ function avgFromList(r)    { return r.length ? r.reduce((s,x) => s+x.rating, 0)/
 function starHTML(rating, max=5, size=13) { return Array.from({length:max},(_,i)=>`<span style="font-size:${size}px;color:${i<Math.round(rating)?'var(--amber)':'var(--border2)'}">★</span>`).join(''); }
 function fmtDate(iso)      { return new Date(iso).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }
 function showToast(msg)    { document.querySelectorAll('.toast').forEach(t=>t.remove()); const t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),2600); }
+
+// ── POST SUCCESS / FAILURE OVERLAY ─────────────────────
+// Full-screen confirmation after any upload path completes. Removes the
+// ambiguity of a silently-closing modal — the user gets explicit feedback
+// that the post is live. Used by submitComposer, submitSpotExperience,
+// submitPhotoCheckin, and the going-tonight intent flow.
+function showPostSuccess(opts = {}) {
+  document.querySelectorAll('.post-result').forEach(n => n.remove());
+  const { title = 'Posted!', sub = '', duration = 1600, onDismiss } = opts;
+  const overlay = document.createElement('div');
+  overlay.className = 'post-result post-result--success';
+  overlay.innerHTML = `
+    <div class="post-result-card">
+      <div class="post-result-icon post-result-icon--check" aria-hidden="true">
+        <svg viewBox="0 0 64 64" width="72" height="72" focusable="false">
+          <circle class="prc-bg"  cx="32" cy="32" r="30" />
+          <path   class="prc-tick" d="M20 33 L29 42 L45 24" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="5"/>
+        </svg>
+      </div>
+      <div class="post-result-title">${title}</div>
+      ${sub ? `<div class="post-result-sub">${sub}</div>` : ''}
+    </div>`;
+  document.body.appendChild(overlay);
+  if (typeof haptic === 'function') haptic('success');
+  requestAnimationFrame(() => overlay.classList.add('open'));
+
+  const dismiss = () => {
+    overlay.classList.remove('open');
+    setTimeout(() => { overlay.remove(); if (typeof onDismiss === 'function') onDismiss(); }, 240);
+  };
+  overlay.addEventListener('click', dismiss);
+  if (duration > 0) setTimeout(dismiss, duration);
+}
+
+function showPostFailure(opts = {}) {
+  document.querySelectorAll('.post-result').forEach(n => n.remove());
+  const {
+    title = "Couldn't post",
+    sub   = 'Check your connection and try again.',
+    onRetry, onDismiss,
+  } = opts;
+  const overlay = document.createElement('div');
+  overlay.className = 'post-result post-result--failure';
+  overlay.innerHTML = `
+    <div class="post-result-card">
+      <div class="post-result-icon post-result-icon--x" aria-hidden="true">
+        <svg viewBox="0 0 64 64" width="72" height="72" focusable="false">
+          <circle class="prc-bg"  cx="32" cy="32" r="30" />
+          <path   class="prc-tick" d="M22 22 L42 42 M42 22 L22 42" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="5"/>
+        </svg>
+      </div>
+      <div class="post-result-title">${title}</div>
+      ${sub ? `<div class="post-result-sub">${sub}</div>` : ''}
+      <div class="post-result-actions">
+        ${onRetry ? '<button class="post-result-btn post-result-btn--primary" data-action="retry">Try again</button>' : ''}
+        <button class="post-result-btn" data-action="close">Close</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  if (typeof haptic === 'function') haptic('error');
+  requestAnimationFrame(() => overlay.classList.add('open'));
+
+  const dismiss = (cb) => {
+    overlay.classList.remove('open');
+    setTimeout(() => { overlay.remove(); if (typeof cb === 'function') cb(); }, 240);
+  };
+  overlay.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    if (btn.dataset.action === 'retry') dismiss(onRetry);
+    else dismiss(onDismiss);
+  });
+}
 
 // Badge for Spotd-run editorial accounts. Spiked-rosette + check mark in
 // Spotd coral. Same visual language users already recognize from Twitter /
@@ -6222,7 +6304,7 @@ async function submitPhotoCheckin(venueId, venueName) {
     }
 
     window._pendingCheckinPhoto = null;
-    showToast('Photo shared!');
+    showPostSuccess({ title: 'Photo shared!', sub: `Posted at ${venueName || 'the spot'}` });
   } catch(e) {
     console.error('submitPhotoCheckin error:', e);
     btn.disabled = false; btn.textContent = 'Share Photo';
@@ -7463,9 +7545,9 @@ function openGoingIntentSheet(venueId, venueName) {
     const goingAt = new Date(local).toISOString();
     const res = await postGoingIntent({ venueId, goingAt, message: msg });
     if (res?.error) { showToast('Could not post'); btn.disabled = false; btn.textContent = 'Post intent'; return; }
-    showToast('Posted — friends notified');
     overlay.classList.remove('open');
     setTimeout(() => overlay.remove(), 200);
+    showPostSuccess({ title: 'You’re going!', sub: 'Friends will see this in their feed' });
     // Refresh modal display
     if (typeof openModal === 'function') openModal(venueId, 'venue');
   });
