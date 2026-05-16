@@ -7943,12 +7943,35 @@ async function adminToggleVenueActive(id) {
   if (!v) return;
   const turningOff = v.active !== false;
   const verb = turningOff ? 'Deactivate' : 'Reactivate';
-  if (!confirm(`${verb} "${v.name}"?\n\n${turningOff
-    ? 'It will be hidden from users immediately. You can turn it back on from this same screen.'
-    : 'It will be visible to users again immediately.'}`)) return;
 
   const btn = document.querySelector('.admin-deactivate-btn');
-  if (btn) { btn.disabled = true; btn.textContent = `${verb}…`; }
+  if (!btn) return;
+
+  // Two-tap confirmation — confirm() is blocked in iOS WKWebView, so a native
+  // browser dialog would silently no-op here. First tap arms the button (3s
+  // window), second tap performs the action.
+  if (!btn._confirmed) {
+    btn._confirmed = true;
+    const orig = btn.textContent;
+    btn.textContent = 'Tap again to confirm';
+    btn.style.background = 'var(--coral)';
+    btn.style.color = '#fff';
+    btn.style.borderColor = 'var(--coral)';
+    btn._armTimeout = setTimeout(() => {
+      if (btn && btn._confirmed) {
+        btn._confirmed = false;
+        btn.textContent = orig;
+        btn.style.background = '';
+        btn.style.color = '';
+        btn.style.borderColor = '';
+      }
+    }, 3000);
+    return;
+  }
+  clearTimeout(btn._armTimeout);
+  btn._confirmed = false;
+  btn.disabled = true;
+  btn.textContent = `${verb}…`;
 
   try {
     const r = await fetch(`${SUPABASE_URL}/rest/v1/venues?id=eq.${id}`, {
@@ -7970,9 +7993,7 @@ async function adminToggleVenueActive(id) {
       state.venues = state.venues.filter(x => x.id !== id);
     }
 
-    if (typeof showToast === 'function') {
-      showToast(turningOff ? 'Venue deactivated' : 'Venue reactivated');
-    }
+    showToast(turningOff ? 'Venue deactivated' : 'Venue reactivated');
     if (typeof haptic === 'function') haptic('success');
 
     // Re-render the cards grid so the deactivated venue disappears.
@@ -7986,11 +8007,12 @@ async function adminToggleVenueActive(id) {
       adminEditVenue(id);
     }
   } catch (e) {
-    if (btn) {
-      btn.disabled = false;
-      btn.textContent = turningOff ? '🚫 Deactivate venue' : '↩ Reactivate venue';
-    }
-    alert(`${verb} failed: ` + e.message);
+    btn.disabled = false;
+    btn.style.background = '';
+    btn.style.color = '';
+    btn.style.borderColor = '';
+    btn.textContent = turningOff ? '🚫 Deactivate venue' : '↩ Reactivate venue';
+    showToast(`${verb} failed: ${e.message}`);
   }
 }
 
