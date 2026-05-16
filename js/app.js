@@ -839,12 +839,12 @@ async function submitSpotExperience() {
     window._pendingAddSpotVideo = null;
     window._pendingCoverDataUrl = null;
     dismissOverlay(document.querySelector('.overlay.open'));
-    showToast('Spot shared!');
     _socialLoading = false;
     loadSocialFeed();
+    showPostSuccess({ title: 'Spot shared!', sub: 'Live on the feed now' });
   } catch(e) {
     console.error('submitSpotExperience error:', e);
-    showToast('Could not post — try again');
+    showPostFailure({ sub: 'Your spot details are still here — try again.' });
   }
   if (btn) { btn.disabled = false; btn.textContent = 'Share with the feed'; }
 }
@@ -2841,14 +2841,21 @@ async function saveEditReview(reviewId, itemId, type) {
   showToast('Review updated');
   if (state.activeItemId === itemId) refreshReviews(itemId, type);
 }
-async function doDeleteReview(reviewId, itemId, type) {
-  if (!confirm('Delete this review?')) return;
-  const error = await deleteReview(reviewId);
-  if (error) { showToast('Error: ' + error.message); return; }
-  delete state.reviewCache[`${type}-${itemId}`];
-  showToast('Review deleted');
-  if (state.activeItemId === itemId) refreshReviews(itemId, type);
-  renderCards();
+function doDeleteReview(reviewId, itemId, type) {
+  confirmAction({
+    title: 'Delete this review?',
+    message: 'Your rating, text, and any photos will be removed.',
+    confirmText: 'Delete',
+    danger: true,
+    onConfirm: async () => {
+      const error = await deleteReview(reviewId);
+      if (error) { showToast('Error: ' + error.message); return; }
+      delete state.reviewCache[`${type}-${itemId}`];
+      showToast('Review deleted');
+      if (state.activeItemId === itemId) refreshReviews(itemId, type);
+      renderCards();
+    },
+  });
 }
 function closeEditReview(e) { if (e && e.target !== document.getElementById('editOverlay')) return; closeOverlay('editOverlay'); }
 
@@ -4041,13 +4048,22 @@ async function submitComposer() {
         pinnedUntilDays:  pin ? 7 : null,
       });
     }
-    showToast('Posted');
     closeComposer();
     if (typeof loadSocialFeed === 'function') loadSocialFeed();
+    const subMap = {
+      photo:     _composerStory ? 'Your story is live for 24h' :
+                 (_composerVisibility === 'friends' ? 'Shared with friends' : 'Shared to your city'),
+      text:      _composerVisibility === 'friends' ? 'Shared with friends' : 'Posted to your feed',
+      editorial: 'Editorial published',
+    };
+    showPostSuccess({ title: 'Posted!', sub: subMap[_composerType] || '' });
   } catch (e) {
     console.error('submitComposer error', e);
     btn.disabled = false; btn.textContent = 'Post';
-    showToast('Could not post — try again');
+    showPostFailure({
+      sub: 'Your draft is still here — give it another go.',
+      onRetry: () => submitComposer(),
+    });
   }
 }
 
@@ -5085,6 +5101,124 @@ function starHTML(rating, max=5, size=13) { return Array.from({length:max},(_,i)
 function fmtDate(iso)      { return new Date(iso).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }
 function showToast(msg)    { document.querySelectorAll('.toast').forEach(t=>t.remove()); const t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),2600); }
 
+// ── POST SUCCESS / FAILURE OVERLAY ─────────────────────
+// Full-screen confirmation after any upload path completes. Removes the
+// ambiguity of a silently-closing modal — the user gets explicit feedback
+// that the post is live. Used by submitComposer, submitSpotExperience,
+// submitPhotoCheckin, and the going-tonight intent flow.
+function showPostSuccess(opts = {}) {
+  document.querySelectorAll('.post-result').forEach(n => n.remove());
+  const { title = 'Posted!', sub = '', duration = 1600, onDismiss } = opts;
+  const overlay = document.createElement('div');
+  overlay.className = 'post-result post-result--success';
+  overlay.innerHTML = `
+    <div class="post-result-card">
+      <div class="post-result-icon post-result-icon--check" aria-hidden="true">
+        <svg viewBox="0 0 64 64" width="72" height="72" focusable="false">
+          <circle class="prc-bg"  cx="32" cy="32" r="30" />
+          <path   class="prc-tick" d="M20 33 L29 42 L45 24" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="5"/>
+        </svg>
+      </div>
+      <div class="post-result-title">${title}</div>
+      ${sub ? `<div class="post-result-sub">${sub}</div>` : ''}
+    </div>`;
+  document.body.appendChild(overlay);
+  if (typeof haptic === 'function') haptic('success');
+  requestAnimationFrame(() => overlay.classList.add('open'));
+
+  const dismiss = () => {
+    overlay.classList.remove('open');
+    setTimeout(() => { overlay.remove(); if (typeof onDismiss === 'function') onDismiss(); }, 240);
+  };
+  overlay.addEventListener('click', dismiss);
+  if (duration > 0) setTimeout(dismiss, duration);
+}
+
+function showPostFailure(opts = {}) {
+  document.querySelectorAll('.post-result').forEach(n => n.remove());
+  const {
+    title = "Couldn't post",
+    sub   = 'Check your connection and try again.',
+    onRetry, onDismiss,
+  } = opts;
+  const overlay = document.createElement('div');
+  overlay.className = 'post-result post-result--failure';
+  overlay.innerHTML = `
+    <div class="post-result-card">
+      <div class="post-result-icon post-result-icon--x" aria-hidden="true">
+        <svg viewBox="0 0 64 64" width="72" height="72" focusable="false">
+          <circle class="prc-bg"  cx="32" cy="32" r="30" />
+          <path   class="prc-tick" d="M22 22 L42 42 M42 22 L22 42" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="5"/>
+        </svg>
+      </div>
+      <div class="post-result-title">${title}</div>
+      ${sub ? `<div class="post-result-sub">${sub}</div>` : ''}
+      <div class="post-result-actions">
+        ${onRetry ? '<button class="post-result-btn post-result-btn--primary" data-action="retry">Try again</button>' : ''}
+        <button class="post-result-btn" data-action="close">Close</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  if (typeof haptic === 'function') haptic('error');
+  requestAnimationFrame(() => overlay.classList.add('open'));
+
+  const dismiss = (cb) => {
+    overlay.classList.remove('open');
+    setTimeout(() => { overlay.remove(); if (typeof cb === 'function') cb(); }, 240);
+  };
+  overlay.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    if (btn.dataset.action === 'retry') dismiss(onRetry);
+    else dismiss(onDismiss);
+  });
+}
+
+// confirmAction — drop-in replacement for window.confirm() that works in
+// iOS WKWebView (where native confirm() silently returns false). Renders a
+// centered modal with Cancel + Confirm; danger:true makes the confirm button
+// red. onConfirm fires after fade-out so the action sees a clean overlay
+// state. Tap backdrop or Cancel to dismiss.
+function confirmAction(opts) {
+  const {
+    title,
+    message,
+    confirmText = 'Confirm',
+    cancelText  = 'Cancel',
+    danger      = false,
+    onConfirm,
+    onCancel,
+  } = opts || {};
+
+  document.querySelectorAll('.confirm-modal').forEach(n => n.remove());
+  const overlay = document.createElement('div');
+  overlay.className = 'confirm-modal';
+  overlay.innerHTML = `
+    <div class="confirm-modal-card" role="dialog" aria-modal="true">
+      <div class="confirm-modal-title">${title || 'Are you sure?'}</div>
+      ${message ? `<div class="confirm-modal-message">${message}</div>` : ''}
+      <div class="confirm-modal-actions">
+        <button class="confirm-modal-btn" data-action="cancel">${cancelText}</button>
+        <button class="confirm-modal-btn ${danger ? 'confirm-modal-btn--danger' : 'confirm-modal-btn--primary'}" data-action="confirm">${confirmText}</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  if (typeof haptic === 'function') haptic('light');
+  requestAnimationFrame(() => overlay.classList.add('open'));
+
+  const close = (cb) => {
+    overlay.classList.remove('open');
+    setTimeout(() => { overlay.remove(); if (typeof cb === 'function') cb(); }, 220);
+  };
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) return close(onCancel);
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    if (btn.dataset.action === 'confirm') close(onConfirm);
+    else close(onCancel);
+  });
+}
+
 // Badge for Spotd-run editorial accounts. Spiked-rosette + check mark in
 // Spotd coral. Same visual language users already recognize from Twitter /
 // Instagram verified accounts.
@@ -5866,10 +6000,16 @@ async function submitVenueTake(venueId) {
   inp.value = '';
   renderVenueTakes(venueId);
 }
-async function deleteVenueTakeUI(takeId, venueId) {
-  if (!confirm('Delete this take?')) return;
-  await deleteVenueTake(takeId);
-  renderVenueTakes(venueId);
+function deleteVenueTakeUI(takeId, venueId) {
+  confirmAction({
+    title: 'Delete this take?',
+    confirmText: 'Delete',
+    danger: true,
+    onConfirm: async () => {
+      await deleteVenueTake(takeId);
+      renderVenueTakes(venueId);
+    },
+  });
 }
 
 // Posts (text + editorial + photo) tagged at this venue. Renders a
@@ -6222,7 +6362,7 @@ async function submitPhotoCheckin(venueId, venueName) {
     }
 
     window._pendingCheckinPhoto = null;
-    showToast('Photo shared!');
+    showPostSuccess({ title: 'Photo shared!', sub: `Posted at ${venueName || 'the spot'}` });
   } catch(e) {
     console.error('submitPhotoCheckin error:', e);
     btn.disabled = false; btn.textContent = 'Share Photo';
@@ -7089,10 +7229,17 @@ async function doCreateList() {
   }
 }
 
-async function doDeleteList(listId) {
-  if (!confirm('Delete this list?')) return;
-  var ok = await deleteList(listId);
-  if (ok) { showToast('List deleted'); loadMyLists(); }
+function doDeleteList(listId) {
+  confirmAction({
+    title: 'Delete this list?',
+    message: 'The list and everything in it will be removed.',
+    confirmText: 'Delete',
+    danger: true,
+    onConfirm: async () => {
+      var ok = await deleteList(listId);
+      if (ok) { showToast('List deleted'); loadMyLists(); }
+    },
+  });
 }
 
 async function openListDetail(listId) {
@@ -7305,12 +7452,30 @@ function confirmAge(isOldEnough) {
 }
 
 // ── ACCOUNT DELETION ─────────────────────────────────
-async function doDeleteAccount() {
+function doDeleteAccount() {
   if (!currentUser) return;
-  const confirmed = confirm('Are you sure you want to delete your account? This will permanently remove all your data including reviews, check-ins, favorites, and messages. This cannot be undone.');
-  if (!confirmed) return;
-  const doubleConfirm = confirm('This is permanent. Type OK to confirm you want to delete your account and all data.');
-  if (!doubleConfirm) return;
+  // Two-step custom modal — confirm() and prompt() are both blocked in
+  // iOS WKWebView, so we drive the double-confirmation through confirmAction.
+  confirmAction({
+    title: 'Delete your account?',
+    message: 'This permanently removes your reviews, check-ins, favorites, messages, follows, and profile. It cannot be undone.',
+    confirmText: 'Continue',
+    danger: true,
+    onConfirm: () => {
+      confirmAction({
+        title: 'Last chance.',
+        message: 'Your account and all data will be deleted immediately. There is no recovery.',
+        confirmText: 'Delete forever',
+        cancelText: 'Keep my account',
+        danger: true,
+        onConfirm: () => _doDeleteAccountConfirmed(),
+      });
+    },
+  });
+}
+
+async function _doDeleteAccountConfirmed() {
+  if (!currentUser) return;
   try {
     showToast('Deleting account…');
     // Delete user data from all tables
@@ -7463,9 +7628,9 @@ function openGoingIntentSheet(venueId, venueName) {
     const goingAt = new Date(local).toISOString();
     const res = await postGoingIntent({ venueId, goingAt, message: msg });
     if (res?.error) { showToast('Could not post'); btn.disabled = false; btn.textContent = 'Post intent'; return; }
-    showToast('Posted — friends notified');
     overlay.classList.remove('open');
     setTimeout(() => overlay.remove(), 200);
+    showPostSuccess({ title: 'You’re going!', sub: 'Friends will see this in their feed' });
     // Refresh modal display
     if (typeof openModal === 'function') openModal(venueId, 'venue');
   });
@@ -7861,12 +8026,35 @@ async function adminToggleVenueActive(id) {
   if (!v) return;
   const turningOff = v.active !== false;
   const verb = turningOff ? 'Deactivate' : 'Reactivate';
-  if (!confirm(`${verb} "${v.name}"?\n\n${turningOff
-    ? 'It will be hidden from users immediately. You can turn it back on from this same screen.'
-    : 'It will be visible to users again immediately.'}`)) return;
 
   const btn = document.querySelector('.admin-deactivate-btn');
-  if (btn) { btn.disabled = true; btn.textContent = `${verb}…`; }
+  if (!btn) return;
+
+  // Two-tap confirmation — confirm() is blocked in iOS WKWebView, so a native
+  // browser dialog would silently no-op here. First tap arms the button (3s
+  // window), second tap performs the action.
+  if (!btn._confirmed) {
+    btn._confirmed = true;
+    const orig = btn.textContent;
+    btn.textContent = 'Tap again to confirm';
+    btn.style.background = 'var(--coral)';
+    btn.style.color = '#fff';
+    btn.style.borderColor = 'var(--coral)';
+    btn._armTimeout = setTimeout(() => {
+      if (btn && btn._confirmed) {
+        btn._confirmed = false;
+        btn.textContent = orig;
+        btn.style.background = '';
+        btn.style.color = '';
+        btn.style.borderColor = '';
+      }
+    }, 3000);
+    return;
+  }
+  clearTimeout(btn._armTimeout);
+  btn._confirmed = false;
+  btn.disabled = true;
+  btn.textContent = `${verb}…`;
 
   try {
     const r = await fetch(`${SUPABASE_URL}/rest/v1/venues?id=eq.${id}`, {
@@ -7888,9 +8076,7 @@ async function adminToggleVenueActive(id) {
       state.venues = state.venues.filter(x => x.id !== id);
     }
 
-    if (typeof showToast === 'function') {
-      showToast(turningOff ? 'Venue deactivated' : 'Venue reactivated');
-    }
+    showToast(turningOff ? 'Venue deactivated' : 'Venue reactivated');
     if (typeof haptic === 'function') haptic('success');
 
     // Re-render the cards grid so the deactivated venue disappears.
@@ -7904,11 +8090,12 @@ async function adminToggleVenueActive(id) {
       adminEditVenue(id);
     }
   } catch (e) {
-    if (btn) {
-      btn.disabled = false;
-      btn.textContent = turningOff ? '🚫 Deactivate venue' : '↩ Reactivate venue';
-    }
-    alert(`${verb} failed: ` + e.message);
+    btn.disabled = false;
+    btn.style.background = '';
+    btn.style.color = '';
+    btn.style.borderColor = '';
+    btn.textContent = turningOff ? '🚫 Deactivate venue' : '↩ Reactivate venue';
+    showToast(`${verb} failed: ${e.message}`);
   }
 }
 

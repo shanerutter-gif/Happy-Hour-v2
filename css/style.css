@@ -6648,6 +6648,179 @@ h1, h2, .sf-hero-venue, .sf-ed-title, .pf-name, .gw-hero__title,
   50%      { box-shadow: 0 0 0 6px transparent; }
 }
 
+/* ── POST SUCCESS / FAILURE OVERLAY ──────────────────────
+   Full-screen confirmation after upload paths. Built to remove the
+   ambiguity of a silently-closing composer — explicit "Posted!" with a
+   bouncing checkmark, auto-dismisses in 1.6s. Tap anywhere to close.
+   Failure variant adds retry CTA. See showPostSuccess / showPostFailure
+   in js/app.js. */
+.post-result {
+  position: fixed; inset: 0; z-index: 9000;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(20, 12, 6, 0.46);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  opacity: 0;
+  transition: opacity .22s var(--ease-soft, ease);
+  cursor: pointer;
+}
+.post-result.open { opacity: 1; }
+
+.post-result-card {
+  background: var(--card, #fff);
+  border-radius: 24px;
+  padding: 32px 36px 28px;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 10px; min-width: 240px; max-width: 320px;
+  box-shadow:
+    0 24px 60px rgba(20, 12, 6, .25),
+    0 8px 20px rgba(20, 12, 6, .15),
+    inset 0 1px 0 rgba(255,255,255,.6);
+  transform: scale(.85);
+  transition: transform .42s cubic-bezier(.32,.72,0,1);
+}
+.post-result.open .post-result-card { transform: scale(1); }
+
+.post-result-icon { display: block; }
+.post-result-icon svg .prc-bg {
+  fill: var(--coral, #FF6B4A);
+  transform-origin: 32px 32px;
+  transform: scale(0);
+  transition: transform .36s cubic-bezier(.34,1.56,.64,1) .08s;
+}
+.post-result.open .post-result-icon svg .prc-bg { transform: scale(1); }
+.post-result-icon svg .prc-tick {
+  stroke: #fff;
+  stroke-dasharray: 60;
+  stroke-dashoffset: 60;
+  transition: stroke-dashoffset .42s cubic-bezier(.32,.72,0,1) .28s;
+}
+.post-result.open .post-result-icon svg .prc-tick { stroke-dashoffset: 0; }
+
+.post-result--failure .post-result-icon svg .prc-bg { fill: var(--error, #C0392B); }
+
+.post-result-title {
+  font-family: 'Cabinet Grotesk', 'DM Sans', sans-serif;
+  font-size: 22px; font-weight: 900; letter-spacing: -0.3px;
+  color: var(--ink-95, var(--text, #1A1208));
+  margin-top: 6px;
+  opacity: 0; transform: translateY(6px);
+  transition: opacity .26s ease .44s, transform .26s ease .44s;
+}
+.post-result.open .post-result-title { opacity: 1; transform: translateY(0); }
+
+.post-result-sub {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13.5px; font-weight: 500; line-height: 1.4;
+  color: var(--ink-60, var(--muted, #75695A));
+  text-align: center;
+  opacity: 0;
+  transition: opacity .26s ease .54s;
+}
+.post-result.open .post-result-sub { opacity: 1; }
+
+.post-result-actions {
+  display: flex; gap: 10px; margin-top: 14px;
+  opacity: 0;
+  transition: opacity .26s ease .58s;
+}
+.post-result.open .post-result-actions { opacity: 1; }
+
+.post-result-btn {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px; font-weight: 700;
+  padding: 10px 18px;
+  border-radius: 10px;
+  border: 1px solid var(--border, #EFE8DC);
+  background: var(--bg2, #FAF7F2);
+  color: var(--text, #1A1208);
+  cursor: pointer;
+  transition: transform .12s, background .15s;
+}
+.post-result-btn:hover { background: var(--card, #fff); }
+.post-result-btn:active { transform: scale(.97); }
+.post-result-btn--primary {
+  background: var(--coral, #FF6B4A);
+  color: #fff;
+  border-color: var(--coral, #FF6B4A);
+}
+.post-result-btn--primary:hover { background: var(--coral2, #E5543A); }
+
+/* ── CUSTOM CONFIRM MODAL ──────────────────────────────
+   Drop-in replacement for window.confirm() that works in iOS WKWebView
+   (where native confirm/alert/prompt silently no-op). Wired via the
+   confirmAction() helper in js/app.js. Sibling of .post-result above —
+   shares the same backdrop + spring motion vocabulary. */
+.confirm-modal {
+  position: fixed; inset: 0; z-index: 9100;
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+  background: rgba(20, 12, 6, 0.46);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  opacity: 0;
+  transition: opacity .2s var(--ease-soft, ease);
+}
+.confirm-modal.open { opacity: 1; }
+
+.confirm-modal-card {
+  background: var(--card, #fff);
+  border-radius: 20px;
+  padding: 26px 24px 18px;
+  width: 100%; max-width: 360px;
+  box-shadow:
+    0 24px 60px rgba(20, 12, 6, .25),
+    0 8px 20px rgba(20, 12, 6, .15),
+    inset 0 1px 0 rgba(255,255,255,.6);
+  transform: scale(.9) translateY(8px);
+  transition: transform .32s cubic-bezier(.32,.72,0,1);
+}
+.confirm-modal.open .confirm-modal-card { transform: scale(1) translateY(0); }
+
+.confirm-modal-title {
+  font-family: 'Cabinet Grotesk', 'DM Sans', sans-serif;
+  font-size: 19px; font-weight: 900; letter-spacing: -0.3px;
+  color: var(--ink-95, var(--text, #1A1208));
+  margin-bottom: 8px;
+}
+.confirm-modal-message {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13.5px; font-weight: 500; line-height: 1.5;
+  color: var(--ink-60, var(--muted, #75695A));
+  margin-bottom: 18px;
+}
+.confirm-modal-actions {
+  display: flex; gap: 10px;
+  flex-direction: row-reverse; /* primary on the right */
+}
+.confirm-modal-btn {
+  flex: 1;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px; font-weight: 700;
+  padding: 12px 16px;
+  border-radius: 11px;
+  border: 1px solid var(--border, #EFE8DC);
+  background: var(--bg2, #FAF7F2);
+  color: var(--text, #1A1208);
+  cursor: pointer;
+  transition: transform .12s, background .15s;
+  min-height: 44px; /* iOS tap target */
+}
+.confirm-modal-btn:hover { background: var(--card, #fff); }
+.confirm-modal-btn:active { transform: scale(.97); }
+.confirm-modal-btn--primary {
+  background: var(--coral, #FF6B4A);
+  color: #fff;
+  border-color: var(--coral, #FF6B4A);
+}
+.confirm-modal-btn--primary:hover { background: var(--coral2, #E5543A); }
+.confirm-modal-btn--danger {
+  background: var(--error, #C0392B);
+  color: #fff;
+  border-color: var(--error, #C0392B);
+}
+.confirm-modal-btn--danger:hover { filter: brightness(.92); }
+
 /* ── Reduce motion respect ──
    Disable animations for users who've set 'reduce motion' in OS prefs.
    Standard accessibility courtesy. */
