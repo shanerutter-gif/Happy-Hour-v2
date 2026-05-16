@@ -2841,14 +2841,21 @@ async function saveEditReview(reviewId, itemId, type) {
   showToast('Review updated');
   if (state.activeItemId === itemId) refreshReviews(itemId, type);
 }
-async function doDeleteReview(reviewId, itemId, type) {
-  if (!confirm('Delete this review?')) return;
-  const error = await deleteReview(reviewId);
-  if (error) { showToast('Error: ' + error.message); return; }
-  delete state.reviewCache[`${type}-${itemId}`];
-  showToast('Review deleted');
-  if (state.activeItemId === itemId) refreshReviews(itemId, type);
-  renderCards();
+function doDeleteReview(reviewId, itemId, type) {
+  confirmAction({
+    title: 'Delete this review?',
+    message: 'Your rating, text, and any photos will be removed.',
+    confirmText: 'Delete',
+    danger: true,
+    onConfirm: async () => {
+      const error = await deleteReview(reviewId);
+      if (error) { showToast('Error: ' + error.message); return; }
+      delete state.reviewCache[`${type}-${itemId}`];
+      showToast('Review deleted');
+      if (state.activeItemId === itemId) refreshReviews(itemId, type);
+      renderCards();
+    },
+  });
 }
 function closeEditReview(e) { if (e && e.target !== document.getElementById('editOverlay')) return; closeOverlay('editOverlay'); }
 
@@ -5167,6 +5174,51 @@ function showPostFailure(opts = {}) {
   });
 }
 
+// confirmAction — drop-in replacement for window.confirm() that works in
+// iOS WKWebView (where native confirm() silently returns false). Renders a
+// centered modal with Cancel + Confirm; danger:true makes the confirm button
+// red. onConfirm fires after fade-out so the action sees a clean overlay
+// state. Tap backdrop or Cancel to dismiss.
+function confirmAction(opts) {
+  const {
+    title,
+    message,
+    confirmText = 'Confirm',
+    cancelText  = 'Cancel',
+    danger      = false,
+    onConfirm,
+    onCancel,
+  } = opts || {};
+
+  document.querySelectorAll('.confirm-modal').forEach(n => n.remove());
+  const overlay = document.createElement('div');
+  overlay.className = 'confirm-modal';
+  overlay.innerHTML = `
+    <div class="confirm-modal-card" role="dialog" aria-modal="true">
+      <div class="confirm-modal-title">${title || 'Are you sure?'}</div>
+      ${message ? `<div class="confirm-modal-message">${message}</div>` : ''}
+      <div class="confirm-modal-actions">
+        <button class="confirm-modal-btn" data-action="cancel">${cancelText}</button>
+        <button class="confirm-modal-btn ${danger ? 'confirm-modal-btn--danger' : 'confirm-modal-btn--primary'}" data-action="confirm">${confirmText}</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  if (typeof haptic === 'function') haptic('light');
+  requestAnimationFrame(() => overlay.classList.add('open'));
+
+  const close = (cb) => {
+    overlay.classList.remove('open');
+    setTimeout(() => { overlay.remove(); if (typeof cb === 'function') cb(); }, 220);
+  };
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) return close(onCancel);
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    if (btn.dataset.action === 'confirm') close(onConfirm);
+    else close(onCancel);
+  });
+}
+
 // Badge for Spotd-run editorial accounts. Spiked-rosette + check mark in
 // Spotd coral. Same visual language users already recognize from Twitter /
 // Instagram verified accounts.
@@ -5948,10 +6000,16 @@ async function submitVenueTake(venueId) {
   inp.value = '';
   renderVenueTakes(venueId);
 }
-async function deleteVenueTakeUI(takeId, venueId) {
-  if (!confirm('Delete this take?')) return;
-  await deleteVenueTake(takeId);
-  renderVenueTakes(venueId);
+function deleteVenueTakeUI(takeId, venueId) {
+  confirmAction({
+    title: 'Delete this take?',
+    confirmText: 'Delete',
+    danger: true,
+    onConfirm: async () => {
+      await deleteVenueTake(takeId);
+      renderVenueTakes(venueId);
+    },
+  });
 }
 
 // Posts (text + editorial + photo) tagged at this venue. Renders a
@@ -7171,10 +7229,17 @@ async function doCreateList() {
   }
 }
 
-async function doDeleteList(listId) {
-  if (!confirm('Delete this list?')) return;
-  var ok = await deleteList(listId);
-  if (ok) { showToast('List deleted'); loadMyLists(); }
+function doDeleteList(listId) {
+  confirmAction({
+    title: 'Delete this list?',
+    message: 'The list and everything in it will be removed.',
+    confirmText: 'Delete',
+    danger: true,
+    onConfirm: async () => {
+      var ok = await deleteList(listId);
+      if (ok) { showToast('List deleted'); loadMyLists(); }
+    },
+  });
 }
 
 async function openListDetail(listId) {
@@ -7387,12 +7452,30 @@ function confirmAge(isOldEnough) {
 }
 
 // ── ACCOUNT DELETION ─────────────────────────────────
-async function doDeleteAccount() {
+function doDeleteAccount() {
   if (!currentUser) return;
-  const confirmed = confirm('Are you sure you want to delete your account? This will permanently remove all your data including reviews, check-ins, favorites, and messages. This cannot be undone.');
-  if (!confirmed) return;
-  const doubleConfirm = confirm('This is permanent. Type OK to confirm you want to delete your account and all data.');
-  if (!doubleConfirm) return;
+  // Two-step custom modal — confirm() and prompt() are both blocked in
+  // iOS WKWebView, so we drive the double-confirmation through confirmAction.
+  confirmAction({
+    title: 'Delete your account?',
+    message: 'This permanently removes your reviews, check-ins, favorites, messages, follows, and profile. It cannot be undone.',
+    confirmText: 'Continue',
+    danger: true,
+    onConfirm: () => {
+      confirmAction({
+        title: 'Last chance.',
+        message: 'Your account and all data will be deleted immediately. There is no recovery.',
+        confirmText: 'Delete forever',
+        cancelText: 'Keep my account',
+        danger: true,
+        onConfirm: () => _doDeleteAccountConfirmed(),
+      });
+    },
+  });
+}
+
+async function _doDeleteAccountConfirmed() {
+  if (!currentUser) return;
   try {
     showToast('Deleting account…');
     // Delete user data from all tables
