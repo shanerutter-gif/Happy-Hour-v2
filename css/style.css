@@ -3903,7 +3903,9 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;   /* kill staggered card entry delays */
     transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
   }
 }
 
@@ -6887,6 +6889,20 @@ h1, h2, .sf-hero-venue, .sf-ed-title, .pf-name, .gw-hero__title,
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;   /* kill staggered card entry delays */
     transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
   }
 }
+
+/* ── Paint perf hints ──────────────────────────────────
+   Promote heavy-scrolling elements to their own compositor layer so the
+   browser can repaint them in isolation. `contain: content` tells the
+   browser the descendants don't affect the outside layout — saves
+   expensive relayouts when one feed row changes. Drop-in, no visual
+   change. */
+.feed-row         { contain: content; }
+.card             { contain: layout style; }
+.sf-hero-img,
+.sf-hero-media    { transform: translateZ(0); backface-visibility: hidden; }
+.social-skeleton  { contain: layout style paint; }

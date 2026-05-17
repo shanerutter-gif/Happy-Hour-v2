@@ -334,10 +334,24 @@ function _navHideAll(keep) {
   closeSubPage('pubProfilePage');
 }
 
+// Sets the active state on the bottom nav. Caches the button NodeList on
+// first use so repeated tab switches don't re-scan the DOM (the four bottom
+// nav handlers each used to do their own querySelectorAll).
+let _navBtnsCache = null;
+function _navBtns() {
+  if (!_navBtnsCache || !_navBtnsCache.length) {
+    _navBtnsCache = [...document.querySelectorAll('.bottom-nav-btn')];
+  }
+  return _navBtnsCache;
+}
+function _setActiveNavBtn(btn) {
+  _navBtns().forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+}
+
 function bottomNavFeed(btn) {
   if(typeof haptic==='function')haptic('light');
-  document.querySelectorAll('.bottom-nav-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
+  _setActiveNavBtn(btn);
   _navHideAll();
   if (!state.city) showHome();
   // Scroll feed back to top
@@ -346,24 +360,21 @@ function bottomNavFeed(btn) {
 
 function bottomNavSocial(btn) {
   if(typeof haptic==='function')haptic('light');
-  document.querySelectorAll('.bottom-nav-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
+  _setActiveNavBtn(btn);
   _navHideAll('social');
   openSocialTab();
 }
 
 function bottomNavNews(btn) {
   if(typeof haptic==='function')haptic('light');
-  document.querySelectorAll('.bottom-nav-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
+  _setActiveNavBtn(btn);
   _navHideAll('news');
   openNewsTab();
 }
 
 function bottomNavProfile(btn) {
   if(typeof haptic==='function')haptic('light');
-  document.querySelectorAll('.bottom-nav-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
+  _setActiveNavBtn(btn);
   _navHideAll('profile');
   if (currentUser) openProfile();
   else openAuth('signin');
@@ -840,7 +851,7 @@ async function submitSpotExperience() {
     window._pendingCoverDataUrl = null;
     dismissOverlay(document.querySelector('.overlay.open'));
     _socialLoading = false;
-    loadSocialFeed();
+    loadSocialFeed({ force: true });
     showPostSuccess({ title: 'Spot shared!', sub: 'Live on the feed now' });
   } catch(e) {
     console.error('submitSpotExperience error:', e);
@@ -876,13 +887,42 @@ let _socialItems = [];
 let _socialActiveTab = 'following';
 let _socialPinnedIds = new Set();
 let _socialStories = [];
+let _socialFeedLoadedAt = 0;          // unix ms of last successful load
+const SOCIAL_FEED_TTL_MS = 60 * 1000; // 60s — short enough to feel fresh, long enough to skip refetch on tab switch
 
-async function loadSocialFeed() {
+// Skeleton placeholder that reserves the layout space the feed will occupy.
+// Reduces the layout shift when real content swaps in. Mirrors the shape
+// of three stacked hero/compact cards so the page height feels stable.
+function _socialFeedSkeletonHTML() {
+  const card = `
+    <div class="feed-row" style="flex-direction:column;gap:10px">
+      <div class="skel" style="width:100%;aspect-ratio:4/5;border-radius:14px"></div>
+      <div style="display:flex;gap:10px;align-items:center;padding:0 4px">
+        <div class="skel skel--avatar"></div>
+        <div style="flex:1">
+          <div class="skel skel--title" style="width:50%"></div>
+          <div class="skel skel--text"  style="width:80%"></div>
+        </div>
+      </div>
+    </div>`;
+  return `<div class="social-skeleton" aria-hidden="true">${card}${card}</div>`;
+}
+
+async function loadSocialFeed(opts = {}) {
   if (_socialLoading) return;
-  _socialLoading = true;
 
   const container = document.getElementById('socialFeedContent');
-  container.innerHTML = '<div class="social-loading"><div class="social-spinner"></div></div>';
+  // Skip refetch if the cache is fresh — re-renders from memory so tab
+  // switches feel instant. Pass { force: true } after a new post.
+  if (!opts.force && _socialItems.length && (Date.now() - _socialFeedLoadedAt) < SOCIAL_FEED_TTL_MS) {
+    renderSocialTab(_socialActiveTab);
+    return;
+  }
+
+  _socialLoading = true;
+  // Skeleton instead of a centered spinner — reserves layout space so the
+  // page height doesn't jump when real cards swap in.
+  container.innerHTML = _socialFeedSkeletonHTML();
 
   try {
     const followingIds = currentUser ? await getFollowing(currentUser.id) : [];
@@ -918,6 +958,7 @@ async function loadSocialFeed() {
 
     _socialItems = items;
     _socialPinnedIds = new Set(pinned.map(p => `photo-${p.id}`));
+    _socialFeedLoadedAt = Date.now();
     renderSocialTab(_socialActiveTab);
   } catch(e) {
     console.error('loadSocialFeed:', e);
@@ -939,7 +980,7 @@ function switchSocialTab(tab) {
 async function renderTrendingTab() {
   const container = document.getElementById('socialFeedContent');
   if (!container) return;
-  container.innerHTML = '<div class="social-loading"><div class="social-spinner"></div></div>';
+  container.innerHTML = _socialFeedSkeletonHTML();
   try {
     const citySlug = state.city?.slug || 'san-diego';
     const trending = await db.rpc('trending_posts', { p_city_slug: citySlug, p_days: 7, p_limit: 30 });
@@ -2535,7 +2576,10 @@ async function openModal(id, type = 'venue') {
   if (!item) return;
   track(type === 'event' ? 'event_modal_opened' : 'venue_modal_opened', { item_id: id });
   renderModal(item, type, []);
-  openOverlay('modalOverlay');
+  // Double-rAF before opening the overlay so the modal's initial markup has
+  // a clean paint before the slide-up animation starts — avoids a snap on
+  // slower iOS devices where layout settles mid-animation otherwise.
+  requestAnimationFrame(() => requestAnimationFrame(() => openOverlay('modalOverlay')));
   const reviews = await getCachedReviews(id, type);
   const le = document.getElementById(`rlist-${id}`);
   const ae = document.getElementById(`ravg-${id}`);
@@ -4086,7 +4130,7 @@ async function submitComposer() {
       });
     }
     closeComposer();
-    if (typeof loadSocialFeed === 'function') loadSocialFeed();
+    if (typeof loadSocialFeed === 'function') loadSocialFeed({ force: true });
     const subMap = {
       photo:     _composerStory ? 'Your story is live for 24h' :
                  (_composerVisibility === 'friends' ? 'Shared with friends' : 'Shared to your city'),
@@ -4611,7 +4655,7 @@ async function toggleHood(hood, btn) { if (!currentUser) return;
 async function openSocialNotifications() {
   if (!currentUser) { openAuth('signin'); return; }
   const container = document.getElementById('socialFeedContent');
-  container.innerHTML = '<div class="social-loading"><div class="social-spinner"></div></div>';
+  container.innerHTML = _socialFeedSkeletonHTML();
 
   const items = await fetchMyNotifications(80);
 
@@ -8082,7 +8126,7 @@ async function openEditPost(postId) {
     if (res?.error) { showToast('Save failed'); btn.disabled = false; btn.textContent = 'Save'; return; }
     showToast('Post updated');
     overlay.remove();
-    if (typeof loadSocialFeed === 'function') loadSocialFeed();
+    if (typeof loadSocialFeed === 'function') loadSocialFeed({ force: true });
   });
 }
 
@@ -8111,7 +8155,7 @@ async function doDeletePost(postType, postId, btn) {
     if (overlay) dismissOverlay(overlay);
     showToast('Post deleted');
     _socialLoading = false;
-    loadSocialFeed();
+    loadSocialFeed({ force: true });
   } catch(e) {
     console.error('doDeletePost error:', e);
     showToast('Could not delete — try again');
