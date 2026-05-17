@@ -894,13 +894,17 @@ async function loadSocialFeed() {
     ]);
     _socialStories = stories || [];
 
-    // Hydrate like + comment + saved state for each feed item
+    // Hydrate like + comment + saved + tagged-friends state for each item
     if (items.length) {
       const postIds = items.map(i => i.id).filter(Boolean);
-      const [likesMap, commentCounts, savedSet] = await Promise.all([
+      const rawPhotoIds = items
+        .filter(i => i.type === 'photo' && i.post_id_raw)
+        .map(i => i.post_id_raw);
+      const [likesMap, commentCounts, savedSet, tagsByPost] = await Promise.all([
         fetchLikesBulk(postIds),
         fetchCommentCountsBulk(postIds),
         fetchMySavesBulk(postIds),
+        rawPhotoIds.length ? fetchTagsForPosts(rawPhotoIds) : Promise.resolve({}),
       ]);
       items.forEach(item => {
         const likers = likesMap[item.id] || [];
@@ -908,6 +912,7 @@ async function loadSocialFeed() {
         item._liked = currentUser ? likers.includes(currentUser.id) : false;
         item._commentCount = commentCounts[item.id] || 0;
         item._saved = savedSet.has(item.id);
+        item.tagged_friends = (item.post_id_raw && tagsByPost[item.post_id_raw]) || [];
       });
     }
 
@@ -1099,6 +1104,26 @@ function shareSpotsWithFriend() {
   else { window.open(`sms:?body=${encodeURIComponent(msg)}`, '_blank'); }
 }
 
+// Renders the "with @anna, @ben + 2 more" pill underneath a feed item's
+// caption. Each name links to the tagged user's profile.
+function _renderTaggedFriendsPill(tagged) {
+  if (!Array.isArray(tagged) || !tagged.length) return '';
+  const max = 2;
+  const shown = tagged.slice(0, max);
+  const extra = tagged.length - shown.length;
+  const links = shown.map(p => {
+    const name = p.display_name || p.username || 'Friend';
+    return `<button type="button" class="sf-tagged-name"
+      onclick="event.stopPropagation();openPublicProfile('${p.id}')">@${esc(name)}</button>`;
+  }).join('');
+  const more = extra > 0
+    ? `<span class="sf-tagged-more">+ ${extra} more</span>`
+    : '';
+  return `<div class="sf-tagged-row" aria-label="Tagged friends">
+    <span class="sf-tagged-prefix">with</span>${links}${more}
+  </div>`;
+}
+
 function renderSocialItem(item, variant) {
   const allItems = [...(state.venues || []), ...(state.events || [])];
   const venue = item.venue_id ? allItems.find(v => String(v.id) === String(item.venue_id)) : null;
@@ -1134,6 +1159,9 @@ function renderSocialItem(item, variant) {
 
   // ── Caption / note ──
   const caption = item.caption || item.meta?.note || item.meta?.text || '';
+
+  // ── Tagged friends pill ("with @anna, @ben + 2 more") ──
+  const taggedHtml = _renderTaggedFriendsPill(item.tagged_friends);
 
   // ── Photo URL ──
   const photoUrl = item.photo_url || item.meta?.photo_url || '';
@@ -1201,6 +1229,7 @@ function renderSocialItem(item, variant) {
       <div class="sf-hero-venue" ${venueClick}>${esc(venueName)}</div>
       <div class="sf-hero-meta">${neighborhood ? `<span>${esc(neighborhood)}</span><span class="sf-dot"></span>` : ''}<span>${timeAgo}</span></div>
       ${caption ? `<div class="sf-hero-caption">${esc(caption)}</div>` : ''}
+      ${taggedHtml}
       ${ratingHtml ? `<div class="sf-hero-rating">${ratingHtml}</div>` : ''}
     </div>`;
 
@@ -1259,6 +1288,7 @@ function renderSocialItem(item, variant) {
         <div class="sf-compact-venue">${esc(venueName)}</div>
         ${ratingHtml ? `<div class="sf-compact-rating">${ratingHtml}</div>` : ''}
         ${caption ? `<div class="sf-compact-caption">${esc(caption)}</div>` : ''}
+        ${taggedHtml}
         <div class="sf-compact-meta">${esc(neighborhood || timeAgo)}</div>
       </div>
       <div class="sf-compact-actions">
@@ -1288,6 +1318,7 @@ function renderSocialItem(item, variant) {
       </div>
       ${ratingHtml ? `<div class="sf-wide-rating">${ratingHtml}</div>` : ''}
       ${caption ? `<div class="sf-wide-caption">"${esc(caption)}"</div>` : ''}
+      ${taggedHtml}
       <div class="sf-wide-meta">${neighborhood ? `${esc(neighborhood)} · ` : ''}${timeAgo}</div>
     </div>
     ${actionBtns}
@@ -3280,6 +3311,7 @@ async function renderProfile(user) {
         <button class="pf-tab" onclick="selectProfileTab('reviews',this)">Reviews</button>
         <button class="pf-tab" onclick="selectProfileTab('saved',this)">Saved</button>
         <button class="pf-tab" onclick="selectProfileTab('lists',this)">Lists</button>
+        <button class="pf-tab" onclick="selectProfileTab('tagged',this)">Tagged</button>
       </div>
     </div>
 
@@ -3349,6 +3381,11 @@ async function renderProfile(user) {
           <button class="list-create-btn" onclick="openCreateListForm()">+ New List</button>
         </div>
         <div id="myListsGrid"></div>
+      </div>
+
+      <div id="my-tab-tagged" style="display:none">
+        <div style="margin-bottom:12px;font-size:13px;color:var(--muted)">Photos friends have tagged you in.</div>
+        <div id="myTaggedGrid"><div class="pf-empty"><div class="pf-empty-icon">📷</div>Loading…</div></div>
       </div>
 
       <div id="my-tab-hoods" style="display:none">
@@ -4593,11 +4630,13 @@ async function openSocialNotifications() {
     if (n.type === 'like')    return 'liked your post';
     if (n.type === 'comment') return n.preview ? `commented: "${esc((n.preview || '').slice(0,80))}"` : 'commented on your post';
     if (n.type === 'mention') return 'mentioned you';
+    if (n.type === 'tagged')  return 'tagged you in a photo';
     return 'interacted with you';
   };
   const iconFor = (t) => t === 'like' ? (ICN.heartFill || '❤️')
                        : t === 'comment' ? (ICN.comment || '💬')
                        : t === 'follow' ? '👤'
+                       : t === 'tagged' ? '📷'
                        : '✨';
   const onClick = (n) => {
     if (n.type === 'follow' && n.actor_id) return `openPublicProfile('${n.actor_id}')`;
@@ -5409,6 +5448,7 @@ async function openPublicProfile(userId) {
 }
 
 async function renderPublicProfile(userId) {
+  state.viewingProfileUserId = userId;
   const [profile, reviews, checkIns, badges, favItems, amIFollowing, following, followers] = await Promise.all([
     fetchPublicProfile(userId),
     fetchMyReviews(userId),
@@ -5491,6 +5531,7 @@ async function renderPublicProfile(userId) {
         <button class="pf-tab on" onclick="switchPubTab('checkins', this)">Check-ins</button>
         <button class="pf-tab" onclick="switchPubTab('reviews', this)">Reviews</button>
         <button class="pf-tab" onclick="switchPubTab('favorites', this)">Saved</button>
+        <button class="pf-tab" onclick="switchPubTab('tagged', this)">Tagged</button>
       </div>
     </div>
 
@@ -5537,7 +5578,34 @@ async function renderPublicProfile(userId) {
             </div>
           </div>`).join('') : '<div class="pf-empty"><div class="pf-empty-icon">🔖</div>No saved spots</div>'}
       </div>
+      <div id="pub-tab-tagged" style="display:none">
+        <div id="pubTaggedGrid"><div class="pf-empty"><div class="pf-empty-icon">📷</div>Loading…</div></div>
+      </div>
     </div>`;
+}
+
+async function loadPubTaggedPosts(userId) {
+  const grid = document.getElementById('pubTaggedGrid');
+  if (!grid) return;
+  const rows = await fetchTaggedPostsForUser(userId, 60);
+  if (!rows.length) {
+    grid.innerHTML = `<div class="pf-empty"><div class="pf-empty-icon">📷</div>Not tagged in any photos yet.</div>`;
+    return;
+  }
+  grid.innerHTML = `<div class="pf-tagged-grid">${rows.map(r => {
+    const photo = r.post.photo_url || (Array.isArray(r.post.media_urls) ? r.post.media_urls[0] : '') || '';
+    const tagger = r.tagger?.display_name || 'Someone';
+    const venue  = r.venue?.name || '';
+    const safeUrl = (photo || '').replace(/'/g, "\\'");
+    return `
+      <button type="button" class="pf-tagged-tile" onclick="openTaggedPhoto('${r.post.id}')">
+        ${photo ? `<img loading="lazy" src="${safeUrl}" alt="${esc(venue || 'Photo')}">` : '<div class="pf-tagged-placeholder">📷</div>'}
+        <div class="pf-tagged-meta">
+          <span class="pf-tagged-by">${esc(tagger)}</span>
+          ${venue ? `<span class="pf-tagged-venue">${esc(venue)}</span>` : ''}
+        </div>
+      </button>`;
+  }).join('')}</div>`;
 }
 
 function switchPubTab(tab, btn) {
@@ -5545,13 +5613,14 @@ function switchPubTab(tab, btn) {
   const tabs = document.getElementById('pub-pf-tabs');
   if (!tabs) return;
   // Hide all tab content within the pub profile
-  ['checkins','reviews','favorites'].forEach(t => {
+  ['checkins','reviews','favorites','tagged'].forEach(t => {
     const el = document.getElementById('pub-tab-' + t);
     if (el) el.style.display = 'none';
   });
   document.getElementById('pub-tab-' + tab).style.display = 'block';
   tabs.querySelectorAll('.pf-tab').forEach(b => b.classList.remove('on'));
   if (btn) btn.classList.add('on');
+  if (tab === 'tagged' && state.viewingProfileUserId) loadPubTaggedPosts(state.viewingProfileUserId);
 }
 
 async function toggleFollowUser(userId, btn) {
@@ -5911,31 +5980,39 @@ async function openTagFriends(venueId, venueName, followingIds) {
   if (!el) return;
 
   el.innerHTML = `<div class="tag-prompt-title">Who'd you go with?</div>
-    <div class="tag-prompt-sub">Tag a friend at ${esc(venueName)} and they'll see it in their feed.</div>
+    <div class="tag-prompt-sub">Tap friends to tag them at ${esc(venueName)} — they'll see it in their feed.</div>
     <div class="tag-friends-grid" id="tagFriendsGrid">
       <div style="color:var(--muted);font-size:13px">Loading friends…</div>
     </div>
-    <button class="tag-skip-btn" onclick="closeOverlay('tagFriendsOverlay'); _tryPushPromptAfterCheckin()">Skip</button>`;
+    <div class="tag-friends-hint" id="tagFriendsHint" style="display:none"></div>
+    <button class="tag-skip-btn" id="tagFriendsDoneBtn"
+      onclick="finishOpenTagFriends()">Skip</button>`;
 
   openOverlay('tagFriendsOverlay');
+  window._openTagFriendsCtx = { venueId, venueName };
 
-  // Fetch profiles for everyone the user follows
   try {
+    const ids = (followingIds || []).filter(id => id && id !== currentUser?.id);
+    if (!ids.length) {
+      const grid = document.getElementById('tagFriendsGrid');
+      if (grid) grid.innerHTML = `<div style="color:var(--muted);font-size:13px">Follow people to tag them here.</div>`;
+      return;
+    }
     const { data: profiles } = await db.from('profiles')
-      .select('id, display_name, avatar_emoji')
-      .in('id', followingIds)
+      .select('id, display_name, avatar_emoji, avatar_url, username')
+      .in('id', ids)
       .not('display_name', 'is', null)
       .limit(12);
-
+    const list = (profiles || []).filter(p => p.id !== currentUser?.id);
     const grid = document.getElementById('tagFriendsGrid');
     if (!grid) return;
-    if (!profiles?.length) {
+    if (!list.length) {
       grid.innerHTML = `<div style="color:var(--muted);font-size:13px">No friends to tag yet — follow people first.</div>`;
       return;
     }
-    grid.innerHTML = profiles.map(p => `
-      <button class="tag-friend-chip" id="tag-chip-${p.id}"
-        onclick="tagFriend('${p.id}','${esc(p.display_name || '')}','${venueId}','${esc(venueName)}',this)">
+    grid.innerHTML = list.map(p => `
+      <button class="tag-friend-chip" id="tag-chip-${p.id}" type="button"
+        onclick="toggleStandaloneTag('${p.id}',this)">
         <span class="tag-friend-chip-avatar">${initialsAvatar(p.display_name || 'Friend', '', p.avatar_emoji, p.avatar_url)}</span>
         <span class="tag-friend-chip-name">${esc(p.display_name || 'Friend')}</span>
       </button>`).join('');
@@ -5945,15 +6022,63 @@ async function openTagFriends(venueId, venueName, followingIds) {
   }
 }
 
-async function tagFriend(toUserId, toName, venueId, venueName, chip) {
-  if(typeof haptic==='function')haptic('light');
-  if (chip.classList.contains('tagged')) return; // already tagged
-  chip.classList.add('tagged');
-  chip.style.pointerEvents = 'none';
-  await tagFriendAtCheckIn(currentUser.id, toUserId, venueId, venueName);
-  showToast(`Tagged ${toName} at ${venueName}`);
-  // Close overlay after a brief moment so user sees the chip light up
-  setTimeout(() => { closeOverlay('tagFriendsOverlay'); _tryPushPromptAfterCheckin(); }, 900);
+// Toggle a tag in the standalone tagFriendsOverlay (no photo yet — we have
+// to defer the actual write until the user has shared a photo, otherwise
+// post_tags has no row to reference. This overlay's "Done" button finds
+// the user's most recent photo at the venue and applies tags to it.)
+function toggleStandaloneTag(userId, chip) {
+  if (typeof haptic === 'function') haptic('light');
+  if (!window._standaloneTagIds) window._standaloneTagIds = new Set();
+  if (window._standaloneTagIds.has(userId)) {
+    window._standaloneTagIds.delete(userId);
+    chip.classList.remove('tagged');
+  } else {
+    window._standaloneTagIds.add(userId);
+    chip.classList.add('tagged');
+  }
+  const btn = document.getElementById('tagFriendsDoneBtn');
+  const hint = document.getElementById('tagFriendsHint');
+  const n = window._standaloneTagIds.size;
+  if (btn) btn.textContent = n ? `Tag ${n} friend${n > 1 ? 's' : ''}` : 'Skip';
+  if (hint) hint.style.display = n ? 'none' : 'none';
+}
+
+async function finishOpenTagFriends() {
+  const ctx = window._openTagFriendsCtx || {};
+  const ids = window._standaloneTagIds ? [...window._standaloneTagIds] : [];
+  if (!ids.length) {
+    closeOverlay('tagFriendsOverlay');
+    _tryPushPromptAfterCheckin();
+    return;
+  }
+  // Attach to the user's most recent photo at this venue (last 60 min).
+  // If they didn't post a photo, we fall back to skipping with a soft toast.
+  try {
+    const since = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const { data: recent } = await db.from('checkin_photos')
+      .select('id')
+      .eq('user_id', currentUser.id)
+      .eq('venue_id', ctx.venueId)
+      .gte('created_at', since)
+      .order('created_at', { ascending: false })
+      .limit(1);
+    if (!recent?.length) {
+      showToast('Post a photo first, then tag friends on it');
+    } else {
+      const saved = await saveTagsForPost(recent[0].id, ids);
+      showToast(saved.length
+        ? `Tagged ${saved.length} friend${saved.length > 1 ? 's' : ''} at ${ctx.venueName || 'the spot'}`
+        : 'Could not tag — try again');
+    }
+  } catch (e) {
+    console.warn('finishOpenTagFriends error', e);
+    showToast('Could not tag — try again');
+  } finally {
+    window._standaloneTagIds = new Set();
+    window._openTagFriendsCtx = null;
+    closeOverlay('tagFriendsOverlay');
+    _tryPushPromptAfterCheckin();
+  }
 }
 
 // ══════════════════════════════════════════════
@@ -6265,27 +6390,32 @@ function clearCheckinPhotoPreview() {
 
 async function _loadTagFriendsInline(venueId, venueName) {
   if (!currentUser) return;
+  // Reset the staged-tag set for this check-in session. Tags are committed
+  // in submitPhotoCheckin after the photo lands, not on chip tap.
+  window._stagedTagIds = new Set();
   try {
     const followingIds = await getFollowing(currentUser.id);
-    if (!followingIds?.length) {
-      const grid = document.getElementById('tagFriendsGridInline');
-      if (grid) grid.innerHTML = `<div style="color:var(--muted);font-size:13px">Follow people to tag them here.</div>`;
+    const grid = document.getElementById('tagFriendsGridInline');
+    if (!grid) return;
+    // Defense in depth: exclude self in case self-follow somehow exists
+    const ids = (followingIds || []).filter(id => id && id !== currentUser.id);
+    if (!ids.length) {
+      grid.innerHTML = `<div style="color:var(--muted);font-size:13px">Follow people to tag them here.</div>`;
       return;
     }
     const { data: profiles } = await db.from('profiles')
-      .select('id, display_name, avatar_emoji')
-      .in('id', followingIds)
+      .select('id, display_name, avatar_emoji, avatar_url, username')
+      .in('id', ids)
       .not('display_name', 'is', null)
       .limit(12);
-    const grid = document.getElementById('tagFriendsGridInline');
-    if (!grid) return;
-    if (!profiles?.length) {
+    const list = (profiles || []).filter(p => p.id !== currentUser.id);
+    if (!list.length) {
       grid.innerHTML = `<div style="color:var(--muted);font-size:13px">No friends to tag yet — follow people first.</div>`;
       return;
     }
-    grid.innerHTML = profiles.map(p => `
-      <button class="tag-friend-chip" id="tag-chip-${p.id}"
-        onclick="tagFriendInline('${p.id}','${esc(p.display_name || '')}','${venueId}','${esc(venueName)}',this)">
+    grid.innerHTML = list.map(p => `
+      <button class="tag-friend-chip" id="tag-chip-${p.id}" type="button"
+        onclick="toggleStagedTag('${p.id}','${esc(p.display_name || '')}',this)">
         <span class="tag-friend-chip-avatar">${initialsAvatar(p.display_name || 'Friend', '', p.avatar_emoji, p.avatar_url)}</span>
         <span class="tag-friend-chip-name">${esc(p.display_name || 'Friend')}</span>
       </button>`).join('');
@@ -6295,16 +6425,18 @@ async function _loadTagFriendsInline(venueId, venueName) {
   }
 }
 
-async function tagFriendInline(toUserId, toName, venueId, venueName, chip) {
-  if(typeof haptic==='function')haptic('light');
-  if (chip.classList.contains('tagged')) return;
-  chip.classList.add('tagged');
-  chip.style.pointerEvents = 'none';
-  await tagFriendAtCheckIn(currentUser.id, toUserId, venueId, venueName);
-  // Bump the local check-in count so UI reflects the tag immediately
-  state.goingCounts[venueId] = (state.goingCounts[venueId] || 0) + 1;
-  refreshCheckInCounters();
-  showToast(`Tagged ${toName} at ${venueName}`);
+// Stages a friend as a tag (visual toggle only). Tag rows are written to
+// post_tags after the photo successfully uploads — see submitPhotoCheckin.
+function toggleStagedTag(userId, name, chip) {
+  if (typeof haptic === 'function') haptic('light');
+  if (!window._stagedTagIds) window._stagedTagIds = new Set();
+  if (window._stagedTagIds.has(userId)) {
+    window._stagedTagIds.delete(userId);
+    chip.classList.remove('tagged');
+  } else {
+    window._stagedTagIds.add(userId);
+    chip.classList.add('tagged');
+  }
 }
 
 // Web fallback handler (file input / drag-drop)
@@ -6361,8 +6493,21 @@ async function submitPhotoCheckin(venueId, venueName) {
       showToast('Could not save photo — please try again'); return;
     }
 
+    // Commit staged friend tags now that the photo row exists. RLS requires
+    // the post to belong to the caller, so this must run after saveCheckinPhoto.
+    const stagedIds = window._stagedTagIds ? [...window._stagedTagIds] : [];
+    let tagCount = 0;
+    if (stagedIds.length && saved.id) {
+      const inserted = await saveTagsForPost(saved.id, stagedIds);
+      tagCount = inserted.length;
+    }
+    window._stagedTagIds = new Set();
     window._pendingCheckinPhoto = null;
-    showPostSuccess({ title: 'Photo shared!', sub: `Posted at ${venueName || 'the spot'}` });
+
+    const sub = tagCount
+      ? `Posted at ${venueName || 'the spot'} · ${tagCount} friend${tagCount > 1 ? 's' : ''} tagged`
+      : `Posted at ${venueName || 'the spot'}`;
+    showPostSuccess({ title: 'Photo shared!', sub });
   } catch(e) {
     console.error('submitPhotoCheckin error:', e);
     btn.disabled = false; btn.textContent = 'Share Photo';
@@ -7147,7 +7292,7 @@ if (window.visualViewport) {
 function selectProfileTab(tab, btn) {
   if(typeof haptic==='function')haptic('light');
   // Hide all tab content panels
-  ['checkins','reviews','saved','lists','hoods'].forEach(t => {
+  ['checkins','reviews','saved','lists','tagged','hoods'].forEach(t => {
     const el = document.getElementById('my-tab-' + t);
     if (el) el.style.display = 'none';
   });
@@ -7159,7 +7304,51 @@ function selectProfileTab(tab, btn) {
     b.classList.remove('active', 'on');
   });
   if (btn) { btn.classList.add('on'); btn.classList.add('active'); }
-  if (tab === 'lists') loadMyLists();
+  if (tab === 'lists')  loadMyLists();
+  if (tab === 'tagged') loadMyTaggedPosts();
+}
+
+// Photos others have tagged the current user in. Wired from the Tagged
+// tab on the profile. Each tile opens the immersive viewer at that photo.
+async function loadMyTaggedPosts() {
+  if (!currentUser) return;
+  const grid = document.getElementById('myTaggedGrid');
+  if (!grid) return;
+  const rows = await fetchTaggedPostsForUser(currentUser.id, 60);
+  if (!rows.length) {
+    grid.innerHTML = `<div class="pf-empty"><div class="pf-empty-icon">📷</div>No one has tagged you yet.</div>`;
+    return;
+  }
+  grid.innerHTML = `<div class="pf-tagged-grid">${rows.map(r => {
+    const photo = r.post.photo_url || (Array.isArray(r.post.media_urls) ? r.post.media_urls[0] : '') || '';
+    const tagger = r.tagger?.display_name || 'Someone';
+    const venue  = r.venue?.name || '';
+    const safeUrl = (photo || '').replace(/'/g, "\\'");
+    return `
+      <button type="button" class="pf-tagged-tile" onclick="openTaggedPhoto('${r.post.id}')">
+        ${photo ? `<img loading="lazy" src="${safeUrl}" alt="${esc(venue || 'Photo')}">` : '<div class="pf-tagged-placeholder">📷</div>'}
+        <div class="pf-tagged-meta">
+          <span class="pf-tagged-by">${esc(tagger)}</span>
+          ${venue ? `<span class="pf-tagged-venue">${esc(venue)}</span>` : ''}
+        </div>
+      </button>`;
+  }).join('')}</div>`;
+}
+
+// Opens the immersive viewer at a specific tagged photo. If the photo
+// isn't already in the loaded social feed we hydrate a minimal item.
+function openTaggedPhoto(postId) {
+  if (typeof haptic === 'function') haptic('light');
+  const composed = `photo-${postId}`;
+  const existing = (Array.isArray(_socialItems) ? _socialItems : []).find(i => i.id === composed);
+  if (existing && typeof openImmersiveViewer === 'function') {
+    openImmersiveViewer(composed);
+    return;
+  }
+  // Fallback: switch to home feed and let the user scroll to it.
+  if (typeof openModal === 'function' && existing?.venue_id) {
+    openModal(existing.venue_id, 'venue');
+  }
 }
 
 // ── CURATED LISTS ─────────────────────────────────────

@@ -807,10 +807,69 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 }
 .tag-friend-chip:active { transform: scale(.94); }
 .tag-friend-chip.tagged {
-  background: rgba(255,107,74,0.1); border-color: rgba(255,107,74,0.35);
+  background: var(--coral);
+  border-color: var(--coral);
+  box-shadow: 0 0 0 4px var(--coral-glow, rgba(255,107,74,0.25));
 }
+.tag-friend-chip.tagged .tag-friend-chip-name { color: #fff; }
+.tag-friend-chip.tagged .tag-friend-chip-avatar { filter: drop-shadow(0 0 0 #fff); }
 .tag-friend-chip-avatar { font-size: 22px; }
 .tag-friend-chip-name   { font-size: 11px; font-weight: 600; color: var(--text); text-align: center; max-width: 68px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── "with @anna, @ben" pill under feed item caption ── */
+.sf-tagged-row {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px;
+  margin-top: 6px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12.5px; line-height: 1.4;
+  color: var(--ink-60, var(--muted, #75695A));
+}
+.sf-tagged-prefix { opacity: .75; }
+.sf-tagged-name {
+  background: none; border: none; padding: 0;
+  font: inherit; font-weight: 700;
+  color: var(--coral, #FF6B4A);
+  cursor: pointer;
+  text-decoration: none;
+}
+.sf-tagged-name:hover { text-decoration: underline; }
+.sf-tagged-more { opacity: .7; font-size: 12px; }
+
+/* On hero card the caption sits on a dark scrim, so brighten the row */
+.sf-hero-info .sf-tagged-row { color: rgba(255,255,255,.85); }
+.sf-hero-info .sf-tagged-name { color: #FFD6CC; }
+
+/* ── Tagged photos grid on profile ── */
+.pf-tagged-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+}
+.pf-tagged-tile {
+  position: relative;
+  display: block; padding: 0; border: none;
+  background: var(--bg2, #FAF7F2);
+  border-radius: 10px; overflow: hidden;
+  aspect-ratio: 1 / 1;
+  cursor: pointer;
+  transition: transform .15s var(--ease-snap, ease);
+}
+.pf-tagged-tile:active { transform: scale(.97); }
+.pf-tagged-tile img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+}
+.pf-tagged-placeholder {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; height: 100%; font-size: 28px; opacity: .4;
+}
+.pf-tagged-meta {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  padding: 6px 8px 7px;
+  display: flex; flex-direction: column; gap: 1px;
+  background: linear-gradient(to top, rgba(0,0,0,.65), rgba(0,0,0,0));
+  color: #fff;
+  font-family: 'DM Sans', sans-serif;
+}
+.pf-tagged-by    { font-size: 11px; font-weight: 700; letter-spacing: -.1px; line-height: 1.2; }
+.pf-tagged-venue { font-size: 10.5px; font-weight: 500; opacity: .9; line-height: 1.2; }
 .tag-skip-btn {
   display: block; width: 100%; text-align: center;
   padding: 10px; font-size: 13px; color: var(--muted);
