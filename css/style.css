@@ -6233,6 +6233,7 @@ button:not([disabled]),
 .sf-ed-meta { font-size: 12px; color: rgba(42,31,20,.55); margin-top: 1px; }
 .sf-ed-hero {
   display: block;
+  position: relative;          /* needed for the heart pop overlay */
   margin: 14px 0 0;
   aspect-ratio: 16/9;
   overflow: hidden;
@@ -6906,3 +6907,38 @@ h1, h2, .sf-hero-venue, .sf-ed-title, .pf-name, .gw-hero__title,
 .sf-hero-img,
 .sf-hero-media    { transform: translateZ(0); backface-visibility: hidden; }
 .social-skeleton  { contain: layout style paint; }
+
+/* ── Double-tap heart pop on feed photos ──────────────
+   When the user double-taps a photo to like it, we burst a big heart over
+   the photo. Always plays (even if already liked) so the gesture feels
+   responsive. handleFeedPhotoTap() in js/app.js wires this up. */
+.sf-heart-pop {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: none; z-index: 5;
+}
+.sf-heart-pop::before {
+  content: '\2764\FE0F';                /* ❤️ */
+  font-size: 110px; line-height: 1;
+  filter: drop-shadow(0 6px 18px rgba(0,0,0,.45));
+  animation: sfHeartPop .82s cubic-bezier(.32,.72,0,1);
+}
+@keyframes sfHeartPop {
+  0%   { transform: scale(0)   rotate(-12deg); opacity: 0; }
+  20%  { transform: scale(1.3) rotate(0deg);   opacity: 1; }
+  55%  { transform: scale(1)   rotate(0deg);   opacity: 1; }
+  100% { transform: scale(1.5) rotate(8deg);   opacity: 0; }
+}
+
+/* Venue name in feed cards now carries an explicit tappable affordance
+   since the body around it no longer routes through to the venue modal. */
+.sf-venue-link {
+  cursor: pointer;
+  text-decoration: none;
+  transition: opacity .15s ease;
+}
+.sf-venue-link:active { opacity: .6; }
+
+/* Make the photo media areas feel tappable */
+.sf-hero-media,
+.sf-ed-hero { cursor: pointer; }

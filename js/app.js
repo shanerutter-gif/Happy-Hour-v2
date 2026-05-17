@@ -1284,7 +1284,7 @@ function renderSocialItem(item, variant) {
           </div>
         </div>
       </header>
-      ${heroImg ? `<div class="sf-ed-hero" ${venueClick}>
+      ${heroImg ? `<div class="sf-ed-hero" onclick="handleFeedPhotoTap(event,'${postId}','${postType}')">
         <img src="${esc(heroImg)}" alt="" loading="lazy" decoding="async" onerror="this.closest('.sf-ed-hero').remove()">
       </div>` : ''}
       ${titleHtml}
@@ -1328,10 +1328,10 @@ function renderSocialItem(item, variant) {
           ${infoOverlay}
         </div>`
       : isCarousel
-      ? `<div class="sf-hero-media sf-carousel">
+      ? `<div class="sf-hero-media sf-carousel" onclick="handleFeedPhotoTap(event,'${postId}','${postType}')">
           <div class="sf-carousel-track">
             ${mediaList.map((url, idx) => `
-              <div class="sf-carousel-slide" ${idx === 0 ? venueClick : ''}>
+              <div class="sf-carousel-slide">
                 <img src="${esc(url)}" alt="${esc(venueName)} ${idx+1}/${mediaList.length}" loading="lazy" decoding="async">
               </div>`).join('')}
           </div>
@@ -1341,7 +1341,7 @@ function renderSocialItem(item, variant) {
           <div class="sf-hero-grad"></div>
           ${infoOverlay}
         </div>`
-      : `<div class="sf-hero-media" ${venueClick}>
+      : `<div class="sf-hero-media" onclick="handleFeedPhotoTap(event,'${postId}','${postType}')">
           <img class="sf-hero-img" src="${esc(photoUrl)}" alt="${esc(venueName)}" loading="lazy" decoding="async"
             onerror="this.closest('.sf-hero').style.background='linear-gradient(135deg,#2A1F14,#1A1208)';this.remove()">
           <div class="sf-hero-grad"></div>
@@ -1364,8 +1364,8 @@ function renderSocialItem(item, variant) {
         <div class="sf-compact-avatar">${avatarHtml}</div>
         <span class="sf-compact-name">${esc(displayName)}${officialBadge(item.profile)}</span>
       </div>
-      <div class="sf-compact-body" ${venueClick}>
-        <div class="sf-compact-venue">${esc(venueName)}</div>
+      <div class="sf-compact-body">
+        <div class="sf-compact-venue sf-venue-link" ${venueClick}>${esc(venueName)}</div>
         ${ratingHtml ? `<div class="sf-compact-rating">${ratingHtml}</div>` : ''}
         ${caption ? `<div class="sf-compact-caption">${esc(caption)}</div>` : ''}
         ${taggedHtml}
@@ -1390,11 +1390,11 @@ function renderSocialItem(item, variant) {
       <div class="sf-wide-avatar">${avatarHtml}</div>
       <span class="sf-wide-hname">${esc(displayName)}${officialBadge(item.profile)}</span>
     </div>
-    <div class="sf-wide-body" ${venueClick}>
+    <div class="sf-wide-body">
       <div class="sf-wide-headline">
         <span class="sf-wide-name" ${profileClick}>${esc(displayName)}</span>
         <span class="sf-wide-verb">${actionVerb}</span>
-        <span class="sf-wide-venue">${esc(venueName)}</span>${actionSuffix}
+        <span class="sf-wide-venue sf-venue-link" ${venueClick}>${esc(venueName)}</span>${actionSuffix}
       </div>
       ${ratingHtml ? `<div class="sf-wide-rating">${ratingHtml}</div>` : ''}
       ${caption ? `<div class="sf-wide-caption">"${esc(caption)}"</div>` : ''}
@@ -1555,6 +1555,51 @@ async function doToggleLike(postId, postType, btn) {
     btn.classList.remove('liked', 'sf-liked');
     const newCount = Math.max(0, currentCount - 1);
     btn.innerHTML = `${ICN.heart}${newCount ? `<span>${newCount}</span>` : ''}`;
+  }
+}
+
+// Single tap on a feed photo opens the immersive viewer; double tap likes
+// the post (Instagram-style, additive only — never unlikes accidentally).
+// Detection: a tap within 280ms of the previous one on the same element
+// counts as a double. The single-tap action is deferred 280ms so the
+// double-tap path can preempt it.
+function handleFeedPhotoTap(ev, postId, postType) {
+  ev.stopPropagation();
+  const el = ev.currentTarget;
+  const now = Date.now();
+  const last = +(el.dataset.lastTap || 0);
+
+  if (now - last < 280) {
+    el.dataset.lastTap = '0';
+    if (el._tapTimer) { clearTimeout(el._tapTimer); el._tapTimer = null; }
+    _feedPhotoDoubleTapLike(postId, postType, el);
+    return;
+  }
+
+  el.dataset.lastTap = String(now);
+  el._tapTimer = setTimeout(() => {
+    el.dataset.lastTap = '0';
+    el._tapTimer = null;
+    if (typeof openImmersiveViewer === 'function') openImmersiveViewer(postId);
+  }, 280);
+}
+
+async function _feedPhotoDoubleTapLike(postId, postType, mediaEl) {
+  if (!currentUser) { openAuth('signin'); return; }
+  if (typeof haptic === 'function') haptic('success');
+
+  // Burst a big heart over the photo (always plays, even if already liked)
+  const heart = document.createElement('div');
+  heart.className = 'sf-heart-pop';
+  heart.setAttribute('aria-hidden', 'true');
+  mediaEl.appendChild(heart);
+  setTimeout(() => heart.remove(), 820);
+
+  // Only ADD a like, never toggle off — matches Instagram and avoids the
+  // "tapped too fast, lost my like" frustration.
+  const likeBtn = document.getElementById('like-' + postId);
+  if (likeBtn && !likeBtn.classList.contains('sf-liked')) {
+    doToggleLike(postId, postType, likeBtn);
   }
 }
 
