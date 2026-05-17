@@ -64,6 +64,10 @@ const AMENITIES   = [
   { key: 'has_bingo',       label: 'Bingo',        icon: 'target', eventType: 'Bingo', emoji: '🎯' },
   { key: 'has_comedy',      label: 'Comedy',       icon: 'masks', eventType: 'Comedy', emoji: '😂' },
 ];
+// Key → amenity def lookup. Used inside the venue filter callback which
+// runs per venue per filter pass; avoids a .find() through AMENITIES on
+// every iteration.
+const AMENITY_MAP = new Map(AMENITIES.map(a => [a.key, a]));
 
 // Smart suggestions — fun prefixed queries that combine amenity filters + search
 const SUGGESTIONS = [
@@ -1983,7 +1987,7 @@ function updateChips() {
   if (search) addChip(row, `"${search}"`,    () => { state.filters.search = ''; document.getElementById('searchBox').value = ''; applyFilters(); updateChips(); updateDot(); });
   if (state.filters.amenities.length) {
     state.filters.amenities.forEach(key => {
-      const a = AMENITIES.find(x => x.key === key);
+      const a = AMENITY_MAP.get(key);
       if (a) addChip(row, `${a.emoji} ${a.label}`, () => {
         state.filters.amenities = state.filters.amenities.filter(k => k !== key);
         _activeSuggestion = null;
@@ -2093,7 +2097,7 @@ function applyFilters() {
     }
     if (amenities && amenities.length) {
       for (const amenity of amenities) {
-        const amenityDef = AMENITIES.find(a => a.key === amenity);
+        const amenityDef = AMENITY_MAP.get(amenity);
         if (isEvent) {
           if (!amenityDef?.eventType || v.event_type !== amenityDef.eventType) return false;
         } else {
@@ -5545,7 +5549,9 @@ async function renderPublicProfile(userId) {
   }
 
   const allItems = [...state.venues, ...state.events];
-  const favSpots = allItems.filter(v => new Set(favItems.map(f=>String(f.item_id))).has(String(v.id)));
+  // Build the favorites Set ONCE (was rebuilding inside .filter() — O(n × m))
+  const favSet = new Set((favItems || []).map(f => String(f.item_id)));
+  const favSpots = allItems.filter(v => favSet.has(String(v.id)));
   const recentCheckIns = checkIns.slice(0, 30);
   const reviewerName = reviews.length ? (reviews[0].name || null) : null;
   const displayName = profile.display_name || reviewerName || 'Spotd User';
