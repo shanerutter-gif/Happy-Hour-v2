@@ -1145,6 +1145,32 @@ function shareSpotsWithFriend() {
   else { window.open(`sms:?body=${encodeURIComponent(msg)}`, '_blank'); }
 }
 
+// Regex hoisted to module scope — was being recompiled on every editorial
+// render inside renderSocialItem. Trivial saving per call but the feed
+// renders dozens of items per pass.
+const PARAGRAPH_SPLIT = /\n{2,}/;
+const NEWLINE_BR      = /\n/g;
+
+// Lazy lookup map for venue + event resolution by id. renderSocialItem
+// used to .find() across state.venues + state.events for EVERY feed item
+// (O(n × m) — 60 items × ~500 venues = 30k+ scans per render). The map is
+// rebuilt only when the venue/event counts change (admin add/remove or
+// city switch); property edits on existing rows are picked up because the
+// map stores object references.
+let _venueLookupMap = null;
+let _venueLookupKey = '';
+function _getVenueLookup() {
+  const key = (state.venues?.length || 0) + '|' + (state.events?.length || 0);
+  if (key !== _venueLookupKey || !_venueLookupMap) {
+    const m = new Map();
+    (state.venues || []).forEach(v => m.set(String(v.id), v));
+    (state.events || []).forEach(v => m.set(String(v.id), v));
+    _venueLookupMap = m;
+    _venueLookupKey = key;
+  }
+  return _venueLookupMap;
+}
+
 // Renders the "with @anna, @ben + 2 more" pill underneath a feed item's
 // caption. Each name links to the tagged user's profile.
 function _renderTaggedFriendsPill(tagged) {
@@ -1166,8 +1192,7 @@ function _renderTaggedFriendsPill(tagged) {
 }
 
 function renderSocialItem(item, variant) {
-  const allItems = [...(state.venues || []), ...(state.events || [])];
-  const venue = item.venue_id ? allItems.find(v => String(v.id) === String(item.venue_id)) : null;
+  const venue = item.venue_id ? _getVenueLookup().get(String(item.venue_id)) : null;
   const venueName = venue?.name || item.venue_name || 'a spot';
   const neighborhood = venue?.neighborhood || item.neighborhood || '';
   const profile = item.profile || {};
@@ -1231,9 +1256,19 @@ function renderSocialItem(item, variant) {
   if (variant === 'editorial') {
     const heroImg = (item.media_urls && item.media_urls[0]) || item.photo_url || '';
     const titleHtml = item.title ? `<h2 class="sf-ed-title">${esc(item.title)}</h2>` : '';
-    const bodyHtml  = item.body
-      ? `<div class="sf-ed-body">${esc(item.body).split(/\n{2,}/).map(p => `<p>${p.replace(/\n/g,'<br>')}</p>`).join('')}</div>`
-      : (caption ? `<div class="sf-ed-body"><p>${esc(caption).replace(/\n/g,'<br>')}</p></div>` : '');
+    // Cheap fast-path: most editorial bodies have no double-newlines, so
+    // skip split() + map() entirely when not needed. Module-scope regexes
+    // (PARAGRAPH_SPLIT / NEWLINE_BR) avoid per-render recompilation.
+    const renderParagraphs = (txt) => {
+      const escTxt = esc(txt);
+      if (!escTxt.includes('\n')) return `<p>${escTxt}</p>`;
+      return escTxt.split(PARAGRAPH_SPLIT)
+        .map(p => `<p>${p.replace(NEWLINE_BR, '<br>')}</p>`)
+        .join('');
+    };
+    const bodyHtml = item.body
+      ? `<div class="sf-ed-body">${renderParagraphs(item.body)}</div>`
+      : (caption ? `<div class="sf-ed-body">${renderParagraphs(caption)}</div>` : '');
     return `<article class="sf-editorial" data-post-id="${postId}">
       <div class="sf-ed-pin">📌 Pinned by Spotd</div>
       <header class="sf-ed-header">
@@ -1246,7 +1281,7 @@ function renderSocialItem(item, variant) {
         </div>
       </header>
       ${heroImg ? `<div class="sf-ed-hero" ${venueClick}>
-        <img src="${esc(heroImg)}" alt="" loading="lazy" onerror="this.closest('.sf-ed-hero').remove()">
+        <img src="${esc(heroImg)}" alt="" loading="lazy" decoding="async" onerror="this.closest('.sf-ed-hero').remove()">
       </div>` : ''}
       ${titleHtml}
       ${bodyHtml}
@@ -1293,7 +1328,7 @@ function renderSocialItem(item, variant) {
           <div class="sf-carousel-track">
             ${mediaList.map((url, idx) => `
               <div class="sf-carousel-slide" ${idx === 0 ? venueClick : ''}>
-                <img src="${esc(url)}" alt="${esc(venueName)} ${idx+1}/${mediaList.length}" loading="lazy">
+                <img src="${esc(url)}" alt="${esc(venueName)} ${idx+1}/${mediaList.length}" loading="lazy" decoding="async">
               </div>`).join('')}
           </div>
           <div class="sf-carousel-dots">
@@ -1303,7 +1338,7 @@ function renderSocialItem(item, variant) {
           ${infoOverlay}
         </div>`
       : `<div class="sf-hero-media" ${venueClick}>
-          <img class="sf-hero-img" src="${esc(photoUrl)}" alt="${esc(venueName)}" loading="lazy"
+          <img class="sf-hero-img" src="${esc(photoUrl)}" alt="${esc(venueName)}" loading="lazy" decoding="async"
             onerror="this.closest('.sf-hero').style.background='linear-gradient(135deg,#2A1F14,#1A1208)';this.remove()">
           <div class="sf-hero-grad"></div>
           ${infoOverlay}
@@ -2431,7 +2466,7 @@ function compactCardHTML(v, delay) {
 
   return `<div class="card-compact" data-id="${v.id}"
     onclick="openModal('${v.id}','venue')" style="animation-delay:${delay}ms">
-    <img class="card-compact-img" src="${photoUrl}" alt="${esc(v.name)}" loading="lazy"
+    <img class="card-compact-img" src="${photoUrl}" alt="${esc(v.name)}" loading="lazy" decoding="async"
       onerror="this.closest('.card-compact').style.background='linear-gradient(135deg,#2A1F14,#1A1208)';this.remove()">
     <div class="card-compact-overlay"></div>
     <button class="card-compact-fav${faved ? ' faved' : ''}"
@@ -2463,7 +2498,7 @@ function standardCardHTML(v, delay) {
   const deals    = (v.deals || []).slice(0, 3);
 
   const photoEl = hasPhoto
-    ? `<img class="card-std-img" src="${photoUrl}" alt="${esc(v.name)}" loading="lazy"
+    ? `<img class="card-std-img" src="${photoUrl}" alt="${esc(v.name)}" loading="lazy" decoding="async"
         onerror="this.outerHTML='<div class=\\'card-std-nophoto\\'>🍺</div>'">`
     : `<div class="card-std-nophoto">🍺</div>`;
 
@@ -2671,7 +2706,7 @@ function renderModal(v, type, reviews) {
   document.getElementById('modalContent').innerHTML = `
     ${photo ? `
     <div class="modal-hero-wrap" onclick="openPhotoLightbox('${esc(photo)}','${esc(v.name)}')">
-      <img src="${esc(photo)}" alt="${esc(v.name)}" loading="lazy" onerror="this.closest('.modal-hero-wrap').style.background='linear-gradient(135deg,#2A1F14,#1A1208)';this.remove()">
+      <img src="${esc(photo)}" alt="${esc(v.name)}" loading="lazy" decoding="async" onerror="this.closest('.modal-hero-wrap').style.background='linear-gradient(135deg,#2A1F14,#1A1208)';this.remove()">
       <div class="modal-hero-grad"></div>
       ${!isVenue ? `<div class="modal-hero-tag">${esc(v.event_type || 'Event')}</div>` : ''}
       <div class="modal-hero-name">${esc(v.name)}${v.owner_verified ? ' ✓' : ''}</div>
@@ -5643,7 +5678,7 @@ async function loadPubTaggedPosts(userId) {
     const safeUrl = (photo || '').replace(/'/g, "\\'");
     return `
       <button type="button" class="pf-tagged-tile" onclick="openTaggedPhoto('${r.post.id}')">
-        ${photo ? `<img loading="lazy" src="${safeUrl}" alt="${esc(venue || 'Photo')}">` : '<div class="pf-tagged-placeholder">📷</div>'}
+        ${photo ? `<img loading="lazy" decoding="async" src="${safeUrl}" alt="${esc(venue || 'Photo')}">` : '<div class="pf-tagged-placeholder">📷</div>'}
         <div class="pf-tagged-meta">
           <span class="pf-tagged-by">${esc(tagger)}</span>
           ${venue ? `<span class="pf-tagged-venue">${esc(venue)}</span>` : ''}
@@ -6233,7 +6268,7 @@ function renderCheckinPhotos(photos, venueId) {
       <div class="ugc-photos-strip">
         ${photos.map(p => `
           <div class="ugc-photo-thumb" onclick="openPhotoLightbox('${esc(p.photo_url)}','${esc(p.profile?.display_name || 'Photo')}')">
-            <img src="${esc(p.photo_url)}" alt="Check-in photo" loading="lazy" onerror="this.closest('.ugc-photo-thumb').remove()">
+            <img src="${esc(p.photo_url)}" alt="Check-in photo" loading="lazy" decoding="async" onerror="this.closest('.ugc-photo-thumb').remove()">
             <div class="ugc-photo-meta">${esc(p.profile?.display_name || 'Someone')}${p.caption ? ' · ' + esc(p.caption) : ''}</div>
             ${isOwn(p.user_id) ? `<button class="ugc-photo-delete" onclick="event.stopPropagation();doDeleteCheckinPhoto('${p.id}','${esc(p.storage_path)}','${venueId}',this)" title="Delete">✕</button>` : ''}
           </div>`).join('')}
@@ -6655,7 +6690,7 @@ function renderNewsFeed() {
     rest.map(function(a) {
       return '<a href="' + a.url + '?inapp=1" class="news-card">' +
         '<div class="news-card-img-wrap">' +
-          '<img src="' + a.img + '" alt="" class="news-card-img" loading="lazy">' +
+          '<img src="' + a.img + '" alt="" class="news-card-img" loading="lazy" decoding="async">' +
         '</div>' +
         '<div class="news-card-body">' +
           '<span class="news-card-tag">' + a.tag + '</span>' +
@@ -7286,7 +7321,15 @@ async function dmRefreshBadge() {
     dmUpdateBadge(unread);
   } catch(e) {}
 }
-setInterval(() => { if (currentUser) dmRefreshBadge(); }, 120000);
+// 2-min DM badge poll. Skips when the tab/app is hidden so we don't burn
+// battery + bandwidth on backgrounded sessions; runs a fresh check the
+// moment the page becomes visible again.
+setInterval(() => {
+  if (currentUser && document.visibilityState === 'visible') dmRefreshBadge();
+}, 120000);
+document.addEventListener('visibilitychange', () => {
+  if (currentUser && document.visibilityState === 'visible') dmRefreshBadge();
+});
 
 function dmUpdateBadge(count) {
   // Update badge on profile DM button
@@ -7370,7 +7413,7 @@ async function loadMyTaggedPosts() {
     const safeUrl = (photo || '').replace(/'/g, "\\'");
     return `
       <button type="button" class="pf-tagged-tile" onclick="openTaggedPhoto('${r.post.id}')">
-        ${photo ? `<img loading="lazy" src="${safeUrl}" alt="${esc(venue || 'Photo')}">` : '<div class="pf-tagged-placeholder">📷</div>'}
+        ${photo ? `<img loading="lazy" decoding="async" src="${safeUrl}" alt="${esc(venue || 'Photo')}">` : '<div class="pf-tagged-placeholder">📷</div>'}
         <div class="pf-tagged-meta">
           <span class="pf-tagged-by">${esc(tagger)}</span>
           ${venue ? `<span class="pf-tagged-venue">${esc(venue)}</span>` : ''}
@@ -7497,7 +7540,7 @@ async function openListDetail(listId) {
       if (!v) return '';
       var todayH = v.days && v.days.includes(TODAY) ? 'Open today' : '';
       return '<div class="list-venue-row" onclick="closeSubPage(\'listDetailPage\');openModal(\'' + v.id + '\',\'venue\')">' +
-        (v.photo_url ? '<img class="list-venue-img" src="' + esc(v.photo_url) + '" alt="" loading="lazy" onerror="this.style.display=\'none\'">' : '<div class="list-venue-img" style="background:var(--coral-dim);display:flex;align-items:center;justify-content:center;font-size:20px">\uD83C\uDF7A</div>') +
+        (v.photo_url ? '<img class="list-venue-img" src="' + esc(v.photo_url) + '" alt="" loading="lazy" decoding="async" onerror="this.style.display=\'none\'">' : '<div class="list-venue-img" style="background:var(--coral-dim);display:flex;align-items:center;justify-content:center;font-size:20px">\uD83C\uDF7A</div>') +
         '<div class="list-venue-body">' +
         '<div class="list-venue-name">' + esc(v.name) + '</div>' +
         '<div class="list-venue-meta">' + esc(v.neighborhood || '') + (v.cuisine ? ' \u00B7 ' + esc(v.cuisine) : '') + (todayH ? ' \u00B7 ' + todayH : '') + '</div>' +
@@ -8037,7 +8080,7 @@ function _immersiveSlideHTML(item) {
   const cmts = item._commentCount || 0;
   return `
     <div class="imv-media">
-      ${photo ? `<img src="${esc(photo)}" alt="" loading="lazy">` : '<div class="imv-noimage"></div>'}
+      ${photo ? `<img src="${esc(photo)}" alt="" loading="lazy" decoding="async">` : '<div class="imv-noimage"></div>'}
       <div class="imv-grad"></div>
     </div>
     <div class="imv-rail">
@@ -8064,6 +8107,8 @@ function _immersiveBindScroll() {
   if (!track || track.dataset.bound) return;
   track.dataset.bound = '1';
   let raf;
+  // passive: true lets iOS scroll the track without waiting for this handler
+  // to ack — noticeably smoother on slow-scroll devices.
   track.addEventListener('scroll', () => {
     if (raf) cancelAnimationFrame(raf);
     raf = requestAnimationFrame(() => {
