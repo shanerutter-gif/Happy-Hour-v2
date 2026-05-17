@@ -835,6 +835,92 @@ async function isFollowingVenue(userId, venueId) {
 }
 
 // ── TAG A FRIEND ───────────────────────────────────────
+// Tags are attached to a checkin_photos post via the post_tags table.
+// The post owner is the only one who can attach tags (enforced by RLS).
+// Inserting a row fires a trigger that creates an in-app notification +
+// push notification on the tagged user.
+async function saveTagsForPost(postId, friendIds) {
+  if (!postId || !Array.isArray(friendIds) || !friendIds.length) return [];
+  if (!currentUser) return [];
+  // Dedup + drop self-tags client-side (defense in depth — trigger also skips)
+  const ids = [...new Set(friendIds)].filter(id => id && id !== currentUser.id);
+  if (!ids.length) return [];
+  try {
+    const rows = ids.map(id => ({
+      post_id:        postId,
+      tagged_user_id: id,
+      tagged_by:      currentUser.id,
+    }));
+    const { data, error } = await db.from('post_tags').insert(rows).select('id, tagged_user_id');
+    if (error) { console.warn('saveTagsForPost error', error); return []; }
+    track('post_tagged', { post_id: postId, count: ids.length });
+    return data || [];
+  } catch (e) { console.warn('saveTagsForPost error', e); return []; }
+}
+
+// Photos where the given user is tagged. Used by the Tagged section on
+// their profile. Hydrates with the photo + venue + tagger profile.
+async function fetchTaggedPostsForUser(userId, limit = 30) {
+  if (!userId) return [];
+  try {
+    const { data, error } = await db.from('post_tags')
+      .select(`
+        id, created_at, tagged_by,
+        post:checkin_photos(
+          id, user_id, venue_id, city_slug, photo_url, media_urls, caption,
+          created_at, post_type, title, body
+        )
+      `)
+      .eq('tagged_user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    if (error) { console.warn('fetchTaggedPostsForUser error', error); return []; }
+    const rows = (data || []).filter(r => r.post);
+    // Hydrate tagger + venue
+    const userIds = [...new Set(rows.flatMap(r => [r.tagged_by, r.post.user_id]).filter(Boolean))];
+    const venueIds = [...new Set(rows.map(r => r.post.venue_id).filter(Boolean))];
+    const [profilesRes, venuesRes] = await Promise.all([
+      userIds.length ? db.from('profiles').select('id, display_name, avatar_emoji, avatar_url, username, is_official').in('id', userIds) : Promise.resolve({ data: [] }),
+      venueIds.length ? db.from('venues').select('id, name, neighborhood, city_slug').in('id', venueIds) : Promise.resolve({ data: [] }),
+    ]);
+    const pMap = {}; (profilesRes.data || []).forEach(p => { pMap[p.id] = p; });
+    const vMap = {}; (venuesRes.data  || []).forEach(v => { vMap[v.id] = v; });
+    return rows.map(r => ({
+      tag_id:     r.id,
+      tagged_at:  r.created_at,
+      tagger:     pMap[r.tagged_by]    || null,
+      author:     pMap[r.post.user_id] || null,
+      venue:      vMap[r.post.venue_id] || null,
+      post:       r.post,
+    }));
+  } catch (e) { console.warn('fetchTaggedPostsForUser error', e); return []; }
+}
+
+// Bulk fetch tags for a list of photo posts, hydrated with tagged profiles.
+// Returns { [postId]: [{ id, display_name, avatar_emoji, avatar_url, username }] }
+async function fetchTagsForPosts(postIds) {
+  if (!Array.isArray(postIds) || !postIds.length) return {};
+  try {
+    const { data, error } = await db.from('post_tags')
+      .select('post_id, tagged_user_id')
+      .in('post_id', postIds);
+    if (error || !data?.length) return {};
+    const taggedIds = [...new Set(data.map(r => r.tagged_user_id))];
+    const { data: profiles } = await db.from('profiles')
+      .select('id, display_name, avatar_emoji, avatar_url, username')
+      .in('id', taggedIds);
+    const pMap = {}; (profiles || []).forEach(p => { pMap[p.id] = p; });
+    const out = {};
+    data.forEach(r => {
+      if (!out[r.post_id]) out[r.post_id] = [];
+      const p = pMap[r.tagged_user_id];
+      if (p) out[r.post_id].push(p);
+    });
+    return out;
+  } catch (e) { console.warn('fetchTagsForPosts error', e); return {}; }
+}
+
+// ── TAG A FRIEND (legacy — kept temporarily for older call sites) ──────
 // Writes an activity_feed entry visible on the tagged user's feed.
 // No new table needed — reuses existing activity_feed infrastructure.
 async function tagFriendAtCheckIn(fromUserId, toUserId, venueId, venueName) {
