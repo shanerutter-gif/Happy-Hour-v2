@@ -1,5 +1,12 @@
 
 # Skills (local-only)
 .agents/
-.claude/
 skills-lock.json
+
+# Claude Code — share project settings.json + the hooks dir, hide personal files.
+.claude/*
+!.claude/settings.json
+!.claude/hooks/
+.claude/settings.local.json
+.claude/projects/
+.claude/todos/
