@@ -484,3 +484,6 @@ Append-only architectural / vendor decisions. One line per entry.
 - 2026-05-27 · Rewrote CLAUDE.md as the source of truth. Added a Stop hook
   (`.claude/hooks/stop-claude-md-check.sh`) that blocks turn-end if files
   changed but CLAUDE.md didn't, to enforce the "keep this file alive" meta rule.
+- 2026-05-29 · Nightly run: deferred Leaflet CSS+JS loading in `index.html` (media-print trick + `defer` attribute) so ~250KB of 3rd-party map scripts no longer block the critical render path. No changes to `app.js` — existing try/catch in `initMap()` handles lazy-load gracefully.
+- 2026-05-29 · Added first Orange County blog post (`blog/best-happy-hours-orange-county.html`). Added OC entry to `NEWS_ARTICLES` in `js/app.js`, OC card to `blog.html` grid (top), OC URL to `sitemap.xml`. OC filter button was already present in `blog.html`. Note: `blog_posts` Supabase table does not exist despite CLAUDE.md reference — static HTML blog pipeline is the live pattern (all existing posts are static files in `blog/`).
+- 2026-05-29 · Social handoff Notion page created for Cowork: https://www.notion.so/36f89936834b81e9bd6ac5904656d4a7 — IG carousel, Reddit r/sandiego post, X tier-list tweet, all OC-focused riding patio season + early-evening lifestyle trend.
