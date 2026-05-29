@@ -484,3 +484,13 @@ Append-only architectural / vendor decisions. One line per entry.
 - 2026-05-27 · Rewrote CLAUDE.md as the source of truth. Added a Stop hook
   (`.claude/hooks/stop-claude-md-check.sh`) that blocks turn-end if files
   changed but CLAUDE.md didn't, to enforce the "keep this file alive" meta rule.
+- 2026-05-29 · Perf: added `defer` to Leaflet.js + Leaflet.markercluster.js in
+  `index.html` `<head>` — both render-blocking (~170KB total), safe to defer because
+  `initMap()` is demand-loaded on user interaction only, never at parse time. Also
+  added `<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>` as
+  the standard complement to the existing fonts.googleapis.com preconnect. (commit 4392b23)
+- 2026-05-29 · First OC blog post added (`blog/best-happy-hours-newport-beach.html`).
+  All prior posts targeted San Diego; OC was next in the alternation. Follows same
+  static HTML pattern as all existing posts. Note: `blog_posts` Supabase table does
+  not yet exist — all blog posts are static HTML files in `blog/`, not served via the
+  `blog-post.js` dynamic pipeline. Create the table before using that pipeline.
