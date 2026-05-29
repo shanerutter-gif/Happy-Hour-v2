@@ -916,13 +916,17 @@ function _socialFeedSkeletonHTML() {
   return `<div class="social-skeleton" aria-hidden="true">${card}${card}</div>`;
 }
 
+let _socialFeedCity = null;
 async function loadSocialFeed(opts = {}) {
   if (_socialLoading) return;
 
   const container = document.getElementById('socialFeedContent');
-  // Skip refetch if the cache is fresh — re-renders from memory so tab
-  // switches feel instant. Pass { force: true } after a new post.
-  if (!opts.force && _socialItems.length && (Date.now() - _socialFeedLoadedAt) < SOCIAL_FEED_TTL_MS) {
+  const citySlug = state.city?.slug || 'san-diego';
+  // Skip refetch only if the cache is fresh AND for the same city. The city
+  // guard stops the previous city's posts from lingering when you switch
+  // (e.g. San Diego posts showing under Orange County). { force: true }
+  // bypasses the cache after a new post.
+  if (!opts.force && _socialItems.length && _socialFeedCity === citySlug && (Date.now() - _socialFeedLoadedAt) < SOCIAL_FEED_TTL_MS) {
     renderSocialTab(_socialActiveTab);
     return;
   }
@@ -934,7 +938,6 @@ async function loadSocialFeed(opts = {}) {
 
   try {
     const followingIds = currentUser ? await getFollowing(currentUser.id) : [];
-    const citySlug = state.city?.slug || 'san-diego';
     const [items, pinned, stories] = await Promise.all([
       fetchSocialFeed(citySlug, followingIds, 60),
       fetchPinnedEditorialPosts(citySlug, 3),
@@ -967,6 +970,7 @@ async function loadSocialFeed(opts = {}) {
     _socialItems = items;
     _socialPinnedIds = new Set(pinned.map(p => `photo-${p.id}`));
     _socialFeedLoadedAt = Date.now();
+    _socialFeedCity = citySlug;
     renderSocialTab(_socialActiveTab);
   } catch(e) {
     console.error('loadSocialFeed:', e);
