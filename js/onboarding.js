@@ -10,7 +10,8 @@ const OB_KEY = 'spotd-ob-complete';
 // ── STATE ──────────────────────────────────────────────
 const obState = {
   screen: 0,
-  totalScreens: 6,
+  totalScreens: 7,
+  citySlug: 'san-diego',       // chosen on the city-picker screen (screen 1)
   selectedVibes: new Set(),
   selectedNeighborhood: null,
   selectedAttribution: null,  // e.g. 'instagram', 'tiktok', 'friend'
@@ -19,18 +20,78 @@ const obState = {
 
 const OB_ATTRIBUTION_KEY = 'spotd_pending_attribution';
 
-const OB_NEIGHBORHOODS = [
-  { name: 'North Park',    deals: 8,  popular: true  },
-  { name: 'Downtown',      deals: 12, popular: false },
-  { name: 'Little Italy',  deals: 9,  popular: false },
-  { name: 'Gaslamp',       deals: 6,  popular: false },
-  { name: 'Pacific Beach', deals: 7,  popular: false },
-  { name: 'Hillcrest',     deals: 5,  popular: false },
-  { name: 'East Village',  deals: 6,  popular: false },
-  { name: 'Ocean Beach',   deals: 4,  popular: false },
-  { name: 'La Jolla',      deals: 3,  popular: false },
-  { name: 'Mission Hills', deals: 5,  popular: false },
-];
+// ── PER-CITY ONBOARDING CONTENT ───────────────────────
+// To launch a new city in onboarding, add an entry here (see CLAUDE.md
+// "Launching a new city" checklist) AND flip its `active` flag in CITIES
+// (js/app.js). The city-picker screen renders one button per key below, so a
+// city only appears in onboarding once it has real neighborhoods + venues here.
+const OB_CITY_CONFIG = {
+  'san-diego': {
+    name: 'San Diego', state: 'CA', tagline: '490+ spots live',
+    neighborhoods: [
+      { name: 'North Park',    deals: 8,  popular: true  },
+      { name: 'Downtown',      deals: 12, popular: false },
+      { name: 'Little Italy',  deals: 9,  popular: false },
+      { name: 'Gaslamp',       deals: 6,  popular: false },
+      { name: 'Pacific Beach', deals: 7,  popular: false },
+      { name: 'Hillcrest',     deals: 5,  popular: false },
+      { name: 'East Village',  deals: 6,  popular: false },
+      { name: 'Ocean Beach',   deals: 4,  popular: false },
+      { name: 'La Jolla',      deals: 3,  popular: false },
+      { name: 'Mission Hills', deals: 5,  popular: false },
+    ],
+    featured: [
+      { name: 'Coin-Op Game Room',  deal: '$5 arcade tokens + $6 craft beers',  hood: 'North Park',    time: 'HH 4–7pm' },
+      { name: 'Kettner Exchange',   deal: '$8 cocktails + $2 oysters',          hood: 'Little Italy',  time: 'HH 4–6pm' },
+      { name: 'Wonderland OB',      deal: '$5 margs + ocean view',              hood: 'Ocean Beach',   time: 'HH 3–6pm' },
+      { name: 'The Grass Skirt',    deal: '$7 tiki cocktails',                  hood: 'Pacific Beach', time: 'HH 4–7pm' },
+      { name: 'Raised by Wolves',   deal: '$10 speakeasy cocktails',            hood: 'East Village',  time: 'HH 5–7pm' },
+      { name: 'Cannonball',         deal: '$6 poolside margs',                  hood: 'Mission Beach', time: 'HH 3–5pm' },
+      { name: 'Craft & Commerce',   deal: '$7 old fashioneds',                  hood: 'Little Italy',  time: 'HH 5–7pm' },
+      { name: 'Fairweather',        deal: '$6 rooftop spritzes',                hood: 'North Park',    time: 'HH 4–6pm' },
+    ],
+    mapPins: [
+      { primary: { hood: 'North Park', deals: 8, top: '32%', left: '38%' },  secondary: { hood: 'Downtown', deals: 12, top: '18%', right: '22%' } },
+      { primary: { hood: 'Little Italy', deals: 9, top: '25%', left: '30%' }, secondary: { hood: 'Pacific Beach', deals: 7, top: '40%', right: '20%' } },
+      { primary: { hood: 'Gaslamp', deals: 6, top: '35%', left: '45%' },     secondary: { hood: 'Ocean Beach', deals: 4, top: '20%', right: '28%' } },
+      { primary: { hood: 'Hillcrest', deals: 5, top: '28%', left: '35%' },   secondary: { hood: 'East Village', deals: 6, top: '42%', right: '18%' } },
+    ],
+  },
+  'orange-county': {
+    name: 'Orange County', state: 'CA', tagline: '220+ spots live',
+    neighborhoods: [
+      { name: 'Newport Beach',    deals: 24, popular: true  },
+      { name: 'Costa Mesa',       deals: 24, popular: false },
+      { name: 'Santa Ana',        deals: 20, popular: false },
+      { name: 'Huntington Beach', deals: 15, popular: false },
+      { name: 'Anaheim',          deals: 15, popular: false },
+      { name: 'Fullerton',        deals: 12, popular: false },
+      { name: 'Laguna Beach',     deals: 10, popular: false },
+      { name: 'Irvine',           deals: 10, popular: false },
+    ],
+    featured: [
+      { name: 'Don The Beachcomber', deal: '$6 Mai Tais + tiki cocktails',        hood: 'Huntington Beach', time: 'HH 3–7pm' },
+      { name: 'Pacific Hideaway',    deal: '$10 cocktails + $7 tacos',            hood: 'Newport Beach',    time: 'HH 4–6pm' },
+      { name: 'The Cliff Restaurant',deal: 'Half-off apps + ocean views',         hood: 'Laguna Beach',     time: 'HH 3–6pm' },
+      { name: 'Culinary Dropout',    deal: '$5 craft beers + half-off pretzels',  hood: 'Costa Mesa',       time: 'HH 3–6pm' },
+      { name: 'The Blind Rabbit',    deal: '$8 speakeasy cocktails',              hood: 'Anaheim',          time: 'HH 4–7pm' },
+      { name: 'Bosscat Kitchen',     deal: 'Half-off whiskey + $5 beer',          hood: 'Newport Beach',    time: 'HH 4–6pm' },
+      { name: 'Steamers',            deal: '$5 wells + live jazz',                hood: 'Fullerton',        time: 'HH 5–8pm' },
+      { name: 'Mozambique',          deal: '$7 cocktails + $6 wine',              hood: 'Laguna Beach',     time: 'HH 4–7pm' },
+    ],
+    mapPins: [
+      { primary: { hood: 'Newport Beach', deals: 24, top: '32%', left: '38%' },    secondary: { hood: 'Costa Mesa', deals: 24, top: '18%', right: '22%' } },
+      { primary: { hood: 'Huntington Beach', deals: 15, top: '25%', left: '30%' }, secondary: { hood: 'Santa Ana', deals: 20, top: '40%', right: '20%' } },
+      { primary: { hood: 'Laguna Beach', deals: 10, top: '35%', left: '45%' },     secondary: { hood: 'Anaheim', deals: 15, top: '20%', right: '28%' } },
+      { primary: { hood: 'Costa Mesa', deals: 24, top: '28%', left: '35%' },       secondary: { hood: 'Fullerton', deals: 12, top: '42%', right: '18%' } },
+    ],
+  },
+};
+
+// Returns the config for the currently selected onboarding city (defaults to SD).
+function obCity() {
+  return OB_CITY_CONFIG[obState.citySlug] || OB_CITY_CONFIG['san-diego'];
+}
 
 const OB_VIBES = [
   { id: 'cocktails', emoji: '🍸', label: 'Craft cocktails' },
@@ -46,30 +107,14 @@ const OB_VIBES = [
 ];
 
 // ── DYNAMIC CONTENT POOLS ─────────────────────────────
-// Featured venues rotate each visit so the onboarding feels fresh
-const OB_FEATURED_VENUES = [
-  { name: 'Coin-Op Game Room',  deal: '$5 arcade tokens + $6 craft beers',  hood: 'North Park',    time: 'HH 4\u20137pm' },
-  { name: 'Kettner Exchange',   deal: '$8 cocktails + $2 oysters',          hood: 'Little Italy',  time: 'HH 4\u20136pm' },
-  { name: 'Wonderland OB',      deal: '$5 margs + ocean view',             hood: 'Ocean Beach',   time: 'HH 3\u20136pm' },
-  { name: 'The Grass Skirt',    deal: '$7 tiki cocktails',                  hood: 'Pacific Beach', time: 'HH 4\u20137pm' },
-  { name: 'Raised by Wolves',   deal: '$10 speakeasy cocktails',            hood: 'East Village',  time: 'HH 5\u20137pm' },
-  { name: 'Cannonball',         deal: '$6 poolside margs',                  hood: 'Mission Beach', time: 'HH 3\u20135pm' },
-  { name: 'Craft & Commerce',   deal: '$7 old fashioneds',                  hood: 'Little Italy',  time: 'HH 5\u20137pm' },
-  { name: 'Fairweather',        deal: '$6 rooftop spritzes',                hood: 'North Park',    time: 'HH 4\u20136pm' },
-];
-
-// Map pin configs that rotate
-const OB_MAP_PIN_SETS = [
-  { primary: { hood: 'North Park', deals: 8, top: '32%', left: '38%' },  secondary: { hood: 'Downtown', deals: 12, top: '18%', right: '22%' } },
-  { primary: { hood: 'Little Italy', deals: 9, top: '25%', left: '30%' }, secondary: { hood: 'Pacific Beach', deals: 7, top: '40%', right: '20%' } },
-  { primary: { hood: 'Gaslamp', deals: 6, top: '35%', left: '45%' },     secondary: { hood: 'Ocean Beach', deals: 4, top: '20%', right: '28%' } },
-  { primary: { hood: 'Hillcrest', deals: 5, top: '28%', left: '35%' },   secondary: { hood: 'East Village', deals: 6, top: '42%', right: '18%' } },
-];
+// (Featured venues, map pins and neighborhoods are now per-city — see
+// OB_CITY_CONFIG above. The rotating headline pools below are city-neutral;
+// any {city} token is replaced at render time with the selected city name.)
 
 // Screen 1 headlines rotate
 const OB_SCREEN1_HEADLINES = [
   { title: '{count} deals are live right now.', sub: 'See what\u2019s happening tonight near you.' },
-  { title: '{count} happy hours happening now.', sub: 'The best deals in San Diego, updated live.' },
+  { title: '{count} happy hours happening now.', sub: 'The best deals in {city}, updated live.' },
   { title: '{count} spots are popping off tonight.', sub: 'Find out where the locals are heading.' },
   { title: 'Tonight looks good \u2014 {count} deals live.', sub: 'Don\u2019t miss what\u2019s happening near you.' },
 ];
@@ -84,9 +129,9 @@ const OB_SCREEN2_HEADLINES = [
 
 // Screen 3 (neighborhood) headlines rotate
 const OB_SCREEN3_HEADLINES = [
-  { title: 'Where in San Diego?',              sub: '{total} deals live across the city tonight' },
+  { title: 'Where in {city}?',                  sub: '{total} deals live across the city tonight' },
   { title: 'Pick your neighborhood.',           sub: '{total} spots are serving deals right now' },
-  { title: 'Where are you headed tonight?',     sub: '{total} happy hours live across San Diego' },
+  { title: 'Where are you headed tonight?',     sub: '{total} happy hours live across {city}' },
   { title: 'Choose your turf.',                 sub: 'We\u2019ve got {total} deals waiting for you' },
 ];
 
@@ -104,7 +149,7 @@ function _obShuffle(arr) {
 }
 
 // Endowed progress — starts partially filled
-const OB_PROGRESS = [18, 35, 52, 68, 84, 96];
+const OB_PROGRESS = [14, 28, 42, 58, 72, 86, 96];
 
 // ── VISIBILITY ─────────────────────────────────────────
 function obShouldShow() {
@@ -125,16 +170,51 @@ function obInit() {
   overlay.style.display = 'flex';
   overlay.style.opacity = '1';
   obGoTo(0);
+  obRenderCities();
   obPopulateDynamic();
   obRenderVibes();
   obStartLiveCounter();
 }
 
+// ── CITY PICKER (Screen 1) ────────────────────────────
+// Renders one button per launch-ready city. A city only appears here once it
+// has an entry in OB_CITY_CONFIG, so the picker can never offer an empty city.
+function obRenderCities() {
+  var grid = document.getElementById('obCityGrid');
+  if (!grid) return;
+  grid.innerHTML = Object.keys(OB_CITY_CONFIG).map(function (slug) {
+    var c = OB_CITY_CONFIG[slug];
+    var sel = slug === obState.citySlug ? ' ob-neigh-btn--selected' : '';
+    return '<button class="ob-neigh-btn ob-city-btn' + sel + '" onclick="obSelectCity(\'' + slug + '\',this)">'
+      + '<span class="ob-neigh-name">' + c.name + ', ' + c.state + '</span>'
+      + '<span class="ob-neigh-deals">' + c.tagline + '</span>'
+      + '</button>';
+  }).join('');
+}
+
+function obSelectCity(slug, el) {
+  if (typeof haptic === 'function') haptic('medium');
+  obState.citySlug = OB_CITY_CONFIG[slug] ? slug : 'san-diego';
+  document.querySelectorAll('.ob-city-btn').forEach(function (b) { b.classList.remove('ob-neigh-btn--selected'); });
+  if (el) el.classList.add('ob-neigh-btn--selected');
+  // Persist so the app drops the user into the city they picked once they
+  // sign up or skip (enterCity reads 'spotd-last-city' on next load).
+  try { localStorage.setItem('spotd-last-city', obState.citySlug); } catch (e) {}
+  if (typeof track === 'function') track('onboarding_city_selected', { city_slug: obState.citySlug });
+  // Refresh the city-specific screens (map preview, neighborhoods, headlines).
+  obPopulateDynamic();
+  var grid = document.getElementById('obNeighGrid');
+  if (grid) grid.dataset.rendered = '';
+  setTimeout(function () { obNext(); }, 300);
+}
+
 // ── DYNAMIC CONTENT ───────────────────────────────────
 function obPopulateDynamic() {
-  // Screen 1: featured venue + map pins + headline
-  var feat = _obPick(OB_FEATURED_VENUES);
-  var pins = _obPick(OB_MAP_PIN_SETS);
+  // Screen 2 (value preview): featured venue + map pins + headline, all
+  // pulled from the currently selected city's config.
+  var city = obCity();
+  var feat = _obPick(city.featured);
+  var pins = _obPick(city.mapPins);
   var h1   = _obPick(OB_SCREEN1_HEADLINES);
 
   var mapCard = document.getElementById('obMapCardName');
@@ -162,7 +242,7 @@ function obPopulateDynamic() {
   var s1t = document.getElementById('obScreen1Title');
   var s1s = document.getElementById('obScreen1Sub');
   if (s1t) s1t.innerHTML = h1.title.replace('{count}', '<span class="ob-live-num">' + obState.liveCount + '</span>');
-  if (s1s) s1s.textContent = h1.sub;
+  if (s1s) s1s.textContent = h1.sub.replace('{city}', city.name);
 
   // Screen 2 headline
   var h2  = _obPick(OB_SCREEN2_HEADLINES);
@@ -175,7 +255,7 @@ function obPopulateDynamic() {
   var h3  = _obPick(OB_SCREEN3_HEADLINES);
   obState._screen3Headline = h3;
   var s3t = document.getElementById('obScreen3Title');
-  if (s3t) s3t.textContent = h3.title;
+  if (s3t) s3t.textContent = h3.title.replace('{city}', city.name);
 }
 
 function obComplete() {
@@ -213,8 +293,10 @@ function obGoTo(idx) {
   obState.screen = idx;
   obUpdateProgress(idx);
 
-  if (idx === 3) obRenderNeighborhoods();
-  if (idx === 5) obUpdateSignupScreen();
+  // Screen indices shifted +1 after the city-picker screen was inserted at 1:
+  // 0 entry · 1 city · 2 map · 3 vibe · 4 neighborhoods · 5 attribution · 6 signup
+  if (idx === 4) obRenderNeighborhoods();
+  if (idx === 6) obUpdateSignupScreen();
 }
 
 // ── ATTRIBUTION (Screen 4) ────────────────────────────
@@ -303,7 +385,7 @@ function obRenderNeighborhoods() {
   grid.dataset.rendered = '1';
 
   // Shuffle neighborhoods and randomly assign "popular" badge to one
-  var shuffled = _obShuffle(OB_NEIGHBORHOODS);
+  var shuffled = _obShuffle(obCity().neighborhoods);
   var popIdx = Math.floor(Math.random() * Math.min(3, shuffled.length)); // top 3 get a chance
 
   const total = shuffled.reduce((s, n) => s + n.deals, 0);
@@ -311,7 +393,7 @@ function obRenderNeighborhoods() {
   // Update screen 3 subtitle with total
   var h3 = obState._screen3Headline;
   var s3s = document.getElementById('obScreen3Sub');
-  if (s3s && h3) s3s.textContent = h3.sub.replace('{total}', total);
+  if (s3s && h3) s3s.textContent = h3.sub.replace('{total}', total).replace('{city}', obCity().name);
   var banner = document.getElementById('obTotalDeals');
   if (banner) banner.textContent = total;
 
@@ -336,7 +418,7 @@ function obSelectNeighborhood(name, deals, el) {
 // ── SIGNUP SCREEN ──────────────────────────────────────
 function obUpdateSignupScreen() {
   const n    = obState.selectedNeighborhood;
-  const hood = n ? n.name : 'San Diego';
+  const hood = n ? n.name : obCity().name;
   const cnt  = n ? n.deals : 23;
   const hl   = document.getElementById('obSignupHeadline');
   if (hl) hl.textContent = `We found ${cnt} happy hours matching your vibe in ${hood}`;
