@@ -1096,11 +1096,16 @@ function renderSocialTab(tab) {
   }
 
   if (!filtered.length && !pinned.length) {
+    // City-aware: new markets (e.g. Orange County at launch) have no social
+    // history yet, so name the city and nudge the first post rather than
+    // showing a flat generic message.
+    const cityName = state.city?.name || 'your city';
     container.innerHTML = `
       <div class="social-empty">
         <div class="social-empty-icon">${icn('camera',32)}</div>
-        <div class="social-empty-title">Nothing here yet</div>
-        <div class="social-empty-sub">Be the first to check in and share a photo tonight</div>
+        <div class="social-empty-title">Be the first in ${esc(cityName)}</div>
+        <div class="social-empty-sub">No posts here yet. Check in at a spot, share a photo, or leave a review — it'll show up right here for everyone in ${esc(cityName)}.</div>
+        <button class="social-share-cta" onclick="bottomNavFeed()">Find a spot to check in</button>
       </div>`;
     return;
   }
