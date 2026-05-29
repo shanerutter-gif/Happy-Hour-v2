@@ -217,7 +217,6 @@ async function enrichOne(env, venue, opts) {
 
   // 5. Apply patch — write place_id separately so a unique-constraint
   //    conflict on it can't roll back the rest (photo/phone/hours/etc.).
-  let placeIdConflict = false;
   if (!dryRun && Object.keys(patch).length) {
     const { place_id: pendingPlaceId, ...rest } = patch;
     if (Object.keys(rest).length) {
@@ -231,7 +230,6 @@ async function enrichOne(env, venue, opts) {
         // Another venue already owns this place_id (unique constraint). Keep the
         // rest of the enrichment; just don't claim the duplicate place_id.
         if (/\b409\b|23505|duplicate key/.test(String(e.message))) {
-          placeIdConflict = true;
           const i = fields.indexOf('place_id');
           if (i >= 0) fields.splice(i, 1);
           fields.push('place_id_conflict');
@@ -243,7 +241,7 @@ async function enrichOne(env, venue, opts) {
   }
 
   return {
-    status: dryRun ? 'dry_run' : (placeIdConflict ? 'partial' : 'success'),
+    status: dryRun ? 'dry_run' : 'success',
     fields, costMicro, place_id: placeId,
     photo_count: photoUrls.length,
   };
@@ -255,11 +253,11 @@ async function handlePreview(env, params) {
   const city = params.city;
   if (!city) return json({ error: 'Missing city' }, 400);
 
-  // Total active + how many lack place_id (need full enrichment)
+  // Total active + how many still need backfill (lack a photo).
   const all  = await sbGet(supabaseUrl, serviceKey,
     `venues?city_slug=eq.${city}&active=eq.true&select=id&limit=1000`);
   const todo = await sbGet(supabaseUrl, serviceKey,
-    `venues?city_slug=eq.${city}&active=eq.true&place_id=is.null&select=id&limit=1000`);
+    `venues?city_slug=eq.${city}&active=eq.true&photo_url=is.null&select=id&limit=1000`);
   const noPhoto = await sbGet(supabaseUrl, serviceKey,
     `venues?city_slug=eq.${city}&active=eq.true&photo_url=is.null&select=id&limit=1000`);
 
@@ -286,11 +284,12 @@ async function handleBatch(env, params) {
 
   if (!city) return json({ error: 'Missing city' }, 400);
 
-  // Pick venues that need enrichment. By default: place_id IS NULL.
-  // With force=true, also re-enrich venues missing photo_url.
+  // Pick venues that need enrichment. Default: photo_url IS NULL — this drains
+  // even when a place_id can't be written (duplicate constraint), since the
+  // photo still saves. With force=true, also re-check rows missing a place_id.
   const filter = force
     ? `or=(place_id.is.null,photo_url.is.null)`
-    : `place_id=is.null`;
+    : `photo_url=is.null`;
   const venues = await sbGet(supabaseUrl, serviceKey,
     `venues?city_slug=eq.${city}&active=eq.true&${filter}` +
     `&select=id,name,address,neighborhood,city_slug,place_id,phone,url,hours,price_level,google_rating,photo_url` +
@@ -314,7 +313,7 @@ async function handleBatch(env, params) {
           place_id: out.place_id, photo_count: out.photo_count,
           fields_filled: out.fields, cost_usd_micro: out.costMicro,
           started_at: startedAt, finished_at: new Date().toISOString(),
-        });
+        }).catch(() => {});
       }
     } catch (e) {
       results.push({ venue_id: v.id, name: v.name, status: 'failed', error: e.message });
@@ -359,7 +358,7 @@ async function handleSingleVenue(env, params) {
         place_id: out.place_id, photo_count: out.photo_count,
         fields_filled: out.fields, cost_usd_micro: out.costMicro,
         started_at: startedAt, finished_at: new Date().toISOString(),
-      });
+      }).catch(() => {});
     }
     return json({ venue_id: v.id, name: v.name, ...out });
   } catch (e) {
