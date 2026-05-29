@@ -121,14 +121,18 @@ async function loadSiteCopy() {
   } catch(e) {}
 }
 
+// Source of truth for which cities are live in the UI. The Supabase `cities`
+// table is NOT used to gate this (it is stale: it flags every city active and
+// has wrong counts). A city is only `active:true` here once its venues are
+// enriched (photos + deals). See the "Launching a new city" checklist in CLAUDE.md.
 const CITIES = [
-  { slug:'san-diego',    name:'San Diego',     state_code:'CA', venue_count:400, active:true  },
+  { slug:'san-diego',    name:'San Diego',     state_code:'CA', venue_count:498, active:true  },
+  { slug:'orange-county',name:'Orange County', state_code:'CA', venue_count:225, active:true  },
   { slug:'los-angeles',  name:'Los Angeles',   state_code:'CA', venue_count:0,  active:false },
   { slug:'new-york',     name:'New York',      state_code:'NY', venue_count:0,  active:false },
   { slug:'chicago',      name:'Chicago',       state_code:'IL', venue_count:0,  active:false },
   { slug:'austin',       name:'Austin',        state_code:'TX', venue_count:0,  active:false },
   { slug:'miami',        name:'Miami',         state_code:'FL', venue_count:0,  active:false },
-  { slug:'orange-county',name:'Orange County', state_code:'CA', venue_count:0,  active:false },
 ];
 
 document.addEventListener('DOMContentLoaded', () => {

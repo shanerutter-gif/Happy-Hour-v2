@@ -432,6 +432,42 @@ For pattern recognition. Don't propose work that's already been done.
 
 ---
 
+## Launching a new city
+
+Cities are gated by the **hardcoded `CITIES` array in `js/app.js`** — NOT the
+Supabase `cities` table (that table is stale: it flags every city `active` and
+its `venue_count`s are wrong, so never use it to drive the UI). A city should
+only go `active:true` once its venues are actually enriched (photos + deals),
+otherwise the grid/map/SEO sitemap look empty.
+
+To open a new city end-to-end:
+
+1. **Verify the data is ready.** Confirm a healthy count of `active` venues with
+   `photo_url` set and `deals` populated for that `city_slug` (the SEO sitemap
+   only includes venues with a photo, so photoless venues stay out of Google).
+   San Diego + Orange County are the live markets as of 2026-05-29.
+2. **Flip the flag** in `CITIES` (`js/app.js`): set `active:true` and a real
+   `venue_count` (the home-grid "X+ spots" badge). Keep markets without enriched
+   data `active:false` (currently LA/NYC/Chicago/Austin/Miami — they have seed
+   rows but zero photos).
+3. **Map center:** add the city's `[lat,lng]` to `getCityCenter()` (`js/app.js`).
+   The in-app neighborhood/area filter is data-driven (derived from loaded
+   venues), so it needs no per-city wiring.
+4. **Onboarding:** add a `OB_CITY_CONFIG[slug]` entry in `js/onboarding.js`
+   (`name`, `state`, `tagline`, `neighborhoods`, `featured`, `mapPins`). The
+   onboarding city-picker screen (screen 1) renders one button per config key,
+   so the city appears there automatically. Copy is city-aware via the `{city}`
+   token. Use **real venues/neighborhoods** for `featured`/`neighborhoods` so the
+   preview isn't fake.
+5. **SEO copy:** add the city to the `index.html` meta description / og / keywords
+   list, and the BTF social-proof line, then **bump the `?v=` cache string** on
+   `js/app.js` + `js/onboarding.js`.
+6. **Blog (optional):** add a city filter button + name mapping in `blog.html`
+   and a `NEWS_ARTICLES` entry in `js/app.js` if there's a city guide post.
+
+Picking a city in onboarding writes `spotd-last-city`, so a new signup lands
+directly in the city they chose (`enterCity` reads it on next load).
+
 ## Docs
 
 - `docs/giveaway.md` — full giveaway + referral system spec
@@ -487,3 +523,4 @@ Append-only architectural / vendor decisions. One line per entry.
 - 2026-05-29 · Nightly run: deferred Leaflet CSS+JS loading in `index.html` (media-print trick + `defer` attribute) so ~250KB of 3rd-party map scripts no longer block the critical render path. No changes to `app.js` — existing try/catch in `initMap()` handles lazy-load gracefully.
 - 2026-05-29 · Added first Orange County blog post (`blog/best-happy-hours-orange-county.html`). Added OC entry to `NEWS_ARTICLES` in `js/app.js`, OC card to `blog.html` grid (top), OC URL to `sitemap.xml`. OC filter button was already present in `blog.html`. Note: `blog_posts` Supabase table does not exist despite CLAUDE.md reference — static HTML blog pipeline is the live pattern (all existing posts are static files in `blog/`).
 - 2026-05-29 · Social handoff Notion page created for Cowork: https://www.notion.so/36f89936834b81e9bd6ac5904656d4a7 — IG carousel, Reddit r/sandiego post, X tier-list tweet, all OC-focused riding patio season + early-evening lifestyle trend.
+- 2026-05-29 · **Launched Orange County as the 2nd live city.** Flipped `orange-county` to `active:true` in the `CITIES` array (`js/app.js`) and corrected stale badge counts (SD 400→498, OC→225). OC had 225 active venues / 173 with photos / 131 with deals — genuinely launch-ready. Reworked onboarding (`js/onboarding.js` + `index.html`) from hardcoded-San-Diego into a **per-city model**: added a city-picker screen (now screen 1 of 7), an `OB_CITY_CONFIG` map keyed by slug (neighborhoods/featured venues/map pins, populated with real OC data), and `{city}` token replacement in the rotating copy. Picking a city writes `spotd-last-city` so signups land in the chosen city. Refreshed SEO meta + BTF copy to include OC; bumped cache `?v=` on app.js/onboarding.js. Added the "Launching a new city" checklist above. Confirmed the Supabase `cities` table is unreliable (flags all cities active, wrong counts) — `CITIES` array remains the single UI gate. **Considerations flagged for Shane:** ~52 active OC venues have no photo (excluded from the SEO sitemap, shown with placeholder in-app); LA/NYC/Chicago/Austin/Miami still have zero-photo seed data so they correctly stay `active:false`.
