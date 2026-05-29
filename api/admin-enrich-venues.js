@@ -215,14 +215,35 @@ async function enrichOne(env, venue, opts) {
     }
   }
 
-  // 5. Apply patch
+  // 5. Apply patch — write place_id separately so a unique-constraint
+  //    conflict on it can't roll back the rest (photo/phone/hours/etc.).
+  let placeIdConflict = false;
   if (!dryRun && Object.keys(patch).length) {
-    patch.updated_at = new Date().toISOString();
-    await sbPatch(supabaseUrl, serviceKey, 'venues', 'id', venue.id, patch);
+    const { place_id: pendingPlaceId, ...rest } = patch;
+    if (Object.keys(rest).length) {
+      rest.updated_at = new Date().toISOString();
+      await sbPatch(supabaseUrl, serviceKey, 'venues', 'id', venue.id, rest);
+    }
+    if (pendingPlaceId) {
+      try {
+        await sbPatch(supabaseUrl, serviceKey, 'venues', 'id', venue.id, { place_id: pendingPlaceId });
+      } catch (e) {
+        // Another venue already owns this place_id (unique constraint). Keep the
+        // rest of the enrichment; just don't claim the duplicate place_id.
+        if (/\b409\b|23505|duplicate key/.test(String(e.message))) {
+          placeIdConflict = true;
+          const i = fields.indexOf('place_id');
+          if (i >= 0) fields.splice(i, 1);
+          fields.push('place_id_conflict');
+        } else {
+          throw e;
+        }
+      }
+    }
   }
 
   return {
-    status: dryRun ? 'dry_run' : 'success',
+    status: dryRun ? 'dry_run' : (placeIdConflict ? 'partial' : 'success'),
     fields, costMicro, place_id: placeId,
     photo_count: photoUrls.length,
   };
