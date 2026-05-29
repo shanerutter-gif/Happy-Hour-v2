@@ -308,7 +308,7 @@ Project ref: `opcskuzbdfrlnyhraysk` (hardcoded in `js/db.js`, `admin/board.html`
 ### Tables by domain
 
 **Core discovery** (`sql/schema.sql` + drift since)
-- `cities` — slug PK, name, state_code, venue_count, event_count, active. Public read.
+- `cities` — slug PK, name, state_code, venue_count, event_count, active. Public read. **Not the UI gate** (the `CITIES` array in `js/app.js` is). Corrected to reflect reality on 2026-05-29 (`sql/fix-cities-table-accuracy.sql`): `active` = launched markets only (SD + OC), counts = real active venue/event counts. The `active` flag is a manual launch decision; the counts are point-in-time and can drift as venues are enriched — re-run that script to refresh.
 - `venues` — uuid PK, city_slug, name, neighborhood, address, lat, lng, hours, days[], cuisine, deals[], promo_code, promo_description, photo_url, photo_urls[], phone, place_id, google_rating, price_level, owner_id, owner_verified, stripe_customer_id, stripe_subscription_id, subscription_tier (`free`/`pro`/`founding`), subscription_status, subscription_current_period_end, amenity booleans (`has_happy_hour`, `has_live_music`, `has_trivia`, `has_karaoke`, `has_sports_tv`, `is_dog_friendly`, `has_bingo`, `has_comedy`), hours_start, hours_end, is_official, active, featured.
 - `events` — similar shape, with `event_type` (Trivia, Live Music, Karaoke, Bingo, Game Night, Comedy).
 
@@ -435,10 +435,12 @@ For pattern recognition. Don't propose work that's already been done.
 ## Launching a new city
 
 Cities are gated by the **hardcoded `CITIES` array in `js/app.js`** — NOT the
-Supabase `cities` table (that table is stale: it flags every city `active` and
-its `venue_count`s are wrong, so never use it to drive the UI). A city should
-only go `active:true` once its venues are actually enriched (photos + deals),
-otherwise the grid/map/SEO sitemap look empty.
+Supabase `cities` table. (The `cities` table was corrected on 2026-05-29 to
+mirror reality, but its counts still drift as venues are enriched and its
+`active` flag is a manual launch decision — so keep driving the UI from the
+`CITIES` array, not the table.) A city should only go `active:true` once its
+venues are actually enriched (photos + deals), otherwise the grid/map/SEO
+sitemap look empty.
 
 To open a new city end-to-end:
 
@@ -524,3 +526,4 @@ Append-only architectural / vendor decisions. One line per entry.
 - 2026-05-29 · Added first Orange County blog post (`blog/best-happy-hours-orange-county.html`). Added OC entry to `NEWS_ARTICLES` in `js/app.js`, OC card to `blog.html` grid (top), OC URL to `sitemap.xml`. OC filter button was already present in `blog.html`. Note: `blog_posts` Supabase table does not exist despite CLAUDE.md reference — static HTML blog pipeline is the live pattern (all existing posts are static files in `blog/`).
 - 2026-05-29 · Social handoff Notion page created for Cowork: https://www.notion.so/36f89936834b81e9bd6ac5904656d4a7 — IG carousel, Reddit r/sandiego post, X tier-list tweet, all OC-focused riding patio season + early-evening lifestyle trend.
 - 2026-05-29 · **Launched Orange County as the 2nd live city.** Flipped `orange-county` to `active:true` in the `CITIES` array (`js/app.js`) and corrected stale badge counts (SD 400→498, OC→225). OC had 225 active venues / 173 with photos / 131 with deals — genuinely launch-ready. Reworked onboarding (`js/onboarding.js` + `index.html`) from hardcoded-San-Diego into a **per-city model**: added a city-picker screen (now screen 1 of 7), an `OB_CITY_CONFIG` map keyed by slug (neighborhoods/featured venues/map pins, populated with real OC data), and `{city}` token replacement in the rotating copy. Picking a city writes `spotd-last-city` so signups land in the chosen city. Refreshed SEO meta + BTF copy to include OC; bumped cache `?v=` on app.js/onboarding.js. Added the "Launching a new city" checklist above. Confirmed the Supabase `cities` table is unreliable (flags all cities active, wrong counts) — `CITIES` array remains the single UI gate. **Considerations flagged for Shane:** ~52 active OC venues have no photo (excluded from the SEO sitemap, shown with placeholder in-app); LA/NYC/Chicago/Austin/Miami still have zero-photo seed data so they correctly stay `active:false`.
+- 2026-05-29 · **Corrected the `cities` table** (migration `fix_cities_table_accuracy`, also saved as `sql/fix-cities-table-accuracy.sql`). It previously flagged every city `active:true` with wrong counts (e.g. SD venue_count 85 vs real 498). Now: `active` = launched markets only (San Diego + Orange County), `venue_count` = real active venues, `event_count` = real active events. Found San Diego has 310 events but **all `active=false`**, so SD genuinely surfaces 0 live events today (the app queries events with `.eq('active', true)`) — flagged for Shane in case those 310 SD events should be reactivated. The table is still NOT the UI gate (the `CITIES` array is) and its counts can drift; re-run the SQL after enrichment to refresh.
