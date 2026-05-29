@@ -309,6 +309,11 @@ main{min-height:60vh}
 .card-sep{opacity:.3}
 .card-when{background:var(--teal);color:#fff;font-size:10px;font-weight:700;padding:4px 10px;border-radius:20px;white-space:nowrap;letter-spacing:0.3px;box-shadow:0 2px 6px rgba(255,107,74,0.2)}
 .card-event-type{font-family:'DM Sans',sans-serif;font-size:9px;text-transform:uppercase;letter-spacing:1px;color:#a588ff;background:rgba(130,100,255,.08);border-radius:4px;padding:2px 7px}
+/* Event chips on venue cards — events surface on their venue, never as standalone cards.
+   Tuned to read on both dark photo cards (hero/compact) and the light standard card. */
+.card-event-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.card-event-chip{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:3px 9px;border-radius:50px;color:#a588ff;background:rgba(130,100,255,.16);border:1px solid rgba(130,100,255,.30);white-space:nowrap}
+.card-event-chip--more{color:var(--muted);background:rgba(130,100,255,.10);border-color:rgba(130,100,255,.18)}
 .deals{list-style:none;display:flex;flex-direction:column;margin-bottom:10px;gap:1px}
 .deals li{font-size:13px;color:rgba(42,31,20,0.7);padding:6px 0;border-bottom:1px solid rgba(42,31,20,0.04);display:flex;align-items:flex-start;gap:8px;line-height:1.4}
 .deals li:last-child{border-bottom:none}

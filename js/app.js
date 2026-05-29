@@ -1789,6 +1789,15 @@ async function enterCity(slug, name, stateCode) {
   state.venues = venues;
   state.events = events;
 
+  // Index events by venue name so they surface on the matching venue (card
+  // chips + modal). Events are never rendered as standalone cards.
+  state._eventsByVenue = {};
+  events.forEach(e => {
+    if (!e.venue_name) return;
+    const k = e.venue_name.trim().toLowerCase();
+    (state._eventsByVenue[k] = state._eventsByVenue[k] || []).push(e);
+  });
+
   // Native iOS: cache venues for offline + index in Spotlight
   if (window.spotdNative?.platform === 'ios') {
     try {
@@ -1926,9 +1935,8 @@ function buildFilterPills() {
     df.appendChild(opt);
   });
 
-  // Neighborhoods
-  const allItems = [...state.venues, ...state.events];
-  const areas = [...new Set(allItems.map(v => v.neighborhood).filter(Boolean))].sort();
+  // Neighborhoods — venues only (events surface on their venue, not standalone)
+  const areas = [...new Set(state.venues.map(v => v.neighborhood).filter(Boolean))].sort();
   const af = document.getElementById('areaFilters');
   af.innerHTML = '<option value="">All neighborhoods</option>';
   areas.forEach(a => {
@@ -1944,11 +1952,9 @@ function buildTypeFilters() {
   const tf = document.getElementById('typeFilters');
   const currentType = state.filters.type;
   tf.innerHTML = '<option value="">All types</option>';
-  const types = state.showFilter === 'events'
-    ? EVENT_TYPES
-    : state.showFilter === 'happyhour'
-      ? HH_TYPES
-      : [...HH_TYPES, ...EVENT_TYPES];
+  // Venue types only. Event types (Trivia, Live Music, …) are discovered via the
+  // amenity filter, since events surface on their venue rather than as cards.
+  const types = HH_TYPES;
   types.forEach(t => {
     const opt = document.createElement('option');
     opt.value = t; opt.textContent = t;
@@ -2118,20 +2124,10 @@ function applyFilters() {
   const search = (document.getElementById('searchBox')?.value || '').toLowerCase().trim();
   state.filters.search = search;
 
-  // Events that belong to a venue live only inside the venue modal — never as standalone cards.
-  const venueNames = new Set(state.venues.map(v => v.name.trim().toLowerCase()));
-  const standaloneEvents = state.events.filter(e =>
-    !e.venue_name || !venueNames.has(e.venue_name.trim().toLowerCase())
-  );
-
-  let pool;
-  if (state.showFilter === 'happyhour') {
-    pool = state.venues;
-  } else if (state.showFilter === 'events') {
-    pool = standaloneEvents;
-  } else {
-    pool = [...state.venues, ...standaloneEvents];
-  }
+  // Events are never shown as standalone cards. They surface on their venue
+  // (card chips + the "Events at this venue" modal section), so the grid and
+  // map show venues only.
+  const pool = state.venues;
 
   state.filtered = pool.filter(v => {
     const { day, area, type, amenities } = state.filters;
@@ -2252,8 +2248,8 @@ function renderCards() {
 }
 // ═══════════════════════════════════════════════════════
 // FEED REDESIGN — Mixed layout render pipeline
-// Replaces: _renderCardsNow() and venueCardHTML()
-// Keeps: renderCards(), eventCardHTML(), all helpers
+// Venues only — events are never standalone cards; they surface on their venue
+// via eventChipsHTML() (card chips) and the "Events at this venue" modal section.
 // ═══════════════════════════════════════════════════════
 
 function _renderCardsNow() {
@@ -2278,7 +2274,8 @@ function _renderCardsNow() {
   }
 
   const items = state.filtered;
-  const events = items.filter(v => v.event_type);
+  // Events never enter state.filtered; this guard ensures one can never slip
+  // through as a standalone card. Events surface on their venue card instead.
   const venues = items.filter(v => !v.event_type);
 
   // Split into tiers
@@ -2326,12 +2323,6 @@ function _renderCardsNow() {
       html += standardCardHTML(v, delay);
       delay += 40;
     });
-  }
-
-  // ── Event cards (keep existing) ──
-  if (events.length) {
-    html += `<div class="feed-label">Events</div>`;
-    events.forEach(v => { html += eventCardHTML(v); });
   }
 
   grid.innerHTML = html;
@@ -2436,6 +2427,26 @@ async function doToggleUpvote(descId, btn) {
 // ═══════════════════════════════════════
 // HERO CARD
 // ═══════════════════════════════════════
+// Events surface ON their venue (card chips + venue modal) — never as their own
+// card. Returns the events whose venue_name matches this venue.
+function venueEvents(v) {
+  if (!v || !v.name || !state._eventsByVenue) return [];
+  return state._eventsByVenue[v.name.trim().toLowerCase()] || [];
+}
+
+// Small event chips (e.g. "🧠 Trivia") shown on a venue card when the venue
+// hosts events. De-duped by event type, capped at 2 chips + a "+N" overflow.
+function eventChipsHTML(v) {
+  const types = [...new Set(venueEvents(v).map(e => e.event_type || e.name).filter(Boolean))];
+  if (!types.length) return '';
+  const chips = types.slice(0, 2).map(t => {
+    const emoji = (EVENT_TYPE_AMENITY[t] && EVENT_TYPE_AMENITY[t].emoji) || '🎤';
+    return `<span class="card-event-chip">${emoji} ${esc(t)}</span>`;
+  });
+  if (types.length > 2) chips.push(`<span class="card-event-chip card-event-chip--more">+${types.length - 2}</span>`);
+  return `<div class="card-event-chips">${chips.join('')}</div>`;
+}
+
 function heroCardHTML(v, delay) {
   const photoUrl = v.photo_url || (v.photo_urls && v.photo_urls[0]) || '';
   const cached   = state.reviewCache[v.id] || [];
@@ -2490,6 +2501,7 @@ function heroCardHTML(v, delay) {
         ${v.yelp_rating ? `<span class="dot"></span><span>★ ${v.yelp_rating}</span>` : avg > 0 ? `<span class="dot"></span><span>★ ${avg.toFixed(1)}</span>` : ''}
       </div>
       <div class="card-hero-deals">${deals}</div>
+      ${eventChipsHTML(v)}
       ${localsSaySnippet(v.id)}
       ${goingBar}
     </div>
@@ -2529,6 +2541,7 @@ function compactCardHTML(v, delay) {
       <div class="card-compact-name">${esc(v.name)}</div>
       <div class="card-compact-sub">${esc(v.cuisine || '')}${v.yelp_rating ? ` · ★ ${v.yelp_rating}` : avg > 0 ? ` · ★ ${avg.toFixed(1)}` : ''}${count > 0 ? ` · 🔥 ${count}` : ''}</div>
       ${dealsHtml}
+      ${eventChipsHTML(v)}
       ${localsSayInline(v.id)}
       <button class="card-compact-checkin${isMeIn ? ' joined' : ''}" data-vid="${v.id}"
         onclick="event.stopPropagation();doGoingTonight('${v.id}',this)">${isMeIn ? '✓ Checked In' : '+ Check In'}</button>
@@ -2570,6 +2583,7 @@ function standardCardHTML(v, delay) {
       <div class="card-std-name">${esc(v.name)}</div>
       <div class="card-std-meta">${esc(v.neighborhood || '')} · ${esc(v.cuisine || '')}${todayH ? ' · ' + esc(todayH) : ''}</div>
       ${deals.length ? deals.map(d => `<div class="card-std-deal">${esc(d)}</div>`).join('') : ''}
+      ${eventChipsHTML(v)}
       ${localsSayInline(v.id)}
       ${count > 0 ? `<div class="card-std-going">🔥 ${count} going tonight</div>` : starsEl}
       <button class="card-std-checkin${isMeIn ? ' joined' : ''}" data-vid="${v.id}"
@@ -2612,25 +2626,6 @@ function goingAvatars(venueId, count) {
   }
   if (count > 3) html += `<span>+${count - 3}</span>`;
   return html;
-}
-
-function eventCardHTML(v) {
-  const faved = isFavorite(v.id);
-  return `<div class="card" onclick="openModal('${v.id}','event')" role="button" tabindex="0">
-    <div class="card-top">
-      <div class="card-name">${esc(v.name)}</div>
-      <button class="heart-btn${faved ? ' faved' : ''}" onclick="event.stopPropagation();doFavorite('${v.id}','event',this)">${faved ? '★' : '☆'}</button>
-    </div>
-    <div class="card-meta">
-      <span>${esc(v.neighborhood || '')}</span>
-      ${v.neighborhood ? '<span class="card-sep">·</span>' : ''}
-      <span class="card-when">${esc(v.hours || '')}</span>
-    </div>
-    ${v.description ? `<ul class="deals"><li>${esc(v.description)}</li></ul>` : ''}
-    <div class="card-foot">
-      <span class="card-cuisine">${esc(v.venue_name || '')}</span>
-    </div>
-  </div>`;
 }
 
 async function doFavorite(itemId, itemType, btn) {
