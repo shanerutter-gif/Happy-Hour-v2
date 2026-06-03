@@ -1908,6 +1908,9 @@ async function enterCity(slug, name, stateCode) {
   }
 
   initMap();
+  // On desktop the map is the always-on right pane, so populate it now rather
+  // than waiting for a (non-existent) map toggle.
+  syncTwoPaneMap();
 
   // ── Push notification prompt (after location dialog settles) ──
   // Show soft push prompt ~3s after entering city for the first time
@@ -2186,7 +2189,9 @@ function applyFilters() {
   }
 
   renderCards();
-  if (state.view === 'map') updateMapMarkers();
+  // Keep the map markers in sync whenever the map is on screen — either the
+  // toggled map view (mobile) or the always-on desktop two-pane right pane.
+  if (state.map && (state.view === 'map' || isTwoPane())) updateMapMarkers();
   const rc = document.getElementById('resultsCount');
   if (rc) rc.textContent = `${state.filtered.length} of ${pool.length} venues`;
 }
@@ -2302,12 +2307,17 @@ function _renderCardsNow() {
   let delay = 0;
 
   // ── Hero cards ──
+  // Wrapped in .card-hero-row so desktop can lay heroes out multi-column.
+  // On mobile the wrapper is display:contents (see style.css), so the cards
+  // behave exactly as direct children — rendering is identical to before.
   if (heroes.length) {
     html += `<div class="feed-label">🔥 Hot right now</div>`;
+    html += `<div class="card-hero-row">`;
     heroes.forEach(v => {
       html += heroCardHTML(v, delay);
       delay += 80;
     });
+    html += `</div>`;
   }
 
   // ── Compact grid ──
@@ -2326,12 +2336,17 @@ function _renderCardsNow() {
   }
 
   // ── Standard rows ──
+  // Wrapped in .card-std-row so desktop can lay these out multi-column.
+  // On mobile the wrapper is display:contents (see style.css), so rendering
+  // is identical to before.
   if (standardVenues.length) {
     html += `<div class="feed-label">More spots</div>`;
+    html += `<div class="card-std-row">`;
     standardVenues.forEach(v => {
       html += standardCardHTML(v, delay);
       delay += 40;
     });
+    html += `</div>`;
   }
 
   grid.innerHTML = html;
@@ -4961,7 +4976,48 @@ function toggleView() {
     }, 100);
   }
 }
-function goToMap(id) { closeOverlay('modalOverlay'); if (state.view !== 'map') toggleView(); setTimeout(() => flyTo(id), 350); }
+function goToMap(id) {
+  closeOverlay('modalOverlay');
+  // In the desktop two-pane layout the map is already on screen, so don't
+  // toggle (the toggle is a no-op there anyway) — just fly to the venue.
+  if (!isTwoPane() && state.view !== 'map') toggleView();
+  setTimeout(() => flyTo(id), isTwoPane() ? 120 : 350);
+}
+
+// ── DESKTOP TWO-PANE (list + persistent map) ───────────
+// At ≥1200px the discover screen shows the feed (left) and the map (right)
+// side by side instead of toggling between them. These helpers init/populate
+// the map when it becomes the always-on right pane and keep it sized.
+const _twoPaneMQ = window.matchMedia('(min-width:1200px)');
+function isTwoPane() { return _twoPaneMQ.matches; }
+
+function syncTwoPaneMap() {
+  if (!isTwoPane() || !state.city) return;
+  if (!state.map || !state._mapReady) initMap();
+  if (!state.map) return;
+  // The map container just became visible / changed size — Leaflet needs an
+  // invalidateSize before it will render tiles correctly.
+  requestAnimationFrame(() => {
+    if (!state.map) return;
+    state.map.invalidateSize();
+    updateMapMarkers();
+    setTimeout(() => state.map && state.map.invalidateSize(), 250);
+  });
+}
+
+// Populate the map the moment the viewport crosses into two-pane width.
+(_twoPaneMQ.addEventListener
+  ? _twoPaneMQ.addEventListener('change', e => { if (e.matches) syncTwoPaneMap(); })
+  : _twoPaneMQ.addListener(e => { if (e.matches) syncTwoPaneMap(); }));
+
+// Keep the map sized as the window resizes in two-pane mode.
+let _twoPaneRsz = null;
+window.addEventListener('resize', () => {
+  if (_twoPaneRsz) clearTimeout(_twoPaneRsz);
+  _twoPaneRsz = setTimeout(() => {
+    if (isTwoPane() && state.map) state.map.invalidateSize();
+  }, 200);
+});
 
 // ── MAP ────────────────────────────────────────────────
 function initMap() {
