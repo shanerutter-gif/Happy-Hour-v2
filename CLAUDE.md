@@ -403,13 +403,20 @@ Copying from a mainline file? Use the bare convention.
     `.bottom-nav`, and turns the feed into a 2-column grid via
     `.card-hero-row`/`.card-std-row` wrappers that are `display:contents` on
     mobile (so mobile is untouched) and `display:grid` on desktop.
-  - `@media (min-width:1200px)` — **two-pane discover view**: feed (left,
-    single column, `max-width:660px`) + persistent Leaflet map (right, sticky,
-    `100vh`). Forces both `#listView`/`#mapView` visible with `!important`
-    (overriding the `.active` toggle), hides the map toggle + the map's own
-    `.map-sidebar`. JS side: `isTwoPane()` / `syncTwoPaneMap()` (near
-    `goToMap` in `app.js`) init + populate the map; `enterCity` and
-    `applyFilters` call into them so markers stay synced without a toggle.
+  - `@media (min-width:1200px)` — **locked two-pane discover view**: `.app-page`
+    becomes a `height:100vh` flex column (header on top, two-pane row below);
+    the page itself does NOT scroll. Left pane = an independently scrollable
+    `#listView` (fixed `460px`, `overflow-y:auto`); right pane = the map filling
+    the rest at full height. Both `#listView`/`#mapView` forced visible with
+    `!important` (overriding the `.active` toggle); map toggle + the map's own
+    `.map-sidebar` hidden. The feed renders as **uniform horizontal `.card-std`
+    cards** here (no hero/compact/standard tiers) — `_renderCardsNow` branches
+    on `isTwoPane()`. JS: `isTwoPane()` / `syncTwoPaneMap()` (near `goToMap`)
+    init + populate the map; `enterCity` and `applyFilters` keep markers synced
+    without a toggle; a matchMedia `change` listener re-renders the feed when
+    crossing the breakpoint. **Gotcha:** `enterCity` sets
+    `appPage.style.display=''` (not `'block'`) so the flex-column CSS isn't
+    overridden by an inline style.
   Keep desktop overrides in those two blocks.
 
 ### File naming
@@ -603,4 +610,5 @@ Append-only architectural / vendor decisions. One line per entry.
 - 2026-06-03 · Added Newport Beach neighborhood guide blog post (`blog/best-happy-hours-newport-beach.html`). Keyword: "best happy hours Newport Beach". Deeper city-specific companion to the general OC guide. Venues verified: Zinqué (Yelp May 2026), Muldoon's Irish Pub (Yelp June 2026), Woody's Wharf, Bosscat Kitchen & Libations, Balboa Bar, The Winery Restaurant. Wired into `blog.html` grid (top), `sitemap.xml`, and `NEWS_ARTICLES` in `js/app.js`. Blog pipeline remains static HTML.
 - 2026-06-03 · **Fixed Rich Results Test warnings on all 17 blog posts' Article schema.** (1) Added an `"image"` field to every Article JSON-LD using the post's `NEWS_ARTICLES` Unsplash hero bumped to `w=1200` (the og:image `icon-512.png` is only 512px — too small). (2) Converted `datePublished`/`dateModified` from bare `YYYY-MM-DD` to full ISO 8601 with Pacific timezone (`...T08:00:00-07:00`) — bare dates triggered "Invalid datetime value" + "missing a timezone" warnings. Applied via a Python script that re-serializes only the `@type:Article` JSON-LD block per file (FAQ/Breadcrumb blocks untouched); all 39 JSON-LD blocks across the 17 posts re-validated as parseable. Also caught + fixed an earlier mismatch (best-tacos/best-burritos had 4 schema FAQ Q&As but only 3 visible). Updated the Blog post SEO checklist with the required Article fields + the schema-must-mirror-visible-FAQ rule.
 - 2026-06-03 · Social Handoff Notion page created: https://app.notion.com/p/37489936834b815d82f0e9e2b36719e3 — OC engagement-focused carousel riding the "Hallelujah" Justin Bieber format + digicam aesthetic. Venues: Old World Festival Hall (HB), Perqs Bar (HB, all-day Wednesday HH), Postino Park Place (Irvine), Zinqué (Newport Beach). Reddit r/orangecounty editorial post + X tweet included. All venues verified open tonight.
+- 2026-06-03 · **Two-pane refinement: locked-scroll left list + uniform cards.** Iterated on the ≥1200px two-pane (shipped earlier same day). (1) **Locked layout:** `.app-page` is now a `height:100vh` flex column (`overflow:hidden`) so the page no longer scrolls — only the left `#listView` (fixed `460px`, `overflow-y:auto`) scrolls, with the map filling the rest at full height (dropped the previous `position:sticky` page-scroll approach). (2) **Uniform cards:** `_renderCardsNow` now branches on `isTwoPane()` and renders all venues as same-shape horizontal `.card-std` cards (no hero/compact/standard tiers) — a scannable Yelp-style list beside the map. A matchMedia `change` listener calls `renderCards()` so the card style swaps when crossing 1200px. (3) **Gotcha fixed:** `enterCity` was setting `appPage.style.display='block'` inline, which would beat the flex-column CSS — changed to `display=''` (default div display is block; hiding still uses inline `display:none`). Bumped cache to `?v=20260603d`. Verified in headless Chromium at 1280/1440px.
 - 2026-06-03 · **Consolidation: shipped 3 blog posts from stale nightly PRs** (#176–178). Added `blog/best-taco-tuesday-san-diego.html` (Jun 1, El Chingon/American Junkie/Barleymash/La Puerta) and `blog/best-happy-hours-little-italy-san-diego.html` (May 31, Ironside/Cloak & Petal/GlassDoor/Piedra Santa/Vincenzo) — cherry-picked blog HTML from the old branches and committed fresh on `claude/consolidation-blog-fixes`. Closed PRs #176/177/178 as superseded. Wired both posts into `blog.html` grid, `sitemap.xml`, and `NEWS_ARTICLES` in `js/app.js`. Fixed broken Unsplash image for North Park entry in `NEWS_ARTICLES` (replaced 404 ID `photo-1574920162043-b872873f19bc` with `photo-1514362545857-3bc16c4c7d1b`). Fixed stale Supabase `deals` data for two North Park venues: The Smoking Goat (hours corrected to 5:30–7pm Mon–Sun) and Caffè Calabria (hours corrected to 6–10pm Wed–Sun, all-day Wednesday), via direct SQL `array_replace`.
