@@ -96,7 +96,7 @@
 <noscript><link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"></noscript>
 <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script defer src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
-<link rel="stylesheet" href="css/style.css?v=20260529b">
+<link rel="stylesheet" href="css/style.css?v=20260603a">
 <style>
 .card-claim { padding: 4px 16px 12px; }
 .claim-link { font-size: 12px; color: rgba(42,31,20,0.4); text-decoration: none; }
@@ -411,6 +411,15 @@
       </button>
       <div class="city-dropdown" id="cityDropdown"></div>
     </div>
+    <!-- Desktop-only primary nav. Hidden on mobile (CSS); the floating bottom
+         pill nav handles mobile. Buttons reuse the same handlers as that nav. -->
+    <nav class="desktop-nav" id="desktopNav" aria-label="Primary">
+      <button class="desktop-nav-btn active" onclick="bottomNavFeed(this)">Discover</button>
+      <button class="desktop-nav-btn" onclick="bottomNavSocial(this)">Explore</button>
+      <button class="desktop-nav-btn" onclick="bottomNavNews(this)">News</button>
+      <button class="desktop-nav-post" onclick="openComposer()" aria-label="New post" title="New post">+ Post</button>
+      <button class="desktop-nav-btn desktop-nav-profile" onclick="bottomNavProfile(this)">Profile</button>
+    </nav>
   </div>
 
   <div class="controls" id="controls">
@@ -745,7 +754,7 @@ function dismissAppDownload() {
 <script src="js/push.js?v=20260408a"></script>
 
 <script src="js/icons.js"></script>
-<script src="js/app.js?v=20260602a"></script>
+<script src="js/app.js?v=20260603a"></script>
 <script src="js/tooltips.js?v=20260408a"></script>
 <script>
 // Hide business/Pro links and App Store badge on native iOS

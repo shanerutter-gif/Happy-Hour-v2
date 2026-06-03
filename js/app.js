@@ -2302,12 +2302,17 @@ function _renderCardsNow() {
   let delay = 0;
 
   // ── Hero cards ──
+  // Wrapped in .card-hero-row so desktop can lay heroes out multi-column.
+  // On mobile the wrapper is display:contents (see style.css), so the cards
+  // behave exactly as direct children — rendering is identical to before.
   if (heroes.length) {
     html += `<div class="feed-label">🔥 Hot right now</div>`;
+    html += `<div class="card-hero-row">`;
     heroes.forEach(v => {
       html += heroCardHTML(v, delay);
       delay += 80;
     });
+    html += `</div>`;
   }
 
   // ── Compact grid ──
@@ -2326,12 +2331,17 @@ function _renderCardsNow() {
   }
 
   // ── Standard rows ──
+  // Wrapped in .card-std-row so desktop can lay these out multi-column.
+  // On mobile the wrapper is display:contents (see style.css), so rendering
+  // is identical to before.
   if (standardVenues.length) {
     html += `<div class="feed-label">More spots</div>`;
+    html += `<div class="card-std-row">`;
     standardVenues.forEach(v => {
       html += standardCardHTML(v, delay);
       delay += 40;
     });
+    html += `</div>`;
   }
 
   grid.innerHTML = html;
