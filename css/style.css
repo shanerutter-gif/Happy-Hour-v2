@@ -6947,3 +6947,150 @@ h1, h2, .sf-hero-venue, .sf-ed-title, .pf-name, .gw-hero__title,
 /* Make the photo media areas feel tappable */
 .sf-hero-media,
 .sf-ed-hero { cursor: pointer; }
+
+/* ════════════════════════════════════════════════════════════
+   TRUE DESKTOP LAYOUT (≥1024px)
+   The app is mobile-first; on wide screens it previously rendered as a
+   narrow ~720px column of cards floating in empty space, with full-bleed
+   chrome and a floating mobile pill nav. This block gives desktop a real
+   layout: a top nav bar, a cohesive centered app frame, a wider multi-column
+   feed, and a roomier map view. Mobile is untouched (everything here is gated
+   behind the breakpoint; the feed row-wrappers default to display:contents so
+   the mobile feed renders byte-for-byte as before).
+   ════════════════════════════════════════════════════════════ */
+
+/* Defaults (all viewports): the desktop nav is hidden, and the feed
+   row-wrappers are transparent so cards behave as direct grid children. */
+.desktop-nav { display: none; }
+.card-hero-row,
+.card-std-row { display: contents; }
+
+@media (min-width: 1024px) {
+  /* ── Cohesive centered app frame ── */
+  /* A comfortable two-column magazine width. The editorial hero→compact→
+     standard feed doesn't want to stretch ultra-wide, so we cap the column
+     and centre it; the top nav + multi-column feed make it read as a real
+     desktop layout rather than a stretched phone. */
+  .app-page {
+    max-width: 1040px;
+    margin-left: auto;
+    margin-right: auto;
+    padding-bottom: 32px;            /* no floating bottom nav to clear */
+  }
+
+  /* ── Real top navigation bar (lives in the existing .city-bar) ── */
+  .city-bar { padding: 12px 24px; gap: 16px; }
+  .city-back-logo { max-width: 110px; }
+  .city-back-logo-img { height: 26px; max-width: 110px; }
+  .desktop-nav { display: flex; align-items: center; gap: 2px; margin-left: auto; }
+  .desktop-nav-btn {
+    background: none; border: none; cursor: pointer;
+    font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600;
+    color: var(--muted); padding: 9px 14px; border-radius: 12px;
+    transition: color .15s, background .15s;
+  }
+  .desktop-nav-btn:hover { color: var(--ink); background: var(--bg2); }
+  .desktop-nav-btn.active { color: var(--teal); background: var(--coral-dim); }
+  .desktop-nav-post {
+    background: var(--coral); color: #fff; border: none; cursor: pointer;
+    font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 700;
+    padding: 9px 18px; border-radius: 12px; margin: 0 4px;
+    box-shadow: var(--clay-sm); transition: filter .15s, transform .12s;
+  }
+  .desktop-nav-post:hover { filter: brightness(1.04); }
+  .desktop-nav-post:active { transform: scale(.96); }
+
+  /* ── Hide the floating mobile pill nav on desktop ── */
+  .bottom-nav { display: none !important; }
+
+  /* ── Roomier search / controls header ── */
+  .controls-top { padding: 14px 24px 8px; }
+  .controls-actions { padding: 0 24px 8px; }
+  .chips-row, .suggestions-row { padding-left: 24px; padding-right: 24px; }
+  .search-box { font-size: 15px; }
+  .results-bar { padding: 18px 24px 8px; }
+
+  /* ── Wider, multi-column feed (keeps the hero→compact→standard flow) ── */
+  .cards-grid { max-width: none !important; padding: 0 24px 48px; }
+  .feed-label { padding: 18px 6px 10px; font-size: 11px; }
+
+  .card-hero-row,
+  .card-std-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    align-items: start;
+  }
+  /* Compact rows are pre-grouped 2-per-row in JS; keep them 2-up and override
+     the legacy 960px 3-up rule (which left a ragged empty 3rd column). */
+  .card-compact-row { grid-template-columns: 1fr 1fr; gap: 18px; }
+
+  /* Grids own the spacing now — drop the per-card bottom margins. */
+  .card-hero, .card-std { margin-bottom: 0; }
+  .card-hero-img { aspect-ratio: 16 / 10; }
+  /* Compact images keep a portrait 3/4 on mobile; at half-width on desktop
+     that becomes a giant tower, so flatten them to a landscape ratio. */
+  .card-compact-img { aspect-ratio: 16 / 11; }
+
+  /* Hover lift for the feed-redesign card variants (matches .card:hover). */
+  .card-hero:hover, .card-compact:hover, .card-std:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--card-shadow-hover);
+  }
+
+  /* ── Map view: reclaim the space freed by the removed bottom nav ── */
+  .map-view, .map-view.active { height: calc(100vh - 150px); }
+  .map-sidebar { width: 340px; }
+}
+
+/* ════════════════════════════════════════════════════════════
+   DESKTOP TWO-PANE — feed (left) + persistent map (right) (≥1200px)
+   The classic discovery layout (Yelp/Airbnb). Both panes are always on
+   screen instead of toggling, so we override the list/map .active toggling
+   with !important. JS (syncTwoPaneMap) inits + populates the map. The feed
+   reverts to a single column because the left pane is now ~640px.
+   ════════════════════════════════════════════════════════════ */
+@media (min-width: 1200px) {
+  /* Lock the whole discover screen to the viewport: a flex column with the
+     header (city-bar + controls) on top, then the two-pane row filling the
+     rest. The page itself does NOT scroll — only the left list does. */
+  .app-page {
+    max-width: none;
+    height: 100vh;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+    padding-bottom: 0;
+  }
+
+  /* The two-pane row fills the height left under the header. */
+  main { display: flex; align-items: stretch; gap: 0; flex: 1; min-height: 0; }
+
+  /* Left pane: a fixed-width, independently scrollable list. */
+  #listView.list-view {
+    display: block !important;
+    flex: 0 0 460px; width: 460px; min-width: 0;
+    height: 100%; overflow-y: auto;
+    border-right: 1px solid var(--border2);
+  }
+  /* Feed reverts to a single column in the left pane. */
+  .card-hero-row, .card-std-row { display: contents; }
+  .cards-grid { padding: 0 14px 24px; }
+
+  /* Right pane: the map fills the rest of the row, no scrolling. */
+  #mapView.map-view {
+    display: flex !important;
+    flex: 1 1 0; min-width: 0;
+    height: 100%; margin: 0;
+  }
+  /* The left list replaces the map's own card list, so hide it. */
+  #mapView .map-sidebar { display: none; }
+  #mapView #map { flex: 1; min-height: 0; border-radius: 0; }
+
+  /* The map toggle is meaningless when both panes are always shown. */
+  #viewToggle { display: none; }
+
+  /* Uniform horizontal cards in the left list (rendered as .card-std in JS):
+     same shape + image size so the list scans cleanly next to the map. */
+  .card-std { margin-bottom: 10px; }
+  .card-std-img, .card-std-nophoto { width: 116px; min-height: 116px; }
+}

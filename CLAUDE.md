@@ -396,6 +396,28 @@ Copying from a mainline file? Use the bare convention.
 - **iOS WKWebView:** UA-sniff (`/iPad|iPhone|iPod/.test(navigator.userAgent)` etc.) to
   branch native-only behaviors. Don't use `confirm()` — iOS WKWebView swallows it (PR #163).
 - **Coral primary:** `#FF6B4A`. Cream background: `#F5EFE6`.
+- **Desktop layout:** mobile-first, with TWO desktop breakpoints, both in
+  self-contained blocks at the END of `css/style.css`:
+  - `@media (min-width:1024px)` — centres `.app-page` in a 1040px frame, shows
+    the `.desktop-nav` (top nav, hidden below 1024px), hides the mobile
+    `.bottom-nav`, and turns the feed into a 2-column grid via
+    `.card-hero-row`/`.card-std-row` wrappers that are `display:contents` on
+    mobile (so mobile is untouched) and `display:grid` on desktop.
+  - `@media (min-width:1200px)` — **locked two-pane discover view**: `.app-page`
+    becomes a `height:100vh` flex column (header on top, two-pane row below);
+    the page itself does NOT scroll. Left pane = an independently scrollable
+    `#listView` (fixed `460px`, `overflow-y:auto`); right pane = the map filling
+    the rest at full height. Both `#listView`/`#mapView` forced visible with
+    `!important` (overriding the `.active` toggle); map toggle + the map's own
+    `.map-sidebar` hidden. The feed renders as **uniform horizontal `.card-std`
+    cards** here (no hero/compact/standard tiers) — `_renderCardsNow` branches
+    on `isTwoPane()`. JS: `isTwoPane()` / `syncTwoPaneMap()` (near `goToMap`)
+    init + populate the map; `enterCity` and `applyFilters` keep markers synced
+    without a toggle; a matchMedia `change` listener re-renders the feed when
+    crossing the breakpoint. **Gotcha:** `enterCity` sets
+    `appPage.style.display=''` (not `'block'`) so the flex-column CSS isn't
+    overridden by an inline style.
+  Keep desktop overrides in those two blocks.
 
 ### File naming
 - **Kebab-case** for everything: `admin-enrich-venues.js`, `loops-event.js`, `business-landing.html`.
@@ -488,13 +510,18 @@ When creating or updating a static blog post in `blog/`, apply these to every po
    <link href="https://fonts.googleapis.com/..." rel="stylesheet" media="print" onload="this.media='all'">
    <noscript><link href="https://fonts.googleapis.com/..." rel="stylesheet"></noscript>
    ```
-2. **FAQPage JSON-LD** — Add a second `<script type="application/ld+json">` block with `"@type": "FAQPage"` after the Article schema. 4 Q&As minimum.
-3. **Visible FAQ section** — Add `<h2>Frequently Asked Questions</h2><div class="blog-faq">` with `.blog-faq-item`/`.blog-faq-q`/`.blog-faq-a` classes inside `.blog-article-body`, before the closing `</div>`.
-4. **In-body related links** — Add `<div class="blog-related"><h3>More San Diego guides</h3><ul>...</ul></div>` inside `.blog-article-body`, immediately before the FAQ section.
-5. **Yelp external links** — Wrap first mention of each venue name (in body text, not headers/reference lists) with `<a href="https://www.yelp.com/biz/..." target="_blank" rel="noopener">`. Skip for how-to/guide posts without specific venues.
-6. **Content expansion** — Aim for 1,200+ words on local guide posts. Add "The Plan", "What to Order", or other utility sections as needed.
-7. **Wire the post** — Add card to `blog.html` grid, entry at top of `NEWS_ARTICLES` in `js/app.js`, URL to `sitemap.xml`.
-8. **Bump cache** — Increment `?v=` query string on `js/app.js` import in `index.html`.
+2. **Article JSON-LD — required fields (avoids Rich Results Test warnings):**
+   - `"image"` — a representative image URL **≥1200px wide** (use the post's `NEWS_ARTICLES` Unsplash hero with `w=1200`, NOT the 512px `icon-512.png`). Missing → "Missing field image" warning.
+   - `"datePublished"` / `"dateModified"` — **full ISO 8601 with timezone**, e.g. `2026-05-31T08:00:00-07:00` (Pacific: `-07:00` Mar–early Nov DST, `-08:00` otherwise). A bare `YYYY-MM-DD` triggers "Invalid datetime value" + "missing a timezone" warnings.
+3. **FAQPage JSON-LD** — Add a second `<script type="application/ld+json">` block with `"@type": "FAQPage"` after the Article schema. 4 Q&As minimum. **The schema Q&As MUST exactly mirror the visible FAQ Q&As** (same count, same text) — a mismatch (e.g. 4 in schema, 3 visible) suppresses the FAQ rich result and can flag a structured-data manual action.
+4. **Visible FAQ section** — Add `<h2>Frequently Asked Questions</h2><div class="blog-faq">` with `.blog-faq-item`/`.blog-faq-q`/`.blog-faq-a` classes inside `.blog-article-body`, before the closing `</div>`.
+5. **In-body related links** — Add `<div class="blog-related"><h3>More San Diego guides</h3><ul>...</ul></div>` inside `.blog-article-body`, immediately before the FAQ section.
+6. **Yelp external links** — Wrap first mention of each venue name (in body text, not headers/reference lists) with `<a href="https://www.yelp.com/biz/..." target="_blank" rel="noopener">`. Skip for how-to/guide posts without specific venues.
+7. **Content expansion** — Aim for 1,200+ words on local guide posts. Add "The Plan", "What to Order", or other utility sections as needed.
+8. **Wire the post** — Add card to `blog.html` grid, entry at top of `NEWS_ARTICLES` in `js/app.js`, URL to `sitemap.xml`.
+9. **Bump cache** — Increment `?v=` query string on `js/app.js` import in `index.html`.
+
+> **Tip:** after publishing, validate 2–3 posts in Google's [Rich Results Test](https://search.google.com/test/rich-results). Even the "(optional)" warnings (image, datetime/timezone) are worth clearing — they're cheap and improve eligibility.
 
 Weekend-events posts (time-sensitive, short shelf life): font fix + Article schema only, skip FAQ/related/Yelp.
 
@@ -529,6 +556,9 @@ ships, move it to "Recent decisions" with the PR or commit.
   landing page) rather than a parallel email pipeline. If revisited: extend
   `admin.html` dashboard widgets, query `board_cards` for due-soon cards, and
   optionally trigger a daily Loops event with a curated summary.
+- 2026-06-03 · ~~Two-pane desktop list+map view~~ — **SHIPPED same day** (see
+  Recent decisions). Built as a `@media (min-width:1200px)` block that renders
+  the feed + Leaflet map side by side instead of toggling.
 
 ---
 
@@ -553,9 +583,33 @@ Append-only architectural / vendor decisions. One line per entry.
 - 2026-06-02 · Nightly run: eliminated two render-blocking resources from `<head>` in `index.html`. (1) Moved Supabase SDK `<script>` from `<head>` to body (just before `db.js`) — removes a synchronous CDN JS fetch that was blocking page parse. (2) Made Google Fonts stylesheet non-blocking using the `media="print" onload="this.media='all'"` trick (same approach used for Leaflet CSS in the May 29 nightly run), plus added `<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>` for faster font file delivery. Both changes are safe: `db.js` still loads after the SDK in DOM order, and `display=swap` in the Fonts URL already handles FOUT gracefully. No functional code changes. Bumped `app.js` cache version to `?v=20260602a`.
 - 2026-06-02 · Added North Park neighborhood guide blog post (`blog/best-happy-hours-north-park-san-diego.html`). Keyword: "best happy hours North Park San Diego". Venues verified: The Smoking Goat, Caffè Calabria, Bivouac Ciderworks, Crazee Burger, The Banshee Bar. Added card to top of `blog.html` grid, entry at top of `NEWS_ARTICLES` in `js/app.js`, URL to `sitemap.xml`. Blog pipeline remains static HTML — `blog_posts` Supabase table still does not exist. Nightly run target city: San Diego (alternating from OC on 2026-05-29).
 - 2026-06-02 · **City-aware empty state for the public social feed** (the no-posts block in `renderSocialTab`, `js/app.js`). When the public tab has no items + no pinned editorial posts, it now reads `state.city.name` and shows "Be the first in <City>" with a CTA `<button onclick="bottomNavFeed()">` to the discover feed. Reuses the existing `.social-empty` / `.social-share-cta` styles — no new CSS. NOTE: PR #174 was a failed first attempt — its `js/app.js` edits silently did not apply (string mismatch), so #174 shipped only a cache-bump + an inaccurate CLAUDE.md line describing a `renderPublicEmptyState()`/`switchMainView()` design that never existed. That bad line is removed and replaced by this accurate one. LESSON: in this remote env, `git status`/`git diff` are unreliable — always verify via file contents and `git show <ref>:<path>` before committing/merging.
+- 2026-06-03 · **Shipped a true desktop layout (≥1024px).** The app was mobile-first with no real desktop styling — on wide screens it rendered as a narrow ~720px column of cards (the feed-redesign `.cards-grid{max-width:720px}` at `style.css:3083`) floating in empty space, with full-bleed chrome and the floating mobile pill nav still showing. Added one self-contained `@media (min-width:1024px)` block at the **end of `css/style.css`** (after the social-feed styles) that: (1) turns the existing `.city-bar` into a real **top nav bar** — added a `<nav class="desktop-nav">` inside `.city-bar` in `index.html` with Discover/Explore/News/+Post/Profile buttons that **reuse the existing `bottomNav*()` handlers + `openComposer()`**; (2) hides the floating `.bottom-nav` on desktop; (3) centres the whole `.app-page` in a **1040px frame**; (4) widens the feed into a clean **two-column magazine grid** (heroes 2-up, compact 2-up, standard rows 2-up) while keeping the editorial hero→compact→standard flow; (5) roomier map view (`calc(100vh-150px)`, 340px sidebar). **Multi-column without touching mobile:** `_renderCardsNow` now wraps the hero tier in `.card-hero-row` and the standard tier in `.card-std-row` (compact already had `.card-compact-row`); these wrappers are **`display:contents` by default** (so on mobile the cards behave as direct `.cards-grid` children — rendering is byte-identical) and flip to `display:grid` only at ≥1024px. Compact/hero images get a landscape `aspect-ratio` on desktop (`16/10` hero, `16/11` compact) so half-width cards don't become towers. New global defaults `.desktop-nav{display:none}` + `.card-hero-row,.card-std-row{display:contents}`. Bumped cache to `style.css?v=20260603a` + `app.js?v=20260603a`. **Verified** by rendering a faithful harness (real `style.css` + mock card markup) in headless Chromium at 1280/1440/390px. **Backlog flagged below:** the editorial feed doesn't want to stretch ultra-wide, so the 1040px frame still leaves cream margins on big monitors — the real "use the width" move is a two-pane list+map desktop view (the persistent `.map-sidebar` already half-exists at ≥960px).
+- 2026-06-03 · **Desktop two-pane list+map view (≥1200px).** Follow-up to the
+  same-day desktop layout. The classic discovery pattern (Yelp/Airbnb): the
+  feed (left, single column, `max-width:660px`) and a persistent Leaflet map
+  (right, `position:sticky;top:0;height:100vh`) are shown side by side instead
+  of toggling. Added a `@media (min-width:1200px)` block at the end of
+  `css/style.css` that forces both `#listView`/`#mapView` visible with
+  `!important` (overriding the existing `.active` toggle), reverts the feed to a
+  single column (`.card-hero-row,.card-std-row{display:contents}`), hides the
+  now-pointless `#viewToggle` and the map's own `.map-sidebar` (the left feed
+  replaces it). JS (`js/app.js`): new `isTwoPane()` (matchMedia 1200) +
+  `syncTwoPaneMap()` (inits if needed, `invalidateSize` + `updateMapMarkers`)
+  near `goToMap`; `enterCity` calls `syncTwoPaneMap()` right after `initMap()`
+  so the map is populated without a toggle; `applyFilters` now calls
+  `updateMapMarkers()` when `state.view==='map' || isTwoPane()` (previously
+  map-view only) so markers track filters in the always-on pane; `goToMap`
+  skips the toggle in two-pane and just `flyTo`s; added a matchMedia `change`
+  listener (populate on crossing into two-pane) and a debounced window `resize`
+  → `invalidateSize`. Bumped cache to `?v=20260603b`. **Verified** the layout
+  in headless Chromium at 1280/1440px (map pane shown as a placeholder in the
+  harness since Leaflet needs the live CDN/data). **Needs a real-browser check
+  with live venue data** to confirm tiles + markers render in the right pane.
 - 2026-06-03 · **SEO pass on all 16 blog posts**: added FAQPage JSON-LD schema + visible Q&As (`.blog-faq` pattern), internal cross-links (`div.blog-related` inside body), Yelp external links on first venue mention, non-blocking Google Fonts (`media="print"` trick + `fonts.gstatic.com` preconnect + `<noscript>` fallback) across all posts. Expanded Taco Tuesday post (~+350 words) and Little Italy post (~+400 words). Added `.blog-faq` and `.blog-article-body .blog-related` styles to `css/blog.css`. Blog SEO checklist added below. Weekend-events posts got font fix only (no FAQ/links).
 - 2026-06-03 · Nightly run: added `<link rel="preconnect">` for `opcskuzbdfrlnyhraysk.supabase.co` and `cdn.jsdelivr.net`, plus `<link rel="dns-prefetch">` for `www.googletagmanager.com` in `index.html`. Pre-establishes TCP+TLS connection before JS executes, saving ~100–300ms on first Supabase venue query. Previously only fonts.googleapis.com had preconnect hints. Bumped `app.js` cache to `?v=20260603a`.
 - 2026-06-03 · Added Newport Beach neighborhood guide blog post (`blog/best-happy-hours-newport-beach.html`). Keyword: "best happy hours Newport Beach". Deeper city-specific companion to the general OC guide. Venues verified: Zinqué (Yelp May 2026), Muldoon's Irish Pub (Yelp June 2026), Woody's Wharf, Bosscat Kitchen & Libations, Balboa Bar, The Winery Restaurant. Wired into `blog.html` grid (top), `sitemap.xml`, and `NEWS_ARTICLES` in `js/app.js`. Blog pipeline remains static HTML.
+- 2026-06-03 · **Fixed Rich Results Test warnings on all 17 blog posts' Article schema.** (1) Added an `"image"` field to every Article JSON-LD using the post's `NEWS_ARTICLES` Unsplash hero bumped to `w=1200` (the og:image `icon-512.png` is only 512px — too small). (2) Converted `datePublished`/`dateModified` from bare `YYYY-MM-DD` to full ISO 8601 with Pacific timezone (`...T08:00:00-07:00`) — bare dates triggered "Invalid datetime value" + "missing a timezone" warnings. Applied via a Python script that re-serializes only the `@type:Article` JSON-LD block per file (FAQ/Breadcrumb blocks untouched); all 39 JSON-LD blocks across the 17 posts re-validated as parseable. Also caught + fixed an earlier mismatch (best-tacos/best-burritos had 4 schema FAQ Q&As but only 3 visible). Updated the Blog post SEO checklist with the required Article fields + the schema-must-mirror-visible-FAQ rule.
 - 2026-06-03 · Social Handoff Notion page created: https://app.notion.com/p/37489936834b815d82f0e9e2b36719e3 — OC engagement-focused carousel riding the "Hallelujah" Justin Bieber format + digicam aesthetic. Venues: Old World Festival Hall (HB), Perqs Bar (HB, all-day Wednesday HH), Postino Park Place (Irvine), Zinqué (Newport Beach). Reddit r/orangecounty editorial post + X tweet included. All venues verified open tonight.
+- 2026-06-03 · **Two-pane refinement: locked-scroll left list + uniform cards.** Iterated on the ≥1200px two-pane (shipped earlier same day). (1) **Locked layout:** `.app-page` is now a `height:100vh` flex column (`overflow:hidden`) so the page no longer scrolls — only the left `#listView` (fixed `460px`, `overflow-y:auto`) scrolls, with the map filling the rest at full height (dropped the previous `position:sticky` page-scroll approach). (2) **Uniform cards:** `_renderCardsNow` now branches on `isTwoPane()` and renders all venues as same-shape horizontal `.card-std` cards (no hero/compact/standard tiers) — a scannable Yelp-style list beside the map. A matchMedia `change` listener calls `renderCards()` so the card style swaps when crossing 1200px. (3) **Gotcha fixed:** `enterCity` was setting `appPage.style.display='block'` inline, which would beat the flex-column CSS — changed to `display=''` (default div display is block; hiding still uses inline `display:none`). Bumped cache to `?v=20260603d`. Verified in headless Chromium at 1280/1440px.
 - 2026-06-03 · **Consolidation: shipped 3 blog posts from stale nightly PRs** (#176–178). Added `blog/best-taco-tuesday-san-diego.html` (Jun 1, El Chingon/American Junkie/Barleymash/La Puerta) and `blog/best-happy-hours-little-italy-san-diego.html` (May 31, Ironside/Cloak & Petal/GlassDoor/Piedra Santa/Vincenzo) — cherry-picked blog HTML from the old branches and committed fresh on `claude/consolidation-blog-fixes`. Closed PRs #176/177/178 as superseded. Wired both posts into `blog.html` grid, `sitemap.xml`, and `NEWS_ARTICLES` in `js/app.js`. Fixed broken Unsplash image for North Park entry in `NEWS_ARTICLES` (replaced 404 ID `photo-1574920162043-b872873f19bc` with `photo-1514362545857-3bc16c4c7d1b`). Fixed stale Supabase `deals` data for two North Park venues: The Smoking Goat (hours corrected to 5:30–7pm Mon–Sun) and Caffè Calabria (hours corrected to 6–10pm Wed–Sun, all-day Wednesday), via direct SQL `array_replace`.
 - 2026-06-03 · **Simplified venue UGC to a single voice mechanism: Reviews.** Removed three competing inputs that overwhelmed users. (1) **Killed the "going-out intent" feature entirely** — the 🍻 Going button, `openGoingIntentSheet`, `postGoingIntent`/`fetchVenueGoingTonight` (`js/db.js`), the per-venue "Going tonight" strip, and the buggy `trg_going_notify_followers` DB trigger that inserted `type='mention'` notifications for every follower on each intent (this was the "Kourtney Rutter mentioned you" false-mention bug — she'd only RSVP'd). Migration `sql/drop-going-intents-trigger.sql` applied (drops trigger + function; `going_intents` table + rows left intact, non-destructive). The separate **check-in** feature is untouched (`doGoingTonight`/`goingCounts`/`goingByMe` keep their legacy "going" internal names) — only its user-facing copy was reworded to check-in language ("🔥 N here", "N people checked in tonight", feed verb for `going_tonight` items → "checked in at"). (2) **Removed the "How would you describe…?" descriptions / "Locals Say" system** from cards + modal: `localsSaySnippet`/`localsSayInline`/`loadModalDescriptions`/`doSubmitDescription`/`doToggleUpvote` (`js/app.js`) and `fetchTopDescriptions`/`fetchVenueDescriptions`/`submitVenueDescription`/`toggleDescUpvote`/`fetchMyUpvotedDescs` (`js/db.js`) deleted; `state.descCache` removed. (3) **Removed "Quick takes"** (`venue_takes`): `renderVenueTakes`/`submitVenueTake`/`deleteVenueTakeUI` + `fetchVenueTakes`/`postVenueTake`/`deleteVenueTake`. Tables `venue_descriptions`/`description_upvotes`/`venue_takes` left in DB (data kept, just not shown). Updated `business-landing.html` B2B copy (4 "Going Tonight" mentions → check-in) and admin demo-data label/comment. Bumped `index.html` cache: `db.js?v=20260603b`, `app.js?v=20260603b`. NOTE: the `'mention'` notification label still exists in `openSocialNotifications` (`js/app.js`) but nothing creates that type anymore — it's dead-but-harmless; pre-existing bogus `mention` rows in `notifications` were left in place.
