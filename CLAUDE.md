@@ -492,6 +492,32 @@ directly in the city they chose (`enterCity` reads it on next load).
 
 ---
 
+## Blog post SEO checklist
+
+When creating or updating a static blog post in `blog/`, apply these to every post:
+
+1. **Non-blocking Google Fonts** — Replace `<link rel="stylesheet" href="...fonts...">` with:
+   ```html
+   <link rel="preconnect" href="https://fonts.googleapis.com">
+   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+   <link href="https://fonts.googleapis.com/..." rel="stylesheet" media="print" onload="this.media='all'">
+   <noscript><link href="https://fonts.googleapis.com/..." rel="stylesheet"></noscript>
+   ```
+2. **Article JSON-LD — required fields (avoids Rich Results Test warnings):**
+   - `"image"` — a representative image URL **≥1200px wide** (use the post's `NEWS_ARTICLES` Unsplash hero with `w=1200`, NOT the 512px `icon-512.png`). Missing → "Missing field image" warning.
+   - `"datePublished"` / `"dateModified"` — **full ISO 8601 with timezone**, e.g. `2026-05-31T08:00:00-07:00` (Pacific: `-07:00` Mar–early Nov DST, `-08:00` otherwise). A bare `YYYY-MM-DD` triggers "Invalid datetime value" + "missing a timezone" warnings.
+3. **FAQPage JSON-LD** — Add a second `<script type="application/ld+json">` block with `"@type": "FAQPage"` after the Article schema. 4 Q&As minimum. **The schema Q&As MUST exactly mirror the visible FAQ Q&As** (same count, same text) — a mismatch (e.g. 4 in schema, 3 visible) suppresses the FAQ rich result and can flag a structured-data manual action.
+4. **Visible FAQ section** — Add `<h2>Frequently Asked Questions</h2><div class="blog-faq">` with `.blog-faq-item`/`.blog-faq-q`/`.blog-faq-a` classes inside `.blog-article-body`, before the closing `</div>`.
+5. **In-body related links** — Add `<div class="blog-related"><h3>More San Diego guides</h3><ul>...</ul></div>` inside `.blog-article-body`, immediately before the FAQ section.
+6. **Yelp external links** — Wrap first mention of each venue name (in body text, not headers/reference lists) with `<a href="https://www.yelp.com/biz/..." target="_blank" rel="noopener">`. Skip for how-to/guide posts without specific venues.
+7. **Content expansion** — Aim for 1,200+ words on local guide posts. Add "The Plan", "What to Order", or other utility sections as needed.
+8. **Wire the post** — Add card to `blog.html` grid, entry at top of `NEWS_ARTICLES` in `js/app.js`, URL to `sitemap.xml`.
+9. **Bump cache** — Increment `?v=` query string on `js/app.js` import in `index.html`.
+
+> **Tip:** after publishing, validate 2–3 posts in Google's [Rich Results Test](https://search.google.com/test/rich-results). Even the "(optional)" warnings (image, datetime/timezone) are worth clearing — they're cheap and improve eligibility.
+
+Weekend-events posts (time-sensitive, short shelf life): font fix + Article schema only, skip FAQ/related/Yelp.
+
 ## About the user
 
 - Solo founder, UK-based, primary email `shanerutter@gmail.com`.
@@ -572,4 +598,9 @@ Append-only architectural / vendor decisions. One line per entry.
   in headless Chromium at 1280/1440px (map pane shown as a placeholder in the
   harness since Leaflet needs the live CDN/data). **Needs a real-browser check
   with live venue data** to confirm tiles + markers render in the right pane.
+- 2026-06-03 · **SEO pass on all 16 blog posts**: added FAQPage JSON-LD schema + visible Q&As (`.blog-faq` pattern), internal cross-links (`div.blog-related` inside body), Yelp external links on first venue mention, non-blocking Google Fonts (`media="print"` trick + `fonts.gstatic.com` preconnect + `<noscript>` fallback) across all posts. Expanded Taco Tuesday post (~+350 words) and Little Italy post (~+400 words). Added `.blog-faq` and `.blog-article-body .blog-related` styles to `css/blog.css`. Blog SEO checklist added below. Weekend-events posts got font fix only (no FAQ/links).
+- 2026-06-03 · Nightly run: added `<link rel="preconnect">` for `opcskuzbdfrlnyhraysk.supabase.co` and `cdn.jsdelivr.net`, plus `<link rel="dns-prefetch">` for `www.googletagmanager.com` in `index.html`. Pre-establishes TCP+TLS connection before JS executes, saving ~100–300ms on first Supabase venue query. Previously only fonts.googleapis.com had preconnect hints. Bumped `app.js` cache to `?v=20260603a`.
+- 2026-06-03 · Added Newport Beach neighborhood guide blog post (`blog/best-happy-hours-newport-beach.html`). Keyword: "best happy hours Newport Beach". Deeper city-specific companion to the general OC guide. Venues verified: Zinqué (Yelp May 2026), Muldoon's Irish Pub (Yelp June 2026), Woody's Wharf, Bosscat Kitchen & Libations, Balboa Bar, The Winery Restaurant. Wired into `blog.html` grid (top), `sitemap.xml`, and `NEWS_ARTICLES` in `js/app.js`. Blog pipeline remains static HTML.
+- 2026-06-03 · **Fixed Rich Results Test warnings on all 17 blog posts' Article schema.** (1) Added an `"image"` field to every Article JSON-LD using the post's `NEWS_ARTICLES` Unsplash hero bumped to `w=1200` (the og:image `icon-512.png` is only 512px — too small). (2) Converted `datePublished`/`dateModified` from bare `YYYY-MM-DD` to full ISO 8601 with Pacific timezone (`...T08:00:00-07:00`) — bare dates triggered "Invalid datetime value" + "missing a timezone" warnings. Applied via a Python script that re-serializes only the `@type:Article` JSON-LD block per file (FAQ/Breadcrumb blocks untouched); all 39 JSON-LD blocks across the 17 posts re-validated as parseable. Also caught + fixed an earlier mismatch (best-tacos/best-burritos had 4 schema FAQ Q&As but only 3 visible). Updated the Blog post SEO checklist with the required Article fields + the schema-must-mirror-visible-FAQ rule.
+- 2026-06-03 · Social Handoff Notion page created: https://app.notion.com/p/37489936834b815d82f0e9e2b36719e3 — OC engagement-focused carousel riding the "Hallelujah" Justin Bieber format + digicam aesthetic. Venues: Old World Festival Hall (HB), Perqs Bar (HB, all-day Wednesday HH), Postino Park Place (Irvine), Zinqué (Newport Beach). Reddit r/orangecounty editorial post + X tweet included. All venues verified open tonight.
 - 2026-06-03 · **Consolidation: shipped 3 blog posts from stale nightly PRs** (#176–178). Added `blog/best-taco-tuesday-san-diego.html` (Jun 1, El Chingon/American Junkie/Barleymash/La Puerta) and `blog/best-happy-hours-little-italy-san-diego.html` (May 31, Ironside/Cloak & Petal/GlassDoor/Piedra Santa/Vincenzo) — cherry-picked blog HTML from the old branches and committed fresh on `claude/consolidation-blog-fixes`. Closed PRs #176/177/178 as superseded. Wired both posts into `blog.html` grid, `sitemap.xml`, and `NEWS_ARTICLES` in `js/app.js`. Fixed broken Unsplash image for North Park entry in `NEWS_ARTICLES` (replaced 404 ID `photo-1574920162043-b872873f19bc` with `photo-1514362545857-3bc16c4c7d1b`). Fixed stale Supabase `deals` data for two North Park venues: The Smoking Goat (hours corrected to 5:30–7pm Mon–Sun) and Caffè Calabria (hours corrected to 6–10pm Wed–Sun, all-day Wednesday), via direct SQL `array_replace`.
