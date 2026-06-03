@@ -1761,7 +1761,10 @@ async function enterCity(slug, name, stateCode) {
   state.city = { slug, name, stateCode };
   localStorage.setItem('spotd-last-city', slug);
   document.getElementById('homePage').style.display = 'none';
-  document.getElementById('appPage').style.display  = 'block';
+  // Clear the inline display rather than forcing 'block' so the desktop
+  // two-pane CSS (which makes .app-page a flex column) can take effect; the
+  // default div display is block, and hiding still sets inline display:none.
+  document.getElementById('appPage').style.display  = '';
   document.getElementById('cityBarName').textContent = `${name}, ${stateCode}`;
   document.title = `Spotd — ${name} Happy Hours & Events`;
   renderNav(currentUser);
@@ -2306,47 +2309,59 @@ function _renderCardsNow() {
   let html = '';
   let delay = 0;
 
-  // ── Hero cards ──
-  // Wrapped in .card-hero-row so desktop can lay heroes out multi-column.
-  // On mobile the wrapper is display:contents (see style.css), so the cards
-  // behave exactly as direct children — rendering is identical to before.
-  if (heroes.length) {
-    html += `<div class="feed-label">🔥 Hot right now</div>`;
-    html += `<div class="card-hero-row">`;
-    heroes.forEach(v => {
-      html += heroCardHTML(v, delay);
-      delay += 80;
+  if (isTwoPane()) {
+    // ── Desktop two-pane: uniform horizontal list ──
+    // Next to the persistent map, a single scannable column of same-shape
+    // horizontal cards (Yelp/Airbnb style) reads better than the editorial
+    // hero/compact/standard size tiers. `venues` is the full filtered set in
+    // sort order (heroes included), so nothing is dropped.
+    venues.forEach(v => {
+      html += standardCardHTML(v, delay);
+      delay += 25;
     });
-    html += `</div>`;
-  }
-
-  // ── Compact grid ──
-  if (compactVenues.length) {
-    html += `<div class="feed-label">${heroes.length ? 'Near you' : 'Today\'s happy hours'}</div>`;
-    for (let i = 0; i < compactVenues.length; i += 2) {
-      html += `<div class="card-compact-row">`;
-      html += compactCardHTML(compactVenues[i], delay);
-      delay += 60;
-      if (compactVenues[i + 1]) {
-        html += compactCardHTML(compactVenues[i + 1], delay);
-        delay += 60;
-      }
+  } else {
+    // ── Hero cards ──
+    // Wrapped in .card-hero-row so desktop can lay heroes out multi-column.
+    // On mobile the wrapper is display:contents (see style.css), so the cards
+    // behave exactly as direct children — rendering is identical to before.
+    if (heroes.length) {
+      html += `<div class="feed-label">🔥 Hot right now</div>`;
+      html += `<div class="card-hero-row">`;
+      heroes.forEach(v => {
+        html += heroCardHTML(v, delay);
+        delay += 80;
+      });
       html += `</div>`;
     }
-  }
 
-  // ── Standard rows ──
-  // Wrapped in .card-std-row so desktop can lay these out multi-column.
-  // On mobile the wrapper is display:contents (see style.css), so rendering
-  // is identical to before.
-  if (standardVenues.length) {
-    html += `<div class="feed-label">More spots</div>`;
-    html += `<div class="card-std-row">`;
-    standardVenues.forEach(v => {
-      html += standardCardHTML(v, delay);
-      delay += 40;
-    });
-    html += `</div>`;
+    // ── Compact grid ──
+    if (compactVenues.length) {
+      html += `<div class="feed-label">${heroes.length ? 'Near you' : 'Today\'s happy hours'}</div>`;
+      for (let i = 0; i < compactVenues.length; i += 2) {
+        html += `<div class="card-compact-row">`;
+        html += compactCardHTML(compactVenues[i], delay);
+        delay += 60;
+        if (compactVenues[i + 1]) {
+          html += compactCardHTML(compactVenues[i + 1], delay);
+          delay += 60;
+        }
+        html += `</div>`;
+      }
+    }
+
+    // ── Standard rows ──
+    // Wrapped in .card-std-row so desktop can lay these out multi-column.
+    // On mobile the wrapper is display:contents (see style.css), so rendering
+    // is identical to before.
+    if (standardVenues.length) {
+      html += `<div class="feed-label">More spots</div>`;
+      html += `<div class="card-std-row">`;
+      standardVenues.forEach(v => {
+        html += standardCardHTML(v, delay);
+        delay += 40;
+      });
+      html += `</div>`;
+    }
   }
 
   grid.innerHTML = html;
@@ -5006,9 +5021,15 @@ function syncTwoPaneMap() {
 }
 
 // Populate the map the moment the viewport crosses into two-pane width.
+// Re-render the feed (uniform vs tiered cards) and populate the map whenever
+// the viewport crosses the two-pane breakpoint.
+function _onTwoPaneChange(e) {
+  if (state.city) renderCards();
+  if (e.matches) syncTwoPaneMap();
+}
 (_twoPaneMQ.addEventListener
-  ? _twoPaneMQ.addEventListener('change', e => { if (e.matches) syncTwoPaneMap(); })
-  : _twoPaneMQ.addListener(e => { if (e.matches) syncTwoPaneMap(); }));
+  ? _twoPaneMQ.addEventListener('change', _onTwoPaneChange)
+  : _twoPaneMQ.addListener(_onTwoPaneChange));
 
 // Keep the map sized as the window resizes in two-pane mode.
 let _twoPaneRsz = null;

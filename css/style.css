@@ -7051,33 +7051,46 @@ h1, h2, .sf-hero-venue, .sf-ed-title, .pf-name, .gw-hero__title,
    reverts to a single column because the left pane is now ~640px.
    ════════════════════════════════════════════════════════════ */
 @media (min-width: 1200px) {
-  .app-page { max-width: 1480px; }
+  /* Lock the whole discover screen to the viewport: a flex column with the
+     header (city-bar + controls) on top, then the two-pane row filling the
+     rest. The page itself does NOT scroll — only the left list does. */
+  .app-page {
+    max-width: none;
+    height: 100vh;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+    padding-bottom: 0;
+  }
 
-  /* The discover screen becomes a two-column row. */
-  main { display: flex; align-items: flex-start; gap: 0; }
+  /* The two-pane row fills the height left under the header. */
+  main { display: flex; align-items: stretch; gap: 0; flex: 1; min-height: 0; }
 
-  /* Left pane: the feed — always visible, single column. */
+  /* Left pane: a fixed-width, independently scrollable list. */
   #listView.list-view {
     display: block !important;
-    flex: 1 1 0; min-width: 0; max-width: 660px;
+    flex: 0 0 460px; width: 460px; min-width: 0;
+    height: 100%; overflow-y: auto;
+    border-right: 1px solid var(--border2);
   }
-  /* Revert the ≥1024px 2-up feed back to a single column in the narrower
-     left pane (compact rows stay 2-up — they fit fine at ~640px). */
+  /* Feed reverts to a single column in the left pane. */
   .card-hero-row, .card-std-row { display: contents; }
-  .cards-grid { padding: 0 20px 48px; }
+  .cards-grid { padding: 0 14px 24px; }
 
-  /* Right pane: the persistent map, sticky and full viewport height. */
+  /* Right pane: the map fills the rest of the row, no scrolling. */
   #mapView.map-view {
     display: flex !important;
     flex: 1 1 0; min-width: 0;
-    position: sticky; top: 0;
-    height: 100vh; margin: 0;
-    border-left: 1px solid var(--border2);
+    height: 100%; margin: 0;
   }
-  /* The left feed replaces the map's own card list, so hide it. */
+  /* The left list replaces the map's own card list, so hide it. */
   #mapView .map-sidebar { display: none; }
   #mapView #map { flex: 1; min-height: 0; border-radius: 0; }
 
   /* The map toggle is meaningless when both panes are always shown. */
   #viewToggle { display: none; }
+
+  /* Uniform horizontal cards in the left list (rendered as .card-std in JS):
+     same shape + image size so the list scans cleanly next to the map. */
+  .card-std { margin-bottom: 10px; }
+  .card-std-img, .card-std-nophoto { width: 116px; min-height: 116px; }
 }
