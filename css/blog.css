@@ -797,6 +797,61 @@
   box-shadow: var(--shadow-md);
 }
 
+/* ── FAQ ── */
+.blog-faq {
+  margin: 24px 0;
+  border-top: 1px solid var(--border2);
+  padding-top: 16px;
+}
+.blog-faq-item {
+  margin-bottom: 20px;
+}
+.blog-faq-q {
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--ink);
+  margin: 0 0 6px 0;
+}
+.blog-faq-a {
+  font-size: 15px;
+  color: var(--text);
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* ── IN-BODY RELATED LINKS ── */
+.blog-article-body .blog-related {
+  max-width: none;
+  margin: 32px 0 0;
+  padding: 0;
+}
+.blog-article-body .blog-related h3 {
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-weight: 800;
+  font-size: 18px;
+  letter-spacing: -0.3px;
+  color: var(--ink);
+  margin-bottom: 10px;
+}
+.blog-article-body .blog-related ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.blog-article-body .blog-related ul li {
+  margin-bottom: 6px;
+}
+.blog-article-body .blog-related ul li a {
+  color: var(--coral, #FF6B4A);
+  text-decoration: none;
+  font-size: 15px;
+  font-weight: 500;
+}
+.blog-article-body .blog-related ul li a:hover {
+  text-decoration: underline;
+}
+
 /* ── DARK MODE BLOG OVERRIDES ── */
 [data-theme="dark"] .blog-card { background: var(--card); border-color: var(--border2); }
 [data-theme="dark"] .blog-toc { background: var(--card); border-color: var(--border2); }

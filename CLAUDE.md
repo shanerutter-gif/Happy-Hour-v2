@@ -477,6 +477,27 @@ directly in the city they chose (`enterCity` reads it on next load).
 
 ---
 
+## Blog post SEO checklist
+
+When creating or updating a static blog post in `blog/`, apply these to every post:
+
+1. **Non-blocking Google Fonts** — Replace `<link rel="stylesheet" href="...fonts...">` with:
+   ```html
+   <link rel="preconnect" href="https://fonts.googleapis.com">
+   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+   <link href="https://fonts.googleapis.com/..." rel="stylesheet" media="print" onload="this.media='all'">
+   <noscript><link href="https://fonts.googleapis.com/..." rel="stylesheet"></noscript>
+   ```
+2. **FAQPage JSON-LD** — Add a second `<script type="application/ld+json">` block with `"@type": "FAQPage"` after the Article schema. 4 Q&As minimum.
+3. **Visible FAQ section** — Add `<h2>Frequently Asked Questions</h2><div class="blog-faq">` with `.blog-faq-item`/`.blog-faq-q`/`.blog-faq-a` classes inside `.blog-article-body`, before the closing `</div>`.
+4. **In-body related links** — Add `<div class="blog-related"><h3>More San Diego guides</h3><ul>...</ul></div>` inside `.blog-article-body`, immediately before the FAQ section.
+5. **Yelp external links** — Wrap first mention of each venue name (in body text, not headers/reference lists) with `<a href="https://www.yelp.com/biz/..." target="_blank" rel="noopener">`. Skip for how-to/guide posts without specific venues.
+6. **Content expansion** — Aim for 1,200+ words on local guide posts. Add "The Plan", "What to Order", or other utility sections as needed.
+7. **Wire the post** — Add card to `blog.html` grid, entry at top of `NEWS_ARTICLES` in `js/app.js`, URL to `sitemap.xml`.
+8. **Bump cache** — Increment `?v=` query string on `js/app.js` import in `index.html`.
+
+Weekend-events posts (time-sensitive, short shelf life): font fix + Article schema only, skip FAQ/related/Yelp.
+
 ## About the user
 
 - Solo founder, UK-based, primary email `shanerutter@gmail.com`.
@@ -532,4 +553,5 @@ Append-only architectural / vendor decisions. One line per entry.
 - 2026-06-02 · Nightly run: eliminated two render-blocking resources from `<head>` in `index.html`. (1) Moved Supabase SDK `<script>` from `<head>` to body (just before `db.js`) — removes a synchronous CDN JS fetch that was blocking page parse. (2) Made Google Fonts stylesheet non-blocking using the `media="print" onload="this.media='all'"` trick (same approach used for Leaflet CSS in the May 29 nightly run), plus added `<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>` for faster font file delivery. Both changes are safe: `db.js` still loads after the SDK in DOM order, and `display=swap` in the Fonts URL already handles FOUT gracefully. No functional code changes. Bumped `app.js` cache version to `?v=20260602a`.
 - 2026-06-02 · Added North Park neighborhood guide blog post (`blog/best-happy-hours-north-park-san-diego.html`). Keyword: "best happy hours North Park San Diego". Venues verified: The Smoking Goat, Caffè Calabria, Bivouac Ciderworks, Crazee Burger, The Banshee Bar. Added card to top of `blog.html` grid, entry at top of `NEWS_ARTICLES` in `js/app.js`, URL to `sitemap.xml`. Blog pipeline remains static HTML — `blog_posts` Supabase table still does not exist. Nightly run target city: San Diego (alternating from OC on 2026-05-29).
 - 2026-06-02 · **City-aware empty state for the public social feed** (the no-posts block in `renderSocialTab`, `js/app.js`). When the public tab has no items + no pinned editorial posts, it now reads `state.city.name` and shows "Be the first in <City>" with a CTA `<button onclick="bottomNavFeed()">` to the discover feed. Reuses the existing `.social-empty` / `.social-share-cta` styles — no new CSS. NOTE: PR #174 was a failed first attempt — its `js/app.js` edits silently did not apply (string mismatch), so #174 shipped only a cache-bump + an inaccurate CLAUDE.md line describing a `renderPublicEmptyState()`/`switchMainView()` design that never existed. That bad line is removed and replaced by this accurate one. LESSON: in this remote env, `git status`/`git diff` are unreliable — always verify via file contents and `git show <ref>:<path>` before committing/merging.
+- 2026-06-03 · **SEO pass on all 16 blog posts**: added FAQPage JSON-LD schema + visible Q&As (`.blog-faq` pattern), internal cross-links (`div.blog-related` inside body), Yelp external links on first venue mention, non-blocking Google Fonts (`media="print"` trick + `fonts.gstatic.com` preconnect + `<noscript>` fallback) across all posts. Expanded Taco Tuesday post (~+350 words) and Little Italy post (~+400 words). Added `.blog-faq` and `.blog-article-body .blog-related` styles to `css/blog.css`. Blog SEO checklist added below. Weekend-events posts got font fix only (no FAQ/links).
 - 2026-06-03 · **Consolidation: shipped 3 blog posts from stale nightly PRs** (#176–178). Added `blog/best-taco-tuesday-san-diego.html` (Jun 1, El Chingon/American Junkie/Barleymash/La Puerta) and `blog/best-happy-hours-little-italy-san-diego.html` (May 31, Ironside/Cloak & Petal/GlassDoor/Piedra Santa/Vincenzo) — cherry-picked blog HTML from the old branches and committed fresh on `claude/consolidation-blog-fixes`. Closed PRs #176/177/178 as superseded. Wired both posts into `blog.html` grid, `sitemap.xml`, and `NEWS_ARTICLES` in `js/app.js`. Fixed broken Unsplash image for North Park entry in `NEWS_ARTICLES` (replaced 404 ID `photo-1574920162043-b872873f19bc` with `photo-1514362545857-3bc16c4c7d1b`). Fixed stale Supabase `deals` data for two North Park venues: The Smoking Goat (hours corrected to 5:30–7pm Mon–Sun) and Caffè Calabria (hours corrected to 6–10pm Wed–Sun, all-day Wednesday), via direct SQL `array_replace`.
