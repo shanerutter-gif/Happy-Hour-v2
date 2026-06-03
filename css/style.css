@@ -7042,3 +7042,42 @@ h1, h2, .sf-hero-venue, .sf-ed-title, .pf-name, .gw-hero__title,
   .map-view, .map-view.active { height: calc(100vh - 150px); }
   .map-sidebar { width: 340px; }
 }
+
+/* ════════════════════════════════════════════════════════════
+   DESKTOP TWO-PANE — feed (left) + persistent map (right) (≥1200px)
+   The classic discovery layout (Yelp/Airbnb). Both panes are always on
+   screen instead of toggling, so we override the list/map .active toggling
+   with !important. JS (syncTwoPaneMap) inits + populates the map. The feed
+   reverts to a single column because the left pane is now ~640px.
+   ════════════════════════════════════════════════════════════ */
+@media (min-width: 1200px) {
+  .app-page { max-width: 1480px; }
+
+  /* The discover screen becomes a two-column row. */
+  main { display: flex; align-items: flex-start; gap: 0; }
+
+  /* Left pane: the feed — always visible, single column. */
+  #listView.list-view {
+    display: block !important;
+    flex: 1 1 0; min-width: 0; max-width: 660px;
+  }
+  /* Revert the ≥1024px 2-up feed back to a single column in the narrower
+     left pane (compact rows stay 2-up — they fit fine at ~640px). */
+  .card-hero-row, .card-std-row { display: contents; }
+  .cards-grid { padding: 0 20px 48px; }
+
+  /* Right pane: the persistent map, sticky and full viewport height. */
+  #mapView.map-view {
+    display: flex !important;
+    flex: 1 1 0; min-width: 0;
+    position: sticky; top: 0;
+    height: 100vh; margin: 0;
+    border-left: 1px solid var(--border2);
+  }
+  /* The left feed replaces the map's own card list, so hide it. */
+  #mapView .map-sidebar { display: none; }
+  #mapView #map { flex: 1; min-height: 0; border-radius: 0; }
+
+  /* The map toggle is meaningless when both panes are always shown. */
+  #viewToggle { display: none; }
+}

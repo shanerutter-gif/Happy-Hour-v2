@@ -396,13 +396,21 @@ Copying from a mainline file? Use the bare convention.
 - **iOS WKWebView:** UA-sniff (`/iPad|iPhone|iPod/.test(navigator.userAgent)` etc.) to
   branch native-only behaviors. Don't use `confirm()` — iOS WKWebView swallows it (PR #163).
 - **Coral primary:** `#FF6B4A`. Cream background: `#F5EFE6`.
-- **Desktop layout:** mobile-first. The single desktop breakpoint is
-  `@media (min-width:1024px)` (a self-contained block at the END of
-  `css/style.css`). It centres `.app-page` in a 1040px frame, shows the
-  `.desktop-nav` (top nav, hidden below 1024px), hides the mobile `.bottom-nav`,
-  and turns the feed into a 2-column grid via `.card-hero-row`/`.card-std-row`
-  wrappers that are `display:contents` on mobile (so mobile is untouched) and
-  `display:grid` on desktop. Keep desktop overrides in that one block.
+- **Desktop layout:** mobile-first, with TWO desktop breakpoints, both in
+  self-contained blocks at the END of `css/style.css`:
+  - `@media (min-width:1024px)` — centres `.app-page` in a 1040px frame, shows
+    the `.desktop-nav` (top nav, hidden below 1024px), hides the mobile
+    `.bottom-nav`, and turns the feed into a 2-column grid via
+    `.card-hero-row`/`.card-std-row` wrappers that are `display:contents` on
+    mobile (so mobile is untouched) and `display:grid` on desktop.
+  - `@media (min-width:1200px)` — **two-pane discover view**: feed (left,
+    single column, `max-width:660px`) + persistent Leaflet map (right, sticky,
+    `100vh`). Forces both `#listView`/`#mapView` visible with `!important`
+    (overriding the `.active` toggle), hides the map toggle + the map's own
+    `.map-sidebar`. JS side: `isTwoPane()` / `syncTwoPaneMap()` (near
+    `goToMap` in `app.js`) init + populate the map; `enterCity` and
+    `applyFilters` call into them so markers stay synced without a toggle.
+  Keep desktop overrides in those two blocks.
 
 ### File naming
 - **Kebab-case** for everything: `admin-enrich-venues.js`, `loops-event.js`, `business-landing.html`.
@@ -515,15 +523,9 @@ ships, move it to "Recent decisions" with the PR or commit.
   landing page) rather than a parallel email pipeline. If revisited: extend
   `admin.html` dashboard widgets, query `board_cards` for due-soon cards, and
   optionally trigger a daily Loops event with a curated summary.
-- 2026-06-03 · Two-pane desktop list+map view — the desktop layout (≥1024px,
-  shipped same day) centres the editorial feed in a 1040px frame, which still
-  leaves cream margins on large monitors because the hero→compact→standard feed
-  doesn't want to stretch ultra-wide. The real "use the width" move is a
-  persistent two-pane discovery view on desktop (scrolling venue list on the
-  left, always-on Leaflet map on the right). The `.map-sidebar` already half
-  exists (`style.css` shows it at ≥960px when in map view) and `toggleView()`
-  flips `state.view` between `list`/`map` — a desktop two-pane would render both
-  panes at once instead of toggling. Deferred as a scoped follow-up.
+- 2026-06-03 · ~~Two-pane desktop list+map view~~ — **SHIPPED same day** (see
+  Recent decisions). Built as a `@media (min-width:1200px)` block that renders
+  the feed + Leaflet map side by side instead of toggling.
 
 ---
 
@@ -549,4 +551,25 @@ Append-only architectural / vendor decisions. One line per entry.
 - 2026-06-02 · Added North Park neighborhood guide blog post (`blog/best-happy-hours-north-park-san-diego.html`). Keyword: "best happy hours North Park San Diego". Venues verified: The Smoking Goat, Caffè Calabria, Bivouac Ciderworks, Crazee Burger, The Banshee Bar. Added card to top of `blog.html` grid, entry at top of `NEWS_ARTICLES` in `js/app.js`, URL to `sitemap.xml`. Blog pipeline remains static HTML — `blog_posts` Supabase table still does not exist. Nightly run target city: San Diego (alternating from OC on 2026-05-29).
 - 2026-06-02 · **City-aware empty state for the public social feed** (the no-posts block in `renderSocialTab`, `js/app.js`). When the public tab has no items + no pinned editorial posts, it now reads `state.city.name` and shows "Be the first in <City>" with a CTA `<button onclick="bottomNavFeed()">` to the discover feed. Reuses the existing `.social-empty` / `.social-share-cta` styles — no new CSS. NOTE: PR #174 was a failed first attempt — its `js/app.js` edits silently did not apply (string mismatch), so #174 shipped only a cache-bump + an inaccurate CLAUDE.md line describing a `renderPublicEmptyState()`/`switchMainView()` design that never existed. That bad line is removed and replaced by this accurate one. LESSON: in this remote env, `git status`/`git diff` are unreliable — always verify via file contents and `git show <ref>:<path>` before committing/merging.
 - 2026-06-03 · **Shipped a true desktop layout (≥1024px).** The app was mobile-first with no real desktop styling — on wide screens it rendered as a narrow ~720px column of cards (the feed-redesign `.cards-grid{max-width:720px}` at `style.css:3083`) floating in empty space, with full-bleed chrome and the floating mobile pill nav still showing. Added one self-contained `@media (min-width:1024px)` block at the **end of `css/style.css`** (after the social-feed styles) that: (1) turns the existing `.city-bar` into a real **top nav bar** — added a `<nav class="desktop-nav">` inside `.city-bar` in `index.html` with Discover/Explore/News/+Post/Profile buttons that **reuse the existing `bottomNav*()` handlers + `openComposer()`**; (2) hides the floating `.bottom-nav` on desktop; (3) centres the whole `.app-page` in a **1040px frame**; (4) widens the feed into a clean **two-column magazine grid** (heroes 2-up, compact 2-up, standard rows 2-up) while keeping the editorial hero→compact→standard flow; (5) roomier map view (`calc(100vh-150px)`, 340px sidebar). **Multi-column without touching mobile:** `_renderCardsNow` now wraps the hero tier in `.card-hero-row` and the standard tier in `.card-std-row` (compact already had `.card-compact-row`); these wrappers are **`display:contents` by default** (so on mobile the cards behave as direct `.cards-grid` children — rendering is byte-identical) and flip to `display:grid` only at ≥1024px. Compact/hero images get a landscape `aspect-ratio` on desktop (`16/10` hero, `16/11` compact) so half-width cards don't become towers. New global defaults `.desktop-nav{display:none}` + `.card-hero-row,.card-std-row{display:contents}`. Bumped cache to `style.css?v=20260603a` + `app.js?v=20260603a`. **Verified** by rendering a faithful harness (real `style.css` + mock card markup) in headless Chromium at 1280/1440/390px. **Backlog flagged below:** the editorial feed doesn't want to stretch ultra-wide, so the 1040px frame still leaves cream margins on big monitors — the real "use the width" move is a two-pane list+map desktop view (the persistent `.map-sidebar` already half-exists at ≥960px).
+- 2026-06-03 · **Desktop two-pane list+map view (≥1200px).** Follow-up to the
+  same-day desktop layout. The classic discovery pattern (Yelp/Airbnb): the
+  feed (left, single column, `max-width:660px`) and a persistent Leaflet map
+  (right, `position:sticky;top:0;height:100vh`) are shown side by side instead
+  of toggling. Added a `@media (min-width:1200px)` block at the end of
+  `css/style.css` that forces both `#listView`/`#mapView` visible with
+  `!important` (overriding the existing `.active` toggle), reverts the feed to a
+  single column (`.card-hero-row,.card-std-row{display:contents}`), hides the
+  now-pointless `#viewToggle` and the map's own `.map-sidebar` (the left feed
+  replaces it). JS (`js/app.js`): new `isTwoPane()` (matchMedia 1200) +
+  `syncTwoPaneMap()` (inits if needed, `invalidateSize` + `updateMapMarkers`)
+  near `goToMap`; `enterCity` calls `syncTwoPaneMap()` right after `initMap()`
+  so the map is populated without a toggle; `applyFilters` now calls
+  `updateMapMarkers()` when `state.view==='map' || isTwoPane()` (previously
+  map-view only) so markers track filters in the always-on pane; `goToMap`
+  skips the toggle in two-pane and just `flyTo`s; added a matchMedia `change`
+  listener (populate on crossing into two-pane) and a debounced window `resize`
+  → `invalidateSize`. Bumped cache to `?v=20260603b`. **Verified** the layout
+  in headless Chromium at 1280/1440px (map pane shown as a placeholder in the
+  harness since Leaflet needs the live CDN/data). **Needs a real-browser check
+  with live venue data** to confirm tiles + markers render in the right pane.
 - 2026-06-03 · **Consolidation: shipped 3 blog posts from stale nightly PRs** (#176–178). Added `blog/best-taco-tuesday-san-diego.html` (Jun 1, El Chingon/American Junkie/Barleymash/La Puerta) and `blog/best-happy-hours-little-italy-san-diego.html` (May 31, Ironside/Cloak & Petal/GlassDoor/Piedra Santa/Vincenzo) — cherry-picked blog HTML from the old branches and committed fresh on `claude/consolidation-blog-fixes`. Closed PRs #176/177/178 as superseded. Wired both posts into `blog.html` grid, `sitemap.xml`, and `NEWS_ARTICLES` in `js/app.js`. Fixed broken Unsplash image for North Park entry in `NEWS_ARTICLES` (replaced 404 ID `photo-1574920162043-b872873f19bc` with `photo-1514362545857-3bc16c4c7d1b`). Fixed stale Supabase `deals` data for two North Park venues: The Smoking Goat (hours corrected to 5:30–7pm Mon–Sun) and Caffè Calabria (hours corrected to 6–10pm Wed–Sun, all-day Wednesday), via direct SQL `array_replace`.
