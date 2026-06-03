@@ -1133,49 +1133,6 @@ async function updateMyPost(postId, { caption, title, body, pinnedUntilDays }) {
   return { ok: true };
 }
 
-// ── VENUE TAKES (quick comments on a venue) ──────────────────────
-async function fetchVenueTakes(venueId, limit = 30) {
-  try {
-    const { data } = await db.from('venue_takes')
-      .select('id, user_id, text, created_at')
-      .eq('venue_id', venueId)
-      .order('created_at', { ascending: false })
-      .limit(limit);
-    if (!data?.length) return [];
-    const userIds = [...new Set(data.map(r => r.user_id).filter(Boolean))];
-    const { data: profiles } = await db.from('profiles')
-      .select('id, display_name, avatar_emoji, avatar_url, is_official')
-      .in('id', userIds);
-    const pMap = {};
-    (profiles || []).forEach(p => { pMap[p.id] = p; });
-    return data.map(r => ({ ...r, profile: pMap[r.user_id] || null }));
-  } catch (e) { return []; }
-}
-async function postVenueTake(venueId, text) {
-  if (!currentUser) return { error: 'Not signed in' };
-  const session = getSession();
-  if (!session?.access_token) return { error: 'No auth' };
-  const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    global: { headers: { Authorization: `Bearer ${session.access_token}` } }
-  });
-  const { error } = await client.from('venue_takes').insert({
-    venue_id: venueId, user_id: currentUser.id, text: text.trim()
-  });
-  if (error) return { error: error.message };
-  track('venue_take_posted', { venue_id: venueId });
-  return { ok: true };
-}
-async function deleteVenueTake(takeId) {
-  if (!currentUser) return false;
-  const session = getSession();
-  if (!session?.access_token) return false;
-  const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    global: { headers: { Authorization: `Bearer ${session.access_token}` } }
-  });
-  const { error } = await client.from('venue_takes').delete().eq('id', takeId).eq('user_id', currentUser.id);
-  return !error;
-}
-
 // ── STREAKS & LEADERBOARDS ────────────────────────────────────────
 async function fetchUserWeeklyStreak(userId) {
   if (!userId) return 0;
@@ -1188,29 +1145,6 @@ async function fetchFriendLeaderboard(metric) {
   if (!currentUser) return [];
   try {
     const { data } = await db.rpc('friend_leaderboard', { p_metric: metric });
-    return data || [];
-  } catch (e) { return []; }
-}
-
-// ── GOING-OUT INTENTS ────────────────────────────────────────────
-async function postGoingIntent({ venueId, goingAt, message }) {
-  if (!currentUser) return { error: 'Not signed in' };
-  const session = getSession();
-  if (!session?.access_token) return { error: 'No auth' };
-  const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    global: { headers: { Authorization: `Bearer ${session.access_token}` } }
-  });
-  const { error } = await client.from('going_intents').insert({
-    user_id: currentUser.id, venue_id: venueId, going_at: goingAt, message: message || null
-  });
-  if (error) return { error: error.message };
-  track('going_intent_posted', { venue_id: venueId });
-  return { ok: true };
-}
-
-async function fetchVenueGoingTonight(venueId) {
-  try {
-    const { data } = await db.rpc('venue_going_tonight', { p_venue_id: venueId });
     return data || [];
   } catch (e) { return []; }
 }
@@ -1785,86 +1719,6 @@ async function fetchSocialFeed(citySlug, followingIds = [], limit = 60) {
     console.error('fetchSocialFeed error', e);
     return [];
   }
-}
-
-// ── VENUE DESCRIPTIONS ("Locals Say") ─────────────────
-async function fetchTopDescriptions(venueIds) {
-  if (!venueIds.length) return {};
-  try {
-    const { data } = await db.from('venue_descriptions')
-      .select('venue_id, description_text, profiles(display_name)')
-      .in('venue_id', venueIds)
-      .order('upvotes', { ascending: false })
-      .limit(200);
-    if (!data) return {};
-    // Keep only the top description per venue
-    const map = {};
-    data.forEach(d => { if (!map[d.venue_id]) map[d.venue_id] = d; });
-    return map;
-  } catch(e) { return {}; }
-}
-
-async function fetchVenueDescriptions(venueId) {
-  try {
-    const { data } = await db.from('venue_descriptions')
-      .select('*, profiles(display_name, avatar_url, avatar_emoji)')
-      .eq('venue_id', venueId)
-      .order('upvotes', { ascending: false });
-    return data || [];
-  } catch(e) { return []; }
-}
-
-async function submitVenueDescription(venueId, text, tags) {
-  if (!currentUser) return null;
-  const { data, error } = await db.from('venue_descriptions')
-    .upsert({
-      user_id: currentUser.id,
-      venue_id: venueId,
-      description_text: text,
-      tags: tags || [],
-    }, { onConflict: 'user_id,venue_id' })
-    .select()
-    .single();
-  if (error) { console.error('submitDesc error', error); return null; }
-  return data;
-}
-
-async function toggleDescUpvote(descId) {
-  if (!currentUser) return;
-  // Check if already upvoted
-  const { data: existing } = await db.from('description_upvotes')
-    .select('id')
-    .eq('user_id', currentUser.id)
-    .eq('description_id', descId)
-    .maybeSingle();
-  if (existing) {
-    await db.from('description_upvotes').delete().eq('id', existing.id);
-    await db.rpc('decrement_desc_upvotes', { desc_id: descId }).catch(() => {
-      // Fallback: manual decrement
-      db.from('venue_descriptions').select('upvotes').eq('id', descId).single().then(({ data }) => {
-        if (data) db.from('venue_descriptions').update({ upvotes: Math.max(0, (data.upvotes || 0) - 1) }).eq('id', descId);
-      });
-    });
-    return false;
-  } else {
-    await db.from('description_upvotes').insert({ user_id: currentUser.id, description_id: descId });
-    await db.rpc('increment_desc_upvotes', { desc_id: descId }).catch(() => {
-      db.from('venue_descriptions').select('upvotes').eq('id', descId).single().then(({ data }) => {
-        if (data) db.from('venue_descriptions').update({ upvotes: (data.upvotes || 0) + 1 }).eq('id', descId);
-      });
-    });
-    return true;
-  }
-}
-
-async function fetchMyUpvotedDescs(venueId) {
-  if (!currentUser) return new Set();
-  try {
-    const { data } = await db.from('description_upvotes')
-      .select('description_id')
-      .eq('user_id', currentUser.id);
-    return new Set((data || []).map(d => d.description_id));
-  } catch(e) { return new Set(); }
 }
 
 // ── CURATED LISTS ─────────────────────────────────────

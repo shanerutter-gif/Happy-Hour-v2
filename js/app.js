@@ -101,7 +101,6 @@ const state = {
   goingCounts: {},
   goingByMe: new Set(),
   todayCheckInCount: 0,  // tracked locally; enforces 5/day cap
-  descCache: {},         // top "Locals Say" per venue
 };
 
 const CACHE_MS = 60000;
@@ -1232,7 +1231,7 @@ function renderSocialItem(item, variant) {
   window._socialPostMeta[postId] = item.meta || null;
 
   // ── Action type labels ──
-  const actionVerbs = { photo: 'checked in at', check_in: 'checked in at', review: 'reviewed', favorite: 'saved', going_tonight: 'is going to', tagged_at: 'was tagged at' };
+  const actionVerbs = { photo: 'checked in at', check_in: 'checked in at', review: 'reviewed', favorite: 'saved', going_tonight: 'checked in at', tagged_at: 'was tagged at' };
   const actionVerb = actionVerbs[item.type] || 'visited';
   const actionSuffix = item.type === 'going_tonight' ? ' tonight' : '';
 
@@ -1821,7 +1820,6 @@ async function enterCity(slug, name, stateCode) {
   // loadReviewAverages no longer calls renderCards() so it won't nuke the DOM
   loadGoingTonight(slug);
   loadReviewAverages(slug);
-  loadTopDescriptions(venues);
 
   // Build filter pills + suggestions
   buildFilterPills();
@@ -2349,90 +2347,6 @@ function _renderCardsNow() {
   }
 }
 
-// ── LOCALS SAY ────────────────────────────────────────
-async function loadTopDescriptions(venues) {
-  if (!venues.length) return;
-  const ids = venues.map(v => v.id);
-  state.descCache = await fetchTopDescriptions(ids);
-  renderCards();
-}
-
-function localsSaySnippet(venueId) {
-  const d = state.descCache[venueId];
-  if (!d) return '';
-  const txt = d.description_text.length > 90 ? d.description_text.slice(0, 87) + '\u2026' : d.description_text;
-  return '<div class="locals-say"><span class="locals-say-label">Locals say</span> <span class="locals-say-text">\u201C' + esc(txt) + '\u201D</span></div>';
-}
-
-function localsSayInline(venueId) {
-  const d = state.descCache[venueId];
-  if (!d) return '';
-  const txt = d.description_text.length > 55 ? d.description_text.slice(0, 52) + '\u2026' : d.description_text;
-  return '<div class="locals-say-inline"><span class="locals-say-label">Locals say</span> \u201C' + esc(txt) + '\u201D</div>';
-}
-
-async function loadModalDescriptions(venueId) {
-  const [descs, myUpvotes] = await Promise.all([
-    fetchVenueDescriptions(venueId),
-    fetchMyUpvotedDescs(venueId),
-  ]);
-  const el = document.getElementById('locals-say-' + venueId);
-  if (!el || !descs.length) return;
-  el.innerHTML = '<div class="desc-list-section"><h3 class="desc-list-title">What people are saying</h3>' +
-    descs.map(function(d) {
-      const name = d.profiles?.display_name || 'Someone';
-      const voted = myUpvotes.has(d.id);
-      return '<div class="desc-card">' +
-        '<div class="desc-card-text">\u201C' + esc(d.description_text) + '\u201D</div>' +
-        '<div class="desc-card-meta"><span class="desc-card-author">' + esc(name) + '</span>' +
-        '<span class="desc-card-time">' + fmtDate(d.created_at) + '</span></div>' +
-        (d.tags && d.tags.length ? '<div class="desc-card-tags">' + d.tags.map(function(t) { return '<span class="desc-tag-sm">' + t + '</span>'; }).join('') + '</div>' : '') +
-        '<button class="desc-upvote-btn' + (voted ? ' upvoted' : '') + '" onclick="doToggleUpvote(\'' + d.id + '\',this)">\uD83D\uDC4D <span>' + (d.upvotes || 0) + '</span></button>' +
-        '</div>';
-    }).join('') + '</div>';
-}
-
-async function doSubmitDescription(venueId) {
-  if (!currentUser) { openAuth('signin'); return; }
-  var ta = document.getElementById('descTextInput-' + venueId);
-  if (!ta) return;
-  var text = ta.value.trim();
-  if (text.length < 10) { showToast('Write at least 10 characters'); return; }
-  var selectedTags = [];
-  document.querySelectorAll('#descTags-' + venueId + ' .desc-tag-pill.selected').forEach(function(b) {
-    selectedTags.push(b.dataset.tag);
-  });
-  var result = await submitVenueDescription(venueId, text, selectedTags);
-  if (result) {
-    showToast('Thanks for sharing!');
-    if (typeof haptic === 'function') haptic('medium');
-    ta.value = '';
-    document.getElementById('descCharCount-' + venueId).textContent = '0';
-    document.querySelectorAll('#descTags-' + venueId + ' .selected').forEach(function(b) { b.classList.remove('selected'); });
-    loadModalDescriptions(venueId);
-    // Update cache
-    state.descCache[venueId] = { description_text: text, profiles: { display_name: currentUser.user_metadata?.full_name || 'You' } };
-    renderCards();
-  } else {
-    showToast('Could not save — try again');
-  }
-}
-
-async function doToggleUpvote(descId, btn) {
-  if (!currentUser) { openAuth('signin'); return; }
-  var upvoted = await toggleDescUpvote(descId);
-  var span = btn.querySelector('span');
-  var count = parseInt(span.textContent) || 0;
-  if (upvoted) {
-    btn.classList.add('upvoted');
-    span.textContent = count + 1;
-  } else {
-    btn.classList.remove('upvoted');
-    span.textContent = Math.max(0, count - 1);
-  }
-  if (typeof haptic === 'function') haptic('light');
-}
-
 // ═══════════════════════════════════════
 // HERO CARD
 // ═══════════════════════════════════════
@@ -2467,7 +2381,7 @@ function heroCardHTML(v, delay) {
 
   // Badges
   const badges = [];
-  if (count >= 2)       badges.push(`<span class="badge badge-fire">🔥 ${count} going</span>`);
+  if (count >= 2)       badges.push(`<span class="badge badge-fire">🔥 ${count} here</span>`);
   if (v.has_sports_tv)  badges.push(`<span class="badge badge-sports">📺</span>`);
   if (v.owner_verified) badges.push(`<span class="badge badge-verified">✓</span>`);
 
@@ -2476,12 +2390,12 @@ function heroCardHTML(v, delay) {
     `<span class="card-hero-deal">${esc(d)}</span>`
   ).join('');
 
-  // Going tonight bar
+  // Check-in bar
   const goingBar = count > 0 ? `
     <div class="card-hero-going">
       <div class="card-hero-going-left">
         <div class="card-hero-going-avatars">${goingAvatars(v.id, count)}</div>
-        ${count} ${count === 1 ? 'person' : 'people'} going tonight
+        ${count} ${count === 1 ? 'person' : 'people'} checked in tonight
       </div>
       <button class="card-hero-going-btn${isMeIn ? ' joined' : ''}"
         onclick="event.stopPropagation();doGoingTonight('${v.id}',this)">${isMeIn ? '✓ Checked In' : '+ Check In'}</button>
@@ -2511,7 +2425,6 @@ function heroCardHTML(v, delay) {
       </div>
       <div class="card-hero-deals">${deals}</div>
       ${eventChipsHTML(v)}
-      ${localsSaySnippet(v.id)}
       ${goingBar}
     </div>
   </div>`;
@@ -2551,7 +2464,6 @@ function compactCardHTML(v, delay) {
       <div class="card-compact-sub">${esc(v.cuisine || '')}${v.yelp_rating ? ` · ★ ${v.yelp_rating}` : avg > 0 ? ` · ★ ${avg.toFixed(1)}` : ''}${count > 0 ? ` · 🔥 ${count}` : ''}</div>
       ${dealsHtml}
       ${eventChipsHTML(v)}
-      ${localsSayInline(v.id)}
       <button class="card-compact-checkin${isMeIn ? ' joined' : ''}" data-vid="${v.id}"
         onclick="event.stopPropagation();doGoingTonight('${v.id}',this)">${isMeIn ? '✓ Checked In' : '+ Check In'}</button>
     </div>
@@ -2593,8 +2505,7 @@ function standardCardHTML(v, delay) {
       <div class="card-std-meta">${esc(v.neighborhood || '')} · ${esc(v.cuisine || '')}${todayH ? ' · ' + esc(todayH) : ''}</div>
       ${deals.length ? deals.map(d => `<div class="card-std-deal">${esc(d)}</div>`).join('') : ''}
       ${eventChipsHTML(v)}
-      ${localsSayInline(v.id)}
-      ${count > 0 ? `<div class="card-std-going">🔥 ${count} going tonight</div>` : starsEl}
+      ${count > 0 ? `<div class="card-std-going">🔥 ${count} checked in tonight</div>` : starsEl}
       <button class="card-std-checkin${isMeIn ? ' joined' : ''}" data-vid="${v.id}"
         onclick="event.stopPropagation();doGoingTonight('${v.id}',this)">${isMeIn ? '✓ Checked In' : '+ Check In'}</button>
     </div>
@@ -2687,31 +2598,7 @@ async function openModal(id, type = 'venue') {
       }
     });
   }
-  // Load going-out intents (next 12h)
-  if (type === 'venue') {
-    fetchVenueGoingTonight(id).then(rows => {
-      const el = document.getElementById(`going-tonight-${id}`);
-      if (!el || !rows.length) return;
-      const fmt = ts => new Date(ts).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-      el.innerHTML = `
-        <div class="going-tonight-strip">
-          <div class="going-tonight-strip__label">Going tonight</div>
-          <div class="going-tonight-strip__list">
-            ${rows.slice(0, 8).map(r => `
-              <div class="going-tonight-chip" onclick="openPublicProfile('${r.user_id}')">
-                <span class="going-tonight-chip__avatar">${initialsAvatar(r.display_name || 'User', '', r.avatar_emoji, r.avatar_url)}</span>
-                <span class="going-tonight-chip__name">${esc((r.display_name || 'User').split(' ')[0])}${r.is_official ? officialBadge(r) : ''}</span>
-                <span class="going-tonight-chip__time">${fmt(r.going_at)}</span>
-              </div>`).join('')}
-          </div>
-        </div>`;
-    });
-  }
-  // Load venue takes (quick comments)
-  if (type === 'venue') {
-    renderVenueTakes(id);
-  }
-  // Load UGC check-in photos + Locals Say descriptions + tagged posts feed
+  // Load UGC check-in photos + tagged posts feed
   if (type === 'venue') {
     fetchCheckinPhotos(id).then(allPosts => {
       // The strip is for visual posts (photo or editorial-with-hero) only.
@@ -2723,7 +2610,6 @@ async function openModal(id, type = 'venue') {
       if (elPosts) elPosts.innerHTML = renderVenuePosts(allPosts, id);
       observeFeedVideos();
     });
-    loadModalDescriptions(id);
   }
 }
 
@@ -2809,10 +2695,8 @@ function renderModal(v, type, reviews) {
     <div class="modal-cta-bar">
       <div class="modal-cta-row">
         <button class="modal-checkin-cta" onclick="doGoingTonight('${v.id}', this)">${checkInBtnLabel(checkInCount, isMeIn)}</button>
-        <button class="modal-going-cta" onclick="openGoingIntentSheet('${v.id}','${esc(v.name)}')" title="I'm going tonight">🍻 Going</button>
       </div>
       ${checkInCount >= 2 ? `<div class="s-going-count">${ICN.fire} ${checkInCount} people checked in tonight</div>` : ''}
-      <div id="going-tonight-${v.id}"></div>
     </div>` : ''}
 
     <div class="modal-body-inner">
@@ -2869,25 +2753,7 @@ function renderModal(v, type, reviews) {
         ${v.price ? `<div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em">Entry: ${esc(v.price)}</div>` : ''}
       `}
 
-      ${isVenue ? `
-        <div class="s-div"></div>
-        <div id="locals-say-${v.id}"></div>
-        <div class="desc-prompt-section" id="desc-prompt-${v.id}">
-          <h3 class="desc-prompt-title">How would you describe ${esc(v.name)}?</h3>
-          <p class="desc-prompt-subtitle">Help others know what to expect</p>
-          <textarea id="descTextInput-${v.id}" class="desc-textarea" placeholder="e.g., great happy hour, strong pours, always a good crowd on Fridays..." maxlength="280" rows="3" oninput="document.getElementById('descCharCount-${v.id}').textContent=this.value.length"></textarea>
-          <div class="desc-char-count"><span id="descCharCount-${v.id}">0</span>/280</div>
-          <div class="desc-tags-row" id="descTags-${v.id}">
-            ${['chill','hype','divey','bougie','date-night','group-friendly','late-night','craft-cocktails','cheap-drinks','dance-floor','hidden-gem','locals-only'].map(t =>
-              '<button class="desc-tag-pill" data-tag="' + t + '" onclick="this.classList.toggle(\'selected\')">' + t + '</button>'
-            ).join('')}
-          </div>
-          <button class="desc-submit-btn" onclick="doSubmitDescription('${v.id}')">Share</button>
-        </div>
-      ` : ''}
-
       ${isVenue ? `<div id="ugc-photos-${v.id}"></div>` : ''}
-      ${isVenue ? `<div id="venue-takes-${v.id}"></div>` : ''}
       ${isVenue ? `<div id="venue-posts-${v.id}"></div>` : ''}
       <div class="s-div"></div>
       <div class="modal-section-label">Reviews</div>
@@ -5568,12 +5434,6 @@ function refreshCheckInCounters() {
   });
 }
 
-function goingFireBadge(venueId) {
-  const count = state.goingCounts[venueId] || 0;
-  if (count < 2) return '';
-  return `<span class="fire-badge">${ICN.fire} ${count} here tonight</span>`;
-}
-
 // ── PUBLIC PROFILE ──────────────────────────────────────
 async function openPublicProfile(userId) {
   if (userId === currentUser?.id) { openProfile(); return; }
@@ -6223,57 +6083,6 @@ async function finishOpenTagFriends() {
 // PHOTO CHECK-INS
 // ══════════════════════════════════════════════
 
-// Render the UGC photos strip inside the venue modal
-async function renderVenueTakes(venueId) {
-  const wrap = document.getElementById(`venue-takes-${venueId}`);
-  if (!wrap) return;
-  const takes = await fetchVenueTakes(venueId, 30);
-  const composer = currentUser ? `
-    <div class="vt-composer">
-      <input type="text" id="vt-input-${venueId}" placeholder="Quick take? '$5 margs are the move'" maxlength="280">
-      <button onclick="submitVenueTake('${venueId}')">Post</button>
-    </div>` : '';
-  if (!takes.length && !currentUser) { wrap.innerHTML = ''; return; }
-  wrap.innerHTML = `
-    <div class="s-div"></div>
-    <div class="modal-section-label">Quick takes</div>
-    ${composer}
-    <div class="vt-list" id="vt-list-${venueId}">
-      ${takes.length ? takes.map(t => {
-        const p = t.profile || {};
-        const isMe = currentUser && t.user_id === currentUser.id;
-        return `<div class="vt-row">
-          <div class="vt-avatar">${initialsAvatar(p.display_name || 'User', '', p.avatar_emoji, p.avatar_url)}</div>
-          <div class="vt-body">
-            <div class="vt-name" onclick="closeOverlay('modalOverlay');openPublicProfile('${t.user_id}')">${esc(p.display_name || 'User')}${p.is_official ? officialBadge(p) : ''} <span class="vt-time">${fmtDate(t.created_at)}</span></div>
-            <div class="vt-text">${esc(t.text)}</div>
-          </div>
-          ${isMe ? `<button class="vt-delete" onclick="deleteVenueTakeUI('${t.id}','${venueId}')">✕</button>` : ''}
-        </div>`;
-      }).join('') : '<div class="vt-empty">Be the first with a quick take.</div>'}
-    </div>`;
-}
-async function submitVenueTake(venueId) {
-  const inp = document.getElementById(`vt-input-${venueId}`);
-  if (!inp) return;
-  const text = inp.value.trim();
-  if (!text) return;
-  const res = await postVenueTake(venueId, text);
-  if (res?.error) { showToast('Could not post'); return; }
-  inp.value = '';
-  renderVenueTakes(venueId);
-}
-function deleteVenueTakeUI(takeId, venueId) {
-  confirmAction({
-    title: 'Delete this take?',
-    confirmText: 'Delete',
-    danger: true,
-    onConfirm: async () => {
-      await deleteVenueTake(takeId);
-      renderVenueTakes(venueId);
-    },
-  });
-}
 
 // Posts (text + editorial + photo) tagged at this venue. Renders a
 // feed-style list using the existing renderSocialItem variants. The photo
@@ -7924,56 +7733,6 @@ async function doBlockUser(userId, btn) {
     const overlay = btn?.closest('.overlay');
     if (overlay) dismissOverlay(overlay);
   }
-}
-
-// ════════════════════════════════════════════════════════
-// GOING-TONIGHT INTENT SHEET
-// ════════════════════════════════════════════════════════
-function openGoingIntentSheet(venueId, venueName) {
-  if (!currentUser) { openAuth('signin'); return; }
-  // Default to 7pm local today; if it's already past 7pm, default to current time + 1h.
-  const now = new Date();
-  const seven = new Date();
-  seven.setHours(19, 0, 0, 0);
-  const def = now > seven ? new Date(now.getTime() + 3600 * 1000) : seven;
-  const isoLocal = (d) => {
-    const tzOffset = d.getTimezoneOffset() * 60000;
-    return new Date(d.getTime() - tzOffset).toISOString().slice(0, 16);
-  };
-  const overlay = document.createElement('div');
-  overlay.className = 'overlay';
-  overlay.style.zIndex = 10000;
-  overlay.onclick = (e) => { if (e.target === overlay) { overlay.classList.remove('open'); setTimeout(() => overlay.remove(), 200); } };
-  overlay.innerHTML = `
-    <div class="sheet">
-      <div class="sheet-handle"></div>
-      <div class="going-sheet">
-        <div class="going-sheet__title">Going to ${esc(venueName)} 🍻</div>
-        <div class="going-sheet__sub">Friends will get a push so they can join you.</div>
-        <label class="going-sheet__label">When?</label>
-        <input type="datetime-local" id="goingSheetTime" value="${isoLocal(def)}" class="going-sheet__time">
-        <label class="going-sheet__label">Quick note (optional)</label>
-        <input type="text" id="goingSheetMsg" placeholder="At the bar by 8" maxlength="120" class="going-sheet__msg">
-        <button class="going-sheet__cta" id="goingSheetCta">Post intent</button>
-      </div>
-    </div>`;
-  document.body.appendChild(overlay);
-  requestAnimationFrame(() => requestAnimationFrame(() => overlay.classList.add('open')));
-  document.getElementById('goingSheetCta').addEventListener('click', async () => {
-    const btn = document.getElementById('goingSheetCta');
-    btn.disabled = true; btn.textContent = 'Posting…';
-    const local = document.getElementById('goingSheetTime').value;
-    const msg = document.getElementById('goingSheetMsg').value.trim();
-    if (!local) { showToast('Pick a time'); btn.disabled = false; btn.textContent = 'Post intent'; return; }
-    const goingAt = new Date(local).toISOString();
-    const res = await postGoingIntent({ venueId, goingAt, message: msg });
-    if (res?.error) { showToast('Could not post'); btn.disabled = false; btn.textContent = 'Post intent'; return; }
-    overlay.classList.remove('open');
-    setTimeout(() => overlay.remove(), 200);
-    showPostSuccess({ title: 'You’re going!', sub: 'Friends will see this in their feed' });
-    // Refresh modal display
-    if (typeof openModal === 'function') openModal(venueId, 'venue');
-  });
 }
 
 // ════════════════════════════════════════════════════════

@@ -2077,7 +2077,7 @@
               <label style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--bg2);border-radius:8px;cursor:pointer">
                 <div>
                   <div style="font-size:13px;font-weight:600">📍 Tonight's Check-ins</div>
-                  <div style="font-size:11px;color:var(--muted);margin-top:1px">Going counts for today</div>
+                  <div style="font-size:11px;color:var(--muted);margin-top:1px">Check-in counts for today</div>
                 </div>
                 <input type="checkbox" id="demo-do-checkins" checked style="width:16px;height:16px;accent-color:var(--coral);cursor:pointer">
               </label>
@@ -4301,7 +4301,7 @@ in San Diego</textarea>
             meta:          Math.random() > 0.3 ? { note: _pick(SOCIAL_NOTES) } : {},
             created_at:    created,
           });
-          // ~30% of check-ins also seed a "going tonight" entry for today
+          // ~30% of check-ins also seed a today check-in entry (fire badge)
           if (Math.random() < 0.3) {
             todayCheckinRows.push({ user_id: p.id, venue_id: venueId, city_slug: citySlug, date: today });
           }
