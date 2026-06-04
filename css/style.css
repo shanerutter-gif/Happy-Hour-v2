@@ -4025,6 +4025,7 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 .btf-footer-legal { margin: 8px 0; }
 .btf-footer-link { font-size: 13px; color: var(--muted); text-decoration: underline; }
 .btf-footer-sep { color: var(--muted); margin: 0 4px; }
+.btf-footer-discover { margin: 12px auto 4px; max-width: 640px; line-height: 2; }
 
 /* ── Report/Block ── */
 .report-option {

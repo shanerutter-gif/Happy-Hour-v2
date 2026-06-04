@@ -397,6 +397,9 @@ ${venue.lat && venue.lng ? `<meta property="place:location:latitude" content="${
     <a href="/" class="spot-cta" style="display:inline-flex;width:auto;padding:14px 32px;font-size:15px">
       Explore Spotd
     </a>
+    <div style="margin-top:18px;font-size:13px;line-height:1.9">
+      ${city ? `<a href="${SITE_URL}/happy-hour/${esc(venue.city_slug)}" style="color:var(--coral);text-decoration:none;font-weight:600">More ${esc(city)} happy hours</a> · ` : ''}<a href="${SITE_URL}/spots" style="color:var(--coral);text-decoration:none;font-weight:600">All spots</a> · <a href="/blog.html" style="color:var(--coral);text-decoration:none;font-weight:600">Blog</a>
+    </div>
   </div>
 
 </main>

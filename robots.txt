@@ -2,6 +2,7 @@ User-agent: *
 Allow: /
 Allow: /blog/
 Allow: /spots/
+Allow: /happy-hour/
 Allow: /api/sitemap-venues
 
 Disallow: /api/
@@ -9,4 +10,5 @@ Disallow: /admin.html
 Disallow: /business-portal.html
 
 Sitemap: https://www.spotd.biz/sitemap.xml
-Sitemap: https://www.spotd.biz/api/sitemap-venues
+Sitemap: https://www.spotd.biz/sitemap-venues.xml
+Sitemap: https://www.spotd.biz/sitemap-cities.xml

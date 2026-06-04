@@ -10,9 +10,13 @@
   "routes": [
     { "src": "/admin.html",                 "dest": "/api/admin-page.js" },
     { "src": "/list/(.+)",                  "dest": "/?list=$1", "status": 302 },
+    { "src": "/spots",                      "dest": "/api/spots-directory.js" },
     { "src": "/spots/(.+)",                 "dest": "/api/spots.js?slug=$1" },
+    { "src": "/happy-hour/([^/]+)/([^/]+)", "dest": "/api/happy-hour.js?city=$1&neighborhood=$2" },
+    { "src": "/happy-hour/([^/]+)",         "dest": "/api/happy-hour.js?city=$1" },
     { "src": "/blog/([^.]+)$",              "dest": "/api/blog-post.js?slug=$1" },
     { "src": "/sitemap-venues.xml",         "dest": "/api/sitemap-venues.js" },
+    { "src": "/sitemap-cities.xml",         "dest": "/api/sitemap-cities.js" },
     { "src": "/api/auth",                  "dest": "/api/auth.js" },
     { "src": "/api/loops-onboarding",      "dest": "/api/loops-onboarding.js" },
     { "src": "/api/loops-event",           "dest": "/api/loops-event.js" },
