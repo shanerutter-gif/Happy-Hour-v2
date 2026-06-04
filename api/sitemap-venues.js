@@ -1,5 +1,9 @@
 export const config = { runtime: 'edge' };
 
+// Canonical host — must match the venue page <link rel="canonical"> (www, the
+// host that serves 200). The apex redirects, so apex sitemap URLs fail to fetch.
+const SITE_URL = 'https://www.spotd.biz';
+
 function slugify(name) {
   return name.toLowerCase()
     .replace(/&/g, 'and')
@@ -30,7 +34,7 @@ export default async function handler() {
       const slug = slugify(v.name);
       const lastmod = v.updated_at ? new Date(v.updated_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
       return `  <url>
-    <loc>https://spotd.biz/spots/${slug}</loc>
+    <loc>${SITE_URL}/spots/${slug}</loc>
     <lastmod>${lastmod}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>

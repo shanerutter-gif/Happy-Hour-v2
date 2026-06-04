@@ -1,5 +1,10 @@
 export const config = { runtime: 'edge' };
 
+// Canonical host. The apex (spotd.biz) 301s to www, so every canonical / og:url
+// / sitemap URL must use www — the host that returns 200 — or Google treats the
+// page as "Alternate page with proper canonical tag" and won't index it.
+const SITE_URL = 'https://www.spotd.biz';
+
 /* ── helpers ─────────────────────────────────────── */
 
 function slugify(name) {
@@ -62,7 +67,7 @@ function buildPage(venue, reviews, allVenues) {
   const cuisine = esc(venue.cuisine || '');
   const url = venue.url || '';
   const photoUrl = venue.photo_url || venue.photo_urls?.[0] || '';
-  const ogImage = photoUrl || 'https://spotd.biz/icons/icon-512.png';
+  const ogImage = photoUrl || `${SITE_URL}/icons/icon-512.png`;
 
   // Compute average rating
   const avgRating = reviews.length
@@ -90,7 +95,7 @@ function buildPage(venue, reviews, allVenues) {
     '@context': 'https://schema.org',
     '@type': cuisine ? 'Restaurant' : 'LocalBusiness',
     name: venue.name,
-    ...(address && { address: { '@type': 'PostalAddress', streetAddress: venue.address } }),
+    ...(address && { address: { '@type': 'PostalAddress', streetAddress: venue.address, ...(city && { addressLocality: city }), addressCountry: 'US' } }),
     ...(venue.lat && venue.lng && { geo: { '@type': 'GeoCoordinates', latitude: venue.lat, longitude: venue.lng } }),
     ...(url && { url }),
     ...(photoUrl && { image: photoUrl }),
@@ -121,9 +126,9 @@ function buildPage(venue, reviews, allVenues) {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
     itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://spotd.biz' },
-      { '@type': 'ListItem', position: 2, name: 'Spots', item: 'https://spotd.biz/spots' },
-      { '@type': 'ListItem', position: 3, name: venue.name, item: `https://spotd.biz/spots/${slugify(venue.name)}` }
+      { '@type': 'ListItem', position: 1, name: 'Home', item: SITE_URL },
+      { '@type': 'ListItem', position: 2, name: 'Spots', item: `${SITE_URL}/spots` },
+      { '@type': 'ListItem', position: 3, name: venue.name, item: `${SITE_URL}/spots/${slugify(venue.name)}` }
     ]
   };
 
@@ -147,11 +152,12 @@ function buildPage(venue, reviews, allVenues) {
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>${name}${hood ? ` — ${esc(venue.neighborhood)}` : ''} | Happy Hour & Deals — Spotd</title>
 <meta name="description" content="${esc(metaDesc)}">
-<link rel="canonical" href="https://spotd.biz/spots/${venueSlug}">
+<link rel="canonical" href="${SITE_URL}/spots/${venueSlug}">
 
 <!-- Open Graph -->
 <meta property="og:type" content="place">
-<meta property="og:url" content="https://spotd.biz/spots/${venueSlug}">
+<meta property="og:url" content="${SITE_URL}/spots/${venueSlug}">
+<meta name="twitter:url" content="${SITE_URL}/spots/${venueSlug}">
 <meta property="og:title" content="${name}${hood ? ` — ${esc(venue.neighborhood)}` : ''} | Spotd">
 <meta property="og:description" content="${esc(metaDesc)}">
 <meta property="og:image" content="${esc(ogImage)}">
