@@ -1,5 +1,9 @@
 export const config = { runtime: 'edge' };
 
+// Canonical host — www serves 200, the apex redirects. Keep canonical / og:url /
+// JSON-LD on www so Google indexes the served URL rather than the redirect.
+const SITE_URL = 'https://www.spotd.biz';
+
 function esc(s) {
   if (!s) return '';
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -72,9 +76,9 @@ function buildPage(post) {
   const excerpt = esc(post.excerpt || '');
   const metaDesc = esc(post.meta_description || post.excerpt || '');
   const keywords = esc(post.keywords || '');
-  const featuredImage = post.featured_image_url || 'https://spotd.biz/icons/icon-512.png';
+  const featuredImage = post.featured_image_url || `${SITE_URL}/icons/icon-512.png`;
   const slug = esc(post.slug);
-  const canonicalUrl = `https://spotd.biz/blog/${slug}`;
+  const canonicalUrl = `${SITE_URL}/blog/${slug}`;
   const dateStr = post.created_at ? new Date(post.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '';
   const contentHtml = md(post.content || '');
 
@@ -93,10 +97,10 @@ function buildPage(post) {
     description: post.meta_description || post.excerpt || '',
     datePublished: post.created_at,
     dateModified: post.updated_at || post.created_at,
-    author: { '@type': 'Organization', name: 'Spotd', url: 'https://spotd.biz' },
+    author: { '@type': 'Organization', name: 'Spotd', url: SITE_URL },
     publisher: {
       '@type': 'Organization', name: 'Spotd',
-      logo: { '@type': 'ImageObject', url: 'https://spotd.biz/icons/icon-512.png' }
+      logo: { '@type': 'ImageObject', url: `${SITE_URL}/icons/icon-512.png` }
     },
     mainEntityOfPage: { '@type': 'WebPage', '@id': canonicalUrl }
   };
@@ -105,8 +109,8 @@ function buildPage(post) {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
     itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://spotd.biz' },
-      { '@type': 'ListItem', position: 2, name: 'Blog', item: 'https://spotd.biz/blog.html' },
+      { '@type': 'ListItem', position: 1, name: 'Home', item: SITE_URL },
+      { '@type': 'ListItem', position: 2, name: 'Blog', item: `${SITE_URL}/blog.html` },
       { '@type': 'ListItem', position: 3, name: post.title, item: canonicalUrl }
     ]
   };

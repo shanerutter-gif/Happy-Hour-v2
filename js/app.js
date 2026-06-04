@@ -4293,7 +4293,7 @@ async function openReferralShareSheet() {
   if (!currentUser) { openAuth('signin'); return; }
   const code = await getMyReferralCode();
   if (!code) { showToast('Referral code not ready yet — try again in a moment'); return; }
-  const link = `https://spotd.biz/?ref=${encodeURIComponent(code)}`;
+  const link = `https://www.spotd.biz/?ref=${encodeURIComponent(code)}`;
   const text = `Find the best happy hours in San Diego with Spotd. Use my code ${code} or sign up here: ${link}`;
   try {
     if (navigator.share) {
