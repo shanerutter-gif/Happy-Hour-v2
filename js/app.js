@@ -2325,8 +2325,8 @@ function _renderCardsNow() {
     if (heroes.length) {
       html += `<div class="feed-label">🔥 Hot right now</div>`;
       html += `<div class="card-hero-row">`;
-      heroes.forEach(v => {
-        html += heroCardHTML(v, delay);
+      heroes.forEach((v, i) => {
+        html += heroCardHTML(v, delay, i);
         delay += 80;
       });
       html += `</div>`;
@@ -2400,7 +2400,7 @@ function eventChipsHTML(v) {
   return `<div class="card-event-chips">${chips.join('')}</div>`;
 }
 
-function heroCardHTML(v, delay) {
+function heroCardHTML(v, delay, idx = 0) {
   const photoUrl = v.photo_url || (v.photo_urls && v.photo_urls[0]) || '';
   const cached   = state.reviewCache[v.id] || [];
   const avg      = avgFromList(cached);
@@ -2438,7 +2438,7 @@ function heroCardHTML(v, delay) {
 
   return `<div class="card-hero" data-id="${v.id}"
     onclick="openModal('${v.id}','venue')" style="animation-delay:${delay}ms">
-    <img class="card-hero-img" src="${photoUrl}" alt="${esc(v.name)}" loading="eager"
+    <img class="card-hero-img" src="${photoUrl}" alt="${esc(v.name)}" loading="${idx === 0 ? 'eager' : 'lazy'}" decoding="async"
       onerror="this.closest('.card-hero').style.background='linear-gradient(135deg,#2A1F14,#1A1208)';this.remove()">
     <div class="card-hero-overlay"></div>
     <button class="card-hero-fav${faved ? ' faved' : ''}"
@@ -6579,6 +6579,7 @@ function skipToTagFriends(venueId) {
 
 // ── YOUR NEWS (ARTICLE FEED) ──────────────────────────
 const NEWS_ARTICLES = [
+  { city: 'san-diego', img: 'https://images.unsplash.com/photo-1574052009741-d038dc3df0e7?w=800&q=80', tag: 'Neighborhood Guide', author: 'Shane', title: 'Best Happy Hours in Hillcrest San Diego (2026)', excerpt: 'Craft beer from the world\'s first gay brewery, extended Papi Hour margaritas at Baja Betty\'s, wood-fired oysters at Fort Oak — every Hillcrest deal, verified for 2026.', url: '/blog/best-happy-hours-hillcrest-san-diego.html', date: 'June 4, 2026', readTime: '8 min' },
   { city: 'orange-county', img: 'https://images.unsplash.com/photo-1499678329028-101435549a4e?w=800&q=80', tag: 'Neighborhood Guide', author: 'Shane', title: 'Best Happy Hours in Newport Beach (2026)', excerpt: 'Half-off whiskey at Bosscat, French apéro at Zinqué, $4 harbor-view pints at Woody\'s Wharf — the Newport Beach happy hour guide, verified for 2026.', url: '/blog/best-happy-hours-newport-beach.html', date: 'June 3, 2026', readTime: '8 min' },
   { city: 'san-diego', img: 'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=800&q=80', tag: 'Neighborhood Guide', author: 'Shane', title: 'Best Happy Hours in North Park San Diego (2026)', excerpt: 'French bistro cocktails at The Smoking Goat, late-night pizza at Caffè Calabria, craft cider at Bivouac — every North Park deal, verified for 2026.', url: '/blog/best-happy-hours-north-park-san-diego.html', date: 'June 2, 2026', readTime: '8 min' },
   { city: 'san-diego', img: 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=800&q=80', tag: 'City Guide', author: 'Shane', title: 'Best Taco Tuesday Deals in San Diego (2026)', excerpt: 'Half-off tacos at El Chingon, AYCE at American Junkie, $2 street tacos at La Puerta — every verified Taco Tuesday deal in SD, updated for 2026.', url: '/blog/best-taco-tuesday-san-diego.html', date: 'June 1, 2026', readTime: '7 min' },
