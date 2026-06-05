@@ -5699,7 +5699,7 @@ function switchPubTab(tab, btn) {
   });
   document.getElementById('pub-tab-' + tab).style.display = 'block';
   tabs.querySelectorAll('.pf-tab').forEach(b => b.classList.remove('on'));
-  if (btn) btn.classList.add('on');
+  if (btn) { btn.classList.add('on'); btn.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' }); }
   if (tab === 'tagged' && state.viewingProfileUserId) loadPubTaggedPosts(state.viewingProfileUserId);
 }
 
@@ -7383,7 +7383,11 @@ function selectProfileTab(tab, btn) {
   document.querySelectorAll('.pf-tab, .profile-tab').forEach(b => {
     b.classList.remove('active', 'on');
   });
-  if (btn) { btn.classList.add('on'); btn.classList.add('active'); }
+  if (btn) {
+    btn.classList.add('on'); btn.classList.add('active');
+    // Keep the active pill in view when the tab bar scrolls horizontally.
+    btn.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+  }
   if (tab === 'lists')  loadMyLists();
   if (tab === 'tagged') loadMyTaggedPosts();
 }

@@ -574,7 +574,21 @@ async function fetchMyCheckIns(userId, date) {
 async function fetchAllCheckIns(userId) {
   try {
     const { data } = await db.from('check_ins').select('*').eq('user_id', userId).order('created_at', { ascending: false });
-    return data || [];
+    const rows = data || [];
+    // check_ins doesn't denormalize the venue name, and the profile only has the
+    // currently-loaded city's venues in memory — so check-ins at venues from any
+    // other city fell back to "A spot". Hydrate name + neighborhood from the DB
+    // for all referenced venues so every row shows its real name.
+    const ids = [...new Set(rows.map(r => r.venue_id).filter(Boolean))];
+    if (ids.length) {
+      const { data: venues } = await db.from('venues').select('id, name, neighborhood').in('id', ids);
+      const vMap = {}; (venues || []).forEach(v => { vMap[v.id] = v; });
+      rows.forEach(r => {
+        const v = vMap[r.venue_id];
+        if (v) { r.venue_name = v.name; if (!r.neighborhood) r.neighborhood = v.neighborhood; }
+      });
+    }
+    return rows;
   } catch(e) { return []; }
 }
 async function addCheckIn({ userId, venueId, citySlug, date, note }) {
