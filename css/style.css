@@ -987,6 +987,31 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   background: none; border: none; cursor: pointer;
   font-family: 'DM Sans', sans-serif; margin-top: 4px;
 }
+.photo-skip-btn:hover { color: var(--text); }
+
+/* ── Post-check-in sheet (redesigned: one celebration card, single action) ── */
+.checkin-sheet .checkin-celebrate { text-align: center; margin-bottom: 18px; }
+.checkin-celebrate-emoji { font-size: 38px; line-height: 1; margin-bottom: 8px; }
+.checkin-celebrate-title {
+  font-family: 'Cabinet Grotesk', sans-serif; font-size: 22px; font-weight: 800;
+  color: var(--ink); margin-bottom: 5px; letter-spacing: -.3px;
+}
+.checkin-celebrate-sub {
+  font-size: 13.5px; color: var(--muted); line-height: 1.45;
+  max-width: 300px; margin: 0 auto;
+}
+/* Tighter, less shouty upload tile in the new sheet */
+.checkin-sheet .photo-upload-area { padding: 18px 20px; margin-bottom: 12px; }
+.checkin-sheet .photo-upload-icon { margin-bottom: 6px; font-size: 26px; }
+.checkin-tag-head {
+  font-family: 'Cabinet Grotesk', sans-serif; font-size: 15px; font-weight: 700;
+  color: var(--ink); margin: 6px 0 12px;
+}
+.checkin-sheet .tag-friends-grid { margin-bottom: 16px; }
+/* Brand-coral primary action (was the off-palette teal "Share Photo") */
+.checkin-sheet .photo-submit-btn {
+  background: var(--coral, #FF6B4A); margin-top: 2px;
+}
 
 /* ══════════════════════════════════════════════
    BOTTOM NAV + LAYOUT ADJUSTMENTS

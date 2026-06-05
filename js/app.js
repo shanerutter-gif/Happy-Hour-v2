@@ -947,8 +947,10 @@ async function loadSocialFeed(opts = {}) {
     // Hydrate like + comment + saved + tagged-friends state for each item
     if (items.length) {
       const postIds = items.map(i => i.id).filter(Boolean);
+      // Photo AND text check-ins can carry friend tags (a tag-only check-in has
+      // no photo), so hydrate tags for both.
       const rawPhotoIds = items
-        .filter(i => i.type === 'photo' && i.post_id_raw)
+        .filter(i => (i.type === 'photo' || i.type === 'text') && i.post_id_raw)
         .map(i => i.post_id_raw);
       const [likesMap, commentCounts, savedSet, tagsByPost] = await Promise.all([
         fetchLikesBulk(postIds),
@@ -1040,15 +1042,18 @@ async function renderTrendingTab() {
       };
     }).filter(Boolean);
 
-    // Hydrate liked + saved state for the visible set
+    // Hydrate liked + saved + tagged-friends state for the visible set
     const ids = items.map(i => i.id);
-    const [likesMap, savedSet] = await Promise.all([
+    const rawIds = items.map(i => i.post_id_raw).filter(Boolean);
+    const [likesMap, savedSet, tagsByPost] = await Promise.all([
       fetchLikesBulk(ids),
       fetchMySavesBulk(ids),
+      rawIds.length ? fetchTagsForPosts(rawIds) : Promise.resolve({}),
     ]);
     items.forEach(i => {
       i._liked = currentUser ? (likesMap[i.id] || []).includes(currentUser.id) : false;
       i._saved = savedSet.has(i.id);
+      i.tagged_friends = (i.post_id_raw && tagsByPost[i.post_id_raw]) || [];
     });
 
     let html = `<div style="padding:10px 16px 4px;font-size:12px;color:var(--muted);font-weight:600">Top posts in the last 7 days</div>`;
@@ -6322,17 +6327,26 @@ function _fallbackToFileInput() {
   input.click();
 }
 
+// Post-check-in sheet. One clean celebration card with a SINGLE action that
+// commits everything together (photo + caption + tags). Everything is optional —
+// you can tag friends with or without a photo, and the button label adapts to
+// whatever you've added so there's never an orphaned "tagged but didn't show up"
+// state (the old two-button "Share Photo" / "Done" split dropped tags added
+// after the photo was shared).
 function openPhotoCheckinPrompt(venueId, venueName) {
   // Close modal first to avoid stacking overlays
   closeOverlay('modalOverlay');
 
   const overlay = document.createElement('div');
   overlay.className = 'overlay';
-  overlay.onclick = e => { if (e.target === overlay) { window._pendingCheckinPhoto = null; dismissOverlay(overlay); _tryPushPromptAfterCheckin(); } };
+  const bail = () => { window._pendingCheckinPhoto = null; window._stagedTagIds = new Set(); dismissOverlay(overlay); _tryPushPromptAfterCheckin(); };
+  overlay.onclick = e => { if (e.target === overlay) bail(); };
 
-  // Store for use after camera returns
+  // Store for use after camera returns. Reset any leftover state.
   window._checkinPhotoVenueId = venueId;
   window._checkinPhotoVenueName = venueName;
+  window._pendingCheckinPhoto = null;
+  window._stagedTagIds = new Set();
 
   // Build the file input separately so we can attach listener programmatically
   const fileInput = document.createElement('input');
@@ -6342,42 +6356,43 @@ function openPhotoCheckinPrompt(venueId, venueName) {
   fileInput.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;z-index:2';
 
   overlay.innerHTML = `
-    <div class="sheet">
+    <div class="sheet checkin-sheet">
       <div class="sheet-handle"></div>
-      <div>
-        <div class="photo-prompt-title">Add a photo? ${icn('camera',16)}</div>
-        <div class="photo-prompt-sub">Show others what's happening at ${esc(venueName)} right now.</div>
-
-        <div class="photo-upload-area" id="photoUploadArea" style="position:relative">
-          <div style="position:relative;z-index:1;pointer-events:none;text-align:center">
-            <div class="photo-upload-icon">${icn('camera',32)}</div>
-            <div class="photo-upload-hint">Tap to add a photo</div>
-          </div>
-        </div>
-
-        <div id="checkinPhotoPreview" style="display:none;position:relative;margin-bottom:12px">
-          <img id="checkinPreviewImg" src="" alt="Preview" style="width:100%;border-radius:12px;max-height:240px;object-fit:cover">
-          <button onclick="clearCheckinPhotoPreview()" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.5);color:#fff;border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:14px">✕</button>
-        </div>
-
-        <textarea class="photo-caption-field" id="photoCaptionField"
-          placeholder="Add a caption (optional)…" rows="2"></textarea>
-        <button class="photo-submit-btn" id="photoSubmitBtn" disabled
-          onclick="submitPhotoCheckin(window._checkinPhotoVenueId, window._checkinPhotoVenueName)">Share Photo</button>
-
-        <div class="s-div" style="margin:16px 0"></div>
-        <div class="tag-prompt-title">Who'd you go with?</div>
-        <div class="tag-prompt-sub">Tag a friend at ${esc(venueName)} and they'll see it in their feed.</div>
-        <div class="tag-friends-grid" id="tagFriendsGridInline">
-          <div style="color:var(--muted);font-size:13px">Loading friends…</div>
-        </div>
-        <button class="photo-skip-btn" onclick="dismissOverlay(this.closest('.overlay')); _tryPushPromptAfterCheckin()">Done</button>
+      <div class="checkin-celebrate">
+        <div class="checkin-celebrate-emoji">🎉</div>
+        <div class="checkin-celebrate-title">You're checked in!</div>
+        <div class="checkin-celebrate-sub">Add a photo or tag who you're with at ${esc(venueName)} — all optional.</div>
       </div>
+
+      <div class="photo-upload-area" id="photoUploadArea" style="position:relative">
+        <div style="position:relative;z-index:1;pointer-events:none;text-align:center">
+          <div class="photo-upload-icon">${icn('camera',26)}</div>
+          <div class="photo-upload-hint">Add a photo</div>
+        </div>
+      </div>
+
+      <div id="checkinPhotoPreview" style="display:none;position:relative;margin-bottom:12px">
+        <img id="checkinPreviewImg" src="" alt="Preview" style="width:100%;border-radius:12px;max-height:240px;object-fit:cover">
+        <button onclick="clearCheckinPhotoPreview()" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.5);color:#fff;border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:14px">✕</button>
+      </div>
+
+      <textarea class="photo-caption-field" id="photoCaptionField"
+        placeholder="Say something… (optional)" rows="2" oninput="_updateCheckinShareLabel()"></textarea>
+
+      <div class="checkin-tag-head">Who's with you?</div>
+      <div class="tag-friends-grid" id="tagFriendsGridInline">
+        <div style="color:var(--muted);font-size:13px">Loading friends…</div>
+      </div>
+
+      <button class="photo-submit-btn" id="checkinShareBtn"
+        onclick="submitCheckin(window._checkinPhotoVenueId, window._checkinPhotoVenueName)">Done</button>
+      <button class="photo-skip-btn" id="checkinSkipBtn">Maybe later</button>
     </div>`;
 
   // Insert file input into the upload area and attach listener AFTER DOM is ready
   const uploadArea = overlay.querySelector('#photoUploadArea');
   uploadArea.prepend(fileInput);
+  overlay.querySelector('#checkinSkipBtn').addEventListener('click', bail);
 
   // Use addEventListener — survives iOS camera suspend/resume better than onchange
   fileInput.addEventListener('change', function() {
@@ -6389,11 +6404,10 @@ function openPhotoCheckinPrompt(venueId, venueName) {
       const preview = document.getElementById('checkinPhotoPreview');
       const img = document.getElementById('checkinPreviewImg');
       const area = document.getElementById('photoUploadArea');
-      const btn = document.getElementById('photoSubmitBtn');
       if (img) img.src = e.target.result;
       if (preview) preview.style.display = 'block';
       if (area) area.style.display = 'none';
-      if (btn) btn.disabled = false;
+      _updateCheckinShareLabel();
     };
     reader.readAsDataURL(file);
   });
@@ -6402,20 +6416,33 @@ function openPhotoCheckinPrompt(venueId, venueName) {
   _loadTagFriendsInline(venueId, venueName);
 }
 
+// Keep the single share button's label honest about what tapping it will do,
+// so users never wonder whether their photo/tag "took".
+function _updateCheckinShareLabel() {
+  const btn = document.getElementById('checkinShareBtn');
+  if (!btn || btn.disabled) return;
+  const hasPhoto = !!window._pendingCheckinPhoto;
+  const caption  = document.getElementById('photoCaptionField')?.value.trim() || '';
+  const tagCount = window._stagedTagIds ? window._stagedTagIds.size : 0;
+  if (hasPhoto)              btn.textContent = tagCount ? `Share photo · ${tagCount} tagged` : 'Share photo';
+  else if (tagCount)         btn.textContent = `Tag ${tagCount} friend${tagCount > 1 ? 's' : ''}`;
+  else if (caption)          btn.textContent = 'Post check-in';
+  else                       btn.textContent = 'Done';
+}
+
 function clearCheckinPhotoPreview() {
   window._pendingCheckinPhoto = null;
   const preview = document.getElementById('checkinPhotoPreview');
   const area = document.getElementById('photoUploadArea');
-  const btn = document.getElementById('photoSubmitBtn');
   if (preview) preview.style.display = 'none';
   if (area) area.style.display = '';
-  if (btn) btn.disabled = true;
+  _updateCheckinShareLabel();
 }
 
 async function _loadTagFriendsInline(venueId, venueName) {
   if (!currentUser) return;
   // Reset the staged-tag set for this check-in session. Tags are committed
-  // in submitPhotoCheckin after the photo lands, not on chip tap.
+  // in submitCheckin when the post row exists, not on chip tap.
   window._stagedTagIds = new Set();
   try {
     const followingIds = await getFollowing(currentUser.id);
@@ -6450,7 +6477,7 @@ async function _loadTagFriendsInline(venueId, venueName) {
 }
 
 // Stages a friend as a tag (visual toggle only). Tag rows are written to
-// post_tags after the photo successfully uploads — see submitPhotoCheckin.
+// post_tags once the check-in post exists — see submitCheckin.
 function toggleStagedTag(userId, name, chip) {
   if (typeof haptic === 'function') haptic('light');
   if (!window._stagedTagIds) window._stagedTagIds = new Set();
@@ -6461,6 +6488,7 @@ function toggleStagedTag(userId, name, chip) {
     window._stagedTagIds.add(userId);
     chip.classList.add('tagged');
   }
+  _updateCheckinShareLabel();
 }
 
 // Web fallback handler (file input / drag-drop)
@@ -6490,66 +6518,80 @@ function clearPhotoPreview(venueId, venueName) {
   if (_isCapacitorNative() && area) area.style.display = '';
 }
 
-async function submitPhotoCheckin(venueId, venueName) {
-  const file    = window._pendingCheckinPhoto;
-  const caption = document.getElementById('photoCaptionField')?.value.trim() || '';
-  const btn     = document.getElementById('photoSubmitBtn');
-  if (!file) { showToast('Please select a photo first'); return; }
+// Single commit for the post-check-in sheet. Handles every combination:
+//   • photo (+ optional caption + tags)  → photo post
+//   • tags and/or caption, no photo       → lightweight text check-in post
+//     (so the tag has a row to reference — tags can't exist without a post)
+//   • nothing                             → just closes
+// Because there's only one button, tags are never stranded by sharing first.
+async function submitCheckin(venueId, venueName) {
   if (!currentUser) { openAuth('signin'); return; }
+  const file    = window._pendingCheckinPhoto || null;
+  const caption = document.getElementById('photoCaptionField')?.value.trim() || '';
+  const tagIds  = window._stagedTagIds ? [...window._stagedTagIds] : [];
+  const btn     = document.getElementById('checkinShareBtn');
+  const overlay = btn?.closest('.overlay');
 
-  btn.disabled = true;
-  btn.textContent = 'Uploading…';
-
-  try {
-    const uploaded = await uploadCheckinPhoto(file, currentUser.id);
-    if (!uploaded) {
-      btn.disabled = false; btn.textContent = 'Share Photo';
-      showToast('Upload failed — please try again'); return;
-    }
-
-    const saved = await saveCheckinPhoto({
-      userId: currentUser.id, venueId, citySlug: state.city?.slug || '',
-      photoUrl: uploaded.url, storagePath: uploaded.storagePath, caption
-    });
-
-    if (!saved) {
-      btn.disabled = false; btn.textContent = 'Share Photo';
-      showToast('Could not save photo — please try again'); return;
-    }
-
-    // Commit staged friend tags now that the photo row exists. RLS requires
-    // the post to belong to the caller, so this must run after saveCheckinPhoto.
-    const stagedIds = window._stagedTagIds ? [...window._stagedTagIds] : [];
-    let tagCount = 0;
-    if (stagedIds.length && saved.id) {
-      const inserted = await saveTagsForPost(saved.id, stagedIds);
-      tagCount = inserted.length;
-    }
-    window._stagedTagIds = new Set();
+  // Nothing added — close gracefully, no DB write.
+  if (!file && !caption && !tagIds.length) {
     window._pendingCheckinPhoto = null;
-
-    const sub = tagCount
-      ? `Posted at ${venueName || 'the spot'} · ${tagCount} friend${tagCount > 1 ? 's' : ''} tagged`
-      : `Posted at ${venueName || 'the spot'}`;
-    showPostSuccess({ title: 'Photo shared!', sub });
-  } catch(e) {
-    console.error('submitPhotoCheckin error:', e);
-    btn.disabled = false; btn.textContent = 'Share Photo';
-    showToast('Something went wrong — please try again');
+    window._stagedTagIds = new Set();
+    if (overlay) dismissOverlay(overlay);
+    _tryPushPromptAfterCheckin();
     return;
   }
 
-  // Refresh UGC photos in background
-  const ugcEl = document.getElementById(`ugc-photos-${venueId}`);
-  if (ugcEl) {
-    fetchCheckinPhotos(venueId).then(photos => {
-      ugcEl.innerHTML = renderCheckinPhotos(photos, venueId);
-    });
-  }
+  if (btn) { btn.disabled = true; btn.textContent = file ? 'Sharing…' : 'Posting…'; }
 
-  // Scroll to the tag friends section within the same modal
-  const tagSection = document.getElementById('tagFriendsGridInline');
-  if (tagSection) tagSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  try {
+    let post = null;
+    if (file) {
+      const uploaded = await uploadCheckinPhoto(file, currentUser.id);
+      if (!uploaded) throw new Error('upload failed');
+      post = await saveCheckinPhoto({
+        userId: currentUser.id, venueId, citySlug: state.city?.slug || '',
+        photoUrl: uploaded.url, storagePath: uploaded.storagePath, caption,
+      });
+    } else {
+      // No photo, but they tagged friends and/or wrote a caption — anchor it to
+      // a lightweight text check-in so the tag has a post_id to reference.
+      post = await saveCheckinPhoto({
+        userId: currentUser.id, venueId, citySlug: state.city?.slug || '',
+        caption: caption || `Checked in at ${venueName || 'a spot'}`,
+        postType: 'text',
+      });
+    }
+    if (!post || !post.id) throw new Error('save failed');
+
+    // Commit staged friend tags now that the post row exists. RLS requires the
+    // post to belong to the caller, so this must run after the insert above.
+    let tagCount = 0;
+    if (tagIds.length) {
+      const inserted = await saveTagsForPost(post.id, tagIds);
+      tagCount = inserted.length;
+    }
+    window._pendingCheckinPhoto = null;
+    window._stagedTagIds = new Set();
+
+    if (overlay) dismissOverlay(overlay);
+    const sub = tagCount
+      ? `with ${tagCount} friend${tagCount > 1 ? 's' : ''} at ${venueName || 'the spot'}`
+      : `at ${venueName || 'the spot'}`;
+    showPostSuccess({ title: file ? 'Photo shared! 🎉' : 'Checked in! 🎉', sub });
+
+    // Refresh the city feed + this venue's photo strip in the background so the
+    // new check-in (and any tags) show up next time the feed is opened.
+    if (typeof loadSocialFeed === 'function') loadSocialFeed({ force: true }).catch(() => {});
+    const ugcEl = document.getElementById(`ugc-photos-${venueId}`);
+    if (ugcEl && typeof fetchCheckinPhotos === 'function') {
+      fetchCheckinPhotos(venueId).then(photos => { ugcEl.innerHTML = renderCheckinPhotos(photos, venueId); });
+    }
+    _tryPushPromptAfterCheckin();
+  } catch(e) {
+    console.error('submitCheckin error:', e);
+    if (btn) { btn.disabled = false; _updateCheckinShareLabel(); }
+    showToast('Something went wrong — please try again');
+  }
 }
 
 async function doDeleteCheckinPhoto(photoId, storagePath, venueId, btn) {
