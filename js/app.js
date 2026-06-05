@@ -8040,11 +8040,11 @@ function _immersiveSlideHTML(item) {
       </button>
     </div>
     <div class="imv-info">
-      <div class="imv-info-user">
+      <div class="imv-info-user" style="cursor:pointer" onclick="event.stopPropagation();closeImmersiveViewer();openPublicProfile('${item.user_id}')">
         <div class="imv-info-avatar">${avatar}</div>
         <div class="imv-info-name">${esc(name)}${officialBadge(profile)}</div>
       </div>
-      ${venueName ? `<div class="imv-info-venue" onclick="closeImmersiveViewer();openModal('${item.venue_id}','venue')">📍 ${esc(venueName)}</div>` : ''}
+      ${venueName ? `<div class="imv-info-venue" onclick="event.stopPropagation();closeImmersiveViewer();openModal('${item.venue_id}','venue')">📍 ${esc(venueName)}</div>` : ''}
       ${caption ? `<div class="imv-info-caption">${esc(caption)}</div>` : ''}
     </div>`;
 }
