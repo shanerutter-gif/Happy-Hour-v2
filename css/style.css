@@ -3796,10 +3796,14 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   border-radius: 20px;
   box-shadow: 0 2px 12px rgba(42,31,20,0.06), 0 1px 3px rgba(42,31,20,0.04);
   backdrop-filter: blur(20px) saturate(1.4); -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
 }
 .pf-tabs-inner::-webkit-scrollbar { display: none; }
 .pf-tab {
-  flex: 1; padding: 9px 0;
+  /* grow to fill the bar when there's room (4-tab public profile), but never
+     shrink below the label width — when all 5 own-profile tabs don't fit, the
+     bar scrolls instead of cramming the text. */
+  flex: 1 0 auto; padding: 9px 16px;
   font-family: 'Cabinet Grotesk', sans-serif;
   font-size: 13px; font-weight: 700;
   color: var(--muted);
