@@ -1695,15 +1695,18 @@ async function fetchSocialFeed(citySlug, followingIds = [], limit = 60) {
     // and the activity_feed row. Prefer photo > going_tonight > check_in so the
     // user only ever sees one card.
     const keyOf = (i) => `${i.user_id}-${i.venue_id}-${i.created_at?.slice(0,10)}`;
-    const photoKeys = new Set(items.filter(i => i.type === 'photo').map(keyOf));
+    // A photo OR a venue-tagged text check-in (e.g. a tag-only check-in with no
+    // photo) both represent the same real-world check-in, so either should
+    // suppress the plain going_tonight / check_in duplicate row for that visit.
+    const postKeys  = new Set(items.filter(i => (i.type === 'photo' || i.type === 'text') && i.venue_id).map(keyOf));
     const goingKeys = new Set(items.filter(i => i.type === 'going_tonight').map(keyOf));
     const deduped = items.filter(i => {
       if (i.type === 'photo') return true;
       const k = keyOf(i);
-      // going_tonight loses to a photo of the same check-in
-      if (i.type === 'going_tonight') return !photoKeys.has(k);
-      // check_in (activity_feed) loses to either a photo or a going_tonight
-      if (i.type === 'check_in') return !photoKeys.has(k) && !goingKeys.has(k);
+      // going_tonight loses to a photo / text post of the same check-in
+      if (i.type === 'going_tonight') return !postKeys.has(k);
+      // check_in (activity_feed) loses to either a post or a going_tonight
+      if (i.type === 'check_in') return !postKeys.has(k) && !goingKeys.has(k);
       return true;
     });
 
