@@ -245,9 +245,9 @@ body.theme-transitioning{transition:background .35s ease,color .35s ease}
 .chip{background:var(--coral-dim);border:none;color:var(--teal);border-radius:50px;padding:5px 14px;font-size:12px;font-weight:600;white-space:nowrap;display:flex;align-items:center;gap:5px;cursor:pointer;flex-shrink:0;transition:background .15s,transform .15s,box-shadow .15s;box-shadow:var(--clay-sm)}
 .chip:active{transform:scale(.95);box-shadow:var(--clay-pressed)}
 .chip-x{opacity:.5}
-.filter-panel{overflow:hidden;max-height:0;transition:max-height .3s cubic-bezier(.4,0,.2,1)}
-.filter-panel.open{max-height:500px;overflow-y:auto}
-.fp-inner{padding:8px 16px 14px;display:flex;flex-direction:column;gap:10px}
+.filter-panel{display:grid;grid-template-rows:0fr;transition:grid-template-rows .28s cubic-bezier(.4,0,.2,1)}
+.filter-panel.open{grid-template-rows:1fr}
+.fp-inner{overflow:hidden;min-height:0;padding:8px 16px 14px;display:flex;flex-direction:column;gap:10px}
 .fp-header{display:flex;align-items:center;justify-content:space-between;padding-bottom:8px;border-bottom:1px solid var(--border)}
 .fp-title{font-family:'Cabinet Grotesk',sans-serif;font-size:15px;font-weight:800;color:var(--text)}
 .fp-header-right{display:flex;align-items:center;gap:8px}
