@@ -5669,7 +5669,38 @@ button:not([disabled]),
   font-weight: 600; font-size: 14px;
 }
 .cp-photo-pick:hover { background: rgba(255,107,74,.10); }
-.cp-photo-pick-icon { font-size: 18px; }
+.cp-photo-pick-icon { font-size: 22px; }
+.cp-photo-pick { padding: 18px 16px; }
+.cp-photo-pick--compact { padding: 12px 16px; }
+.cp-photo-pick-text { display: flex; flex-direction: column; gap: 2px; text-align: left; }
+.cp-photo-pick-title { font-weight: 700; font-size: 14px; }
+.cp-photo-pick-sub { font-weight: 500; font-size: 11.5px; color: rgba(42,31,20,.45); }
+
+/* Inviting "posting as" header */
+.cp-postingas { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.cp-postingas-avatar {
+  width: 40px; height: 40px; border-radius: 50%; overflow: hidden; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center; font-size: 20px;
+  background: var(--bg2, #EEE6DA);
+}
+.cp-postingas-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.cp-postingas-name { font-family: 'Cabinet Grotesk', sans-serif; font-weight: 800; font-size: 15px; color: var(--ink, #1A1208); }
+.cp-postingas-sub { font-size: 12px; color: rgba(42,31,20,.5); }
+.cp-body--big { min-height: 96px; font-size: 16px; }
+
+/* One-tap idea starters (blank state) */
+.cp-ideas { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
+.cp-idea {
+  background: rgba(255,107,74,.07); color: #FF6B4A;
+  border: 1px solid rgba(255,107,74,.22); border-radius: 999px;
+  padding: 7px 13px; font-family: 'DM Sans', sans-serif;
+  font-weight: 600; font-size: 12.5px; cursor: pointer;
+}
+.cp-idea:active { transform: scale(.96); }
+
+/* Tag-friends sheet */
+.cp-tagsheet-title { font-family: 'Cabinet Grotesk', sans-serif; font-size: 18px; font-weight: 800; color: var(--ink, #1A1208); padding: 0 2px; }
+.cp-tagsheet-sub { font-size: 13px; color: var(--muted, rgba(42,31,20,.5)); margin: 2px 0 14px; padding: 0 2px; }
 .cp-thumbs {
   display: flex; gap: 8px; overflow-x: auto; margin-top: 10px; padding-bottom: 4px;
   -webkit-overflow-scrolling: touch;

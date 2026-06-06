@@ -3645,6 +3645,29 @@ let _composerProfile = null;        // current user's profile (for is_official)
 let _composerVisibility = 'public'; // 'public' | 'friends'
 let _composerStory   = false;       // post as a 24h Story
 let _composerPhotos  = [];          // [{ file, src, rotation, filter, brightness, caption }]
+let _composerTags    = new Set();   // friend user_ids to tag → writes post_tags + notifies
+let _composerTagProfiles = {};      // id → profile, for the "N tagged" chip + sheet state
+let _composerPlaceholder = '';      // rotating inviting caption prompt (picked per open)
+
+// Rotating, inviting placeholders — lower the blank-page barrier and nudge
+// people to post about being out. One is picked at random each time the
+// composer opens.
+const COMPOSER_PLACEHOLDERS = [
+  "What's the move tonight? 🍻",
+  "What are you sipping? 🍸",
+  "Show this spot off ✨",
+  "Worth the hype? Tell us 👀",
+  "Who's out with you? 🎉",
+  "Set the scene… 🌆",
+  "Best bite or pour right now? 😋",
+];
+// One-tap idea starters (shown only on the blank state) that prefill the caption.
+const COMPOSER_IDEAS = [
+  '🍸 What I’m drinking',
+  '🌆 The vibe right now',
+  '🎶 Live music here',
+  '👀 Come through',
+];
 
 const COMPOSER_FILTERS = [
   { id: 'none',    label: 'None',    css: 'none' },
@@ -3674,6 +3697,9 @@ async function openComposer(opts = {}) {
   _composerVenue   = opts.venue || null;
   _composerVisibility = 'public';
   _composerStory   = !!opts.story;
+  _composerTags    = new Set();
+  _composerTagProfiles = {};
+  _composerPlaceholder = COMPOSER_PLACEHOLDERS[Math.floor(Math.random() * COMPOSER_PLACEHOLDERS.length)];
   renderComposer();
   openOverlay('composerOverlay');
   setTimeout(() => document.getElementById('cpBody')?.focus(), 150);
@@ -3685,6 +3711,8 @@ function closeComposer() {
   _composerPhotos.forEach(p => { if (p.src && p.src.startsWith('blob:')) URL.revokeObjectURL(p.src); });
   _composerPhotos = [];
   _composerStep = 'compose';
+  _composerTags = new Set();
+  _composerTagProfiles = {};
 }
 
 // ── Render router ────────────────────────────────────────────────
@@ -3718,13 +3746,17 @@ function _renderComposerCompose() {
           </button>`).join('')}
        </div>` : '';
 
+  const photosLeft = 5 - _composerPhotos.length;
   const photoSection = `
     <div class="cp-photo-block">
-      <label class="cp-photo-pick">
+      ${photosLeft > 0 ? `<label class="cp-photo-pick${_composerPhotos.length ? ' cp-photo-pick--compact' : ''}">
         <input type="file" accept="image/*" multiple onchange="_composerAddFiles(this.files)" style="display:none">
         <span class="cp-photo-pick-icon">📷</span>
-        <span>${_composerPhotos.length ? 'Add more photos' : 'Add photos (optional)'}</span>
-      </label>
+        <span class="cp-photo-pick-text">
+          <span class="cp-photo-pick-title">${_composerPhotos.length ? `Add more · ${photosLeft} left` : 'Add photos'}</span>
+          ${_composerPhotos.length ? '' : '<span class="cp-photo-pick-sub">Up to 5 — they post as a swipeable gallery</span>'}
+        </span>
+      </label>` : '<div class="cp-hint cp-hint--center">Max 5 photos added</div>'}
       ${thumbsHtml}
       ${_composerPhotos.length ? `<div class="cp-hint cp-hint--center">${_composerPhotos.length > 1 ? 'Drag to reorder · ' : ''}Tap a photo to apply filters, brightness, rotate</div>` : ''}
     </div>`;
@@ -3741,18 +3773,32 @@ function _renderComposerCompose() {
         </div>`).join('')}
     </div>` : '';
 
-  // Options row: venue / visibility / story (story only matters with a photo)
+  // Options row: venue / tag friends / visibility / story
   const venueBtn = _composerVenue
     ? `<button class="cp-opt cp-opt--set" onclick="_composerClearVenue()">📍 ${esc(_composerVenue.name)}</button>`
     : `<button class="cp-opt" onclick="_composerPickVenue()">📍 Tag a venue</button>`;
+  const tagCount = _composerTags.size;
+  const tagBtn = `<button class="cp-opt${tagCount ? ' cp-opt--set' : ''}" onclick="_composerOpenTagSheet()">👥 ${tagCount ? `${tagCount} tagged` : 'Tag friends'}</button>`;
   const visBtn = `
     <button class="cp-opt${_composerVisibility === 'friends' ? ' cp-opt--set' : ''}" onclick="_composerToggleVisibility()">
       ${_composerVisibility === 'friends' ? '👥 Friends only' : '🌍 Public'}
     </button>`;
-  const storyBtn = (_composerPhotos.length || _composerStory) ? `
+  // Story is always selectable now (so you can choose to post just a Story);
+  // it needs a photo, which submit enforces with a friendly nudge.
+  const storyBtn = `
     <button class="cp-opt${_composerStory ? ' cp-opt--set' : ''}" onclick="_composerToggleStory()">
-      ${_composerStory ? '✨ Story · 24h' : '✨ Make a Story'}
-    </button>` : '';
+      ${_composerStory ? '✨ Story · 24h' : '✨ Story'}
+    </button>`;
+
+  // Inviting header: who's posting + where. Idea chips on the blank state.
+  const prof = _composerProfile || {};
+  const cityName = state.city?.name || '';
+  const ideasHtml = (!_composerPhotos.length) ? `
+    <div class="cp-ideas">
+      ${COMPOSER_IDEAS.map(t => `<button type="button" class="cp-idea" onclick="_composerPrompt('${esc(t.replace(/^[^ ]+ /, ''))}')">${t}</button>`).join('')}
+    </div>` : '';
+
+  const postLabel = _composerStory ? 'Share Story' : (_composerPhotos.length ? 'Share' : 'Post');
 
   document.getElementById('composerContent').innerHTML = `
     <div class="cp cp--full">
@@ -3763,25 +3809,94 @@ function _renderComposerCompose() {
       </header>
 
       <div class="cp-scroll">
-        <textarea class="cp-body" id="cpBody" placeholder="What's the move? Share a thought, a photo, or both…" maxlength="500"
+        <div class="cp-postingas">
+          <div class="cp-postingas-avatar">${initialsAvatar(prof.display_name || 'You', '', prof.avatar_emoji, prof.avatar_url)}</div>
+          <div class="cp-postingas-text">
+            <div class="cp-postingas-name">${esc(prof.display_name || 'You')}</div>
+            <div class="cp-postingas-sub">${cityName ? `Posting to ${esc(cityName)}` : 'Sharing to your feed'}</div>
+          </div>
+        </div>
+
+        <textarea class="cp-body cp-body--big" id="cpBody" placeholder="${esc(_composerPlaceholder)}" maxlength="500"
                   oninput="_composerHandleBodyInput(this)"></textarea>
         <div id="cpMentions" class="cp-mentions" style="display:none"></div>
+        ${ideasHtml}
         ${photoSection}
         ${perPhotoCaptions}
 
         <div class="cp-options-row">
           ${venueBtn}
+          ${tagBtn}
           ${visBtn}
           ${storyBtn}
         </div>
 
-        <p class="cp-hint">Type @ to tag a friend. Add a venue to link it to a spot, or photos for a gallery.</p>
+        <p class="cp-hint">Tag the spot, tag your friends, drop a few photos — show everyone the good time. 🍻</p>
       </div>
 
       <div class="cp-post-bar">
-        <button class="cp-post-cta" id="cpSubmit" onclick="submitComposer()">Post</button>
+        <button class="cp-post-cta" id="cpSubmit" onclick="submitComposer()">${postLabel}</button>
       </div>
     </div>`;
+}
+
+// One-tap idea starter: prefill the empty caption and focus.
+function _composerPrompt(text) {
+  const ta = document.getElementById('cpBody');
+  if (!ta) return;
+  if (!ta.value.trim()) ta.value = text + ' ';
+  ta.focus();
+  const end = ta.value.length; ta.setSelectionRange(end, end);
+}
+
+// ── Tag friends (real post_tags) ─────────────────────────────────
+async function _composerOpenTagSheet() {
+  if (!currentUser) { openAuth('signin'); return; }
+  if (typeof haptic === 'function') haptic('light');
+  const overlay = document.createElement('div');
+  overlay.className = 'overlay';
+  overlay.style.zIndex = 10000;
+  const close = () => { overlay.classList.remove('open'); setTimeout(() => overlay.remove(), 200); renderComposer(); };
+  overlay.onclick = e => { if (e.target === overlay) close(); };
+  overlay.innerHTML = `
+    <div class="sheet" style="max-height:72vh;display:flex;flex-direction:column">
+      <div class="sheet-handle"></div>
+      <div class="cp-tagsheet-title">Tag friends</div>
+      <div class="cp-tagsheet-sub">They'll see it in their feed and get a notification.</div>
+      <div class="tag-friends-grid" id="cpTagGrid" style="overflow-y:auto;flex:1;align-content:flex-start">
+        <div style="color:var(--muted);font-size:13px">Loading friends…</div>
+      </div>
+      <button class="cp-post-cta" id="cpTagDone" style="margin-top:10px">Done</button>
+    </div>`;
+  document.body.appendChild(overlay);
+  requestAnimationFrame(() => requestAnimationFrame(() => overlay.classList.add('open')));
+  overlay.querySelector('#cpTagDone').addEventListener('click', close);
+  try {
+    const followingIds = await getFollowing(currentUser.id);
+    const grid = document.getElementById('cpTagGrid');
+    if (!grid) return;
+    const ids = (followingIds || []).filter(id => id && id !== currentUser.id);
+    if (!ids.length) { grid.innerHTML = `<div style="color:var(--muted);font-size:13px">Follow people to tag them here.</div>`; return; }
+    const { data: profiles } = await db.from('profiles')
+      .select('id, display_name, avatar_emoji, avatar_url, username')
+      .in('id', ids).not('display_name', 'is', null).limit(40);
+    const listP = (profiles || []).filter(p => p.id !== currentUser.id);
+    listP.forEach(p => { _composerTagProfiles[p.id] = p; });
+    if (!listP.length) { grid.innerHTML = `<div style="color:var(--muted);font-size:13px">No friends to tag yet.</div>`; return; }
+    grid.innerHTML = listP.map(p => `
+      <button class="tag-friend-chip${_composerTags.has(p.id) ? ' tagged' : ''}" type="button" onclick="_composerToggleTag('${p.id}',this)">
+        <span class="tag-friend-chip-avatar">${initialsAvatar(p.display_name || 'Friend', '', p.avatar_emoji, p.avatar_url)}</span>
+        <span class="tag-friend-chip-name">${esc(p.display_name || 'Friend')}</span>
+      </button>`).join('');
+  } catch (e) {
+    const grid = document.getElementById('cpTagGrid');
+    if (grid) grid.innerHTML = `<div style="color:var(--muted);font-size:13px">Couldn't load friends right now.</div>`;
+  }
+}
+function _composerToggleTag(id, el) {
+  if (typeof haptic === 'function') haptic('light');
+  if (_composerTags.has(id)) { _composerTags.delete(id); el.classList.remove('tagged'); }
+  else { _composerTags.add(id); el.classList.add('tagged'); }
 }
 
 // ── Step: edit (canvas-based per-photo editor) ──────────────────
@@ -4077,7 +4192,7 @@ async function submitComposer() {
       }
       if (!uploaded.length) throw new Error('upload failed');
       btn.textContent = 'Posting…';
-      await saveCheckinPhoto({
+      const saved = await saveCheckinPhoto({
         userId:        currentUser.id,
         venueId:       _composerVenue?.id || null,
         citySlug:      state.city?.slug || 'san-diego',
@@ -4090,14 +4205,17 @@ async function submitComposer() {
         visibility:    _composerVisibility,
         expiresAt:     _composerStory ? new Date(Date.now() + 24*3600*1000).toISOString() : null,
       });
+      if (!saved) throw new Error('save failed');
+      if (saved.id && _composerTags.size) await saveTagsForPost(saved.id, [..._composerTags]);
     } else {
-      const ok = await saveTextPost({
+      const saved = await saveTextPost({
         text:       body,
         venueId:    _composerVenue?.id,
         citySlug:   state.city?.slug,
         visibility: _composerVisibility,
       });
-      if (!ok) throw new Error('save failed');
+      if (!saved) throw new Error('save failed');
+      if (saved.id && _composerTags.size) await saveTagsForPost(saved.id, [..._composerTags]);
     }
     closeComposer();
     if (typeof loadSocialFeed === 'function') loadSocialFeed({ force: true });
