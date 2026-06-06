@@ -2326,6 +2326,11 @@ function _renderCardsNow() {
 
   let html = '';
   let delay = 0;
+  // Cards beyond the first screenful shouldn't sit invisible for >400ms
+  // while their stagger animation plays. Cities with 20+ heroes / 100+
+  // standard cards previously accumulated delays of 1–2s for off-screen
+  // cards, making them appear to "pop in" late when the user scrolled.
+  const DELAY_CAP = 400;
 
   if (isTwoPane()) {
     // ── Desktop two-pane: uniform horizontal list ──
@@ -2335,7 +2340,7 @@ function _renderCardsNow() {
     // sort order (heroes included), so nothing is dropped.
     venues.forEach(v => {
       html += standardCardHTML(v, delay);
-      delay += 25;
+      delay = Math.min(delay + 25, DELAY_CAP);
     });
   } else {
     // ── Hero cards ──
@@ -2347,7 +2352,7 @@ function _renderCardsNow() {
       html += `<div class="card-hero-row">`;
       heroes.forEach((v, i) => {
         html += heroCardHTML(v, delay, i);
-        delay += 80;
+        delay = Math.min(delay + 80, DELAY_CAP);
       });
       html += `</div>`;
     }
@@ -2358,10 +2363,10 @@ function _renderCardsNow() {
       for (let i = 0; i < compactVenues.length; i += 2) {
         html += `<div class="card-compact-row">`;
         html += compactCardHTML(compactVenues[i], delay);
-        delay += 60;
+        delay = Math.min(delay + 60, DELAY_CAP);
         if (compactVenues[i + 1]) {
           html += compactCardHTML(compactVenues[i + 1], delay);
-          delay += 60;
+          delay = Math.min(delay + 60, DELAY_CAP);
         }
         html += `</div>`;
       }
@@ -2376,7 +2381,7 @@ function _renderCardsNow() {
       html += `<div class="card-std-row">`;
       standardVenues.forEach(v => {
         html += standardCardHTML(v, delay);
-        delay += 40;
+        delay = Math.min(delay + 40, DELAY_CAP);
       });
       html += `</div>`;
     }
@@ -2458,7 +2463,7 @@ function heroCardHTML(v, delay, idx = 0) {
 
   return `<div class="card-hero" data-id="${v.id}"
     onclick="openModal('${v.id}','venue')" style="animation-delay:${delay}ms">
-    <img class="card-hero-img" src="${photoUrl}" alt="${esc(v.name)}" loading="${idx === 0 ? 'eager' : 'lazy'}" decoding="async"
+    <img class="card-hero-img" src="${photoUrl}" alt="${esc(v.name)}" loading="${idx === 0 ? 'eager' : 'lazy'}" decoding="async"${idx === 0 ? ' fetchpriority="high"' : ''}
       onerror="this.closest('.card-hero').style.background='linear-gradient(135deg,#2A1F14,#1A1208)';this.remove()">
     <div class="card-hero-overlay"></div>
     <button class="card-hero-fav${faved ? ' faved' : ''}"
@@ -6641,6 +6646,7 @@ function skipToTagFriends(venueId) {
 
 // ── YOUR NEWS (ARTICLE FEED) ──────────────────────────
 const NEWS_ARTICLES = [
+  { city: 'san-diego', img: 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=800&q=80', tag: 'Neighborhood Guide', author: 'Marcus', title: 'Best Happy Hours in the Gaslamp Quarter, San Diego (2026)', excerpt: 'Half off everything at barleymash, rooftop cocktails at Rustic Root, $9 Social Hour at Fleming\'s, late-night bites at Lionfish — the Gaslamp Quarter happy hour guide, verified for 2026.', url: '/blog/best-happy-hours-gaslamp-quarter-san-diego.html', date: 'June 6, 2026', readTime: '9 min' },
   { city: 'orange-county', img: 'https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800&q=80', tag: 'Neighborhood Guide', author: 'Leah', title: 'Best Happy Hours in Laguna Beach (2026)', excerpt: 'Oceanfront fire pit at The Cliff, legendary margaritas at Coyote Grill, rooftop views at Mozambique — every verified Laguna Beach happy hour worth your time.', url: '/blog/best-happy-hours-laguna-beach.html', date: 'June 5, 2026', readTime: '8 min' },
   { city: 'san-diego', img: 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=800&q=80', tag: 'Neighborhood Guide', author: 'Maya', title: 'Best Happy Hours in Hillcrest San Diego (2026)', excerpt: 'Craft beer from the world\'s first gay brewery, extended Papi Hour margaritas at Baja Betty\'s, wood-fired oysters at Fort Oak — every Hillcrest deal, verified for 2026.', url: '/blog/best-happy-hours-hillcrest-san-diego.html', date: 'June 4, 2026', readTime: '8 min' },
   { city: 'orange-county', img: 'https://images.unsplash.com/photo-1499678329028-101435549a4e?w=800&q=80', tag: 'Neighborhood Guide', author: 'Carlos', title: 'Best Happy Hours in Newport Beach (2026)', excerpt: 'Half-off whiskey at Bosscat, French apéro at Zinqué, $4 harbor-view pints at Woody\'s Wharf — the Newport Beach happy hour guide, verified for 2026.', url: '/blog/best-happy-hours-newport-beach.html', date: 'June 3, 2026', readTime: '8 min' },
