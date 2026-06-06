@@ -416,7 +416,15 @@ async function setDigestPreference(userId, enabled) {
 // ── VENUES & EVENTS (from Supabase) ───────────────────
 async function fetchVenues(citySlug) {
   const { data } = await db.from('venues')
-    .select('*')
+    .select([
+      'id', 'city_slug', 'name', 'neighborhood', 'address', 'lat', 'lng',
+      'hours', 'hours_start', 'hours_end', 'days', 'cuisine', 'deals',
+      'promo_code', 'promo_description', 'photo_url', 'photo_urls',
+      'phone', 'url', 'google_rating', 'yelp_rating',
+      'owner_verified', 'is_official', 'active', 'featured', 'is_hero',
+      'has_happy_hour', 'has_live_music', 'has_trivia', 'has_karaoke',
+      'has_sports_tv', 'is_dog_friendly', 'has_bingo', 'has_comedy',
+    ].join(', '))
     .eq('city_slug', citySlug)
     .eq('active', true)
     .order('name');
@@ -424,7 +432,11 @@ async function fetchVenues(citySlug) {
 }
 async function fetchEvents(citySlug) {
   const { data } = await db.from('events')
-    .select('*')
+    .select([
+      'id', 'city_slug', 'name', 'venue_name', 'neighborhood', 'address',
+      'lat', 'lng', 'hours', 'days', 'deals', 'event_type',
+      'photo_url', 'photo_urls', 'active', 'featured',
+    ].join(', '))
     .eq('city_slug', citySlug)
     .eq('active', true)
     .order('name');
