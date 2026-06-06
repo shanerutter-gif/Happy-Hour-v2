@@ -415,13 +415,18 @@ async function setDigestPreference(userId, enabled) {
 
 // ── VENUES & EVENTS (from Supabase) ───────────────────
 async function fetchVenues(citySlug) {
+  // NOTE: every column here MUST exist in the `venues` table. PostgREST rejects
+  // the WHOLE query (400) if any named column is missing, which silently zeroes
+  // out the venue list. `hours_start`/`hours_end`/`is_official` are NOT real
+  // venue columns (they're documented in CLAUDE.md but never existed in the DB),
+  // so they must not be selected.
   const { data } = await db.from('venues')
     .select([
       'id', 'city_slug', 'name', 'neighborhood', 'address', 'lat', 'lng',
-      'hours', 'hours_start', 'hours_end', 'days', 'cuisine', 'deals',
+      'hours', 'days', 'cuisine', 'deals',
       'promo_code', 'promo_description', 'photo_url', 'photo_urls',
       'phone', 'url', 'google_rating', 'yelp_rating',
-      'owner_verified', 'is_official', 'active', 'featured', 'is_hero',
+      'owner_verified', 'active', 'featured', 'is_hero',
       'has_happy_hour', 'has_live_music', 'has_trivia', 'has_karaoke',
       'has_sports_tv', 'is_dog_friendly', 'has_bingo', 'has_comedy',
     ].join(', '))
@@ -431,11 +436,12 @@ async function fetchVenues(citySlug) {
   return data || [];
 }
 async function fetchEvents(citySlug) {
+  // Same rule as fetchVenues — `deals`/`photo_url`/`photo_urls` do NOT exist on
+  // the `events` table, so selecting them 400s the query and drops all events.
   const { data } = await db.from('events')
     .select([
       'id', 'city_slug', 'name', 'venue_name', 'neighborhood', 'address',
-      'lat', 'lng', 'hours', 'days', 'deals', 'event_type',
-      'photo_url', 'photo_urls', 'active', 'featured',
+      'lat', 'lng', 'hours', 'days', 'event_type', 'url', 'active', 'featured',
     ].join(', '))
     .eq('city_slug', citySlug)
     .eq('active', true)
