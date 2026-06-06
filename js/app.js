@@ -1214,7 +1214,10 @@ function _renderTaggedFriendsPill(tagged) {
 
 function renderSocialItem(item, variant) {
   const venue = item.venue_id ? _getVenueLookup().get(String(item.venue_id)) : null;
-  const venueName = venue?.name || item.venue_name || 'a spot';
+  // No "a spot" fallback — a post with no linked venue (e.g. a plain status)
+  // should show its caption as the lead, not a fake venue headline.
+  const venueName = venue?.name || item.venue_name || '';
+  const hasVenue = !!venueName;
   const neighborhood = venue?.neighborhood || item.neighborhood || '';
   const profile = item.profile || {};
   const displayName = profile.display_name || 'Someone';
@@ -1323,7 +1326,7 @@ function renderSocialItem(item, variant) {
         <div class="sf-hero-avatar">${avatarHtml}</div>
         <span class="sf-hero-name">${esc(displayName)}${officialBadge(item.profile)}</span>
       </div>
-      <div class="sf-hero-venue" ${venueClick}>${esc(venueName)}</div>
+      ${hasVenue ? `<div class="sf-hero-venue" ${venueClick}>${esc(venueName)}</div>` : ''}
       <div class="sf-hero-meta">${neighborhood ? `<span>${esc(neighborhood)}</span><span class="sf-dot"></span>` : ''}<span>${timeAgo}</span></div>
       ${caption ? `<div class="sf-hero-caption">${esc(caption)}</div>` : ''}
       ${taggedHtml}
@@ -1382,9 +1385,9 @@ function renderSocialItem(item, variant) {
         <span class="sf-compact-name">${esc(displayName)}${officialBadge(item.profile)}</span>
       </div>
       <div class="sf-compact-body">
-        <div class="sf-compact-venue sf-venue-link" ${venueClick}>${esc(venueName)}</div>
+        ${hasVenue ? `<div class="sf-compact-venue sf-venue-link" ${venueClick}>${esc(venueName)}</div>` : ''}
         ${ratingHtml ? `<div class="sf-compact-rating">${ratingHtml}</div>` : ''}
-        ${caption ? `<div class="sf-compact-caption">${esc(caption)}</div>` : ''}
+        ${caption ? `<div class="sf-compact-caption${hasVenue ? '' : ' sf-compact-caption--lead'}">${esc(caption)}</div>` : ''}
         ${taggedHtml}
         <div class="sf-compact-meta">${esc(neighborhood || timeAgo)}</div>
       </div>
@@ -1408,13 +1411,13 @@ function renderSocialItem(item, variant) {
       <span class="sf-wide-hname">${esc(displayName)}${officialBadge(item.profile)}</span>
     </div>
     <div class="sf-wide-body">
-      <div class="sf-wide-headline">
+      ${hasVenue ? `<div class="sf-wide-headline">
         <span class="sf-wide-name" ${profileClick}>${esc(displayName)}</span>
         <span class="sf-wide-verb">${actionVerb}</span>
         <span class="sf-wide-venue sf-venue-link" ${venueClick}>${esc(venueName)}</span>${actionSuffix}
-      </div>
+      </div>` : ''}
       ${ratingHtml ? `<div class="sf-wide-rating">${ratingHtml}</div>` : ''}
-      ${caption ? `<div class="sf-wide-caption">"${esc(caption)}"</div>` : ''}
+      ${caption ? `<div class="sf-wide-caption">${hasVenue ? '“' + esc(caption) + '”' : esc(caption)}</div>` : ''}
       ${taggedHtml}
       <div class="sf-wide-meta">${neighborhood ? `${esc(neighborhood)} · ` : ''}${timeAgo}</div>
     </div>
