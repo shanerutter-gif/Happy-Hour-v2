@@ -1558,6 +1558,18 @@ function observeFeedVideos() {
   });
 }
 
+// Light up the active dot as the modal hero photo carousel scrolls. Wired
+// inline via onscroll on .modal-hero-track (the modal is re-rendered each open,
+// so an inline handler is simpler than a post-render wiring pass).
+function _syncModalDots(track) {
+  const wrap = track.closest('.modal-hero-carousel');
+  if (!wrap) return;
+  const dots = wrap.querySelectorAll('.modal-hero-dot');
+  if (!dots.length) return;
+  const i = Math.round(track.scrollLeft / track.clientWidth);
+  dots.forEach((d, j) => d.classList.toggle('on', j === i));
+}
+
 async function doToggleLike(postId, postType, btn) {
   if (!currentUser) { openAuth('signin'); return; }
   if(typeof haptic==='function')haptic('light');
@@ -2683,12 +2695,17 @@ function renderModal(v, type, reviews) {
 
   document.getElementById('modalContent').innerHTML = `
     ${photo ? `
-    <div class="modal-hero-wrap" onclick="openPhotoLightbox('${esc(photo)}','${esc(v.name)}')">
-      <img src="${esc(photo)}" alt="${esc(v.name)}" loading="lazy" decoding="async" onerror="this.closest('.modal-hero-wrap').style.background='linear-gradient(135deg,#2A1F14,#1A1208)';this.remove()">
+    <div class="modal-hero-wrap${photos.length > 1 ? ' modal-hero-carousel' : ''}"${photos.length > 1 ? '' : ` onclick="openPhotoLightbox('${esc(photo)}','${esc(v.name)}')"`}>
+      ${photos.length > 1
+        ? `<div class="modal-hero-track" onscroll="_syncModalDots(this)">
+            ${photos.map(p => `<div class="modal-hero-slide" onclick="openPhotoLightbox('${esc(p)}','${esc(v.name)}')"><img src="${esc(p)}" alt="${esc(v.name)}" loading="lazy" decoding="async" onerror="this.style.display='none'"></div>`).join('')}
+          </div>`
+        : `<img src="${esc(photo)}" alt="${esc(v.name)}" loading="lazy" decoding="async" onerror="this.closest('.modal-hero-wrap').style.background='linear-gradient(135deg,#2A1F14,#1A1208)';this.remove()">`}
       <div class="modal-hero-grad"></div>
       ${!isVenue ? `<div class="modal-hero-tag">${esc(v.event_type || 'Event')}</div>` : ''}
       <div class="modal-hero-name">${esc(v.name)}${v.owner_verified ? ' ✓' : ''}</div>
-      <button class="modal-hero-fav${faved ? ' faved' : ''}" onclick="doFavorite('${v.id}','${type}',this)">${faved ? '★' : '☆'}</button>
+      <button class="modal-hero-fav${faved ? ' faved' : ''}" onclick="event.stopPropagation();doFavorite('${v.id}','${type}',this)">${faved ? '★' : '☆'}</button>
+      ${photos.length > 1 ? `<div class="modal-hero-dots">${photos.map((_, i) => `<span class="modal-hero-dot${i === 0 ? ' on' : ''}"></span>`).join('')}</div>` : ''}
     </div>` : `
     <div style="padding:16px 18px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
       <div>

@@ -3233,6 +3233,28 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 .modal-hero-fav:active { transform: scale(1.25); }
 .modal-hero-fav.faved { color: var(--teal); background: rgba(255,107,74,0.25); }
 
+/* Swipeable photo gallery in the venue modal hero (when photo_urls has 2+). */
+.modal-hero-track {
+  display: flex; height: 100%; width: 100%;
+  overflow-x: auto; scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch; scrollbar-width: none;
+}
+.modal-hero-track::-webkit-scrollbar { display: none; }
+.modal-hero-slide { flex: 0 0 100%; height: 100%; scroll-snap-align: start; }
+.modal-hero-slide img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.modal-hero-dots {
+  position: absolute; top: 14px; left: 0; right: 0;
+  display: flex; justify-content: center; gap: 5px;
+  z-index: 2; pointer-events: none;
+}
+.modal-hero-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: rgba(255,255,255,0.5);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  transition: transform .2s, background .2s;
+}
+.modal-hero-dot.on { background: #fff; transform: scale(1.35); }
+
 /* Meta row below hero photo */
 .modal-hero-meta-row {
   display: flex; align-items: center; gap: 6px;
