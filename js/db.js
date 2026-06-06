@@ -1643,8 +1643,13 @@ async function fetchSocialFeed(citySlug, followingIds = [], limit = 60) {
       (profiles || []).forEach(p => { pMap[p.id] = p; });
     }
 
-    // Fetch venue names for going-tonight (not denormalized there)
-    const venueIds = [...new Set(going.map(r => r.venue_id).filter(Boolean))];
+    // Fetch venue names for posts + going-tonight. checkin_photos/check_ins
+    // don't denormalize the venue name, so without this a post whose venue isn't
+    // in the currently-loaded city renders as "a spot" in the feed.
+    const venueIds = [...new Set([
+      ...going.map(r => r.venue_id),
+      ...photos.map(r => r.venue_id),
+    ].filter(Boolean))];
     const vMap = {};
     if (venueIds.length) {
       const { data: venues } = await db.from('venues')
@@ -1684,8 +1689,8 @@ async function fetchSocialFeed(citySlug, followingIds = [], limit = 60) {
         pinned_until:   r.pinned_until || null,
         edited:         !!r.edited,
         visibility:     r.visibility || 'public',
-        venue_name:     null,
-        neighborhood:   null,
+        venue_name:     vMap[r.venue_id]?.name || null,
+        neighborhood:   vMap[r.venue_id]?.neighborhood || null,
         created_at:     r.created_at,
         profile:        pMap[r.user_id] || null,
         isFollowing:    followSet.has(r.user_id),
