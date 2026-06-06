@@ -5544,6 +5544,9 @@ function refreshCheckInCounters() {
 
 // ── PUBLIC PROFILE ──────────────────────────────────────
 async function openPublicProfile(userId) {
+  // If we're navigating out of the full-screen photo viewer (e.g. a tagged-name
+  // tap), close it first so the profile isn't hidden behind it (z-index:10000).
+  if (document.getElementById('immersiveViewer')?.classList.contains('imv--open')) closeImmersiveViewer();
   if (userId === currentUser?.id) { openProfile(); return; }
   document.getElementById('pubProfileContent').innerHTML = `<div style="text-align:center;padding:40px;color:var(--muted)">Loading…</div>`;
   document.getElementById('pubProfileTitle').textContent = 'Profile';
@@ -8073,6 +8076,7 @@ function _immersiveSlideHTML(item) {
       </div>
       ${venueName ? `<div class="imv-info-venue" onclick="event.stopPropagation();closeImmersiveViewer();openModal('${item.venue_id}','venue')">📍 ${esc(venueName)}</div>` : ''}
       ${caption ? `<div class="imv-info-caption">${esc(caption)}</div>` : ''}
+      ${_renderTaggedFriendsPill(item.tagged_friends)}
     </div>`;
 }
 

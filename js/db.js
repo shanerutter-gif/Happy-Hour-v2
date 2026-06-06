@@ -878,12 +878,22 @@ async function saveTagsForPost(postId, friendIds) {
   const ids = [...new Set(friendIds)].filter(id => id && id !== currentUser.id);
   if (!ids.length) return [];
   try {
+    // post_tags RLS requires tagged_by = auth.uid() AND the post to belong to the
+    // caller, so the INSERT must run as the authenticated user — the bare anon
+    // `db` client has no JWT (auth.uid() is null) and every insert silently fails
+    // the WITH CHECK policy. Build a token-carrying client like saveCheckinPhoto.
+    const session = getSession();
+    const client  = session?.access_token
+      ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+          global: { headers: { Authorization: `Bearer ${session.access_token}` } }
+        })
+      : db;
     const rows = ids.map(id => ({
       post_id:        postId,
       tagged_user_id: id,
       tagged_by:      currentUser.id,
     }));
-    const { data, error } = await db.from('post_tags').insert(rows).select('id, tagged_user_id');
+    const { data, error } = await client.from('post_tags').insert(rows).select('id, tagged_user_id');
     if (error) { console.warn('saveTagsForPost error', error); return []; }
     track('post_tagged', { post_id: postId, count: ids.length });
     return data || [];

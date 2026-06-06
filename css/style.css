@@ -857,9 +857,12 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 .sf-tagged-name:hover { text-decoration: underline; }
 .sf-tagged-more { opacity: .7; font-size: 12px; }
 
-/* On hero card the caption sits on a dark scrim, so brighten the row */
-.sf-hero-info .sf-tagged-row { color: rgba(255,255,255,.85); }
-.sf-hero-info .sf-tagged-name { color: #FFD6CC; }
+/* On hero card / immersive viewer the caption sits on a dark scrim, brighten it */
+.sf-hero-info .sf-tagged-row,
+.imv-info .sf-tagged-row { color: rgba(255,255,255,.85); }
+.sf-hero-info .sf-tagged-name,
+.imv-info .sf-tagged-name { color: #FFD6CC; }
+.imv-info .sf-tagged-row { margin-top: 6px; }
 
 /* ── Tagged photos grid on profile ── */
 .pf-tagged-grid {
