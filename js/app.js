@@ -3687,34 +3687,18 @@ function closeComposer() {
   _composerStep = 'compose';
 }
 
-function _composerSwitchType(t) {
-  _composerType = t;
-  if (t !== 'photo') _composerStep = 'compose';
-  renderComposer();
-  setTimeout(() => document.getElementById('cpBody')?.focus(), 50);
-}
-
 // ── Render router ────────────────────────────────────────────────
 function renderComposer() {
-  if (_composerType === 'photo' && _composerStep === 'edit') return _renderComposerEdit();
+  if (_composerStep === 'edit') return _renderComposerEdit();
   return _renderComposerCompose();
 }
 
 // ── Step: compose ────────────────────────────────────────────────
+// One unified composer: the user writes a caption and/or adds photos and we
+// infer the post type at submit (photos → photo post, text only → status).
+// No mode tabs, no Editorial — that was decision overload.
 function _renderComposerCompose() {
-  const isOfficial = !!(_composerProfile && _composerProfile.is_official);
-  const tabs = [
-    { id: 'text',     label: 'Status' },
-    { id: 'photo',    label: 'Photo' },
-  ];
-  if (isOfficial) tabs.push({ id: 'editorial', label: 'Editorial' });
-  const tabsHtml = tabs.map(t =>
-    `<button class="cp-type-tab${_composerType === t.id ? ' on' : ''}" onclick="_composerSwitchType('${t.id}')">${t.label}</button>`
-  ).join('');
-
   // Per-photo thumbnails — the whole tile is tappable to open the editor.
-  // Drag-to-reorder still works; X removes; the edit affordance is the
-  // tile itself + a visible "Edit" caption overlay.
   const editedBadge = (p) => (p.filter !== 'none' || p.brightness !== 1 || p.rotation)
     ? '<span class="cp-thumb-edited">edited</span>' : '';
   const thumbsHtml = _composerPhotos.length
@@ -3734,19 +3718,19 @@ function _renderComposerCompose() {
           </button>`).join('')}
        </div>` : '';
 
-  const photoSection = _composerType === 'photo' ? `
+  const photoSection = `
     <div class="cp-photo-block">
       <label class="cp-photo-pick">
         <input type="file" accept="image/*" multiple onchange="_composerAddFiles(this.files)" style="display:none">
         <span class="cp-photo-pick-icon">📷</span>
-        <span>${_composerPhotos.length ? 'Add more photos' : 'Pick up to 5 photos'}</span>
+        <span>${_composerPhotos.length ? 'Add more photos' : 'Add photos (optional)'}</span>
       </label>
       ${thumbsHtml}
       ${_composerPhotos.length ? `<div class="cp-hint cp-hint--center">${_composerPhotos.length > 1 ? 'Drag to reorder · ' : ''}Tap a photo to apply filters, brightness, rotate</div>` : ''}
-    </div>` : '';
+    </div>`;
 
   // Per-photo caption fields shown after thumbs (each photo gets one)
-  const perPhotoCaptions = _composerType === 'photo' && _composerPhotos.length > 1 ? `
+  const perPhotoCaptions = _composerPhotos.length > 1 ? `
     <div class="cp-percap">
       <div class="cp-section-label">Per-photo captions (optional)</div>
       ${_composerPhotos.map((p, i) => `
@@ -3757,18 +3741,7 @@ function _renderComposerCompose() {
         </div>`).join('')}
     </div>` : '';
 
-  const titleField = _composerType === 'editorial' ? `
-    <input class="cp-title-input" id="cpTitle" placeholder="Headline" maxlength="120" />
-    <div class="cp-pin-row">
-      <label><input type="checkbox" id="cpPin" checked> 📌 Pin to top of feed for 7 days</label>
-    </div>` : '';
-
-  const bodyPlaceholder = _composerType === 'text'      ? "What's the move tonight?"
-                       : _composerType === 'photo'      ? 'Add a caption (optional)…'
-                       :                                  'Write your editorial. Two newlines = paragraph break.';
-  const bodyMax = _composerType === 'text'      ? 280  : (_composerType === 'photo' ? 500 : 4000);
-
-  // Options row: venue / visibility
+  // Options row: venue / visibility / story (story only matters with a photo)
   const venueBtn = _composerVenue
     ? `<button class="cp-opt cp-opt--set" onclick="_composerClearVenue()">📍 ${esc(_composerVenue.name)}</button>`
     : `<button class="cp-opt" onclick="_composerPickVenue()">📍 Tag a venue</button>`;
@@ -3776,7 +3749,7 @@ function _renderComposerCompose() {
     <button class="cp-opt${_composerVisibility === 'friends' ? ' cp-opt--set' : ''}" onclick="_composerToggleVisibility()">
       ${_composerVisibility === 'friends' ? '👥 Friends only' : '🌍 Public'}
     </button>`;
-  const storyBtn = _composerType === 'photo' ? `
+  const storyBtn = (_composerPhotos.length || _composerStory) ? `
     <button class="cp-opt${_composerStory ? ' cp-opt--set' : ''}" onclick="_composerToggleStory()">
       ${_composerStory ? '✨ Story · 24h' : '✨ Make a Story'}
     </button>` : '';
@@ -3785,13 +3758,12 @@ function _renderComposerCompose() {
     <div class="cp cp--full">
       <header class="cp-header cp-header--full cp-header--noPost">
         <button class="cp-iconbtn" onclick="closeComposer()" aria-label="Close">✕</button>
-        <div class="cp-tabs">${tabsHtml}</div>
+        <div class="cp-edit-title">New post</div>
         <span></span>
       </header>
 
       <div class="cp-scroll">
-        ${titleField}
-        <textarea class="cp-body" id="cpBody" placeholder="${esc(bodyPlaceholder)}" maxlength="${bodyMax}"
+        <textarea class="cp-body" id="cpBody" placeholder="What's the move? Share a thought, a photo, or both…" maxlength="500"
                   oninput="_composerHandleBodyInput(this)"></textarea>
         <div id="cpMentions" class="cp-mentions" style="display:none"></div>
         ${photoSection}
@@ -3803,13 +3775,7 @@ function _renderComposerCompose() {
           ${storyBtn}
         </div>
 
-        <p class="cp-hint">${
-          _composerType === 'editorial'
-            ? 'Editorial posts get a distinct card style and can be pinned to the top of the feed.'
-            : _composerType === 'photo'
-            ? 'Up to 5 photos. They render as a swipeable carousel. Tap any photo to edit it.'
-            : 'Type @ to tag a friend. Add a venue if you want it linked to a spot.'
-        }</p>
+        <p class="cp-hint">Type @ to tag a friend. Add a venue to link it to a spot, or photos for a gallery.</p>
       </div>
 
       <div class="cp-post-bar">
@@ -4088,23 +4054,18 @@ async function submitComposer() {
   if (!currentUser) { openAuth('signin'); return; }
   const btn = document.getElementById('cpSubmit');
   btn.disabled = true; btn.textContent = 'Posting…';
-  const body  = (document.getElementById('cpBody')?.value || '').trim();
-  const title = (document.getElementById('cpTitle')?.value || '').trim();
-  const pin   = !!document.getElementById('cpPin')?.checked;
+  const body      = (document.getElementById('cpBody')?.value || '').trim();
+  const hasPhotos = _composerPhotos.length > 0;
+
+  const bail = (msg) => { showToast(msg); btn.disabled = false; btn.textContent = 'Post'; };
+
+  // Post type is inferred from what the user filled in — no mode picker.
+  if (_composerStory && !hasPhotos) { bail('Add a photo to post a story'); return; }
+  if (!hasPhotos && !body)          { bail('Write something or add a photo'); return; }
 
   try {
-    if (_composerType === 'text') {
-      if (!body) { showToast('Type something first'); btn.disabled = false; btn.textContent = 'Post'; return; }
-      const ok = await saveTextPost({
-        text: body,
-        venueId: _composerVenue?.id,
-        citySlug: state.city?.slug,
-        visibility: _composerVisibility,
-      });
-      if (!ok) throw new Error('save failed');
-    } else if (_composerType === 'photo') {
-      if (!_composerPhotos.length) { showToast('Pick at least one photo'); btn.disabled = false; btn.textContent = 'Post'; return; }
-      // Bake edits → upload → save
+    if (hasPhotos) {
+      // Bake edits → upload → save as a photo post (caption optional = body)
       const uploaded = [];
       for (const p of _composerPhotos) {
         btn.textContent = `Uploading ${uploaded.length + 1}/${_composerPhotos.length}…`;
@@ -4129,34 +4090,22 @@ async function submitComposer() {
         visibility:    _composerVisibility,
         expiresAt:     _composerStory ? new Date(Date.now() + 24*3600*1000).toISOString() : null,
       });
-    } else if (_composerType === 'editorial') {
-      if (!title && !body) { showToast('Add a headline or some body text'); btn.disabled = false; btn.textContent = 'Post'; return; }
-      const uploaded = [];
-      for (const p of _composerPhotos) {
-        const baked = (p.filter !== 'none' || p.brightness !== 1 || p.rotation)
-          ? await _composerBakePhoto(p)
-          : p.file;
-        const up = await uploadCheckinPhoto(baked, currentUser.id);
-        if (up) uploaded.push(up);
-      }
-      await saveEditorialPost({
-        title,
-        body,
-        mediaUrls:        uploaded.map(u => u.url),
-        venueId:          _composerVenue?.id || null,
-        citySlug:         state.city?.slug || 'san-diego',
-        pinnedUntilDays:  pin ? 7 : null,
+    } else {
+      const ok = await saveTextPost({
+        text:       body,
+        venueId:    _composerVenue?.id,
+        citySlug:   state.city?.slug,
+        visibility: _composerVisibility,
       });
+      if (!ok) throw new Error('save failed');
     }
     closeComposer();
     if (typeof loadSocialFeed === 'function') loadSocialFeed({ force: true });
-    const subMap = {
-      photo:     _composerStory ? 'Your story is live for 24h' :
-                 (_composerVisibility === 'friends' ? 'Shared with friends' : 'Shared to your city'),
-      text:      _composerVisibility === 'friends' ? 'Shared with friends' : 'Posted to your feed',
-      editorial: 'Editorial published',
-    };
-    showPostSuccess({ title: 'Posted!', sub: subMap[_composerType] || '' });
+    const sub = hasPhotos
+      ? (_composerStory ? 'Your story is live for 24h'
+                        : (_composerVisibility === 'friends' ? 'Shared with friends' : 'Shared to your city'))
+      : (_composerVisibility === 'friends' ? 'Shared with friends' : 'Posted to your feed');
+    showPostSuccess({ title: 'Posted!', sub });
   } catch (e) {
     console.error('submitComposer error', e);
     btn.disabled = false; btn.textContent = 'Post';
