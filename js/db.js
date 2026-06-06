@@ -73,6 +73,12 @@ async function _refreshAndPersist(refreshToken) {
     refresh_token: s.refresh_token,
   });
   _scheduleTokenRefresh(s.expires_in);
+  // Ping last_seen now that we have a fresh token. The initAuth call fires
+  // synchronously before this background refresh resolves (when the stored
+  // token was already expired), so without this, returning users whose token
+  // had lapsed never recorded a last_seen — the main reason the admin column
+  // showed "Never" for clearly-active users. Throttled to 1/hour internally.
+  _updateLastSeen();
   return s;
 }
 
@@ -182,8 +188,14 @@ document.addEventListener('visibilitychange', async () => {
         localStorage.removeItem(_storageKey);
         currentUser = null; _accessToken = null; userFavorites = new Set();
         if (typeof onAuthChange === 'function') onAuthChange(null);
+        return;
       }
     }
+    // Record the visit every time the app comes to the foreground (the iOS
+    // WKWebView stays alive across backgrounding, so initAuth only runs once
+    // per launch — without this a daily returning user pings last_seen at most
+    // once). Throttled to 1/hour internally; only fires with a valid token.
+    _updateLastSeen();
   } catch(e) { console.warn('[visibilitychange] refresh error', e); }
 });
 
