@@ -1429,6 +1429,12 @@ async function openCommentsSheet(postId, postType) {
   if(typeof haptic==='function')haptic('light');
   const overlay = document.createElement('div');
   overlay.className = 'overlay';
+  // The immersive viewer sits at z-index:10000, above the normal .overlay (~700),
+  // so a comments sheet opened from inside it would be hidden behind the photo.
+  // Bump this overlay above the viewer when it's open so it's visible in place.
+  if (document.getElementById('immersiveViewer')?.classList.contains('imv--open')) {
+    overlay.classList.add('overlay--above-imv');
+  }
   overlay.onclick = e => { if (e.target === overlay) dismissOverlay(overlay); };
   overlay.innerHTML = `
     <div class="sheet" style="max-height:70vh">

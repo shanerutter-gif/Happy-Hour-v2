@@ -6460,6 +6460,9 @@ button:not([disabled]),
   transition: opacity .2s ease;
 }
 .imv--open { opacity: 1; pointer-events: auto; }
+/* A sheet (e.g. comments) opened from inside the immersive viewer must stack
+   above it — the viewer is z-index:10000. */
+.overlay.overlay--above-imv { z-index: 10050; }
 .imv-close {
   position: fixed; top: max(14px, env(safe-area-inset-top)); right: 14px;
   z-index: 10001;
