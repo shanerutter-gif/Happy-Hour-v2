@@ -1649,36 +1649,42 @@ async function fetchSocialFeed(citySlug, followingIds = [], limit = 60) {
     const activity = activityRes.status === 'fulfilled' ? (activityRes.value.data || []) : [];
     const going    = goingRes.status    === 'fulfilled' ? (goingRes.value.data    || []) : [];
 
-    // Collect all unique user IDs across all sources
+    // Collect all unique user IDs and venue IDs across all sources up-front so
+    // the two enrichment queries can fire in parallel instead of sequentially.
     const allUserIds = [...new Set([
       ...photos.map(r => r.user_id),
       ...activity.map(r => r.user_id),
       ...going.map(r => r.user_id),
     ].filter(Boolean))];
 
-    // Fetch profiles in one shot
-    const pMap = {};
-    if (allUserIds.length) {
-      const { data: profiles } = await db.from('profiles')
-        .select('id, display_name, avatar_emoji, avatar_url, username, is_official')
-        .in('id', allUserIds);
-      (profiles || []).forEach(p => { pMap[p.id] = p; });
-    }
-
-    // Fetch venue names for posts + going-tonight. checkin_photos/check_ins
-    // don't denormalize the venue name, so without this a post whose venue isn't
-    // in the currently-loaded city renders as "a spot" in the feed.
     const venueIds = [...new Set([
       ...going.map(r => r.venue_id),
       ...photos.map(r => r.venue_id),
     ].filter(Boolean))];
+
+    // Fetch profiles + venue names in one parallel round-trip. Both are
+    // independent of each other — running them sequentially wastes ~50–150ms
+    // on every feed load (one extra DB RTT per open).
+    const [profilesRes, venuesRes] = await Promise.all([
+      allUserIds.length
+        ? db.from('profiles')
+            .select('id, display_name, avatar_emoji, avatar_url, username, is_official')
+            .in('id', allUserIds)
+        : Promise.resolve({ data: [] }),
+      venueIds.length
+        ? db.from('venues')
+            .select('id, name, neighborhood')
+            .in('id', venueIds)
+        : Promise.resolve({ data: [] }),
+    ]);
+
+    const pMap = {};
+    (profilesRes.data || []).forEach(p => { pMap[p.id] = p; });
+    // Fetch venue names for posts + going-tonight. checkin_photos/check_ins
+    // don't denormalize the venue name, so without this a post whose venue isn't
+    // in the currently-loaded city renders as "a spot" in the feed.
     const vMap = {};
-    if (venueIds.length) {
-      const { data: venues } = await db.from('venues')
-        .select('id, name, neighborhood')
-        .in('id', venueIds);
-      (venues || []).forEach(v => { vMap[v.id] = v; });
-    }
+    (venuesRes.data || []).forEach(v => { vMap[v.id] = v; });
 
     // Normalise into a unified shape
     const followSet = new Set(followingIds);
