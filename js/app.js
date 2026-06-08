@@ -5510,15 +5510,16 @@ async function loadReviewAverages(citySlug) {
 async function loadGoingTonight(citySlug) {
   try {
     const today = new Date().toISOString().slice(0, 10);
-    const counts = await fetchCheckInCounts(citySlug, today);
+    // Both queries are independent reads — fire in parallel to save one RTT on every city enter.
+    const [counts, mine] = await Promise.all([
+      fetchCheckInCounts(citySlug, today),
+      currentUser ? fetchMyCheckIns(currentUser.id, today) : Promise.resolve([]),
+    ]);
     state.goingCounts = {};
     (counts || []).forEach(r => { state.goingCounts[r.venue_id] = r.count; });
     state.goingByMe = new Set();
     state.todayCheckInCount = 0;
-    if (currentUser) {
-      const mine = await fetchMyCheckIns(currentUser.id, today);
-      (mine || []).forEach(r => { state.goingByMe.add(r.venue_id); state.todayCheckInCount++; });
-    }
+    (mine || []).forEach(r => { state.goingByMe.add(r.venue_id); state.todayCheckInCount++; });
   } catch(e) { console.warn('Check-in load failed', e); }
 }
 
@@ -6717,6 +6718,7 @@ function skipToTagFriends(venueId) {
 
 // ── YOUR NEWS (ARTICLE FEED) ──────────────────────────
 const NEWS_ARTICLES = [
+  { city: 'orange-county', img: 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=800&q=80', tag: 'Neighborhood Guide', author: 'Emma', title: 'Best Happy Hours in Costa Mesa (2026)', excerpt: '$2 margs at Playa Mesa, 50% off tapas at Cafe Sevilla, honest Irish pints at Durty Nelly\'s — Costa Mesa is OC\'s most underrated happy hour neighborhood and it\'s not close.', url: '/blog/best-happy-hours-costa-mesa.html', date: 'June 8, 2026', readTime: '9 min' },
   { city: 'san-diego', img: 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=800&q=80', tag: 'Neighborhood Guide', author: 'Jordan', title: 'Best Happy Hours in East Village San Diego (2026)', excerpt: '50% off your tab at Bay City Brewing, MICHELIN tacos at Lola 55 from 4pm, $7 drafts at Cowboy Star — East Village is quietly San Diego\'s most interesting happy hour neighborhood right now.', url: '/blog/best-happy-hours-east-village-san-diego.html', date: 'June 7, 2026', readTime: '8 min' },
   { city: 'orange-county', img: 'https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800&q=80', tag: 'Neighborhood Guide', author: 'Leah', title: 'Best Happy Hours in Laguna Beach (2026)', excerpt: 'Oceanfront fire pit at The Cliff, legendary margaritas at Coyote Grill, rooftop views at Mozambique — every verified Laguna Beach happy hour worth your time.', url: '/blog/best-happy-hours-laguna-beach.html', date: 'June 5, 2026', readTime: '8 min' },
   { city: 'san-diego', img: 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=800&q=80', tag: 'Neighborhood Guide', author: 'Maya', title: 'Best Happy Hours in Hillcrest San Diego (2026)', excerpt: 'Craft beer from the world\'s first gay brewery, extended Papi Hour margaritas at Baja Betty\'s, wood-fired oysters at Fort Oak — every Hillcrest deal, verified for 2026.', url: '/blog/best-happy-hours-hillcrest-san-diego.html', date: 'June 4, 2026', readTime: '8 min' },
