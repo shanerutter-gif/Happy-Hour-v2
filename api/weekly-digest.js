@@ -83,9 +83,9 @@ export default async function handler(req) {
       return jsonRes({ success: true, sent: 0, note: 'No cities had rankable spots' });
     }
 
-    // 3. Resolve recipients from the database (Loops has no list-all endpoint):
-    //    engaged users = distinct check_ins.user_id for the city. Skip anyone
-    //    with profiles.digest_enabled = false; resolve emails via the admin API.
+    // 3. Resolve recipients from the database, keyed off each active city:
+    //    profiles.city_slug = <city> with digest_enabled not false. No hardcoded
+    //    slugs — a new active city automatically gets its users a digest.
     // 4. Send weekly_digest (with that city's props) to each resolved email.
     const emailCache = {};   // user_id -> email | null (dedupe auth lookups across cities)
     const perCity = {};
@@ -93,13 +93,11 @@ export default async function handler(req) {
 
     for (const slug of Object.keys(cityProps)) {
       const digest = cityProps[slug];
-      const userIds = await engagedUserIds(supabaseUrl, sbHeaders, slug);
+      const userIds = await cityRecipientIds(supabaseUrl, sbHeaders, slug);
       if (!userIds.length) { perCity[slug] = 0; continue; }
-      const disabled = await digestDisabledSet(supabaseUrl, sbHeaders, userIds);
 
       let citySent = 0;
       for (const uid of userIds) {
-        if (disabled.has(uid)) continue;
         const email = await resolveEmail(supabaseUrl, svcKey, uid, emailCache);
         if (!email) continue;
         recipients++;
@@ -216,49 +214,33 @@ function toSpot(v) {
   return { name: v.name, deal };
 }
 
-// Distinct engaged user_ids for a city = everyone who's ever checked in there.
-async function engagedUserIds(supabaseUrl, sbHeaders, slug) {
-  try {
-    const r = await fetch(
-      `${supabaseUrl}/rest/v1/check_ins?select=user_id&city_slug=eq.${slug}&user_id=not.is.null&limit=20000`,
-      { headers: sbHeaders }
-    );
-    if (!r.ok) {
-      const body = await r.text();
-      console.error(`[weekly-digest] check_ins recipients fetch failed for ${slug}:`, r.status, body);
-      return [];
-    }
-    const rows = await r.json();
-    return [...new Set(rows.map(x => x.user_id).filter(Boolean))];
-  } catch (e) {
-    console.error(`[weekly-digest] check_ins recipients error for ${slug}:`, e.message);
-    return [];
-  }
-}
-
-// Set of user_ids whose profiles.digest_enabled is explicitly false (opted out).
-async function digestDisabledSet(supabaseUrl, sbHeaders, ids) {
-  const disabled = new Set();
-  const chunk = 200; // keep the in.() URL a sane length
-  for (let i = 0; i < ids.length; i += chunk) {
-    const slice = ids.slice(i, i + chunk);
+// Recipient user_ids for a city = profiles whose city_slug matches and who
+// haven't turned the digest off (digest_enabled is true or null). Paginated.
+async function cityRecipientIds(supabaseUrl, sbHeaders, slug) {
+  const ids = [];
+  const pageSize = 1000;
+  let offset = 0;
+  for (;;) {
     try {
       const r = await fetch(
-        `${supabaseUrl}/rest/v1/profiles?select=id&id=in.(${slice.join(',')})&digest_enabled=is.false`,
+        `${supabaseUrl}/rest/v1/profiles?select=id,digest_enabled&city_slug=eq.${slug}&limit=${pageSize}&offset=${offset}`,
         { headers: sbHeaders }
       );
-      if (r.ok) {
-        const rows = await r.json();
-        rows.forEach(p => disabled.add(p.id));
-      } else {
+      if (!r.ok) {
         const body = await r.text();
-        console.error('[weekly-digest] digest_enabled fetch failed:', r.status, body);
+        console.error(`[weekly-digest] profiles recipients fetch failed for ${slug}:`, r.status, body);
+        break;
       }
+      const rows = await r.json();
+      for (const p of rows) if (p.digest_enabled !== false) ids.push(p.id);
+      if (rows.length < pageSize) break;
+      offset += pageSize;
     } catch (e) {
-      console.error('[weekly-digest] digest_enabled error:', e.message);
+      console.error(`[weekly-digest] profiles recipients error for ${slug}:`, e.message);
+      break;
     }
   }
-  return disabled;
+  return ids;
 }
 
 // Resolve a user's email via the Supabase admin API (cached; mirrors loops-inactive).
