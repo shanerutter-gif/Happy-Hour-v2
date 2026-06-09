@@ -391,6 +391,7 @@ function bottomNavProfile(btn) {
 function openSocialTab() {
   if (!currentUser) { openAuth('signin'); return; }
   document.getElementById('socialTab').classList.add('tab-open');
+  initSocialPullToRefresh();
   loadSocialFeed();
   maybeShowSocialNudge();
   checkSocialNotifications();
@@ -979,6 +980,75 @@ async function loadSocialFeed(opts = {}) {
   } finally {
     _socialLoading = false;
   }
+}
+
+// ── Pull-to-refresh for the social feed ──────────────────────────────
+// Replaces the old header refresh button: pull the feed down past a
+// threshold to force a reload. Bound once (idempotent) when the tab opens.
+const _PTR_THRESHOLD = 64;   // px of pull needed to trigger a refresh
+const _PTR_MAX = 96;         // max travel of the indicator
+let _ptrStartY = 0, _ptrPulling = false, _ptrReady = false;
+
+function initSocialPullToRefresh() {
+  const scroller = document.getElementById('socialFeedContent');
+  const ind = document.getElementById('socialPtr');
+  if (!scroller || !ind || scroller._ptrBound) return;
+  scroller._ptrBound = true;
+  const icon = ind.querySelector('.social-ptr-icon');
+
+  const reset = (animate) => {
+    ind.style.transition = animate ? 'transform .3s cubic-bezier(.32,.72,0,1), opacity .3s ease' : 'none';
+    ind.style.transform = 'translateY(0) scale(.6)';
+    ind.style.opacity = '0';
+    ind.classList.remove('social-ptr--ready', 'social-ptr--spin');
+    _ptrReady = false;
+  };
+
+  scroller.addEventListener('touchstart', (e) => {
+    // Only arm a pull when already scrolled to the very top and not mid-load.
+    if (scroller.scrollTop > 0 || _socialLoading || ind.classList.contains('social-ptr--spin')) {
+      _ptrPulling = false; return;
+    }
+    _ptrStartY = e.touches[0].clientY;
+    _ptrPulling = true;
+    ind.style.transition = 'none';
+  }, { passive: true });
+
+  scroller.addEventListener('touchmove', (e) => {
+    if (!_ptrPulling) return;
+    const dy = e.touches[0].clientY - _ptrStartY;
+    if (dy <= 0) { reset(false); return; }
+    // Rubber-band resistance so the pull feels weighty.
+    const dist = Math.min(_PTR_MAX, dy * 0.5);
+    const prog = Math.min(1, dist / _PTR_THRESHOLD);
+    _ptrReady = dist >= _PTR_THRESHOLD;
+    ind.style.transform = `translateY(${dist}px) scale(${0.6 + prog * 0.4})`;
+    ind.style.opacity = String(Math.min(1, prog * 1.2));
+    if (icon) icon.style.transform = `rotate(${prog * 280}deg)`;
+    ind.classList.toggle('social-ptr--ready', _ptrReady);
+    // Suppress the native overscroll bounce once we're clearly pulling.
+    if (dist > 4) e.preventDefault();
+  }, { passive: false });
+
+  const end = () => {
+    if (!_ptrPulling) return;
+    _ptrPulling = false;
+    if (_ptrReady) {
+      if (typeof haptic === 'function') haptic('light');
+      ind.style.transition = 'transform .3s cubic-bezier(.32,.72,0,1), opacity .2s ease';
+      ind.style.transform = `translateY(${_PTR_THRESHOLD}px) scale(1)`;
+      ind.style.opacity = '1';
+      if (icon) icon.style.transform = '';
+      ind.classList.remove('social-ptr--ready');
+      ind.classList.add('social-ptr--spin');
+      _socialLoading = false;
+      Promise.resolve(loadSocialFeed({ force: true })).finally(() => reset(true));
+    } else {
+      reset(true);
+    }
+  };
+  scroller.addEventListener('touchend', end, { passive: true });
+  scroller.addEventListener('touchcancel', end, { passive: true });
 }
 
 function switchSocialTab(tab) {
