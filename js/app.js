@@ -7045,7 +7045,7 @@ async function dmOpenConvo(convoId, name, isGroup, knownMembers) {
     const renderMembers = (profs) => {
       const sorted = (profs || []).sort((a, b) => a.id === currentUser.id ? -1 : b.id === currentUser.id ? 1 : 0);
       bar.innerHTML = `<div class="dm-members-pills">${sorted.map(p =>
-        `<div class="dm-member-pill">${initialsAvatar((p.display_name||'User').split(' ')[0], '', p.avatar_emoji, p.avatar_url)} ${esc((p.display_name||'User').split(' ')[0])}${p.id===currentUser.id?' (you)':''}</div>`
+        `<div class="dm-member-pill"><span class="dm-member-avatar">${initialsAvatar((p.display_name||'User').split(' ')[0], '', p.avatar_emoji, p.avatar_url)}</span> ${esc((p.display_name||'User').split(' ')[0])}${p.id===currentUser.id?' (you)':''}</div>`
       ).join('')}</div>`;
     };
     if (knownMembers?.length) {
