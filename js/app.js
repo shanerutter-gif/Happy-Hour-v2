@@ -1070,6 +1070,7 @@ async function renderTrendingTab() {
     const rows = (trending && trending.data) || [];
     if (!rows.length) {
       container.innerHTML = `<div class="social-empty"><div class="social-empty-icon">🔥</div><div class="social-empty-title">Nothing trending yet</div><div class="social-empty-sub">Once posts pick up likes and comments, they'll surface here.</div></div>`;
+      _feedEnter(container);
       return;
     }
     // Hydrate full post + profile + venue
@@ -1132,11 +1133,23 @@ async function renderTrendingTab() {
       else html += renderSocialItem(item, 'hero');
     });
     container.innerHTML = html;
+    _feedEnter(container);
     observeFeedVideos();
   } catch (e) {
     console.error('renderTrendingTab error', e);
     container.innerHTML = '<div class="social-empty"><div class="social-empty-sub">Could not load trending — try refreshing.</div></div>';
   }
+}
+
+// Re-trigger the feed's one-shot entrance animation. Toggling the class with a
+// forced reflow restarts the CSS animation on the persistent scroll container,
+// so each render (tab switch / refresh) fades in as one cohesive motion rather
+// than every card replaying its own staggered pop.
+function _feedEnter(container) {
+  if (!container) return;
+  container.classList.remove('sf-feed-enter');
+  void container.offsetWidth; // force reflow so the animation restarts
+  container.classList.add('sf-feed-enter');
 }
 
 function renderSocialTab(tab) {
@@ -1166,6 +1179,7 @@ function renderSocialTab(tab) {
           ${icn('share',18)} Share Spotd with a friend!
         </a>
       </div>`;
+    _feedEnter(container);
     return;
   }
 
@@ -1181,6 +1195,7 @@ function renderSocialTab(tab) {
         <div class="social-empty-sub">No posts here yet. Check in at a spot, share a photo, or leave a review — it'll show up right here for everyone in ${esc(cityName)}.</div>
         <button class="social-share-cta" onclick="bottomNavFeed()">Find a spot to check in</button>
       </div>`;
+    _feedEnter(container);
     return;
   }
 
@@ -1226,6 +1241,7 @@ function renderSocialTab(tab) {
   flushTextBatch();
 
   container.innerHTML = html;
+  _feedEnter(container);
   observeFeedVideos();
 }
 
@@ -1659,8 +1675,12 @@ async function doToggleLike(postId, postType, btn) {
   if (result.liked) {
     btn.classList.add('liked', 'sf-liked');
     btn.innerHTML = `${ICN.heartFill}<span>${currentCount + 1}</span>`;
+    // Play the heart pop only on this user action (not on every feed render).
+    btn.classList.remove('heart-bounce');
+    void btn.offsetWidth; // reflow so the animation restarts on re-tap
+    btn.classList.add('heart-bounce');
   } else {
-    btn.classList.remove('liked', 'sf-liked');
+    btn.classList.remove('liked', 'sf-liked', 'heart-bounce');
     const newCount = Math.max(0, currentCount - 1);
     btn.innerHTML = `${ICN.heart}${newCount ? `<span>${newCount}</span>` : ''}`;
   }
