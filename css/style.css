@@ -1770,6 +1770,18 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   visibility: visible;
   pointer-events: auto;
 }
+/* Inside a conversation / picker the DM tab becomes a full takeover that sits
+   ABOVE the floating bottom nav (z-index 600) — so the global Discover/News/etc
+   bar no longer bleeds over the chat. On the inbox screen the tab stays below
+   the nav (z-index 499) so tapping a nav button still exits Messages. */
+.dm-tab--takeover { z-index: 620; }
+
+/* Smooth screen entry — replays each time a screen is shown (display none→flex
+   restarts the animation). GPU-friendly opacity + small translate only. */
+@keyframes dmScreenSlide { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: none; } }
+@keyframes dmScreenFade  { from { opacity: 0; } to { opacity: 1; } }
+.dm-screen--flex   { animation: dmScreenSlide .24s cubic-bezier(.22,.61,.36,1); }
+.dm-screen--scroll { animation: dmScreenFade .2s ease; }
 
 /* ── Header — frosted glass matching social feed ── */
 .dm-header {
@@ -1997,6 +2009,10 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   min-height: 0;
   background: var(--bg);
 }
+/* Center the loading / "say hi" states in the message pane so an empty or
+   still-loading conversation reads as intentional, not a broken blank screen. */
+.dm-messages .dm-loading,
+.dm-messages .dm-empty { margin: auto; }
 .dm-msg { display: flex; flex-direction: column; max-width: 78%; margin-bottom: 2px; }
 .dm-msg--mine { align-self: flex-end; align-items: flex-end; }
 .dm-msg--theirs { align-self: flex-start; align-items: flex-start; }
@@ -2043,7 +2059,7 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   align-items: flex-end;
   gap: 10px;
   padding: 12px 16px;
-  padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
   border-top: none;
   flex-shrink: 0;
   background: var(--nav-bg);
@@ -2104,7 +2120,7 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 .dm-picker-footer {
   flex-shrink: 0;
   padding: 12px 16px;
-  padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
   border-top: 1px solid var(--border2);
   background: rgba(var(--bg-rgb, 245,239,230), 0.92);
   backdrop-filter: blur(16px);
