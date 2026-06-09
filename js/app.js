@@ -6813,7 +6813,7 @@ function openDmTab() {
 function closeDmTab() {
   const tab = document.getElementById('dmTab');
   tab.classList.remove('tab-open', 'dm-tab--takeover');
-  tab.style.bottom = '';
+  tab.style.paddingBottom = '';
   if (dmState.subscription) { dmState.subscription.unsubscribe(); dmState.subscription = null; }
 }
 function openDmPage()  { openDmTab(); }
@@ -7054,9 +7054,14 @@ async function dmOpenConvo(convoId, name, isGroup, knownMembers) {
       bar.innerHTML = '<div class="dm-members-pills"><div style="color:var(--muted);font-size:13px">Loading…</div></div>';
       (async () => {
         try {
-          const { data: parts } = await db.from('conversation_participants').select('user_id').eq('conversation_id', convoId);
-          const ids = (parts || []).map(p => p.user_id);
+          // Use the RPC, not a direct table select: the conversation_participants
+          // RLS SELECT policy is `user_id = auth.uid()`, so a plain query only
+          // returns YOUR own row (members bar would show just "you"). The RPC
+          // (SECURITY DEFINER) returns every member, same as the inbox.
+          const { data: parts } = await db.rpc('get_conversation_participants', { convo_ids: [convoId] });
+          const ids = [...new Set((parts || []).map(p => p.user_id))];
           const { data: profs } = ids.length ? await db.from('profiles').select('id, display_name, avatar_emoji, avatar_url').in('id', ids) : { data: [] };
+          if (!profs?.length) { bar.style.display = 'none'; return; }
           renderMembers(profs);
         } catch(e) { bar.style.display = 'none'; }
       })();
@@ -7457,16 +7462,19 @@ function dmScrollToBottom() {
 
 // Keyboard handling for the DM tab. The tab is `position:fixed; inset:0`, so it
 // fills the layout viewport and the on-screen keyboard would otherwise sit on
-// top of the compose bar. We lift the tab's bottom edge by the keyboard height
-// (from visualViewport) so the flex column shrinks and the input rides just
-// above the keyboard — no jump, no hidden field. Resets to 0 when dismissed.
+// top of the compose bar. We shrink the flex column with `padding-bottom` equal
+// to the keyboard height (from visualViewport) so the input rides just above the
+// keyboard. IMPORTANT: we use padding-bottom, NOT `bottom`/`height` — those move
+// the tab's edge and expose the app *behind* the tab during the keyboard's
+// open/close animation. padding-bottom keeps the tab full-screen so the gap is
+// the tab's own background, never the app. Reset to 0 when the keyboard hides.
 function dmSyncViewport() {
   const tab = document.getElementById('dmTab');
   if (!tab || !tab.classList.contains('tab-open')) return;
   const vv = window.visualViewport;
   if (!vv) return;
   const kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-  tab.style.bottom = kb + 'px';
+  tab.style.paddingBottom = kb + 'px';
   if (kb > 0) dmScrollToBottom();
 }
 if (window.visualViewport) {
@@ -7475,7 +7483,7 @@ if (window.visualViewport) {
 }
 
 document.addEventListener('focusin', e => { if (e.target.id === 'dmInput') { dmSyncViewport(); setTimeout(dmScrollToBottom, 120); } });
-document.addEventListener('focusout', e => { if (e.target.id === 'dmInput') { const tab = document.getElementById('dmTab'); if (tab) tab.style.bottom = ''; } });
+document.addEventListener('focusout', e => { if (e.target.id === 'dmInput') { const tab = document.getElementById('dmTab'); if (tab) tab.style.paddingBottom = ''; } });
 document.addEventListener('focusout', e => {
   if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') {
     const sheet = e.target.closest('.sheet');
