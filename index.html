@@ -768,8 +768,8 @@ function dismissAppDownload() {
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/db.js?v=20260607a"></script>
-<script src="js/onboarding.js?v=20260529b"></script>
+<script src="js/db.js?v=20260609a"></script>
+<script src="js/onboarding.js?v=20260609a"></script>
 
 <script src="js/push.js?v=20260408a"></script>
 
@@ -887,9 +887,10 @@ if (window.spotdNative) {
 
 <div id="onboardingOverlay" class="ob-overlay" style="display:none">
 
-  <!-- Progress dots (7: entry · city · map · vibe · neighborhood · attribution · signup) -->
+  <!-- Progress dots (8: entry · city · map · vibe · neighborhood · attribution · social · signup) -->
   <div class="ob-dots" id="obDots">
     <span class="ob-dot ob-dot--active"></span>
+    <span class="ob-dot"></span>
     <span class="ob-dot"></span>
     <span class="ob-dot"></span>
     <span class="ob-dot"></span>
@@ -907,13 +908,13 @@ if (window.spotdNative) {
           onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
         <span class="ob-logo-fallback" style="display:none">Spot'd</span>
       </div>
-      <h1 class="ob-entry-title">Find tonight's<br><span class="ob-accent">best spot.</span></h1>
-      <p class="ob-entry-sub">Happy hours, trivia, live music & events — all in one place, all happening right now.</p>
+      <h1 class="ob-entry-title">Find your spot.<br><span class="ob-accent">Share your night.</span></h1>
+      <p class="ob-entry-sub">The best happy hours, events and local spots — plus a dead-simple way to show friends what you're actually up to.</p>
 
       <!-- Live pill -->
       <div class="ob-live-pill">
         <span class="ob-live-dot"></span>
-        <span><span class="ob-live-num">47</span> people exploring tonight</span>
+        <span><span class="ob-live-num">47</span> people out right now</span>
       </div>
 
       <div class="ob-entry-actions">
@@ -1019,8 +1020,8 @@ if (window.spotdNative) {
         </button>
         <button class="ob-skip-btn" onclick="obGoTo(5)">Skip</button>
       </div>
-      <h2 class="ob-screen-title" id="obScreen2Title">What's your vibe tonight?</h2>
-      <p class="ob-screen-sub" id="obScreen2Sub">Pick all that apply — we'll show you the best spots.</p>
+      <h2 class="ob-screen-title" id="obScreen2Title">What are you into?</h2>
+      <p class="ob-screen-sub" id="obScreen2Sub">Pick a few — we'll tune your feed and only email you stuff you'd actually go to.</p>
 
       <div class="ob-vibe-grid" id="obVibeGrid"></div>
 
@@ -1110,7 +1111,54 @@ if (window.spotdNative) {
     </div>
   </div>
 
-  <!-- ── Screen 5: Signup ───────────────────── -->
+  <!-- ── Screen 6: Social preview ("The fun part") ─────── -->
+  <div class="ob-screen ob-screen--next" id="obScreenSocial">
+    <div class="ob-screen-inner">
+      <div class="ob-nav-row">
+        <button class="ob-back-btn" onclick="obBack()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+        </button>
+        <button class="ob-skip-btn" onclick="obNext()">Skip</button>
+      </div>
+      <div class="ob-eyebrow">✨ THE FUN PART</div>
+      <h2 class="ob-screen-title">See what your friends are up to.</h2>
+      <p class="ob-screen-sub">Tap once to share where you are. No caption, no filter, no pressure — just your people, in the loop.</p>
+
+      <!-- Sample social-card previews -->
+      <div class="ob-social-previews">
+        <div class="ob-social-card">
+          <div class="ob-social-avatar" style="background:#FF6B4A">M</div>
+          <div class="ob-social-body">
+            <div class="ob-social-line"><strong>Maya</strong> checked in at <strong>Kettner Exchange</strong></div>
+            <div class="ob-social-meta">Little Italy · 12m ago</div>
+          </div>
+          <div class="ob-social-react">🍸</div>
+        </div>
+        <div class="ob-social-card">
+          <div class="ob-social-avatar" style="background:#2E9E8F">J</div>
+          <div class="ob-social-body">
+            <div class="ob-social-line"><strong>Jordan</strong> is at <strong>Raised by Wolves</strong></div>
+            <div class="ob-social-meta">East Village · 28m ago</div>
+          </div>
+          <div class="ob-social-react">🔥</div>
+        </div>
+        <div class="ob-social-card">
+          <div class="ob-social-avatar" style="background:#C9772E">C</div>
+          <div class="ob-social-body">
+            <div class="ob-social-line"><strong>Carlos</strong> checked in at <strong>The Grass Skirt</strong></div>
+            <div class="ob-social-meta">Pacific Beach · 41m ago</div>
+          </div>
+          <div class="ob-social-react">🌴</div>
+        </div>
+      </div>
+
+      <button class="ob-btn-primary ob-btn-sticky" onclick="obNext()">
+        I'm in →
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Screen 7: Signup ───────────────────── -->
   <div class="ob-screen ob-screen--next" id="obScreen5">
     <div class="ob-screen-inner ob-screen-inner--center">
       <div class="ob-nav-row" style="width:100%">
@@ -1123,9 +1171,9 @@ if (window.spotdNative) {
       <div class="ob-lock-hook">
         <div class="ob-lock-emoji">🎉</div>
         <h2 class="ob-lock-headline" id="obSignupHeadline">
-          We found 23 happy hours matching your vibe near you
+          You're in. Let's make it yours.
         </h2>
-        <p class="ob-lock-sub">Create a free account to unlock all deals, save your favorites, and get notified.</p>
+        <p class="ob-lock-sub">Create a free account to unlock every spot, save your favorites, follow friends, and pick up your feed where you left off.</p>
       </div>
 
       <!-- Auth options -->
@@ -1257,6 +1305,26 @@ if (window.spotdNative) {
   font-size: 15px; color: var(--muted); line-height: 1.55;
   margin-bottom: 24px;
 }
+
+/* ── Social preview screen ("The fun part") ── */
+.ob-social-previews { display: flex; flex-direction: column; gap: 12px; margin-bottom: 8px; }
+.ob-social-card {
+  display: flex; align-items: center; gap: 12px;
+  background: #fff; border: 1px solid rgba(0,0,0,.06);
+  border-radius: 16px; padding: 14px 16px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.05);
+}
+.ob-social-avatar {
+  flex: none; width: 40px; height: 40px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-weight: 800; font-size: 16px;
+  font-family: 'Cabinet Grotesk', sans-serif;
+}
+.ob-social-body { flex: 1 1 auto; min-width: 0; text-align: left; }
+.ob-social-line { font-size: 14px; color: var(--ink); line-height: 1.35; }
+.ob-social-line strong { font-weight: 700; }
+.ob-social-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.ob-social-react { flex: none; font-size: 20px; }
 
 /* ── Entry screen ── */
 .ob-logo-wrap { margin-bottom: 32px; position: relative; z-index: 1; }

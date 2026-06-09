@@ -144,8 +144,9 @@ async function initAuth() {
     loadFavorites().catch(() => {});
     if (typeof onAuthChange === 'function') onAuthChange(currentUser);
 
-    // Fire-and-forget: update last_seen timestamp on profile
-    _updateLastSeen();
+    // Fire-and-forget: record this authenticated session start (force past the
+    // hourly throttle so every launch is logged, not just one per hour).
+    _updateLastSeen(true);
   } catch(e) {
     console.warn('[initAuth] error', e);
     // If we had a user but hit an error, still try to enter
@@ -153,12 +154,15 @@ async function initAuth() {
   }
 }
 
-// Update last_seen on profiles table (fire-and-forget, throttled to once per hour)
-function _updateLastSeen() {
+// Update last_seen on profiles table (fire-and-forget). Throttled to once per
+// hour for incidental pings (token refresh, foregrounding), but pass force=true
+// on a genuine authenticated session start so every session is recorded even if
+// the user was last seen <1h ago.
+function _updateLastSeen(force) {
   if (!currentUser?.id || !_accessToken) return;
   const key = `last_seen_ping_${currentUser.id}`;
   const lastPing = parseInt(localStorage.getItem(key) || '0', 10);
-  if (Date.now() - lastPing < 3600000) return; // throttle: once per hour
+  if (!force && Date.now() - lastPing < 3600000) return; // throttle: once per hour
   localStorage.setItem(key, String(Date.now()));
   fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${currentUser.id}`, {
     method: 'PATCH',
@@ -204,11 +208,49 @@ function getSession() {
 }
 
 // ── LOOPS ONBOARDING (fire-and-forget) ────────────────
+// Gathers the onboarding context (city, vibes, platform, attribution) that the
+// user picked in the onboarding flow so we can write it onto the Loops contact
+// at signup. All sources are optional/best-effort — never let this throw.
+function _loopsSignupContext() {
+  let citySlug = 'san-diego';
+  try {
+    citySlug = (typeof obState !== 'undefined' && obState.citySlug)
+      || localStorage.getItem('spotd-last-city')
+      || 'san-diego';
+  } catch (e) {}
+
+  let cityName = '';
+  try {
+    cityName = (typeof OB_CITY_CONFIG !== 'undefined' && OB_CITY_CONFIG[citySlug] && OB_CITY_CONFIG[citySlug].name)
+      || citySlug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  } catch (e) {}
+
+  let vibes = '';
+  try {
+    if (typeof obState !== 'undefined' && obState.selectedVibes) vibes = [...obState.selectedVibes].join(',');
+  } catch (e) {}
+
+  let platform = 'web';
+  try {
+    if (window.spotdNative || /iPad|iPhone|iPod/.test(navigator.userAgent)) platform = 'ios';
+  } catch (e) {}
+
+  let sourceDetail = '';
+  try {
+    sourceDetail = sessionStorage.getItem('spotd_pending_attribution')
+      || (typeof obState !== 'undefined' && obState.selectedAttribution)
+      || '';
+  } catch (e) {}
+
+  return { city_slug: citySlug, cityName, vibes, platform, sourceDetail };
+}
+
 function triggerLoopsOnboarding(email, firstName, userId, source) {
+  const ctx = _loopsSignupContext();
   fetch('/api/loops-onboarding', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, firstName, userId, source }),
+    body: JSON.stringify({ email, firstName, userId, source, ...ctx }),
   }).catch(e => console.warn('[Loops] Onboarding trigger failed:', e.message));
 }
 
@@ -221,6 +263,28 @@ function sendLoopsEvent(eventName, properties) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, eventName, properties }),
   }).catch(e => console.warn(`[Loops] Event "${eventName}" failed:`, e.message));
+}
+
+// Update Loops contact properties (fire-and-forget).
+function updateLoopsContact(properties) {
+  const email = currentUser?.email;
+  if (!email) return;
+  fetch('/api/loops-update-contact', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, properties }),
+  }).catch(e => console.warn('[Loops] Contact update failed:', e.message));
+}
+
+// Flip the Loops contact to userGroup:"activated" on the user's first check-in.
+// Guarded by a localStorage flag so it only fires once per user/device.
+function markLoopsActivated() {
+  if (!currentUser?.email) return;
+  try {
+    if (localStorage.getItem('spotd-loops-activated')) return;
+    localStorage.setItem('spotd-loops-activated', '1');
+  } catch (e) {}
+  updateLoopsContact({ userGroup: 'activated' });
 }
 
 // ── AUTH ───────────────────────────────────────────────
@@ -639,7 +703,7 @@ async function _fireCheckinLoopsEvents(userId, venueId) {
   try {
     const { data } = await db.from('check_ins').select('id').eq('user_id', userId);
     const count = data?.length || 0;
-    if (count === 1) { sendLoopsEvent('first_checkin', { venueId }); track('first_checkin', { venue_id: venueId }); }
+    if (count === 1) { sendLoopsEvent('first_checkin', { venueId }); markLoopsActivated(); track('first_checkin', { venue_id: venueId }); }
     if (count === 3 || count === 5 || count === 10 || count === 25 || count === 50) {
       sendLoopsEvent('checkin_streak', { count, venueId });
       track('checkin_milestone', { count: count, venue_id: venueId });

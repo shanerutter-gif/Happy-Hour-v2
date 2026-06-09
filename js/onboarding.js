@@ -10,7 +10,7 @@ const OB_KEY = 'spotd-ob-complete';
 // ── STATE ──────────────────────────────────────────────
 const obState = {
   screen: 0,
-  totalScreens: 7,
+  totalScreens: 8,
   citySlug: 'san-diego',       // chosen on the city-picker screen (screen 1)
   selectedVibes: new Set(),
   selectedNeighborhood: null,
@@ -244,12 +244,9 @@ function obPopulateDynamic() {
   if (s1t) s1t.innerHTML = h1.title.replace('{count}', '<span class="ob-live-num">' + obState.liveCount + '</span>');
   if (s1s) s1s.textContent = h1.sub.replace('{city}', city.name);
 
-  // Screen 2 headline
-  var h2  = _obPick(OB_SCREEN2_HEADLINES);
-  var s2t = document.getElementById('obScreen2Title');
-  var s2s = document.getElementById('obScreen2Sub');
-  if (s2t) s2t.textContent = h2.title;
-  if (s2s) s2s.textContent = h2.sub;
+  // Screen 2 (vibe) copy is intentionally fixed/verbatim in index.html
+  // ("What are you into?" / "Pick a few — we'll tune your feed…") so it no
+  // longer rotates from OB_SCREEN2_HEADLINES.
 
   // Screen 3 headline (total gets filled at render time)
   var h3  = _obPick(OB_SCREEN3_HEADLINES);
@@ -293,10 +290,11 @@ function obGoTo(idx) {
   obState.screen = idx;
   obUpdateProgress(idx);
 
-  // Screen indices shifted +1 after the city-picker screen was inserted at 1:
-  // 0 entry · 1 city · 2 map · 3 vibe · 4 neighborhoods · 5 attribution · 6 signup
+  // DOM order of .ob-screen elements (the social-preview screen was inserted
+  // before signup):
+  // 0 entry · 1 city · 2 map · 3 vibe · 4 neighborhoods · 5 attribution · 6 social · 7 signup
   if (idx === 4) obRenderNeighborhoods();
-  if (idx === 6) obUpdateSignupScreen();
+  if (idx === 7) obUpdateSignupScreen();
 }
 
 // ── ATTRIBUTION (Screen 4) ────────────────────────────
@@ -417,11 +415,11 @@ function obSelectNeighborhood(name, deals, el) {
 
 // ── SIGNUP SCREEN ──────────────────────────────────────
 function obUpdateSignupScreen() {
-  const n    = obState.selectedNeighborhood;
-  const hood = n ? n.name : obCity().name;
-  const cnt  = n ? n.deals : 23;
-  const hl   = document.getElementById('obSignupHeadline');
-  if (hl) hl.textContent = `We found ${cnt} happy hours matching your vibe in ${hood}`;
+  // Auth-wall copy is fixed/verbatim now (the personalized "we found N…"
+  // headline was replaced). Kept as a function so obGoTo still has a hook if we
+  // want to re-personalize later.
+  const hl = document.getElementById('obSignupHeadline');
+  if (hl) hl.textContent = "You're in. Let's make it yours.";
 }
 
 // ── EMAIL FLOW ─────────────────────────────────────────
