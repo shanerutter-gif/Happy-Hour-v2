@@ -1347,7 +1347,9 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 .social-tab.tab-open {
   display: flex;
   pointer-events: auto;
+  animation: socialTabIn .2s var(--ease-soft, cubic-bezier(.4,0,.2,1)) both;
 }
+@keyframes socialTabIn { from { opacity: 0; } to { opacity: 1; } }
 .social-header {
   display: flex;
   align-items: center;
@@ -1400,16 +1402,19 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   border: none;
   border-radius: 16px;
   cursor: pointer;
-  transition: color .2s, background .2s;
+  transition: color .2s var(--ease-soft, ease),
+              background .2s var(--ease-soft, ease),
+              transform .16s var(--ease-spring, cubic-bezier(.32,.72,0,1));
   text-align: center;
   letter-spacing: 0.01em;
+  -webkit-tap-highlight-color: transparent;
 }
 .social-sub-tab.active {
   color: var(--ink);
   background: var(--bg2);
   font-weight: 800;
 }
-.social-sub-tab:active { opacity: .7; }
+.social-sub-tab:active { transform: scale(.95); }
 
 /* ── Share CTA in social empty ── */
 .social-share-cta {
@@ -1467,6 +1472,17 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   from { opacity: 0; transform: translateY(16px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+/* Feed entrance — one cohesive fade for the whole list on each render
+   (tab switch / refresh) instead of every card replaying its own staggered
+   pop, which read as glitchy. JS re-triggers it via _feedEnter() by toggling
+   .sf-feed-enter with a reflow. */
+@keyframes sfFeedEnter {
+  from { opacity: 0; transform: translateY(7px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.social-feed-content.sf-feed-enter {
+  animation: sfFeedEnter .26s var(--ease-soft, cubic-bezier(.4,0,.2,1)) both;
+}
 
 /* ── Shared action buttons (orange gradient pills) ── */
 .sf-actions {
@@ -1481,7 +1497,8 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   padding: 7px 14px; border-radius: 50px; cursor: pointer;
   font-family: 'DM Sans', sans-serif;
   display: inline-flex; align-items: center; gap: 5px;
-  transition: all .18s ease;
+  transition: transform .16s var(--ease-spring, cubic-bezier(.32,.72,0,1)),
+              background .18s ease, border-color .18s ease, color .18s ease;
   -webkit-tap-highlight-color: transparent;
 }
 .sf-action-btn:active { transform: scale(.92); }
@@ -1511,7 +1528,6 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   position: relative;
   margin-bottom: 12px;
   box-shadow: var(--clay-lg);
-  animation: sfFadeIn .35s cubic-bezier(.22,1,.36,1) both;
   -webkit-tap-highlight-color: transparent;
 }
 .sf-hero .sf-actions { position: relative; z-index: 3; }
@@ -1558,7 +1574,6 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   background: var(--card); border-radius: 22px; overflow: hidden;
   display: flex; flex-direction: column;
   box-shadow: var(--clay-md);
-  animation: sfFadeIn .35s cubic-bezier(.22,1,.36,1) both;
   -webkit-tap-highlight-color: transparent;
   transition: transform .15s ease, box-shadow .15s;
 }
@@ -1613,7 +1628,6 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   background: var(--card); border-radius: 22px; overflow: hidden;
   margin-bottom: 10px;
   box-shadow: var(--clay-md);
-  animation: sfFadeIn .35s cubic-bezier(.22,1,.36,1) both;
   -webkit-tap-highlight-color: transparent;
   transition: transform .15s ease, box-shadow .15s;
 }
@@ -6753,7 +6767,10 @@ h1, h2, .sf-hero-venue, .sf-ed-title, .pf-name, .gw-hero__title,
   60%  { transform: scale(1.25); }
   100% { transform: scale(1); }
 }
-.sf-action-btn.sf-liked svg,
+/* heartPop fires only on the runtime .heart-bounce class (added on tap),
+   NOT on .sf-liked — otherwise every already-liked heart re-popped on each
+   feed render (tab switch / refresh), which looked glitchy. */
+.sf-action-btn.heart-bounce svg,
 .imv-rail-btn.on {
   animation: heartPop 0.42s var(--ease-snap);
 }
