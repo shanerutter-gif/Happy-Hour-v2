@@ -6,6 +6,12 @@
 const DAYS    = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const TODAY   = DAYS[new Date().getDay()];
 
+// Day arrays in the DB are mostly short form ("Mon") but some rows still carry
+// long form ("Monday"). Normalise to the 3-letter form so matching never silently
+// fails (the old bug that made open venues read "Not open today").
+function _dayShort(d) { return d ? String(d).slice(0, 3) : ''; }
+function venueOpenToday(v) { return (v.days || []).some(d => _dayShort(d) === TODAY); }
+
 // Parse just today's hours from the full hours string
 // Handles both "Mon–Thu 5–9pm" and "11am – 10pm Mon–Thu" formats
 // Separators: ", " or " · "
@@ -49,8 +55,10 @@ function getTodayHours(v) {
     if (inRange) return time;
   }
 
-  // No match for today — venue not open today
-  return (v.days || []).includes(TODAY) ? v.hours : 'Not open today';
+  // Couldn't isolate a single day's hours — show the full hours string rather than
+  // a misleading "Not open today" (days data is unreliable: often the happy-hour
+  // days, not the open days). Happy-hour windows live in Deals & Specials now.
+  return v.hours;
 }
 const EVENT_TYPES = ['Trivia','Live Music','Karaoke','Bingo','Game Night','Comedy'];
 const HH_TYPES    = ['Bar','Brewery','Seafood','Mexican','Italian','Asian','BBQ','Wine Bar','Steakhouse','Beach Bar'];
@@ -2859,8 +2867,8 @@ function renderModal(v, type, reviews) {
 
       <div class="s-div"></div>
       <div class="modal-section-label">Schedule</div>
-      <div class="modal-when">${esc(v.hours || '')}</div>
-      <div class="s-days">${DAYS.map(d => `<span class="day-pill${(v.days || []).includes(d) ? (d === TODAY ? ' today' : ' on') : ''}">${d}</span>`).join('')}</div>
+      ${v.hours ? `<div class="modal-when">${esc(v.hours)}</div>` : ''}
+      <div class="s-days">${(() => { const dset = new Set((v.days || []).map(_dayShort)); return DAYS.map(d => `<span class="day-pill${dset.has(d) ? (d === TODAY ? ' today' : ' on') : ''}">${d}</span>`).join(''); })()}</div>
 
       ${isVenue ? `
         ${(() => { const tags = AMENITIES.filter(a => v[a.key]).map(a => `<span class="amenity-tag amenity-tag--${a.key}">${icn(a.icon,12)} ${a.label}</span>`).join(''); return tags ? `<div class="amenity-tags amenity-tags--modal" style="margin-top:10px">${tags}</div>` : ''; })()}
@@ -5170,8 +5178,10 @@ function updateMapMarkers() {
   state.filtered.forEach(v => {
     if (!v.lat || !v.lng) return;
     const isEvent = !!v.event_type;
-    const openToday = (v.days||[]).includes(TODAY);
-    const bg = isEvent ? '#7C6FD8' : openToday ? '#FF6B4A' : '#9A8E82';
+    // Grey out only when we positively know it's not a listed day; unknown/empty
+    // days default to the active coral (we no longer trust days as "open days").
+    const dimmed = (v.days || []).length > 0 && !venueOpenToday(v);
+    const bg = isEvent ? '#7C6FD8' : dimmed ? '#9A8E82' : '#FF6B4A';
     const label = v.name.length > 16 ? v.name.slice(0, 15) + '\u2026' : v.name;
     const iconHtml = `<div class="map-pin-wrap"><div class="map-pin-dot" style="background:${bg};box-shadow:0 0 0 3px ${bg}22"></div><div class="map-pin-label" style="border-color:${bg}33;color:${bg}">${label}</div></div>`;
     const icon = L.divIcon({ className: '', html: iconHtml, iconSize: [10, 10], iconAnchor: [5, 5], popupAnchor: [0, -14] });
@@ -7765,7 +7775,7 @@ async function openListDetail(listId) {
     (items.length ? items.map(function(item) {
       var v = item.venues;
       if (!v) return '';
-      var todayH = v.days && v.days.includes(TODAY) ? 'Open today' : '';
+      var todayH = venueOpenToday(v) ? 'Open today' : '';
       return '<div class="list-venue-row" onclick="closeSubPage(\'listDetailPage\');openModal(\'' + v.id + '\',\'venue\')">' +
         (v.photo_url ? '<img class="list-venue-img" src="' + esc(v.photo_url) + '" alt="" loading="lazy" decoding="async" onerror="this.style.display=\'none\'">' : '<div class="list-venue-img" style="background:var(--coral-dim);display:flex;align-items:center;justify-content:center;font-size:20px">\uD83C\uDF7A</div>') +
         '<div class="list-venue-body">' +
