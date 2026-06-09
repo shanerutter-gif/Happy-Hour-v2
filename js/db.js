@@ -254,6 +254,31 @@ function triggerLoopsOnboarding(email, firstName, userId, source) {
   }).catch(e => console.warn('[Loops] Onboarding trigger failed:', e.message));
 }
 
+// Persist the user's chosen city onto their profile so the per-city digest
+// crons (weekly-digest / daily-deals) route them correctly. Prefers the
+// onboarding selection (localStorage 'spotd-last-city'), falling back to the
+// in-memory onboarding state, then the column default. Fire-and-forget; only
+// runs once we hold an authenticated session (profile row exists by then).
+function _persistSignupCity() {
+  if (!currentUser?.id || !_accessToken) return;
+  let citySlug;
+  try {
+    citySlug = localStorage.getItem('spotd-last-city')
+      || (typeof obState !== 'undefined' && obState.citySlug)
+      || 'san-diego';
+  } catch (e) { citySlug = 'san-diego'; }
+  fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${currentUser.id}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_ANON_KEY,
+      'Authorization': `Bearer ${_accessToken}`,
+      'Prefer': 'return=minimal',
+    },
+    body: JSON.stringify({ city_slug: citySlug }),
+  }).catch(e => console.warn('[profile] city_slug persist failed:', e.message));
+}
+
 // ── LOOPS EVENTS (fire-and-forget) ───────────────────
 function sendLoopsEvent(eventName, properties) {
   const email = currentUser?.email;
@@ -339,7 +364,12 @@ async function authSignUp(email, password, displayName) {
     if (data.error)             { track('signup_failed', { method: 'email' }); return { error: { message: data.error } }; }
     // Trigger onboarding email sequence (fire-and-forget)
     triggerLoopsOnboarding(email, displayName, data.user?.id, 'email-signup');
-    if (data.access_token) return authSignIn(email, password);
+    if (data.access_token) {
+      const res = await authSignIn(email, password);
+      // Now that we hold a session, persist the chosen city to the profile.
+      _persistSignupCity();
+      return res;
+    }
     return { data, error: null };
   } catch (e) {
     track('signup_failed', { method: 'email', reason: 'network' });
@@ -432,6 +462,8 @@ async function handleOAuthCallback() {
     if (user.email) {
       triggerLoopsOnboarding(user.email, user.user_metadata?.full_name, user.id, 'google-oauth');
     }
+    // Persist the chosen city to the profile for per-city digest routing.
+    _persistSignupCity();
 
     const _provider = user.app_metadata?.provider || 'oauth';
     const _isNew = !!(user.created_at && (Date.now() - new Date(user.created_at).getTime() < 60000));
