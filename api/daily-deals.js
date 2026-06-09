@@ -1,7 +1,10 @@
 export const config = { runtime: 'edge' };
 
 // Daily Deals Newsletter — runs once per day via Vercel Cron.
-// Picks 3 venues with deals, sends a `daily_deals` event to all Loops contacts.
+// Picks 3 venues with deals, sends a `daily_deals` event to engaged users
+// (everyone who's checked in across the active cities). Recipients come from the
+// DATABASE (distinct check_ins.user_id, emails resolved via the Supabase admin
+// API) — Loops has no list-all-contacts endpoint.
 // GET /api/daily-deals?key=<SERVICE_ROLE_KEY>
 
 export default async function handler(req) {
@@ -79,60 +82,72 @@ export default async function handler(req) {
       weekday: 'long', month: 'long', day: 'numeric',
     });
 
-    // 4. Fetch all Loops contacts and send event to each
-    //    Use Loops list contacts endpoint, paginated
+    // 4. Resolve recipients from the database (Loops has no list-all endpoint):
+    //    engaged users = distinct check_ins.user_id across all active cities.
+    const citiesRes = await fetch(`${supabaseUrl}/rest/v1/cities?select=slug&active=eq.true`, { headers: sbHeaders });
+    if (!citiesRes.ok) {
+      const body = await citiesRes.text();
+      console.error('[daily-deals] cities fetch failed:', citiesRes.status, body);
+      throw new Error(`Failed to fetch cities: ${citiesRes.status} ${body}`);
+    }
+    const cities = await citiesRes.json();
+
+    const userIdSet = new Set();
+    for (const c of cities) {
+      const ids = await engagedUserIds(supabaseUrl, sbHeaders, c.slug);
+      ids.forEach(id => userIdSet.add(id));
+    }
+    const userIds = [...userIdSet];
+    if (!userIds.length) {
+      console.error('[daily-deals] No engaged users found across active cities');
+      return jsonRes({ success: true, venues: picked.map(v => v.name), recipients: 0, sent: 0, errors: 0 });
+    }
+
+    // Skip users who opted out of the digest.
+    const disabled = await digestDisabledSet(supabaseUrl, sbHeaders, userIds);
+
     const loopsHeaders = {
       'Authorization': `Bearer ${loopsKey}`,
       'Content-Type': 'application/json',
     };
 
-    // Get contacts from Loops (paginated, up to 5000)
-    let allContacts = [];
-    let hasMore = true;
-    let loopOffset = 0;
-    while (hasMore && loopOffset < 5000) {
-      const cr = await fetch(`https://app.loops.so/api/v1/contacts?limit=100&offset=${loopOffset}`, {
-        headers: { 'Authorization': `Bearer ${loopsKey}` },
-      });
-      if (!cr.ok) {
-        const body = await cr.text();
-        console.error('[daily-deals] Loops contacts fetch failed:', cr.status, body);
-        break;
-      }
-      const batch = await cr.json();
-      if (!batch.length) break;
-      allContacts = allContacts.concat(batch);
-      loopOffset += batch.length;
-      hasMore = batch.length === 100;
-    }
-
-    // 5. Send daily_deals event to each contact (with rate limiting)
-    let sent = 0;
-    let errors = 0;
-    for (const contact of allContacts) {
-      if (!contact.email) continue;
+    // 5. Send daily_deals to each resolved email (with rate limiting).
+    const emailCache = {};
+    let sent = 0, errors = 0, recipients = 0;
+    for (const uid of userIds) {
+      if (disabled.has(uid)) continue;
+      const email = await resolveEmail(supabaseUrl, svcKey, uid, emailCache);
+      if (!email) continue;
+      recipients++;
       try {
         const er = await fetch('https://app.loops.so/api/v1/events/send', {
           method: 'POST',
           headers: loopsHeaders,
           body: JSON.stringify({
-            email: contact.email,
+            email,
             eventName: 'daily_deals',
             ...props,
           }),
         });
         if (er.ok) sent++;
-        else errors++;
-      } catch { errors++; }
+        else {
+          errors++;
+          const body = await er.text();
+          console.error(`[daily-deals] daily_deals send failed for ${email}:`, er.status, body);
+        }
+      } catch (e) {
+        errors++;
+        console.error(`[daily-deals] daily_deals send error for ${email}:`, e.message);
+      }
 
       // Loops rate limit: ~10 req/s — add small delay
-      if (sent % 10 === 0) await sleep(1100);
+      if (sent % 10 === 0 && sent > 0) await sleep(1100);
     }
 
     return jsonRes({
       success: true,
       venues: picked.map(v => v.name),
-      contactsFound: allContacts.length,
+      recipients,
       sent,
       errors,
     });
@@ -157,6 +172,73 @@ function formatHours(v) {
   const days = Array.isArray(v.days) ? v.days.join(', ') : '';
   const time = v.hours || '';
   return [days, time].filter(Boolean).join(' · ');
+}
+
+// Distinct engaged user_ids for a city = everyone who's ever checked in there.
+async function engagedUserIds(supabaseUrl, sbHeaders, slug) {
+  try {
+    const r = await fetch(
+      `${supabaseUrl}/rest/v1/check_ins?select=user_id&city_slug=eq.${slug}&user_id=not.is.null&limit=20000`,
+      { headers: sbHeaders }
+    );
+    if (!r.ok) {
+      const body = await r.text();
+      console.error(`[daily-deals] check_ins recipients fetch failed for ${slug}:`, r.status, body);
+      return [];
+    }
+    const rows = await r.json();
+    return [...new Set(rows.map(x => x.user_id).filter(Boolean))];
+  } catch (e) {
+    console.error(`[daily-deals] check_ins recipients error for ${slug}:`, e.message);
+    return [];
+  }
+}
+
+// Set of user_ids whose profiles.digest_enabled is explicitly false (opted out).
+async function digestDisabledSet(supabaseUrl, sbHeaders, ids) {
+  const disabled = new Set();
+  const chunk = 200; // keep the in.() URL a sane length
+  for (let i = 0; i < ids.length; i += chunk) {
+    const slice = ids.slice(i, i + chunk);
+    try {
+      const r = await fetch(
+        `${supabaseUrl}/rest/v1/profiles?select=id&id=in.(${slice.join(',')})&digest_enabled=is.false`,
+        { headers: sbHeaders }
+      );
+      if (r.ok) {
+        const rows = await r.json();
+        rows.forEach(p => disabled.add(p.id));
+      } else {
+        const body = await r.text();
+        console.error('[daily-deals] digest_enabled fetch failed:', r.status, body);
+      }
+    } catch (e) {
+      console.error('[daily-deals] digest_enabled error:', e.message);
+    }
+  }
+  return disabled;
+}
+
+// Resolve a user's email via the Supabase admin API (cached; mirrors loops-inactive).
+async function resolveEmail(supabaseUrl, svcKey, uid, cache) {
+  if (uid in cache) return cache[uid];
+  let email = null;
+  try {
+    const r = await fetch(`${supabaseUrl}/auth/v1/admin/users/${uid}`, {
+      headers: { 'apikey': svcKey, 'Authorization': `Bearer ${svcKey}` },
+    });
+    if (r.ok) {
+      const u = await r.json();
+      if (u.email) email = u.email;
+    } else {
+      const body = await r.text();
+      console.error(`[daily-deals] auth lookup failed for ${uid}:`, r.status, body);
+    }
+  } catch (e) {
+    console.error(`[daily-deals] auth lookup error for ${uid}:`, e.message);
+  }
+  cache[uid] = email;
+  return email;
 }
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
