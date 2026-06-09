@@ -12,7 +12,7 @@ export default async function handler(req) {
   let body;
   try { body = await req.json(); } catch { return jsonRes({ error: 'Invalid JSON' }, 400); }
 
-  const { email, firstName, userId, source } = body;
+  const { email, firstName, userId, source, city_slug, cityName, vibes, platform, sourceDetail } = body;
   if (!email) return jsonRes({ error: 'Email required' }, 400);
 
   const loopsHeaders = {
@@ -21,17 +21,27 @@ export default async function handler(req) {
   };
 
   try {
-    // 1. Create or update contact in Loops
+    // 1. Create or update contact in Loops.
+    //    The onboarding-context fields (city/vibes/platform/attribution) are
+    //    written as top-level custom properties — only included when present so
+    //    we never overwrite an existing value with a blank.
+    const contactBody = {
+      email,
+      firstName: firstName || email.split('@')[0],
+      userId: userId || undefined,
+      source: source || 'app',
+      userGroup: 'new-signup',
+    };
+    if (city_slug)    contactBody.city_slug = city_slug;
+    if (cityName)     contactBody.cityName = cityName;
+    if (vibes)        contactBody.vibes = vibes;
+    if (platform)     contactBody.platform = platform;
+    if (sourceDetail) contactBody.sourceDetail = sourceDetail;
+
     const contactRes = await fetch('https://app.loops.so/api/v1/contacts/create', {
       method: 'POST',
       headers: loopsHeaders,
-      body: JSON.stringify({
-        email,
-        firstName: firstName || email.split('@')[0],
-        userId: userId || undefined,
-        source: source || 'app',
-        userGroup: 'new-signup',
-      }),
+      body: JSON.stringify(contactBody),
     });
 
     // 409 = contact exists, that's fine (idempotent)

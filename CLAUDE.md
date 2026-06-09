@@ -238,10 +238,12 @@ All edge runtime unless noted. Routes wired in `vercel.json`'s `routes` array.
 - `GET|POST /api/admin-enrich-venues` — Google Places enrichment. Actions: `preview`, `batch` (5/call), `venue`. Auth: Bearer JWT → `/auth/v1/user` → `ADMIN_EMAILS` allow-list.
 
 ### Email (Loops)
-- `POST /api/loops-event` — generic event passthrough. Client fire-and-forget pattern in `js/db.js:204-211`.
-- `POST /api/loops-onboarding` — `POST /contacts/create` (idempotent, 409 = ok) then event `signup`.
-- `GET /api/loops-inactive` (cron) — finds `last_seen` 7-8d or 30-31d ago, sends `inactive_7d` / `inactive_30d`.
-- `GET /api/daily-deals` (cron) — picks 3 deal venues rotated by day-of-year, sends `daily_deals` to all Loops contacts (paginated, rate-limited).
+- `POST /api/loops-event` — generic event passthrough. Client fire-and-forget `sendLoopsEvent()` in `js/db.js`.
+- `POST /api/loops-update-contact` — generic contact-property update (`contacts/update`, PUT). Client helpers `updateLoopsContact()` / `markLoopsActivated()` in `js/db.js`. Flips `userGroup:'activated'` on first check-in (guarded by localStorage `spotd-loops-activated`).
+- `POST /api/loops-onboarding` — `POST /contacts/create` (idempotent, 409 = ok) then event `signup`. Also writes onboarding-context custom props sent by the client (`city_slug`, `cityName`, `vibes`, `platform`, `sourceDetail`) gathered by `_loopsSignupContext()`; props only included when present so blanks never overwrite.
+- `GET /api/loops-inactive` (cron) — re-engagement. Inactivity = `coalesce(last_seen, created_at)`; sends to "older than 7d / 30d AND not already re-engaged" (NOT exact-day bands), then stamps `profiles.reengaged_7d_at` / `reengaged_30d_at` so a cohort is never re-emailed (30d takes precedence → one event/run). Every failure path `console.error`s the named env var / fetch. `?key=<service_role>` returns per-cohort counts.
+- `GET /api/daily-deals` (cron) — picks 3 deal venues rotated by day-of-year, sends `daily_deals` to all Loops contacts (paginated, rate-limited). Selects `venues.hours` (NOT phantom `hours_start`/`hours_end` — that select was the silent HTTP-500, fixed 2026-06-09).
+- `GET /api/weekly-digest` (cron, Thu `0 15 * * 4`) — per `cities.active=true` market, ranks the week's top spots (most check-ins in last 7d, topped up with highest-`google_rating` active venues with deals), sends `weekly_digest` to every Loops contact whose `city_slug` property matches, props `cityName` + `spot1_name`/`spot1_deal` … up to 5. Validates `CRON_SECRET` (or `?key=<service_role>`). Body lives in Loops.
 
 ### Payments
 - `POST /api/stripe-checkout` — creates Stripe customer + Checkout session for `STRIPE_PRO_PRICE_ID` (mode `subscription`). Verifies venue ownership via user JWT + RLS.
@@ -255,9 +257,10 @@ All edge runtime unless noted. Routes wired in `vercel.json`'s `routes` array.
 ### Admin-only (not routed by name)
 - `POST /api/run-migration` — **Node runtime**, uses `pg`. Auth: `Bearer ${SUPABASE_SERVICE_KEY}`. Raw SQL executor.
 
-### Crons (`vercel.json:3-6`)
+### Crons (`vercel.json` `crons`)
 - `/api/loops-inactive` daily `0 14 * * *` UTC
 - `/api/daily-deals` daily `0 14 * * *` UTC
+- `/api/weekly-digest` weekly Thu `0 15 * * 4` UTC
 
 ---
 
@@ -298,9 +301,12 @@ Fire-and-forget. Never blocks UI. Goes through edge proxy so `LOOPS_API_KEY` sta
 | `post_liked`              | `js/db.js:1523`                                      |
 | `venue_request_submitted` | `js/db.js:552` + `business-portal.html:1506`         |
 | `venue_claimed`           | `business-portal.html:1558`                          |
-| `inactive_7d`             | `api/loops-inactive.js:77`                           |
-| `inactive_30d`            | `api/loops-inactive.js:88`                           |
-| `daily_deals`             | `api/daily-deals.js:99` (cron)                       |
+| `inactive_7d`             | `api/loops-inactive.js` (cron)                       |
+| `inactive_30d`            | `api/loops-inactive.js` (cron)                       |
+| `daily_deals`             | `api/daily-deals.js` (cron)                          |
+| `weekly_digest`           | `api/weekly-digest.js` (cron, Thu)                   |
+
+**Loops contact custom properties (canonical names — reuse, don't near-dupe):** `city_slug` (slug), `cityName` (display), `vibes` (comma-separated vibe ids), `platform` (`ios`/`web`), `sourceDetail` (attribution source), `userGroup` (`new-signup` at signup → `activated` on first check-in). Written at signup via `/api/loops-onboarding` and updated via `/api/loops-update-contact`.
 
 ### Email templates
 - `emails/01-welcome.html` through `05-push-notifications.html` — onboarding drip series (Loops handles the actual schedule once `signup` fires).
@@ -321,7 +327,7 @@ Project ref: `opcskuzbdfrlnyhraysk` (hardcoded in `js/db.js`, `admin/board.html`
 - `events` — similar shape, with `event_type` (Trivia, Live Music, Karaoke, Bingo, Game Night, Comedy).
 
 **User core**
-- `profiles` — id (auth.users FK), display_name, digest_enabled, **`last_seen`**, **`referred_by`**, is_official.
+- `profiles` — id (auth.users FK), display_name, digest_enabled, **`last_seen`**, **`referred_by`**, is_official, **`reengaged_7d_at`** / **`reengaged_30d_at`** (timestamptz, set by `api/loops-inactive` after sending each re-engagement cohort; `sql/loops-reengagement.sql`). `last_seen` heartbeat fires force-past-throttle on every authenticated session start (`_updateLastSeen(true)` in `initAuth`).
 - `reviews` — venue_id OR event_id, user_id, name, rating 1-5, text.
 - `favorites` — user_id, item_id (text), item_type.
 - `neighborhood_follows` — user_id, neighborhood.
@@ -582,6 +588,7 @@ Append-only architectural / vendor decisions. One line per entry.
 - 2026-05-27 · Rewrote CLAUDE.md as the source of truth. Added a Stop hook
   (`.claude/hooks/stop-claude-md-check.sh`) that blocks turn-end if files
   changed but CLAUDE.md didn't, to enforce the "keep this file alive" meta rule.
+- 2026-06-09 · **Loops lifecycle build — signup enrichment, activation, fixed crons, weekly digest, onboarding copy.** (1) **Signup → Loops:** `_loopsSignupContext()` (`js/db.js`) gathers `city_slug`/`cityName`/`vibes`/`platform`/`sourceDetail` from `obState`/localStorage/sessionStorage; `triggerLoopsOnboarding` sends them and `api/loops-onboarding.js` writes them as top-level contact custom props (only when present), keeping `userGroup:'new-signup'` + 409 handling. (2) **Activation:** new `api/loops-update-contact.js` (edge, `contacts/update` PUT, mirrors `loops-event.js`); `markLoopsActivated()` flips `userGroup:'activated'` on first check-in in `_fireCheckinLoopsEvents`, guarded by localStorage `spotd-loops-activated`. (3) **Fixed dead crons:** both `loops-inactive`/`daily-deals` returned blank 500s. `loops-inactive` rewritten to use `coalesce(last_seen, created_at)` + "older than 7d/30d AND not already sent" (new `profiles.reengaged_7d_at`/`reengaged_30d_at`, `sql/loops-reengagement.sql`, applied) + explicit `console.error` on every failure + per-cohort manual-trigger counts; 30d cohort takes precedence. `daily-deals` was 500ing because its venue `select` named phantom `hours_start`/`hours_end` — switched to `venues.hours` and added explicit error logging. `_updateLastSeen(force)` now bypasses the hourly throttle on session start (`initAuth` calls `_updateLastSeen(true)`); migration also backfills `last_seen = coalesce(last_seen, created_at)`. (4) **Weekly digest:** new `api/weekly-digest.js` (edge) + `vercel.json` cron `0 15 * * 4`; ranks each active city's week by check-ins (fallback: top-rated active venues with deals) and sends `weekly_digest` per matching `city_slug` contact with `cityName` + up to 5 spot names/deals; body lives in Loops. (5) **Onboarding copy** (`index.html` + `js/onboarding.js`): new entry headline/sub, "47 people out right now" pill, fixed verbatim vibe title/sub (stopped the `OB_SCREEN2_HEADLINES` rotation), new "The fun part" social-preview step inserted before the auth wall (`totalScreens` 7→8, 8th progress dot, signup render hook moved to idx 7, new `.ob-social-*` CSS), and fixed auth-wall title "You're in. Let's make it yours." Routes added in `vercel.json` for `/api/loops-update-contact` + `/api/weekly-digest`. Bumped `db.js?v=20260609a`, `onboarding.js?v=20260609a`.
 - 2026-06-06 · **Composer enrichment — friend tagging, clearer multi-photo, always-on Story, inviting design.** Built on the unified composer. (1) **Tag friends:** new `_composerOpenTagSheet` (bottom-sheet of followed friends as `.tag-friend-chip`s) + `_composerToggleTag` stage ids in `_composerTags` (Set); `submitComposer` captures the saved post (`saveCheckinPhoto`/`saveTextPost` now return the row) and calls `saveTagsForPost(post.id, [..._composerTags])` — real `post_tags` + notification (the `@`-mention in the body is still just text). Options row gained a `👥 Tag friends` / `👥 N tagged` chip. (2) **Multi-photo clarity:** photo tile now shows `Add photos` + `Up to 5 — they post as a swipeable gallery`, and `Add more · N left` once started (multi-photo already worked; this just surfaces it). (3) **Story is always selectable** (was hidden until a photo) so you can choose "just a Story"; submit still blocks a story with no photo. (4) **Inviting design:** `.cp-postingas` avatar+name header, a rotating `_composerPlaceholder` (COMPOSER_PLACEHOLDERS), one-tap idea chips on the blank state (`COMPOSER_IDEAS` → `_composerPrompt` prefills the caption), bigger `.cp-body--big`, warmer hint, dynamic Post label (`Post`/`Share`/`Share Story`). New CSS: `.cp-postingas*`, `.cp-ideas/.cp-idea`, `.cp-photo-pick-*`, `.cp-tagsheet-*`. Bumped `app.js?v=20260605m`, `style.css?v=20260605l`.
 - 2026-06-06 · **Unified the post composer — removed the Status/Photo/Editorial mode tabs.** Was decision overload: users had to pick a mode upfront. Now `_renderComposerCompose` (`js/app.js`) is ONE form — caption textarea + always-available photo picker ("Add photos (optional)") + venue/visibility/story options — and `submitComposer` **infers the post type at submit**: photos present → `post_type:'photo'` (caption optional), text only → `saveTextPost` (`post_type:'text'`). **Editorial creation is gone** (the `is_official` "Editorial" tab, `cpTitle`/`cpPin`, and the editorial submit branch were removed); existing editorial posts still RENDER (pinned logic, `sf-editorial` variant, `saveEditorialPost` left defined but now unreferenced) — only the creation path was removed. Story (24h) is now a contextual option that shows once a photo is added (or when opened via the stories‑strip "+", which passes `{story:true}`); a story with no photo is blocked. Removed `_composerSwitchType`; the photo-editor router now keys off `_composerStep==='edit'` instead of `_composerType==='photo'` (so editing works without a "photo mode"). `_composerType` is now vestigial (set, never read). Header center reuses the existing `.cp-edit-title` style for a "New post" label; the `.cp-tabs`/`.cp-type-tab` CSS is now dead but harmless. Bumped `app.js?v=20260605l`.
 - 2026-06-06 · **Admin "Last Seen" was mostly "Never" — flaky `last_seen` heartbeat.** `profiles.last_seen` was set on only 7 of 141 users (13 clearly-active users, some active that same day, showed "Never"). RLS was fine (`id = auth.uid()` self-update allowed); the bug was timing: `_updateLastSeen()` (`js/db.js`) runs synchronously in `initAuth` BEFORE the background token-refresh sets `_accessToken`, so returning users whose stored token had expired pinged with no token and bailed. Fixes (`js/db.js`): (1) call `_updateLastSeen()` at the end of `_refreshAndPersist` (every fresh token now pings), and (2) call it on `visibilitychange→visible` (the iOS WKWebView stays alive across backgrounding, so `initAuth` only runs once per launch — without this a daily returner pinged at most once). Both rely on the existing 1/hour localStorage throttle. One-time **backfill** (`sql/backfill-last-seen.sql`, applied via MCP — 15 rows) set `last_seen = greatest(last_seen, max(check_in/post/review created_at))` so the column is accurate now; the remaining 121 "Never" profiles genuinely have zero activity. This also improves the `loops-inactive` churn cron, which reads `last_seen`. Bumped `db.js?v=20260605j`.

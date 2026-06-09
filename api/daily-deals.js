@@ -11,7 +11,14 @@ export default async function handler(req) {
   const loopsKey = process.env.LOOPS_API_KEY;
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://opcskuzbdfrlnyhraysk.supabase.co';
 
-  if (!svcKey || !loopsKey) return jsonRes({ error: 'Missing env vars' }, 500);
+  if (!svcKey) {
+    console.error('[daily-deals] Missing env var SUPABASE_SERVICE_ROLE_KEY');
+    return jsonRes({ error: 'Missing SUPABASE_SERVICE_ROLE_KEY' }, 500);
+  }
+  if (!loopsKey) {
+    console.error('[daily-deals] Missing env var LOOPS_API_KEY');
+    return jsonRes({ error: 'Missing LOOPS_API_KEY' }, 500);
+  }
 
   // Auth: Vercel Cron secret or service key
   const url = new URL(req.url);
@@ -26,17 +33,27 @@ export default async function handler(req) {
   };
 
   try {
-    // 1. Fetch all active venues that have deals
+    // 1. Fetch all active venues that have deals.
+    //    NOTE: venues has a single `hours` text column — there is NO
+    //    hours_start/hours_end (naming them here previously 400'd the whole
+    //    query and 500'd this cron).
     const r = await fetch(
-      `${supabaseUrl}/rest/v1/venues?select=id,name,neighborhood,city_slug,deals,hours_start,hours_end,days&active=eq.true&deals=not.is.null&limit=1000`,
+      `${supabaseUrl}/rest/v1/venues?select=id,name,neighborhood,city_slug,deals,hours,days&active=eq.true&deals=not.is.null&limit=1000`,
       { headers: sbHeaders }
     );
-    if (!r.ok) throw new Error('Failed to fetch venues');
+    if (!r.ok) {
+      const body = await r.text();
+      console.error('[daily-deals] venues fetch failed:', r.status, body);
+      throw new Error(`Failed to fetch venues: ${r.status} ${body}`);
+    }
     let venues = await r.json();
 
     // Filter to venues that actually have deals (non-empty array)
     venues = venues.filter(v => Array.isArray(v.deals) && v.deals.length > 0);
-    if (venues.length < 3) return jsonRes({ error: 'Not enough venues with deals', count: venues.length }, 400);
+    if (venues.length < 3) {
+      console.error('[daily-deals] Not enough venues with deals:', venues.length);
+      return jsonRes({ error: 'Not enough venues with deals', count: venues.length }, 400);
+    }
 
     // 2. Pick 3 venues — rotate daily using day-of-year as offset
     const dayOfYear = getDayOfYear();
@@ -77,7 +94,11 @@ export default async function handler(req) {
       const cr = await fetch(`https://app.loops.so/api/v1/contacts?limit=100&offset=${loopOffset}`, {
         headers: { 'Authorization': `Bearer ${loopsKey}` },
       });
-      if (!cr.ok) break;
+      if (!cr.ok) {
+        const body = await cr.text();
+        console.error('[daily-deals] Loops contacts fetch failed:', cr.status, body);
+        break;
+      }
       const batch = await cr.json();
       if (!batch.length) break;
       allContacts = allContacts.concat(batch);
@@ -133,9 +154,8 @@ function formatCity(slug) {
 }
 
 function formatHours(v) {
-  if (!v.hours_start && !v.hours_end) return '';
   const days = Array.isArray(v.days) ? v.days.join(', ') : '';
-  const time = [v.hours_start, v.hours_end].filter(Boolean).join(' – ');
+  const time = v.hours || '';
   return [days, time].filter(Boolean).join(' · ');
 }
 
