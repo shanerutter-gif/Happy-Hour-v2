@@ -126,7 +126,7 @@ export default async function handler(req) {
           body: JSON.stringify({
             email,
             eventName: 'daily_deals',
-            ...props,
+            eventProperties: props,
           }),
         });
         if (er.ok) sent++;

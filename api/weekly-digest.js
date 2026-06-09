@@ -110,7 +110,7 @@ export default async function handler(req) {
             body: JSON.stringify({
               email,
               eventName: 'weekly_digest',
-              ...digest.props,
+              eventProperties: digest.props,
             }),
           });
           if (er.ok) { sent++; citySent++; }
