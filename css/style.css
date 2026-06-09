@@ -1777,11 +1777,17 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 .dm-tab--takeover { z-index: 620; }
 
 /* Smooth screen entry — replays each time a screen is shown (display none→flex
-   restarts the animation). GPU-friendly opacity + small translate only. */
-@keyframes dmScreenSlide { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: none; } }
+   restarts the animation). A gentle upward settle (opacity + tiny translateY)
+   reads as smoother than a sideways slide and won't fight the keyboard's
+   own motion. GPU-friendly (opacity + transform only). */
+@keyframes dmScreenSlide { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 @keyframes dmScreenFade  { from { opacity: 0; } to { opacity: 1; } }
-.dm-screen--flex   { animation: dmScreenSlide .24s cubic-bezier(.22,.61,.36,1); }
-.dm-screen--scroll { animation: dmScreenFade .2s ease; }
+.dm-screen--flex   { animation: dmScreenSlide .2s cubic-bezier(.22,.61,.36,1); }
+.dm-screen--scroll { animation: dmScreenFade .18s ease; }
+
+/* Keyboard open: collapse the compose bar's bottom safe-area padding so the
+   input sits flush above the keys instead of floating over a cream gap. */
+.dm-tab--kb .dm-compose { padding-bottom: 10px; }
 
 /* ── Header — frosted glass matching social feed ── */
 .dm-header {
@@ -1923,7 +1929,7 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 }
 .dm-share-send-btn {
   flex-shrink: 0;
-  background: linear-gradient(135deg, #FF6B4A, #FF8559);
+  background: linear-gradient(135deg, var(--coral), var(--amber));
   color: #fff;
   font-family: 'DM Sans', sans-serif;
   font-weight: 700;
@@ -2038,7 +2044,7 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   word-break: break-word;
 }
 .dm-msg--mine .dm-bubble {
-  background: linear-gradient(135deg, var(--teal), var(--teal-dk));
+  background: linear-gradient(135deg, var(--coral), var(--amber));
   color: #fff;
   border-bottom-right-radius: 6px;
   box-shadow: var(--clay-md);
@@ -2095,7 +2101,7 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 .dm-input:focus { box-shadow: var(--ring), var(--clay-sm); }
 .dm-send-btn {
   width: 44px; height: 44px;
-  background: linear-gradient(135deg, var(--teal), var(--teal-dk));
+  background: linear-gradient(135deg, var(--coral), var(--amber));
   color: #fff;
   border: none;
   border-radius: 50%;
