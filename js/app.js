@@ -6812,7 +6812,7 @@ function openDmTab() {
 }
 function closeDmTab() {
   const tab = document.getElementById('dmTab');
-  tab.classList.remove('tab-open', 'dm-tab--takeover');
+  tab.classList.remove('tab-open', 'dm-tab--takeover', 'dm-tab--kb');
   tab.style.paddingBottom = '';
   if (dmState.subscription) { dmState.subscription.unsubscribe(); dmState.subscription = null; }
 }
@@ -6880,7 +6880,10 @@ const DM_EMPTY_HTML = `<div class="dm-empty-state">
 
 async function dmLoadInbox() {
   const list = document.getElementById('dmThreadList');
-  list.innerHTML = '<div class="dm-loading">Loading…</div>';
+  // Only show the loading placeholder on a cold load. On back-navigation the
+  // list is already populated — blanking it to "Loading…" caused a jarring
+  // empty flash before the (usually cached) rows re-rendered. Refresh in place.
+  if (!list.querySelector('.dm-thread-row')) list.innerHTML = '<div class="dm-loading">Loading…</div>';
   try {
     const { data: myParts, error: e1 } = await db
       .from('conversation_participants').select('conversation_id, last_read_at').eq('user_id', currentUser.id);
@@ -7475,6 +7478,9 @@ function dmSyncViewport() {
   if (!vv) return;
   const kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
   tab.style.paddingBottom = kb + 'px';
+  // While the keyboard is up the compose bar's bottom safe-area padding becomes
+  // a visible cream gap above the keys — collapse it via this class (CSS).
+  tab.classList.toggle('dm-tab--kb', kb > 4);
   if (kb > 0) dmScrollToBottom();
 }
 if (window.visualViewport) {
@@ -7483,7 +7489,7 @@ if (window.visualViewport) {
 }
 
 document.addEventListener('focusin', e => { if (e.target.id === 'dmInput') { dmSyncViewport(); setTimeout(dmScrollToBottom, 120); } });
-document.addEventListener('focusout', e => { if (e.target.id === 'dmInput') { const tab = document.getElementById('dmTab'); if (tab) tab.style.paddingBottom = ''; } });
+document.addEventListener('focusout', e => { if (e.target.id === 'dmInput') { const tab = document.getElementById('dmTab'); if (tab) { tab.style.paddingBottom = ''; tab.classList.remove('dm-tab--kb'); } } });
 document.addEventListener('focusout', e => {
   if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') {
     const sheet = e.target.closest('.sheet');
