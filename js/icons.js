@@ -75,7 +75,7 @@ function icn(name, size) {
 function initialsAvatar(name, sizeClass, emoji, photoUrl) {
   const cls = sizeClass || '';
   if (photoUrl) {
-    return `<img src="${photoUrl}" alt="" class="initials-avatar ${cls}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`;
+    return `<img src="${photoUrl}" alt="" class="initials-avatar ${cls}" style="width:100%;height:100%;border-radius:50%;object-fit:cover" loading="lazy" decoding="async">`;
   }
   if (emoji) {
     return `<span class="initials-avatar ${cls}">${emoji}</span>`;
