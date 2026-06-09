@@ -6811,7 +6811,9 @@ function openDmTab() {
   document.getElementById('dmTab').classList.add('tab-open');
 }
 function closeDmTab() {
-  document.getElementById('dmTab').classList.remove('tab-open');
+  const tab = document.getElementById('dmTab');
+  tab.classList.remove('tab-open', 'dm-tab--takeover');
+  tab.style.bottom = '';
   if (dmState.subscription) { dmState.subscription.unsubscribe(); dmState.subscription = null; }
 }
 function openDmPage()  { openDmTab(); }
@@ -6825,6 +6827,11 @@ function dmShowScreen(name) {
   const target = document.getElementById('dmScreen' + name.charAt(0).toUpperCase() + name.slice(1));
   if (target) target.style.display = (name === 'inbox') ? 'block' : 'flex';
   dmState.screen = name;
+
+  // Inbox: stay below the bottom nav so tapping a nav button exits Messages.
+  // Convo/picker: rise above the nav for a clean full-screen chat takeover.
+  const tabEl = document.getElementById('dmTab');
+  if (tabEl) tabEl.classList.toggle('dm-tab--takeover', name !== 'inbox');
 
   const backBtn = document.getElementById('dmBackBtn');
   const newBtn  = document.getElementById('dmNewBtn');
@@ -7089,7 +7096,7 @@ async function dmLoadConvo() {
   const vMap = {};
   (venues || []).forEach(v => { vMap[v.id] = v; });
 
-  if (!msgs.length) { el.innerHTML = '<div class="dm-empty">Say hi!</div>'; return; }
+  if (!msgs.length) { el.innerHTML = '<div class="dm-empty">No messages yet.<br>Say hi! 👋</div>'; return; }
   el.innerHTML = msgs.map(m => dmRenderMsg(m, pMap, vMap)).join('');
   dmScrollToBottom();
 
@@ -7448,7 +7455,27 @@ function dmScrollToBottom() {
   if (el) setTimeout(() => { el.scrollTop = el.scrollHeight; }, 50);
 }
 
-document.addEventListener('focusin', e => { if (e.target.id === 'dmInput') setTimeout(() => dmScrollToBottom(), 300); });
+// Keyboard handling for the DM tab. The tab is `position:fixed; inset:0`, so it
+// fills the layout viewport and the on-screen keyboard would otherwise sit on
+// top of the compose bar. We lift the tab's bottom edge by the keyboard height
+// (from visualViewport) so the flex column shrinks and the input rides just
+// above the keyboard — no jump, no hidden field. Resets to 0 when dismissed.
+function dmSyncViewport() {
+  const tab = document.getElementById('dmTab');
+  if (!tab || !tab.classList.contains('tab-open')) return;
+  const vv = window.visualViewport;
+  if (!vv) return;
+  const kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+  tab.style.bottom = kb + 'px';
+  if (kb > 0) dmScrollToBottom();
+}
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', dmSyncViewport);
+  window.visualViewport.addEventListener('scroll', dmSyncViewport);
+}
+
+document.addEventListener('focusin', e => { if (e.target.id === 'dmInput') { dmSyncViewport(); setTimeout(dmScrollToBottom, 120); } });
+document.addEventListener('focusout', e => { if (e.target.id === 'dmInput') { const tab = document.getElementById('dmTab'); if (tab) tab.style.bottom = ''; } });
 document.addEventListener('focusout', e => {
   if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') {
     const sheet = e.target.closest('.sheet');
