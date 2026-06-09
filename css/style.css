@@ -3522,13 +3522,16 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 /* Top header action buttons. Cleaner pattern: flat icon-only circles
    that read as one row of utility actions, no white-card-with-shadow.
    Active state gets a subtle ink-06 wash so the press is acknowledged. */
-.social-header-right { display: flex; align-items: center; gap: 2px; }
+.social-header-right { display: flex; align-items: center; gap: 8px; }
+/* Fewer, larger actions (Messages / Find people / Notifications). Each sits in
+   a soft tinted circle so the row reads as inviting tap targets rather than
+   bare hairline glyphs — the + and refresh moved to pull-to-refresh + the FAB. */
 .social-refresh-btn {
-  width: 38px; height: 38px; border-radius: 50%;
-  background: transparent;
+  width: 44px; height: 44px; border-radius: 50%;
+  background: var(--ink-06);
   border: none;
   display: flex; align-items: center; justify-content: center;
-  color: var(--ink-65, var(--muted));
+  color: var(--ink-80, var(--text));
   cursor: pointer;
   position: relative;
   -webkit-tap-highlight-color: transparent;
@@ -3536,9 +3539,31 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
               transform var(--motion-fast, .15s) var(--ease-spring, cubic-bezier(.32,.72,0,1)),
               color var(--motion-fast, .15s) var(--ease-soft, cubic-bezier(.4,0,.2,1));
 }
-.social-refresh-btn:hover  { color: var(--ink-95, var(--text)); background: var(--ink-06); }
-.social-refresh-btn:active { transform: scale(.92); background: var(--ink-12); }
+.social-refresh-btn:hover  { color: var(--coral); background: var(--ink-12); }
+.social-refresh-btn:active { transform: scale(.9); background: var(--ink-12); }
 .social-refresh-btn svg { display: block; }
+
+/* Pull-to-refresh indicator — sits between the sub-tabs and the feed; JS
+   drives transform/opacity from the touch pull, and adds .social-ptr--spin
+   while the refresh request is in flight. */
+.social-ptr {
+  position: absolute; left: 0; right: 0;
+  display: flex; justify-content: center;
+  pointer-events: none; z-index: 5;
+  transform: translateY(0) scale(.6);
+  opacity: 0; will-change: transform, opacity;
+}
+.social-ptr-spinner {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: var(--card);
+  box-shadow: 0 4px 14px rgba(42,31,20,0.16);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--ink-65, var(--muted));
+}
+.social-ptr--ready .social-ptr-spinner { color: var(--coral); }
+.social-ptr-icon { display: block; transition: transform .1s linear; }
+.social-ptr--spin .social-ptr-spinner { color: var(--coral); }
+.social-ptr--spin .social-ptr-icon { animation: spin .7s linear infinite; }
 .social-notif-dot {
   position: absolute; top: 2px; right: 2px;
   width: 9px; height: 9px; border-radius: 50%;
