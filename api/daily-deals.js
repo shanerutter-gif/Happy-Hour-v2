@@ -96,7 +96,7 @@ export default async function handler(req) {
       const picked = [];
       for (let i = 0; i < take; i++) picked.push(cityVenues[(offset + i) % cityVenues.length]);
 
-      const props = { cityName: c.name, date_formatted: dateFormatted };
+      const props = { cityName: c.name || formatCity(c.slug), date_formatted: dateFormatted };
       picked.forEach((v, i) => {
         const n = i + 1;
         props[`venue${n}_name`] = v.name;
