@@ -7298,8 +7298,11 @@ h1, h2, .sf-hero-venue, .sf-ed-title, .pf-name, .gw-hero__title,
     padding-bottom: 0;
   }
 
-  /* The two-pane row fills the height left under the header. */
-  main { display: flex; align-items: stretch; gap: 0; flex: 1; min-height: 0; }
+  /* The two-pane row fills the height left under the header. Scoped to
+     .app-page: blog.html and the SSR pages (/spots, /happy-hour/*) also load
+     this stylesheet and have their own <main>, and a bare `main` selector
+     used to flex THEIR content into side-by-side columns at >=1200px. */
+  .app-page main { display: flex; align-items: stretch; gap: 0; flex: 1; min-height: 0; }
 
   /* Left pane: a fixed-width, independently scrollable list. */
   #listView.list-view {

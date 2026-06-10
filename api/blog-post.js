@@ -257,6 +257,7 @@ ${keywords ? `<meta name="keywords" content="${keywords}">` : ''}
       <a href="${SITE_URL}/spots">All Spots</a>
       <a href="${SITE_URL}/happy-hour/san-diego">San Diego Happy Hours</a>
       <a href="/blog.html">Blog</a>
+      <a href="/about.html">About</a>
       <a href="/business-landing.html">For Business</a>
     </div>
   </div>

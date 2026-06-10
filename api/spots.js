@@ -245,12 +245,12 @@ ${venue.lat && venue.lng ? `<meta property="place:location:latitude" content="${
 </style>
 
 <!-- Google Analytics -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-9PXGE6LEPE"></script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5271Q2407Q"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
   gtag('js', new Date());
-  gtag('config', 'G-9PXGE6LEPE');
+  gtag('config', 'G-5271Q2407Q');
 </script>
 </head>
 <body>
@@ -398,7 +398,7 @@ ${venue.lat && venue.lng ? `<meta property="place:location:latitude" content="${
       Explore Spotd
     </a>
     <div style="margin-top:18px;font-size:13px;line-height:1.9">
-      ${city ? `<a href="${SITE_URL}/happy-hour/${esc(venue.city_slug)}" style="color:var(--coral);text-decoration:none;font-weight:600">More ${esc(city)} happy hours</a> · ` : ''}<a href="${SITE_URL}/spots" style="color:var(--coral);text-decoration:none;font-weight:600">All spots</a> · <a href="/blog.html" style="color:var(--coral);text-decoration:none;font-weight:600">Blog</a>
+      ${city ? `<a href="${SITE_URL}/happy-hour/${esc(venue.city_slug)}" style="color:var(--coral);text-decoration:none;font-weight:600">More ${esc(city)} happy hours</a> · ` : ''}<a href="${SITE_URL}/spots" style="color:var(--coral);text-decoration:none;font-weight:600">All spots</a> · <a href="/blog.html" style="color:var(--coral);text-decoration:none;font-weight:600">Blog</a> · <a href="/about.html" style="color:var(--coral);text-decoration:none;font-weight:600">About</a>
     </div>
   </div>
 
