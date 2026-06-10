@@ -162,12 +162,12 @@ export default async function handler() {
   @media (max-width: 640px) { .dir-list { grid-template-columns: 1fr; } .dir-h1 { font-size: 25px; } }
 </style>
 
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-9PXGE6LEPE"></script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5271Q2407Q"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
   gtag('js', new Date());
-  gtag('config', 'G-9PXGE6LEPE');
+  gtag('config', 'G-5271Q2407Q');
 </script>
 </head>
 <body>
@@ -202,6 +202,7 @@ export default async function handler() {
       <a href="${SITE_URL}/spots">All Spots</a>
       <a href="${SITE_URL}/happy-hour/san-diego">San Diego</a>
       <a href="/blog.html">Blog</a>
+      <a href="/about.html">About</a>
       <a href="/business-landing.html">For Business</a>
     </div>
   </div>

@@ -315,12 +315,12 @@ export default async function handler(req) {
   @media (max-width: 640px) { .hh-list { grid-template-columns: 1fr; } .hh-h1 { font-size: 26px; } }
 </style>
 
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-9PXGE6LEPE"></script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5271Q2407Q"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
   gtag('js', new Date());
-  gtag('config', 'G-9PXGE6LEPE');
+  gtag('config', 'G-5271Q2407Q');
 </script>
 </head>
 <body>
@@ -377,6 +377,7 @@ export default async function handler(req) {
       <a href="${SITE_URL}/happy-hour/san-diego">San Diego</a>
       <a href="${SITE_URL}/happy-hour/orange-county">Orange County</a>
       <a href="/blog.html">Blog</a>
+      <a href="/about.html">About</a>
     </div>
   </div>
 </footer>

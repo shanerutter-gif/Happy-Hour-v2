@@ -99,7 +99,7 @@
 <noscript><link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"></noscript>
 <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script defer src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
-<link rel="stylesheet" href="css/style.css?v=20260610c">
+<link rel="stylesheet" href="css/style.css?v=20260610d">
 <style>
 .card-claim { padding: 4px 16px 12px; }
 .claim-link { font-size: 12px; color: rgba(42,31,20,0.4); text-decoration: none; }
@@ -400,11 +400,13 @@
       <a href="/happy-hour/san-diego/pacific-beach" class="btf-footer-link">Pacific Beach</a>
       <span class="btf-footer-sep">·</span>
       <a href="/blog.html" class="btf-footer-link">Blog</a>
+      <span class="btf-footer-sep">·</span>
+      <a href="/about.html" class="btf-footer-link">About Us</a>
     </nav>
     <div class="btf-footer-legal">
-      <a href="#" onclick="event.preventDefault();openLegalPage('privacy')" class="btf-footer-link">Privacy Policy</a>
+      <a href="/privacy.html" class="btf-footer-link">Privacy Policy</a>
       <span class="btf-footer-sep">·</span>
-      <a href="#" onclick="event.preventDefault();openLegalPage('terms')" class="btf-footer-link">Terms of Service</a>
+      <a href="/terms.html" class="btf-footer-link">Terms of Service</a>
     </div>
     <a href="mailto:support@spotd.biz" class="btf-footer-biz">Support: support@spotd.biz</a>
     <a href="/business-landing.html" class="btf-footer-biz" id="footerBizLink">Own a venue? List it free →</a>
@@ -446,14 +448,15 @@
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
         <div class="desktop-nav-more" id="desktopMoreMenu">
+          <a href="/about.html">About Us</a>
           <a href="/blog.html">Blog</a>
           <a href="/business-landing.html">For Business</a>
           <a href="/spots">All Spots Directory</a>
           <a href="/happy-hour/san-diego">San Diego Happy Hours</a>
           <a href="/happy-hour/orange-county">Orange County Happy Hours</a>
           <div class="desktop-nav-more-sep"></div>
-          <button onclick="toggleDesktopMoreMenu();openLegalPage('privacy')">Privacy Policy</button>
-          <button onclick="toggleDesktopMoreMenu();openLegalPage('terms')">Terms of Service</button>
+          <a href="/privacy.html">Privacy Policy</a>
+          <a href="/terms.html">Terms of Service</a>
           <a href="mailto:support@spotd.biz">Support</a>
         </div>
       </div>
