@@ -7153,6 +7153,8 @@ h1, h2, .sf-hero-venue, .sf-ed-title, .pf-name, .gw-hero__title,
 /* Defaults (all viewports): the desktop nav is hidden, and the feed
    row-wrappers are transparent so cards behave as direct grid children. */
 .desktop-nav { display: none; }
+/* Filter-toggle label: verbose on mobile, just "Filters" on desktop. */
+.ft-label--short { display: none; }
 .card-hero-row,
 .card-std-row { display: contents; }
 
@@ -7194,12 +7196,55 @@ h1, h2, .sf-hero-venue, .sf-ed-title, .pf-name, .gw-hero__title,
   /* ── Hide the floating mobile pill nav on desktop ── */
   .bottom-nav { display: none !important; }
 
-  /* ── Roomier search / controls header ── */
-  .controls-top { padding: 14px 24px 8px; }
-  .controls-actions { padding: 0 24px 8px; }
-  .chips-row, .suggestions-row { padding-left: 24px; padding-right: 24px; }
-  .search-box { font-size: 15px; }
-  .results-bar { padding: 18px 24px 8px; }
+  /* ── "More" dropdown in the top nav (Blog / For Business / legal etc.) ── */
+  .desktop-nav-more-wrap { position: relative; }
+  .desktop-nav-more-btn { display: flex; align-items: center; gap: 5px; }
+  .desktop-nav-more {
+    display: none;
+    position: absolute; top: calc(100% + 8px); right: 0; z-index: 400;
+    min-width: 230px; padding: 8px;
+    background: var(--card); border: 1px solid var(--border2); border-radius: 16px;
+    box-shadow: 0 16px 32px rgba(42,31,20,0.16);
+  }
+  .desktop-nav-more.open { display: block; }
+  .desktop-nav-more a, .desktop-nav-more button {
+    display: block; width: 100%; text-align: left;
+    background: none; border: none; cursor: pointer; text-decoration: none;
+    font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600;
+    color: var(--text); padding: 9px 12px; border-radius: 10px;
+  }
+  .desktop-nav-more a:hover, .desktop-nav-more button:hover {
+    background: var(--bg2); color: var(--teal);
+  }
+  .desktop-nav-more-sep { height: 1px; background: var(--border2); margin: 6px 8px; }
+
+  /* ── Single-line search / filter header (more venues above the fold) ──
+     Mobile stacks: search row → "Personalize Your Search" row → chips →
+     suggested chips (4 rows). On desktop the .controls children flow onto
+     ONE flex line: [search] [Filters] [suggested chips →]. The chips-row
+     (active-filter chips) is pushed after suggestions via `order` so it
+     wraps onto its own line only when filters are actually applied. */
+  .controls { display: flex; flex-wrap: wrap; align-items: center; }
+  .giveaway-banner { flex-basis: 100%; }
+  .controls-top { flex: 0 1 440px; min-width: 280px; padding: 10px 4px 10px 24px; }
+  .controls-actions { flex: 0 0 auto; padding: 0 4px 0 0; }
+  .controls-actions .filter-toggle { flex: none; }
+  .ft-label--long { display: none; }
+  .ft-label--short { display: inline; }
+  .search-box { font-size: 15px; padding: 8px 14px; min-height: 40px; }
+  .filter-toggle, .view-toggle { min-height: 40px; padding: 8px 14px; }
+  .suggestions-row { flex: 1 1 0; min-width: 200px; padding: 0 24px 0 10px; }
+  .chips-row { order: 5; flex-basis: 100%; padding: 0 24px 8px; }
+  .chips-row:empty { display: none; }
+  .results-bar { padding: 10px 24px 6px; }
+
+  /* The filter panel anchors under its toggle as a dropdown card instead of
+     a full-width sheet; amenity pills wrap so nothing hides in a scroller. */
+  .filter-panel {
+    left: 24px; right: auto; width: 640px; max-width: calc(100% - 48px);
+    margin-top: 2px; border: 1px solid var(--border2); border-radius: 18px;
+  }
+  .fp-amenity-scroll { flex-wrap: wrap; overflow-x: visible; }
 
   /* ── Wider, multi-column feed (keeps the hero→compact→standard flow) ── */
   .cards-grid { max-width: none !important; padding: 0 24px 48px; }

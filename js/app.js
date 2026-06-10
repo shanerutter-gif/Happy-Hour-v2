@@ -237,6 +237,15 @@ document.addEventListener('DOMContentLoaded', () => {
         window.history.replaceState({}, document.title, window.location.pathname);
         openModal(spotId, 'venue');
       });
+    } else if (window.matchMedia('(min-width: 1024px)').matches && localStorage.getItem('spotd-last-city')) {
+      // Desktop returning guests skip the city-selector landing and go straight
+      // into their last city — the city pill in the app bar handles switching.
+      // First-time visitors (no stored city) still get the marketing landing +
+      // onboarding funnel. If onboarding is pending, its overlay simply sits on
+      // top and reveals the already-loaded city when dismissed.
+      const lastSlug = localStorage.getItem('spotd-last-city');
+      const last = CITIES.find(c => c.slug === lastSlug && c.active);
+      if (last) enterCity(last.slug, last.name, last.state_code);
     }
   }
 });
@@ -344,10 +353,12 @@ function _navHideAll(keep) {
 // Sets the active state on the bottom nav. Caches the button NodeList on
 // first use so repeated tab switches don't re-scan the DOM (the four bottom
 // nav handlers each used to do their own querySelectorAll).
+// Includes the desktop top-nav buttons (same handlers) so switching tabs on
+// desktop clears the previous button's active state too.
 let _navBtnsCache = null;
 function _navBtns() {
   if (!_navBtnsCache || !_navBtnsCache.length) {
-    _navBtnsCache = [...document.querySelectorAll('.bottom-nav-btn')];
+    _navBtnsCache = [...document.querySelectorAll('.bottom-nav-btn, .desktop-nav-btn')];
   }
   return _navBtnsCache;
 }
@@ -361,8 +372,10 @@ function bottomNavFeed(btn) {
   _setActiveNavBtn(btn);
   _navHideAll();
   if (!state.city) showHome();
-  // Scroll feed back to top
+  // Scroll feed back to top (desktop two-pane scrolls #listView, not the page)
   window.scrollTo({ top: 0, behavior: 'smooth' });
+  const lv = document.getElementById('listView');
+  if (lv) lv.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function bottomNavSocial(btn) {
@@ -1846,6 +1859,24 @@ function toggleCityDropdown() {
       if (!e.target.closest('.city-selector-wrap')) {
         dd.classList.remove('open');
         pill.classList.remove('open');
+        document.removeEventListener('click', _close);
+      }
+    });
+  }, 0);
+}
+
+// Desktop top-nav "More" dropdown (Blog / For Business / legal pages etc.)
+function toggleDesktopMoreMenu() {
+  const menu = document.getElementById('desktopMoreMenu');
+  if (!menu) return;
+  const isOpen = menu.classList.contains('open');
+  if (isOpen) { menu.classList.remove('open'); return; }
+  menu.classList.add('open');
+  // Close on outside click (same pattern as toggleCityDropdown)
+  setTimeout(() => {
+    document.addEventListener('click', function _close(e) {
+      if (!e.target.closest('#desktopMoreWrap')) {
+        menu.classList.remove('open');
         document.removeEventListener('click', _close);
       }
     });
