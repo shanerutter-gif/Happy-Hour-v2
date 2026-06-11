@@ -2460,8 +2460,8 @@ function _renderCardsNow() {
     // horizontal cards (Yelp/Airbnb style) reads better than the editorial
     // hero/compact/standard size tiers. `venues` is the full filtered set in
     // sort order (heroes included), so nothing is dropped.
-    venues.forEach(v => {
-      html += standardCardHTML(v, delay);
+    venues.forEach((v, i) => {
+      html += standardCardHTML(v, delay, i === 0);
       delay += 25;
     });
   } else {
@@ -2585,7 +2585,7 @@ function heroCardHTML(v, delay, idx = 0) {
 
   return `<div class="card-hero" data-id="${v.id}"
     onclick="openModal('${v.id}','venue')" style="animation-delay:${delay}ms">
-    <img class="card-hero-img" src="${photoUrl}" alt="${esc(v.name)}" loading="${idx === 0 ? 'eager' : 'lazy'}" decoding="async"
+    <img class="card-hero-img" src="${photoUrl}" alt="${esc(v.name)}" loading="${idx === 0 ? 'eager' : 'lazy'}" decoding="async"${idx === 0 ? ' fetchpriority="high"' : ''}
       onerror="this.closest('.card-hero').style.background='linear-gradient(135deg,#2A1F14,#1A1208)';this.remove()">
     <div class="card-hero-overlay"></div>
     <button class="card-hero-fav${faved ? ' faved' : ''}"
@@ -2651,7 +2651,7 @@ function compactCardHTML(v, delay) {
 // ═══════════════════════════════════════
 // STANDARD CARD (horizontal row)
 // ═══════════════════════════════════════
-function standardCardHTML(v, delay) {
+function standardCardHTML(v, delay, first = false) {
   const hasPhoto = !!(v.photo_url || (v.photo_urls && v.photo_urls.length));
   const photoUrl = v.photo_url || (v.photo_urls && v.photo_urls[0]) || '';
   const cached   = state.reviewCache[v.id] || [];
@@ -2662,7 +2662,7 @@ function standardCardHTML(v, delay) {
   const deals    = (v.deals || []).slice(0, 3);
 
   const photoEl = hasPhoto
-    ? `<img class="card-std-img" src="${photoUrl}" alt="${esc(v.name)}" loading="lazy" decoding="async"
+    ? `<img class="card-std-img" src="${photoUrl}" alt="${esc(v.name)}" loading="${first ? 'eager' : 'lazy'}" decoding="async"${first ? ' fetchpriority="high"' : ''}
         onerror="this.outerHTML='<div class=\\'card-std-nophoto\\'>🍺</div>'">`
     : `<div class="card-std-nophoto">🍺</div>`;
 
@@ -6838,6 +6838,7 @@ function skipToTagFriends(venueId) {
 
 // ── YOUR NEWS (ARTICLE FEED) ──────────────────────────
 const NEWS_ARTICLES = [
+  { city: 'orange-county', img: 'https://images.unsplash.com/photo-1567521464027-f127ff144326?w=800&q=80', tag: 'Neighborhood Guide', author: 'Sofia', title: 'Best Happy Hours in Costa Mesa (2026)', excerpt: 'Aperitivo cocktails at Ospi, best margarita in California at Playa Mesa, 50% off tapas at Cafe Sevilla — the 17th Street happy hour guide Costa Mesa locals keep to themselves.', url: '/blog/best-happy-hours-costa-mesa.html', date: 'June 11, 2026', readTime: '8 min' },
   { city: 'san-diego', img: 'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=800&q=80', tag: 'Neighborhood Guide', author: 'Ryan', title: 'Best Happy Hours in Ocean Beach, San Diego (2026)', excerpt: '$6 drafts at Raglan Public House, $5 pints at Wonderland Ocean Pub, live music every night at The Holding Company — the Newport Avenue happy hour guide OB regulars keep to themselves.', url: '/blog/best-happy-hours-ocean-beach-san-diego.html', date: 'June 10, 2026', readTime: '8 min' },
   { city: 'orange-county', img: 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=800&q=80', tag: 'Neighborhood Guide', author: 'Marcus', title: 'Best Happy Hours in Huntington Beach (2026)', excerpt: '$5 wells at Perqs, $4 craft pints at Rockin\' Fig, beachside cocktails at HQ Gastropub — the Main Street happy hour guide Surf City locals keep to themselves.', url: '/blog/best-happy-hours-huntington-beach.html', date: 'June 9, 2026', readTime: '8 min' },
   { city: 'san-diego', img: 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=800&q=80', tag: 'Neighborhood Guide', author: 'Jordan', title: 'Best Happy Hours in East Village San Diego (2026)', excerpt: '50% off your tab at Bay City Brewing, MICHELIN tacos at Lola 55 from 4pm, $7 drafts at Cowboy Star — East Village is quietly San Diego\'s most interesting happy hour neighborhood right now.', url: '/blog/best-happy-hours-east-village-san-diego.html', date: 'June 7, 2026', readTime: '8 min' },
