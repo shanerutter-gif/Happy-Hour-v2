@@ -213,10 +213,10 @@
       </svg>
     </a>
     <div class="home-auth-row" id="homeAuthRow">
-      <button class="home-auth-btn" onclick="openAuth('signin')">Sign In</button>
-      <button class="home-auth-btn home-auth-btn--accent" onclick="openAuth('signup')">Create Account</button>
+      <button class="home-auth-btn" onclick="openAuth('signin','landing')">Sign In</button>
+      <button class="home-auth-btn home-auth-btn--accent" onclick="openAuth('signup','landing')">Create Account</button>
     </div>
-    <button id="homeSkipAuth" class="home-skip-auth" onclick="document.getElementById('cityGrid').scrollIntoView({behavior:'smooth'})">Continue without an account</button>
+    <button id="homeSkipAuth" class="home-skip-auth" onclick="if(typeof track==='function')track('guest_skip',{context:'landing'});document.getElementById('cityGrid').scrollIntoView({behavior:'smooth'})">Continue without an account</button>
     <div class="city-grid" id="cityGrid"></div>
     <p class="home-coming">More cities coming soon</p>
   </div>
@@ -789,11 +789,11 @@ function dismissAppDownload() {
 </script>
 
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script defer src="js/db.js?v=20260609b"></script>
-<script defer src="js/onboarding.js?v=20260609a"></script>
+<script defer src="js/db.js?v=20260612a"></script>
+<script defer src="js/onboarding.js?v=20260612a"></script>
 <script defer src="js/push.js?v=20260408a"></script>
 <script defer src="js/icons.js?v=20260609a"></script>
-<script defer src="js/app.js?v=20260611a"></script>
+<script defer src="js/app.js?v=20260612a"></script>
 <script defer src="js/tooltips.js?v=20260408a"></script>
 <script>
 // Hide business/Pro links and App Store badge on native iOS
@@ -937,7 +937,7 @@ if (window.spotdNative) {
 
       <div class="ob-entry-actions">
         <button class="ob-btn-primary" onclick="obGoTo(1)">Let's go →</button>
-        <button class="ob-btn-ghost" onclick="closeOb();openAuth('signin')">
+        <button class="ob-btn-ghost" onclick="closeOb();openAuth('signin','onboarding')">
           Already have an account? <span style="color:var(--coral);font-weight:600">Sign in</span>
         </button>
       </div>
@@ -1223,7 +1223,7 @@ if (window.spotdNative) {
           and <a href="#" onclick="event.preventDefault();event.stopPropagation();openLegalPage('privacy')">Privacy Policy</a>
         </p>
 
-        <button class="ob-btn-ghost" onclick="obComplete()" style="margin-top:4px">
+        <button class="ob-btn-ghost" onclick="obGuestSkip()" style="margin-top:4px">
           Skip for now — browse as guest
         </button>
       </div>
