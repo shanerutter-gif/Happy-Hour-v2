@@ -327,9 +327,15 @@ function renderBottomNav(user) {
     if (avatar) avatar.textContent = initials;
   }
   bar.style.display = 'flex';
-  // Place the sliding highlight capsule under the active tab (no animation
-  // on first paint). rAF so flex layout is measured after display:flex.
-  requestAnimationFrame(() => _moveNavPill(bar.querySelector('.bottom-nav-btn.active'), false));
+  // Place the sliding highlight capsule under the active tab. Retry a few
+  // times + after fonts load: on a cold first open the single-rAF measurement
+  // was sometimes 0/off (layout not settled), leaving the capsule invisible so
+  // nothing showed which tab you were on.
+  const place = () => _moveNavPill(bar.querySelector('.bottom-nav-btn.active'), false);
+  requestAnimationFrame(() => requestAnimationFrame(place));
+  setTimeout(place, 150);
+  setTimeout(place, 500);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(place).catch(() => {});
 }
 
 // ── Sliding "liquid glass" highlight capsule (Instagram-style) ──
