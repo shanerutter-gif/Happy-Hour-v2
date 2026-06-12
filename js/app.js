@@ -5200,7 +5200,10 @@ function toggleView() {
   document.getElementById('listView').classList.toggle('active', state.view === 'list');
   document.getElementById('mapView').classList.toggle('active',  state.view === 'map');
   document.getElementById('viewIcon').textContent = state.view === 'map' ? 'List' : 'Map';
-  document.getElementById('viewToggle').classList.toggle('map-active', state.view === 'map');
+  const vt = document.getElementById('viewToggle');
+  vt.classList.toggle('map-active', state.view === 'map');
+  // Spring "pop" on the toggle each press.
+  vt.classList.remove('vt-pop'); void vt.offsetWidth; vt.classList.add('vt-pop');
   if (state.view === 'map') {
     if (!state.map || !state._mapReady) initMap();
     setTimeout(() => {
