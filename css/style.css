@@ -431,8 +431,9 @@ main{min-height:60vh}
   scroll-padding-bottom:100px;
   padding:16px 20px calc(96px + env(safe-area-inset-bottom, 0px));
   position:relative;
-  transform:translateY(100%);
-  transition:transform .44s var(--ease-bounce, cubic-bezier(.34,1.46,.5,1));
+  transform:translateY(100%) scale(.965);
+  transform-origin:center bottom;
+  transition:transform .46s var(--ease-bounce, cubic-bezier(.34,1.46,.5,1));
   -webkit-overflow-scrolling:touch;
   box-shadow:0 -10px 40px rgba(42,31,20,0.15), 0 -4px 16px rgba(42,31,20,0.08), -6px 0 18px rgba(255,255,255,0.3), inset 0 2px 0 rgba(255,255,255,0.6);
   will-change:transform;
@@ -441,7 +442,7 @@ main{min-height:60vh}
 }
 [data-theme="dark"] .sheet{box-shadow:0 -10px 40px rgba(0,0,0,0.5), 0 -4px 16px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,200,150,0.06)}
 .overlay.open .sheet{
-  transform:translateY(0);
+  transform:translateY(0) scale(1);
 }
 .sheet--wide{max-width:740px}
 
@@ -7669,9 +7670,24 @@ h1, h2, .sf-hero-venue, .sf-ed-title, .pf-name, .gw-hero__title,
 }
 .checkin-sheet .photo-caption-field:focus { border-color: rgba(255,107,74,.45); }
 
-/* Friend list — the loved cp-tag-row design, capped + scrollable here */
-.cp-tag-list { display: flex; flex-direction: column; }
-.checkin-sheet .cp-tag-list { max-height: 280px; overflow-y: auto; -webkit-overflow-scrolling: touch; margin-bottom: 14px; }
+/* Friend list — the loved cp-tag-row design, capped + scrollable here.
+   Block (not flex): a flex column let the rows shrink under max-height so the
+   44px avatars overflowed and overlapped into a strip. */
+.cp-tag-list { display: block; }
+.checkin-sheet .cp-tag-list {
+  max-height: 216px; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  margin-bottom: 4px;
+}
+
+/* Sticky action footer — keeps Done / Maybe later reachable no matter how many
+   friends are listed. Solid card bg so scrolling rows pass cleanly beneath it. */
+.checkin-foot {
+  position: sticky; bottom: 0;
+  margin: 4px -20px 0; padding: 12px 20px max(8px, env(safe-area-inset-bottom, 8px));
+  background: var(--card);
+  box-shadow: 0 -10px 18px -10px rgba(42,31,20,0.18);
+}
+[data-theme="dark"] .checkin-foot { box-shadow: 0 -10px 18px -10px rgba(0,0,0,0.5); }
 
 /* Primary action → coral gradient pill, bouncy (was a flat teal/coral) */
 .checkin-sheet .photo-submit-btn {
@@ -7697,3 +7713,17 @@ h1, h2, .sf-hero-venue, .sf-ed-title, .pf-name, .gw-hero__title,
 .card-compact-checkin .ripple-ink,
 .card-std-checkin .ripple-ink,
 .checkin-sheet .photo-submit-btn .ripple-ink { background: rgba(255,255,255,0.45); }
+
+/* ── Round-4 motion: noticeable card press + sheet pop entrance ──
+   The previous scale(.985) was imperceptible. Stronger, snappier spring so
+   tapping a card visibly reacts before the modal slides up. */
+.card, .card-hero, .card-compact, .card-std, .sf-hero, .sf-editorial,
+.pf-row, .pf-lb-row, .stry-tile {
+  transition: transform .16s var(--ease-bounce, cubic-bezier(.34,1.46,.5,1)),
+              box-shadow .2s var(--ease-soft, ease);
+}
+.card:active, .card-hero:active, .card-compact:active, .card-std:active,
+.sf-hero:active, .sf-editorial:active,
+.pf-row:active, .pf-lb-row:active, .stry-tile:active {
+  transform: scale(.955);
+}
