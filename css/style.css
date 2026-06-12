@@ -432,7 +432,7 @@ main{min-height:60vh}
   padding:16px 20px calc(96px + env(safe-area-inset-bottom, 0px));
   position:relative;
   transform:translateY(100%);
-  transition:transform .32s cubic-bezier(.32,.72,.0,1);
+  transition:transform .44s var(--ease-bounce, cubic-bezier(.34,1.46,.5,1));
   -webkit-overflow-scrolling:touch;
   box-shadow:0 -10px 40px rgba(42,31,20,0.15), 0 -4px 16px rgba(42,31,20,0.08), -6px 0 18px rgba(255,255,255,0.3), inset 0 2px 0 rgba(255,255,255,0.6);
   will-change:transform;
@@ -6742,12 +6742,18 @@ button:not([disabled]),
   /* Motion easing */
   --ease-spring: cubic-bezier(.32, .72, 0, 1);
   --ease-snap:   cubic-bezier(.18, .89, .32, 1.28);
+  --ease-bounce: cubic-bezier(.34, 1.46, .5, 1);   /* overshoot/settle */
   --ease-soft:   cubic-bezier(.4, 0, .2, 1);
   --motion-fast: 150ms;
   --motion:      220ms;
   --motion-slow: 320ms;
+  /* Composer / liquid-glass surfaces */
+  --cp-glass:     rgba(247,241,234,0.72);
+  --cp-glass-brd: rgba(42,31,20,0.08);
 }
 [data-theme="dark"] {
+  --cp-glass:     rgba(18,14,10,0.64);
+  --cp-glass-brd: rgba(255,255,255,0.10);
   --ink-95: #EDE5D8;
   --ink-80: rgba(237,229,216,.78);
   --ink-65: rgba(237,229,216,.62);
@@ -7383,4 +7389,145 @@ h1, h2, .sf-hero-venue, .sf-ed-title, .pf-name, .gw-hero__title,
      same shape + image size so the list scans cleanly next to the map. */
   .card-std { margin-bottom: 10px; }
   .card-std-img, .card-std-nophoto { width: 116px; min-height: 116px; }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   COMPOSER REDESIGN — liquid glass, spring slide-up, bouncy taps.
+   Class-scoped overrides of the earlier .cp* rules (safe for the
+   shared SSR/blog pages, which never render .cp--full). See the
+   2026-06-12 "composer redesign" note in CLAUDE.md.
+   ════════════════════════════════════════════════════════════════ */
+
+/* Panel: theme-aware surface + spring slide-up entrance (exit is quicker
+   so it stays in sync with the .overlay scrim fade). */
+.overlay--full .cp--full {
+  background: var(--bg);
+  color: var(--text);
+  transform: translateY(100%);
+  opacity: 0;
+  transition: transform .32s var(--ease-soft), opacity .26s ease;
+  will-change: transform, opacity;
+}
+.overlay--full.open .cp--full {
+  transform: translateY(0);
+  opacity: 1;
+  transition: transform .48s var(--ease-bounce), opacity .3s ease;
+}
+
+/* Frosted glass header */
+.cp-header--full {
+  background: var(--cp-glass);
+  -webkit-backdrop-filter: blur(22px) saturate(1.7);
+  backdrop-filter: blur(22px) saturate(1.7);
+  border-bottom: 1px solid var(--cp-glass-brd);
+}
+.cp-iconbtn {
+  background: var(--cp-glass-brd);
+  color: var(--ink);
+  transition: transform .2s var(--ease-bounce), background .15s ease;
+}
+.cp-iconbtn:active { transform: scale(.86); background: rgba(255,107,74,.16); }
+.cp-edit-title { color: var(--ink); }
+
+/* Posting-as + body text → theme-aware, borderless body */
+.cp-postingas-name { color: var(--ink); }
+.cp-postingas-sub  { color: var(--muted); }
+.cp-body {
+  background: transparent; border: none; color: var(--text);
+  resize: none;
+}
+.cp-body::placeholder { color: var(--muted); }
+.cp-body:focus { border: none; box-shadow: none; }
+
+/* Idea chips — glass pills, bouncy */
+.cp-idea {
+  background: var(--cp-glass);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  border: 1px solid var(--cp-glass-brd);
+  color: var(--ink);
+  transition: transform .22s var(--ease-bounce), background .15s ease, border-color .15s ease;
+}
+.cp-idea:active { transform: scale(.91); }
+
+/* Media tile — inviting glass card */
+.cp-photo-pick {
+  background: var(--cp-glass);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  border: 1.5px dashed var(--cp-glass-brd);
+  border-radius: 18px;
+  color: var(--ink);
+  transition: transform .22s var(--ease-bounce), background .15s ease, border-color .15s ease;
+}
+.cp-photo-pick:hover { background: rgba(255,107,74,.08); border-color: rgba(255,107,74,.4); }
+.cp-photo-pick:active { transform: scale(.97); }
+.cp-photo-pick-title { color: var(--ink); }
+.cp-photo-pick-sub { color: var(--muted); }
+
+/* Option pills — glass, coral when set, bouncy */
+.cp-opt {
+  background: var(--cp-glass);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  border: 1px solid var(--cp-glass-brd);
+  color: var(--ink);
+  transition: transform .22s var(--ease-bounce), background .15s ease, border-color .15s ease, color .15s ease;
+}
+.cp-opt:active { transform: scale(.92); }
+.cp-opt--set {
+  background: rgba(255,107,74,.12); color: #FF6B4A;
+  border-color: rgba(255,107,74,.4);
+}
+
+/* Bottom bar — liquid glass instead of a flat white gradient */
+.cp-post-bar {
+  background: var(--cp-glass);
+  -webkit-backdrop-filter: blur(22px) saturate(1.6);
+  backdrop-filter: blur(22px) saturate(1.6);
+  border-top: 1px solid var(--cp-glass-brd);
+}
+.cp-post-cta {
+  transition: transform .18s var(--ease-bounce), filter .12s ease, box-shadow .15s ease;
+}
+.cp-post-cta:active { transform: scale(.96); }
+
+/* Misc text + per-photo caption fields → theme-aware */
+.cp-hint { color: var(--muted); }
+.cp-section-label { color: var(--muted); }
+.cp-percap-row input {
+  background: var(--card); color: var(--text);
+  border: 1px solid var(--cp-glass-brd);
+}
+
+/* Staggered intro of inner sections — one-shot, .cp--intro added in JS only
+   on the initial open so internal re-renders (adding a photo) never replay. */
+@keyframes cpRise {
+  from { opacity: 0; transform: translateY(16px) scale(.985); }
+  to   { opacity: 1; transform: none; }
+}
+.cp--intro .cp-scroll > * { animation: cpRise .5s var(--ease-bounce) both; }
+.cp--intro .cp-scroll > *:nth-child(1) { animation-delay: .12s; }
+.cp--intro .cp-scroll > *:nth-child(2) { animation-delay: .18s; }
+.cp--intro .cp-scroll > *:nth-child(3) { animation-delay: .24s; }
+.cp--intro .cp-scroll > *:nth-child(4) { animation-delay: .30s; }
+.cp--intro .cp-scroll > *:nth-child(5) { animation-delay: .36s; }
+.cp--intro .cp-scroll > *:nth-child(n+6) { animation-delay: .42s; }
+.cp--intro .cp-post-bar { animation: cpRise .5s var(--ease-bounce) both .32s; }
+
+/* ── Tap ripple (applied to composer surfaces + the nav + button) ── */
+.cp-post-cta, .cp-opt, .cp-idea, .cp-photo-pick, .cp-iconbtn, .bottom-nav-post {
+  position: relative; overflow: hidden;
+}
+.ripple-ink {
+  position: absolute; border-radius: 50%;
+  transform: scale(0); pointer-events: none;
+  background: rgba(255,107,74,0.28);
+  animation: rippleOut .6s ease-out forwards;
+}
+.cp-post-cta .ripple-ink, .bottom-nav-post .ripple-ink { background: rgba(255,255,255,0.45); }
+@keyframes rippleOut { to { transform: scale(2.4); opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay--full .cp--full,
+  .overlay--full.open .cp--full { transition: opacity .2s ease; transform: none; }
+  .cp--intro .cp-scroll > *, .cp--intro .cp-post-bar { animation: none; }
+  .ripple-ink { animation: none; display: none; }
 }

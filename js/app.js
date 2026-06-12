@@ -137,6 +137,8 @@ const CITIES = [
 document.addEventListener('DOMContentLoaded', () => {
   // App-wide sliding highlight for every segmented tab control.
   initSegSliders();
+  // Tap ripple on composer surfaces + the nav "+" button.
+  initRipples();
   // Global iOS tap fix — iOS WKWebView has unreliable click event delivery.
   // This handler synthesizes immediate clicks via touchend for ALL tappable elements.
   let _tapX = 0, _tapY = 0;
@@ -402,6 +404,30 @@ function initSegSliders() {
   new MutationObserver(muts => {
     for (const m of muts) m.addedNodes.forEach(n => { if (n.nodeType === 1) _scanSegSliders(n); });
   }).observe(document.body, { childList: true, subtree: true });
+}
+
+// ── Tap ripple ─────────────────────────────────────────────────
+// Material-ish ink that radiates from the touch point on press. Delegated
+// (one listener) and applied to the composer's interactive surfaces and the
+// nav "+" button; the matching CSS gives those selectors overflow:hidden so
+// the ink is clipped. Opt-in by selector, so it never touches the rest of
+// the app until we extend it.
+const RIPPLE_SELECTOR = '.cp-post-cta, .cp-opt, .cp-idea, .cp-photo-pick, .cp-iconbtn, .bottom-nav-post';
+function initRipples() {
+  document.addEventListener('pointerdown', e => {
+    const el = e.target.closest && e.target.closest(RIPPLE_SELECTOR);
+    if (!el || el.disabled) return;
+    const rect = el.getBoundingClientRect();
+    const size = Math.max(rect.width, rect.height);
+    const ink = document.createElement('span');
+    ink.className = 'ripple-ink';
+    ink.style.width = ink.style.height = size + 'px';
+    ink.style.left = (e.clientX - rect.left - size / 2) + 'px';
+    ink.style.top  = (e.clientY - rect.top  - size / 2) + 'px';
+    el.appendChild(ink);
+    ink.addEventListener('animationend', () => ink.remove(), { once: true });
+    setTimeout(() => { if (ink.parentNode) ink.remove(); }, 700); // safety
+  }, { passive: true });
 }
 
 // ── THEME ──────────────────────────────────────────────
@@ -3913,8 +3939,13 @@ async function openComposer(opts = {}) {
   _composerTagProfiles = {};
   _composerPlaceholder = COMPOSER_PLACEHOLDERS[Math.floor(Math.random() * COMPOSER_PLACEHOLDERS.length)];
   renderComposer();
+  // One-shot staggered-intro of the inner sections. Added only here (initial
+  // open), never in renderComposer, so internal re-renders (adding a photo)
+  // don't replay the cascade. Removed once the animation has played.
+  const cpRoot = document.querySelector('#composerContent .cp--full');
+  if (cpRoot) { cpRoot.classList.add('cp--intro'); setTimeout(() => cpRoot.classList.remove('cp--intro'), 1000); }
   openOverlay('composerOverlay');
-  setTimeout(() => document.getElementById('cpBody')?.focus(), 150);
+  setTimeout(() => document.getElementById('cpBody')?.focus(), 480); // after the slide-up settles
 }
 
 function closeComposer() {
