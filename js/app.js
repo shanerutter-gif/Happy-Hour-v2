@@ -420,9 +420,26 @@ const RIPPLE_SELECTOR = '.cp-post-cta, .cp-opt, .cp-idea, .cp-photo-pick, .cp-ic
 // Surfaces that also get the glass "sheen" light-sweep on press (big cards + CTAs).
 const SHEEN_SELECTOR = '.card-hero, .card-compact, .card-std, .sf-hero, .sf-compact, .sf-wide, .cp-post-cta, .modal-checkin-cta, .giveaway-tile__cta';
 function initRipples() {
+  // Only fire on a confirmed TAP — not when the gesture becomes a scroll.
+  // (Spawning on pointerdown made cards flash the ripple/sheen the instant a
+  // swipe started on them.) Track the down point; if the finger moves past a
+  // threshold or the browser cancels (scroll), abort; otherwise spawn on up.
+  const MOVE_CANCEL = 10;
+  let downEl = null, sx = 0, sy = 0, moved = false;
+  const reset = () => { downEl = null; moved = false; };
   document.addEventListener('pointerdown', e => {
     const el = e.target.closest && e.target.closest(RIPPLE_SELECTOR);
-    if (!el || el.disabled) return;
+    if (!el || el.disabled) { downEl = null; return; }
+    downEl = el; sx = e.clientX; sy = e.clientY; moved = false;
+  }, { passive: true });
+  document.addEventListener('pointermove', e => {
+    if (!downEl) return;
+    if (Math.abs(e.clientX - sx) > MOVE_CANCEL || Math.abs(e.clientY - sy) > MOVE_CANCEL) reset();
+  }, { passive: true });
+  document.addEventListener('pointercancel', reset, { passive: true });
+  document.addEventListener('pointerup', e => {
+    const el = downEl; const wasMoved = moved; reset();
+    if (!el || wasMoved) return;
     const rect = el.getBoundingClientRect();
     const size = Math.max(rect.width, rect.height);
     const x = e.clientX - rect.left, y = e.clientY - rect.top;
