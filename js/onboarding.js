@@ -169,6 +169,10 @@ function obInit() {
   if (!overlay) return;
   overlay.style.display = 'flex';
   overlay.style.opacity = '1';
+  if (!obState._started) {
+    obState._started = true;
+    if (typeof track === 'function') track('onboarding_started', {});
+  }
   obGoTo(0);
   obRenderCities();
   obPopulateDynamic();
@@ -255,11 +259,18 @@ function obPopulateDynamic() {
   if (s3t) s3t.textContent = h3.title.replace('{city}', city.name);
 }
 
-function obComplete() {
-  if (typeof track === 'function') track('onboarding_completed', { last_screen: obState.screen });
+// Shared finalize: mark onboarding done + dismiss. Fires NO analytics —
+// onboarding_completed fires in obGoTo when the final screen is reached, so
+// skips can never count as completions again.
+function _obFinalize() {
   localStorage.setItem(OB_KEY, '1');
   localStorage.removeItem('spotd-ob-pending');
   _obDismiss();
+}
+
+// Legacy entry point (kept in case anything still calls it) — finalize only.
+function obComplete() {
+  _obFinalize();
 }
 
 // Dismiss without marking complete (e.g. going to sign-in)
@@ -289,6 +300,20 @@ function obGoTo(idx) {
 
   obState.screen = idx;
   obUpdateProgress(idx);
+
+  if (obState._lastViewedScreen !== idx) {
+    obState._lastViewedScreen = idx;
+    if (typeof track === 'function') track('onboarding_screen_viewed', { screen: idx });
+    // Reaching the auth wall (last screen) = genuine completion of the
+    // onboarding content. Guest skips from here fire guest_skip instead.
+    if (idx === obState.totalScreens - 1 && !obState._completedTracked) {
+      obState._completedTracked = true;
+      if (typeof track === 'function') {
+        track('onboarding_completed', { last_screen: idx });
+        track('auth_sheet_shown', { context: 'onboarding' });
+      }
+    }
+  }
 
   // DOM order of .ob-screen elements (the social-preview screen was inserted
   // before signup):
@@ -327,7 +352,14 @@ function obBack() {
 
 function obSkip() {
   if (typeof track === 'function') track('onboarding_skipped', { from_screen: obState.screen });
-  obComplete();
+  _obFinalize();
+}
+
+// Auth-wall "Skip for now — browse as guest" button (index.html). Counts as a
+// guest skip + onboarding skip, never as a completion.
+function obGuestSkip() {
+  if (typeof track === 'function') track('guest_skip', { context: 'onboarding' });
+  obSkip();
 }
 
 // ── PROGRESS DOTS ──────────────────────────────────────
@@ -433,9 +465,10 @@ function obDoEmailSignup() {
     return;
   }
   if (typeof haptic === 'function') haptic('medium');
+  if (typeof track === 'function') track('auth_method_clicked', { method: 'email' });
   // Close onboarding, open standard auth modal with email pre-filled
   _obDismiss();
-  if (typeof openAuth === 'function') openAuth('signup');
+  if (typeof openAuth === 'function') openAuth('signup', 'onboarding');
   setTimeout(() => {
     const aEmail = document.getElementById('aEmail');
     if (aEmail && email) aEmail.value = email;

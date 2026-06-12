@@ -397,12 +397,12 @@ function bottomNavProfile(btn) {
   _setActiveNavBtn(btn);
   _navHideAll('profile');
   if (currentUser) openProfile();
-  else openAuth('signin');
+  else openAuth('signin', 'profile');
 }
 
 // ── SOCIAL TAB ─────────────────────────────────────────
 function openSocialTab() {
-  if (!currentUser) { openAuth('signin'); return; }
+  if (!currentUser) { openAuth('signin', 'social'); return; }
   document.getElementById('socialTab').classList.add('tab-open');
   initSocialPullToRefresh();
   loadSocialFeed();
@@ -1679,7 +1679,7 @@ function _syncModalDots(track) {
 }
 
 async function doToggleLike(postId, postType, btn) {
-  if (!currentUser) { openAuth('signin'); return; }
+  if (!currentUser) { openAuth('signin', 'social'); return; }
   if(typeof haptic==='function')haptic('light');
   const result = await toggleLike(postId, postType, currentUser.id);
   if (!result) return;
@@ -1726,7 +1726,7 @@ function handleFeedPhotoTap(ev, postId, postType) {
 }
 
 async function _feedPhotoDoubleTapLike(postId, postType, mediaEl) {
-  if (!currentUser) { openAuth('signin'); return; }
+  if (!currentUser) { openAuth('signin', 'social'); return; }
   if (typeof haptic === 'function') haptic('success');
 
   // Burst a big heart over the photo (always plays, even if already liked)
@@ -1798,7 +1798,7 @@ async function renderSavedPosts() {
 }
 
 async function doToggleSave(postId, postType, btn) {
-  if (!currentUser) { openAuth('signin'); return; }
+  if (!currentUser) { openAuth('signin', 'social'); return; }
   if (typeof haptic === 'function') haptic('light');
   const result = await toggleSavePost(postId, postType);
   if (result?.error) { showToast(result.error); return; }
@@ -2726,7 +2726,7 @@ function goingAvatars(venueId, count) {
 }
 
 async function doFavorite(itemId, itemType, btn) {
-  if (!currentUser) { openAuth('signin'); showToast('Sign in to save'); return; }
+  if (!currentUser) { openAuth('signin', 'favorite'); showToast('Sign in to save'); return; }
   if(typeof haptic==='function')haptic('light');
   const added = await toggleFavorite(itemId, itemType);
   btn.textContent = added ? '★' : '☆'; btn.classList.toggle('faved', added);
@@ -2734,13 +2734,13 @@ async function doFavorite(itemId, itemType, btn) {
   if(added && typeof promptPushIfAppropriate==='function') promptPushIfAppropriate();
 }
 function openFavView() {
-  if (!currentUser) { openAuth('signin'); return; }
+  if (!currentUser) { openAuth('signin', 'favorite'); return; }
   state.favFilterOn = true;
   document.getElementById('favFilterBtn').classList.add('active');
   applyFilters(); updateChips();
 }
 function toggleFavFilter() {
-  if (!currentUser) { openAuth('signin'); return; }
+  if (!currentUser) { openAuth('signin', 'favorite'); return; }
   state.favFilterOn = !state.favFilterOn;
   document.getElementById('favFilterBtn').classList.toggle('active', state.favFilterOn);
   applyFilters(); updateChips();
@@ -2861,7 +2861,7 @@ function renderModal(v, type, reviews) {
       ${currentUser ? `<div class="modal-action" onclick="dmOpenVenueSharePicker('${v.id}')">
         <span class="modal-action-icon" style="background:var(--bg2);border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center">${icn('comment',20)}</span>
         <span class="modal-action-label">Send</span>
-      </div>` : `<div class="modal-action" onclick="openAuth('signin')">
+      </div>` : `<div class="modal-action" onclick="openAuth('signin','venue')">
         <span class="modal-action-icon" style="background:var(--bg2);border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center">${icn('bell',20)}</span>
         <span class="modal-action-label">Alerts</span>
       </div>`}
@@ -2955,7 +2955,7 @@ function renderModal(v, type, reviews) {
       <span id="ravg-${v.id}"></span>
       <div class="review-form">
         <div class="star-picker" id="sp-${v.id}" data-val="0">${[1,2,3,4,5].map(n => `<button class="sp" onclick="pickStar('${v.id}',${n})">★</button>`).join('')}</div>
-        ${!currentUser ? `<p class="review-guest-note">Posting as guest — <button class="auth-switch-btn" onclick="openAuth('signin')">sign in</button> to manage reviews</p>` : ''}
+        ${!currentUser ? `<p class="review-guest-note">Posting as guest — <button class="auth-switch-btn" onclick="openAuth('signin','review')">sign in</button> to manage reviews</p>` : ''}
         <input class="field" id="rname-${v.id}" type="text" value="${currentUser ? esc(currentUser.user_metadata?.full_name || '') : ''}" placeholder="Your name" ${currentUser ? 'style="display:none"' : ''} autocomplete="name">
         <textarea class="field" id="rtext-${v.id}" placeholder="How was it?" rows="3"></textarea>
         <button class="btn-submit" onclick="submitReview('${v.id}','${type}')">Post Review</button>
@@ -3075,7 +3075,10 @@ function doDeleteReview(reviewId, itemId, type) {
 function closeEditReview(e) { if (e && e.target !== document.getElementById('editOverlay')) return; closeOverlay('editOverlay'); }
 
 // ── AUTH ───────────────────────────────────────────────
-function openAuth(mode = 'signin') { renderAuth(mode); openOverlay('authOverlay'); }
+function openAuth(mode = 'signin', context = 'other') {
+  track('auth_sheet_shown', { context: context });
+  renderAuth(mode); openOverlay('authOverlay');
+}
 function closeAuth(e) { if (e && e.target !== document.getElementById('authOverlay')) return; closeOverlay('authOverlay'); }
 function renderAuth(mode) {
   const si = mode === 'signin';
@@ -3130,6 +3133,7 @@ function renderAuth(mode) {
   }, 50);
 }
 async function doAuth(mode) {
+  track('auth_method_clicked', { method: 'email' });
   const btn = document.getElementById('authBtn');
   btn.disabled = true; btn.textContent = 'Please wait…';
   const email    = (document.getElementById('aEmail')?.value || '').trim();
@@ -3173,6 +3177,9 @@ async function doAuth(mode) {
     closeOverlay('authOverlay');
     showToast(mode === 'signup' ? 'Account created!' : 'Welcome back!');
     track(mode === 'signup' ? 'signup_completed' : 'login', { method: 'email' });
+    // login_completed fires alongside (never instead of) the legacy 'login'
+    // event — GA continuity. Normalized {method} across email + OAuth.
+    if (mode === 'signin') track('login_completed', { method: 'email' });
   } catch(err) {
     showToast('Error: ' + (err.message || 'Something went wrong'));
     btn.disabled = false; btn.textContent = mode === 'signin' ? 'Sign In' : 'Create Account';
@@ -3181,6 +3188,7 @@ async function doAuth(mode) {
 async function doGoogleSignIn() {
   if(typeof haptic==='function')haptic('medium');
   track('login_attempt', { method: 'google' });
+  track('auth_method_clicked', { method: 'google' });
   const result = await authSignInWithGoogle();
   if (result.error) {
     showToast('Error: ' + result.error.message);
@@ -3672,7 +3680,7 @@ async function maybeShowPostSignupReferralModal() {
 }
 
 function openReferralCodeEntry(opts) {
-  if (!currentUser) { openAuth('signin'); return; }
+  if (!currentUser) { openAuth('signin', 'referral'); return; }
   // Avoid duplicate modals
   if (document.getElementById('referralCodeModal')) return;
 
@@ -3804,7 +3812,7 @@ function _filterCssForId(id) {
 }
 
 async function openComposer(opts = {}) {
-  if (!currentUser) { openAuth('signin'); return; }
+  if (!currentUser) { openAuth('signin', 'composer'); return; }
   if (typeof haptic === 'function') haptic('light');
   try {
     if (!_composerProfile || _composerProfile.id !== currentUser.id) {
@@ -4287,7 +4295,7 @@ function _composerBakePhoto(p) {
 }
 
 async function submitComposer() {
-  if (!currentUser) { openAuth('signin'); return; }
+  if (!currentUser) { openAuth('signin', 'composer'); return; }
   const btn = document.getElementById('cpSubmit');
   btn.disabled = true; btn.textContent = 'Posting…';
   const body      = (document.getElementById('cpBody')?.value || '').trim();
@@ -4439,7 +4447,7 @@ async function renderGiveawayPage() {
         <div class="gw-stats-signedout">
           <div class="gw-stats-signedout__title">Make a free account to enter</div>
           <div class="gw-stats-signedout__sub">Takes 10 seconds. No credit card.</div>
-          <button class="gw-cta-primary" onclick="closeSubPage('giveawayPage');openAuth('signup')">Create my account</button>
+          <button class="gw-cta-primary" onclick="closeSubPage('giveawayPage');openAuth('signup','giveaway')">Create my account</button>
         </div>`;
     } else {
       try {
@@ -4509,7 +4517,7 @@ async function renderGiveawayPage() {
 }
 
 async function openReferralShareSheet() {
-  if (!currentUser) { openAuth('signin'); return; }
+  if (!currentUser) { openAuth('signin', 'referral'); return; }
   const code = await getMyReferralCode();
   if (!code) { showToast('Referral code not ready yet — try again in a moment'); return; }
   const link = `https://www.spotd.biz/?ref=${encodeURIComponent(code)}`;
@@ -4848,7 +4856,7 @@ async function renderHoodFollowBar() {
 }
 
 async function toggleHoodFromBar(hood, btn) {
-  if (!currentUser) { openAuth('signin'); showToast('Sign in to follow neighborhoods'); return; }
+  if (!currentUser) { openAuth('signin', 'follow'); showToast('Sign in to follow neighborhoods'); return; }
   const added = await toggleNeighborhoodFollow(currentUser.id, hood);
   btn.classList.toggle('following', added);
   btn.textContent = (added ? '✓ ' : '') + hood;
@@ -5646,7 +5654,7 @@ async function loadGoingTonight(citySlug) {
 const CHECK_IN_DAILY_LIMIT = 5;
 
 async function doGoingTonight(venueId, btn) {
-  if (!currentUser) { openAuth('signin'); showToast('Sign in to check in'); return; }
+  if (!currentUser) { openAuth('signin', 'checkin'); showToast('Sign in to check in'); return; }
   const isCheckedIn = state.goingByMe.has(venueId);
   const today = new Date().toISOString().slice(0, 10);
   if (isCheckedIn) {
@@ -5921,7 +5929,7 @@ function switchPubTab(tab, btn) {
 }
 
 async function toggleFollowUser(userId, btn) {
-  if (!currentUser) { openAuth('signin'); return; }
+  if (!currentUser) { openAuth('signin', 'follow'); return; }
   if(typeof haptic==='function')haptic('light');
   const isFollowing = btn.classList.contains('following');
   if (isFollowing) {
@@ -6238,7 +6246,7 @@ function showStreakCelebration(streak) {
 
 // ── DEAL ALERTS (venue follows) ────────────────────────
 async function toggleVenueFollow(venueId, venueName, btn) {
-  if (!currentUser) { openAuth('signin'); showToast('Sign in to follow venues'); return; }
+  if (!currentUser) { openAuth('signin', 'follow'); showToast('Sign in to follow venues'); return; }
   const currently = btn.classList.contains('following');
   btn.disabled = true;
   if (currently) {
@@ -6742,7 +6750,7 @@ function clearPhotoPreview(venueId, venueName) {
 //   • nothing                             → just closes
 // Because there's only one button, tags are never stranded by sharing first.
 async function submitCheckin(venueId, venueName) {
-  if (!currentUser) { openAuth('signin'); return; }
+  if (!currentUser) { openAuth('signin', 'checkin'); return; }
   const file    = window._pendingCheckinPhoto || null;
   const caption = document.getElementById('photoCaptionField')?.value.trim() || '';
   const tagIds  = window._stagedTagIds ? [...window._stagedTagIds] : [];
@@ -6981,7 +6989,7 @@ function dmNavBack() {
 }
 
 async function openDmInbox() {
-  if (!currentUser) { openAuth('signin'); return; }
+  if (!currentUser) { openAuth('signin', 'messages'); return; }
   openDmTab();
   dmShowScreen('inbox');
   await dmLoadInbox();
@@ -7376,7 +7384,7 @@ async function dmCreateConvo(isGroup) {
 }
 
 async function dmOpenFromProfile(userId, displayName) {
-  if (!currentUser) { openAuth('signin'); return; }
+  if (!currentUser) { openAuth('signin', 'messages'); return; }
   closeSubPage('pubProfilePage');
   const { data: myParts } = await db.from('conversation_participants').select('conversation_id').eq('user_id', currentUser.id);
   if (myParts?.length) {
@@ -8423,6 +8431,7 @@ async function doDeletePost(postType, postId, btn) {
 async function doAppleSignIn() {
   if(typeof haptic==='function')haptic('medium');
   track('login_attempt', { method: 'apple' });
+  track('auth_method_clicked', { method: 'apple' });
   try {
     // On native iOS, use skipBrowserRedirect so we can route through ASWebAuthenticationSession
     if (window.spotdNative?.openOAuth) {

@@ -22,6 +22,17 @@ function isAdmin() { return currentUser && ADMIN_EMAILS.includes(currentUser.ema
 // Single entry point for GA4 events. Safe no-op if gtag isn't loaded
 // (e.g. user disabled GA via ?disable_ga=true). Strips known PII keys
 // before sending. Snake_case event names; values are scalars only.
+// 'ios_app' inside the native iOS shell (Capacitor runtime / spotdNative
+// bridge / capacitor:// origin), 'web' everywhere else. Computed per call —
+// the native bridge may be injected after this script parses.
+function _trackPlatform() {
+  try {
+    if (window.Capacitor?.isNativePlatform?.()) return 'ios_app';
+    if (window.spotdNative) return 'ios_app';
+    if (location.protocol === 'capacitor:') return 'ios_app';
+  } catch (e) {}
+  return 'web';
+}
 function track(eventName, params) {
   try {
     if (typeof gtag !== 'function') return;
@@ -39,6 +50,9 @@ function track(eventName, params) {
         }
       }
     }
+    // Auto-tag every event with the running platform (GA4 custom dimension
+    // "platform") so native-app vs web traffic is segmentable.
+    safe.platform = _trackPlatform();
     gtag('event', String(eventName).slice(0, 40), safe);
   } catch (e) { /* never let analytics break the app */ }
 }
@@ -468,6 +482,9 @@ async function handleOAuthCallback() {
     const _provider = user.app_metadata?.provider || 'oauth';
     const _isNew = !!(user.created_at && (Date.now() - new Date(user.created_at).getTime() < 60000));
     track(_isNew ? 'signup_completed' : 'oauth_login', { method: _provider, new_user: _isNew });
+    // login_completed fires alongside (never instead of) the legacy events
+    // above — GA continuity. Normalized {method} across email + OAuth.
+    if (!_isNew) track('login_completed', { method: _provider });
 
     // Apply any pending referral code captured before the OAuth redirect.
     // No-op if there's no stashed code or the user was already referred.
