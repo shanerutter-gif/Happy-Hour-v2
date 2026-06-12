@@ -99,7 +99,7 @@
 <noscript><link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"></noscript>
 <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script defer src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
-<link rel="stylesheet" href="css/style.css?v=20260612g">
+<link rel="stylesheet" href="css/style.css?v=20260612h">
 <style>
 .card-claim { padding: 4px 16px 12px; }
 .claim-link { font-size: 12px; color: rgba(42,31,20,0.4); text-decoration: none; }
@@ -476,15 +476,24 @@
             onclick="event.stopPropagation();dismissGiveawayBanner()">×</span>
     </button>
     <div class="controls-top">
-      <input class="search-box" id="searchBox" type="text" placeholder="Search venues, neighborhoods…" oninput="debounceSearch()" autocomplete="off" autocorrect="off">
+      <div class="search-wrap">
+        <svg class="search-ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input class="search-box" id="searchBox" type="text" placeholder="Search venues, neighborhoods…" oninput="debounceSearch()" autocomplete="off" autocorrect="off">
+      </div>
       <button class="clear-all-btn" id="clearAllBtn" onclick="clearAllVisible()">Clear</button>
-      <button class="view-toggle" id="viewToggle" onclick="toggleView()"><span id="viewIcon">Map</span></button>
     </div>
     <div class="controls-actions">
-      <button class="filter-toggle" id="filterToggle" onclick="toggleFilters()"><span class="ft-label--long">Personalize Your Search</span><span class="ft-label--short">Filters</span> <span class="filter-dot" id="filterDot"></span></button>
+      <button class="filter-toggle" id="filterToggle" onclick="toggleFilters()">
+        <svg class="ft-ic" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="10" y1="18" x2="14" y2="18"/></svg>
+        <span class="ft-label">Filters</span>
+        <span class="filter-dot" id="filterDot"></span>
+      </button>
+      <button class="view-toggle" id="viewToggle" onclick="toggleView()">
+        <svg class="vt-ic" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 8 3 16 6 23 3 23 18 16 21 8 18 1 21"/><line x1="8" y1="3" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="21"/></svg>
+        <span id="viewIcon">Map</span>
+      </button>
     </div>
     <div class="chips-row" id="chipsRow"></div>
-    <div class="suggestions-row" id="suggestionsRow"></div>
     <div class="filter-panel" id="filterPanel">
       <div class="fp-inner">
         <div class="fp-header">
@@ -793,7 +802,7 @@ function dismissAppDownload() {
 <script defer src="js/onboarding.js?v=20260612a"></script>
 <script defer src="js/push.js?v=20260408a"></script>
 <script defer src="js/icons.js?v=20260609a"></script>
-<script defer src="js/app.js?v=20260612g"></script>
+<script defer src="js/app.js?v=20260612h"></script>
 <script defer src="js/tooltips.js?v=20260408a"></script>
 <script>
 // Hide business/Pro links and App Store badge on native iOS

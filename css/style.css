@@ -7727,3 +7727,133 @@ h1, h2, .sf-hero-venue, .sf-ed-title, .pf-name, .gw-hero__title,
 .pf-row:active, .pf-lb-row:active, .stry-tile:active {
   transform: scale(.955);
 }
+
+/* ════════════════════════════════════════════════════════════════
+   DISCOVER HEADER — LIQUID GLASS REDESIGN (round 5)
+   Frosted city bar + search/filter/map controls + filter panel, and a
+   springier map toggle. Class-scoped overrides of the earlier clay/
+   neumorphic header styles. The Suggested row was removed from markup.
+   ════════════════════════════════════════════════════════════════ */
+
+/* Frosted bars — translucent + blur so the feed frosts as it scrolls under. */
+.city-bar {
+  background: var(--cp-glass);
+  -webkit-backdrop-filter: blur(22px) saturate(1.7);
+  backdrop-filter: blur(22px) saturate(1.7);
+  border-bottom: none;
+  box-shadow: none;
+  flex-wrap: nowrap;
+  padding: 10px 16px 8px;
+}
+.controls {
+  background: var(--cp-glass);
+  -webkit-backdrop-filter: blur(22px) saturate(1.7);
+  backdrop-filter: blur(22px) saturate(1.7);
+  border-bottom: 1px solid var(--cp-glass-brd);
+  box-shadow: 0 8px 24px -12px rgba(42,31,20,0.18);
+}
+[data-theme="dark"] .controls { box-shadow: 0 8px 24px -12px rgba(0,0,0,0.6); }
+
+/* City pill → glass */
+.city-pill {
+  background: var(--cp-glass);
+  border: 1px solid var(--cp-glass-brd);
+  box-shadow: none;
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  transition: transform .18s var(--ease-bounce), background .15s ease;
+}
+.city-pill:active { transform: scale(.95); box-shadow: none; }
+.city-pill.open { background: rgba(255,107,74,.12); }
+
+/* Search → glass pill with an inset magnifier icon */
+.controls-top { padding: 8px 16px 6px; gap: 8px; }
+.search-wrap { position: relative; flex: 1; display: flex; align-items: center; min-width: 0; }
+.search-ic { position: absolute; left: 15px; color: var(--muted); pointer-events: none; }
+.search-box {
+  flex: 1; width: 100%;
+  background: var(--cp-glass); border: 1px solid var(--cp-glass-brd);
+  border-radius: 16px; padding: 12px 16px 12px 42px;
+  box-shadow: none;
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  transition: border-color .15s ease, background .2s ease;
+}
+.search-box:focus { background: var(--card); border-color: rgba(255,107,74,.45); box-shadow: none; }
+
+/* Filters + Map → glass action pills on one row */
+.controls-actions { display: flex; gap: 8px; padding: 2px 16px 10px; }
+.filter-toggle { flex: 1; }
+.filter-toggle, .view-toggle {
+  background: var(--cp-glass); border: 1px solid var(--cp-glass-brd);
+  color: var(--ink); border-radius: 16px; padding: 11px 14px;
+  font-weight: 700; font-size: 13.5px; gap: 7px;
+  box-shadow: none;
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  transition: transform .18s var(--ease-bounce), background .15s ease, color .15s ease, border-color .15s ease;
+}
+.filter-toggle:active, .view-toggle:active { transform: scale(.95); box-shadow: none; }
+.filter-toggle .ft-ic, .view-toggle .vt-ic { transition: transform .3s var(--ease-bounce); }
+.filter-toggle.active {
+  background: rgba(255,107,74,.12); color: #FF6B4A; border-color: rgba(255,107,74,.4);
+}
+.filter-toggle.active .ft-ic { transform: rotate(90deg); }
+.view-toggle.map-active {
+  background: rgba(255,107,74,.12); color: #FF6B4A; border-color: rgba(255,107,74,.4);
+}
+.filter-dot { background: #FF6B4A; }
+
+/* Map toggle: spring pop on each press + the icon flips */
+@keyframes vtPop { 0% { transform: scale(1); } 35% { transform: scale(.86); } 100% { transform: scale(1); } }
+.view-toggle.vt-pop { animation: vtPop .32s var(--ease-bounce); }
+.view-toggle.map-active .vt-ic { transform: rotateY(180deg); }
+
+/* Nicer list/map crossfade */
+@keyframes viewFadeIn { from { opacity: 0; transform: translateY(8px) scale(.992); } to { opacity: 1; transform: none; } }
+.list-view, .map-view { animation: viewFadeIn .3s var(--ease-bounce) both; }
+
+/* ── Filter panel → liquid glass ── */
+.filter-panel {
+  background: var(--cp-glass);
+  -webkit-backdrop-filter: blur(26px) saturate(1.8);
+  backdrop-filter: blur(26px) saturate(1.8);
+  border-bottom: 1px solid var(--cp-glass-brd);
+  border-radius: 0 0 22px 22px;
+  box-shadow: 0 24px 40px -16px rgba(42,31,20,0.28);
+}
+[data-theme="dark"] .filter-panel { box-shadow: 0 24px 40px -16px rgba(0,0,0,0.7); }
+.fp-inner { gap: 12px; }
+.fp-header { border-bottom: 1px solid var(--cp-glass-brd); }
+.fp-title { color: var(--ink); font-size: 16px; }
+.fp-done {
+  background: linear-gradient(135deg, var(--coral), var(--amber));
+  box-shadow: 0 4px 14px rgba(255,107,74,.3);
+  transition: transform .16s var(--ease-bounce);
+}
+.fp-done:active { transform: scale(.94); }
+.fg-label { color: var(--muted); }
+/* Glass selects + pills + amenities */
+.filter-select {
+  background-color: var(--cp-glass); border: 1px solid var(--cp-glass-brd);
+  color: var(--ink); box-shadow: none;
+}
+.pill, .amenity-card {
+  background: var(--cp-glass); border: 1px solid var(--cp-glass-brd);
+  color: var(--ink); box-shadow: none;
+  transition: transform .16s var(--ease-bounce), background .15s ease, color .15s ease, border-color .15s ease;
+}
+.pill:active, .amenity-card:active { transform: scale(.93); }
+.pill.active {
+  background: linear-gradient(135deg, var(--coral), var(--amber)); color: #fff;
+  border-color: transparent; box-shadow: 0 3px 10px rgba(255,107,74,.28);
+}
+.amenity-card.active {
+  background: linear-gradient(135deg, var(--coral), var(--amber)); color: #fff;
+  border-color: transparent; box-shadow: 0 3px 10px rgba(255,107,74,.28);
+}
+
+/* Request-a-venue → glass */
+.request-venue-btn {
+  background: var(--cp-glass); border: 1px solid var(--cp-glass-brd);
+  box-shadow: none; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  transition: transform .16s var(--ease-bounce), color .15s ease;
+}
+.request-venue-btn:active { transform: scale(.94); box-shadow: none; }
