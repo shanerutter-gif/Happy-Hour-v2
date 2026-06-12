@@ -8102,3 +8102,88 @@ h1, h2, .sf-hero-venue, .sf-ed-title, .pf-name, .gw-hero__title,
 /* (No per-row entrance animation — these lists re-render on search/tab
    switch, so a keyframe would replay and jank. The sub-page slide-in +
    ripple + bouncy press are the motion treatment.) */
+
+/* ════════════════════════════════════════════════════════════════
+   DISCOVER + SHARE CARDS — LIQUID GLASS (round 8)
+   Two tiers, deliberately:
+   • REAL backdrop blur only on the small overlays sitting ON photos
+     (deal pills, fav buttons, badges) — that's where blur is visible
+     (it frosts the photo behind it) and only a handful are on-screen.
+   • Frosted-white TRANSLUCENCY (no blur) on the big white list cards
+     (.card-std / .sf-compact / .sf-wide) — over the flat page bg,
+     blur is invisible anyway, and backdrop-filter on hundreds of
+     scrolling cards is exactly the jank we just fixed. Never add it.
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── Hero card: amped glass deal pills + fav ── */
+.card-hero-deal {
+  background: rgba(255,255,255,0.22);
+  -webkit-backdrop-filter: blur(20px) saturate(1.8);
+  backdrop-filter: blur(20px) saturate(1.8);
+  border: 1px solid rgba(255,255,255,0.32);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.35);
+  padding: 6px 12px;
+}
+.card-hero-fav {
+  background: rgba(255,255,255,0.26);
+  -webkit-backdrop-filter: blur(16px) saturate(1.7);
+  backdrop-filter: blur(16px) saturate(1.7);
+  border: 1px solid rgba(255,255,255,0.32);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.3);
+}
+
+/* ── Compact card: same glass language ── */
+.card-compact-deal {
+  background: rgba(255,255,255,0.22);
+  -webkit-backdrop-filter: blur(16px) saturate(1.8);
+  backdrop-filter: blur(16px) saturate(1.8);
+  border: 1px solid rgba(255,255,255,0.3);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.3);
+}
+.card-compact-fav {
+  background: rgba(255,255,255,0.26);
+  -webkit-backdrop-filter: blur(14px) saturate(1.7);
+  backdrop-filter: blur(14px) saturate(1.7);
+  border: 1px solid rgba(255,255,255,0.3);
+}
+
+/* ── Photo badges (🔥 here / 📺 sports) → frosted instead of solid white ── */
+.badge-fire, .badge-sports {
+  background: rgba(255,255,255,0.5);
+  -webkit-backdrop-filter: blur(12px) saturate(1.7);
+  backdrop-filter: blur(12px) saturate(1.7);
+  border: 1px solid rgba(255,255,255,0.45);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.5);
+}
+
+/* ── Standard cards (the long list) → frosted-white look, NO blur ── */
+.card-std {
+  background: rgba(255,255,255,0.62);
+  border: 1px solid var(--cp-glass-brd);
+  box-shadow: 0 8px 22px -14px rgba(42,31,20,0.25), inset 0 1px 0 rgba(255,255,255,0.55);
+}
+[data-theme="dark"] .card-std {
+  background: rgba(40,34,28,0.55);
+  box-shadow: 0 8px 22px -14px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+
+/* ── Share tab: compact + wide cards → frosted-white look, NO blur ── */
+.sf-compact, .sf-wide {
+  background: rgba(255,255,255,0.62);
+  border: 1px solid var(--cp-glass-brd);
+  box-shadow: 0 8px 22px -14px rgba(42,31,20,0.25), inset 0 1px 0 rgba(255,255,255,0.55);
+}
+[data-theme="dark"] .sf-compact,
+[data-theme="dark"] .sf-wide {
+  background: rgba(40,34,28,0.55);
+  box-shadow: 0 8px 22px -14px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+/* The action strip inside translucent cards must not stay an opaque slab.
+   (.sf-hero keeps the solid var(--card) strip — its card has no bg of its own.) */
+.sf-compact .sf-actions, .sf-wide .sf-actions { background: transparent; }
+
+/* Glassier action chips on the share cards */
+.sf-action-btn:not(.sf-liked):not(.sf-more) {
+  background: var(--cp-glass);
+  border: 1px solid var(--cp-glass-brd);
+}
