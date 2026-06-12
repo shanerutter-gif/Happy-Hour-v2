@@ -2564,6 +2564,8 @@ function _renderCardsNow() {
 
   let html = '';
   let delay = 0;
+  // Cap stagger so no card is invisible when scrolled to (previously accumulated to 20s+ on large cities).
+  const MAX_STAGGER = 180;
 
   if (isTwoPane()) {
     // ── Desktop two-pane: uniform horizontal list ──
@@ -2572,7 +2574,7 @@ function _renderCardsNow() {
     // hero/compact/standard size tiers. `venues` is the full filtered set in
     // sort order (heroes included), so nothing is dropped.
     venues.forEach((v, i) => {
-      html += standardCardHTML(v, delay, i === 0);
+      html += standardCardHTML(v, Math.min(delay, MAX_STAGGER), i === 0);
       delay += 25;
     });
   } else {
@@ -2584,7 +2586,7 @@ function _renderCardsNow() {
       html += `<div class="feed-label">🔥 Hot right now</div>`;
       html += `<div class="card-hero-row">`;
       heroes.forEach((v, i) => {
-        html += heroCardHTML(v, delay, i);
+        html += heroCardHTML(v, Math.min(delay, MAX_STAGGER), i);
         delay += 80;
       });
       html += `</div>`;
@@ -2595,10 +2597,10 @@ function _renderCardsNow() {
       html += `<div class="feed-label">${heroes.length ? 'Near you' : 'Today\'s happy hours'}</div>`;
       for (let i = 0; i < compactVenues.length; i += 2) {
         html += `<div class="card-compact-row">`;
-        html += compactCardHTML(compactVenues[i], delay);
+        html += compactCardHTML(compactVenues[i], Math.min(delay, MAX_STAGGER));
         delay += 60;
         if (compactVenues[i + 1]) {
-          html += compactCardHTML(compactVenues[i + 1], delay);
+          html += compactCardHTML(compactVenues[i + 1], Math.min(delay, MAX_STAGGER));
           delay += 60;
         }
         html += `</div>`;
@@ -2613,7 +2615,7 @@ function _renderCardsNow() {
       html += `<div class="feed-label">More spots</div>`;
       html += `<div class="card-std-row">`;
       standardVenues.forEach(v => {
-        html += standardCardHTML(v, delay);
+        html += standardCardHTML(v, Math.min(delay, MAX_STAGGER));
         delay += 40;
       });
       html += `</div>`;
@@ -6988,6 +6990,7 @@ function skipToTagFriends(venueId) {
 
 // ── YOUR NEWS (ARTICLE FEED) ──────────────────────────
 const NEWS_ARTICLES = [
+  { city: 'san-diego', img: 'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=800&q=80', tag: 'Neighborhood Guide', author: 'Jordan', title: 'Best Happy Hours in the Gaslamp Quarter, San Diego (2026)', excerpt: 'Half-price everything at Barleymash, rooftop sundowners at Altitude Sky Lounge, late-night mojitos at Havana 1920 — the Gaslamp happy hours locals book their evenings around.', url: '/blog/best-happy-hours-gaslamp-quarter-san-diego.html', date: 'June 12, 2026', readTime: '8 min' },
   { city: 'orange-county', img: 'https://images.unsplash.com/photo-1567521464027-f127ff144326?w=800&q=80', tag: 'Neighborhood Guide', author: 'Sofia', title: 'Best Happy Hours in Costa Mesa (2026)', excerpt: 'Aperitivo cocktails at Ospi, best margarita in California at Playa Mesa, 50% off tapas at Cafe Sevilla — the 17th Street happy hour guide Costa Mesa locals keep to themselves.', url: '/blog/best-happy-hours-costa-mesa.html', date: 'June 11, 2026', readTime: '8 min' },
   { city: 'san-diego', img: 'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=800&q=80', tag: 'Neighborhood Guide', author: 'Ryan', title: 'Best Happy Hours in Ocean Beach, San Diego (2026)', excerpt: '$6 drafts at Raglan Public House, $5 pints at Wonderland Ocean Pub, live music every night at The Holding Company — the Newport Avenue happy hour guide OB regulars keep to themselves.', url: '/blog/best-happy-hours-ocean-beach-san-diego.html', date: 'June 10, 2026', readTime: '8 min' },
   { city: 'orange-county', img: 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=800&q=80', tag: 'Neighborhood Guide', author: 'Marcus', title: 'Best Happy Hours in Huntington Beach (2026)', excerpt: '$5 wells at Perqs, $4 craft pints at Rockin\' Fig, beachside cocktails at HQ Gastropub — the Main Street happy hour guide Surf City locals keep to themselves.', url: '/blog/best-happy-hours-huntington-beach.html', date: 'June 9, 2026', readTime: '8 min' },

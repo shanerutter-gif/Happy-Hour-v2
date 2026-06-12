@@ -2771,6 +2771,8 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   animation: cardFadeIn .3s cubic-bezier(.22,1,.36,1) both;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
+  content-visibility: auto;
+  contain-intrinsic-block-size: auto 500px;
 }
 .card-hero:active { transform: scale(0.98); box-shadow: var(--clay-md); }
 
@@ -2901,6 +2903,8 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   grid-template-columns: 1fr 1fr;
   gap: 8px;
   margin-bottom: 10px;
+  content-visibility: auto;
+  contain-intrinsic-block-size: auto 320px;
 }
 
 .card-compact {
@@ -2992,6 +2996,8 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   animation: cardFadeIn .3s cubic-bezier(.4,0,.2,1) both;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
+  content-visibility: auto;
+  contain-intrinsic-block-size: auto 130px;
 }
 .card-std:active {
   transform: scale(0.98);
