@@ -7531,3 +7531,102 @@ h1, h2, .sf-hero-venue, .sf-ed-title, .pf-name, .gw-hero__title,
   .cp--intro .cp-scroll > *, .cp--intro .cp-post-bar { animation: none; }
   .ripple-ink { animation: none; display: none; }
 }
+
+/* ════════════════════════════════════════════════════════════════
+   COMPOSER PICKER SHEETS (tag friends / tag a venue) — glass, sleek,
+   theme-aware. Replaces the old bare/hardcoded-white pickers. The
+   sheets ride the shared .sheet slide (springy since round 1).
+   ════════════════════════════════════════════════════════════════ */
+.cp-pick { display: flex; flex-direction: column; padding-left: 0; padding-right: 0; }
+.cp-pick .sheet-handle { margin-bottom: 12px; }
+.cp-pick-head { padding: 0 20px 8px; flex-shrink: 0; }
+.cp-pick-title {
+  font-family: 'Cabinet Grotesk', sans-serif; font-size: 21px; font-weight: 800;
+  color: var(--ink); letter-spacing: -0.01em;
+}
+.cp-pick-sub { font-size: 13px; color: var(--muted); margin-top: 3px; }
+.cp-pick-search {
+  display: flex; align-items: center; gap: 9px; margin-top: 14px;
+  background: var(--cp-glass); border: 1px solid var(--cp-glass-brd);
+  border-radius: 14px; padding: 12px 14px;
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  transition: border-color .15s ease;
+}
+.cp-pick-search:focus-within { border-color: rgba(255,107,74,.45); }
+.cp-pick-search-icon { opacity: .5; font-size: 15px; line-height: 1; }
+.cp-pick-search-input {
+  flex: 1; border: none; background: transparent; outline: none;
+  font-family: 'DM Sans', sans-serif; font-size: 15px; color: var(--text);
+}
+.cp-pick-search-input::placeholder { color: var(--muted); }
+.cp-pick-list {
+  flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  padding: 6px 12px 8px; min-height: 0;
+}
+.cp-pick-empty { color: var(--muted); font-size: 13px; padding: 18px 12px; text-align: center; }
+
+/* Venue rows */
+.cp-pick-row {
+  display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+  background: transparent; border: none; cursor: pointer;
+  padding: 11px 12px; border-radius: 14px;
+  transition: transform .18s var(--ease-bounce), background .15s ease;
+  -webkit-tap-highlight-color: transparent; position: relative; overflow: hidden;
+}
+.cp-pick-row:active { transform: scale(.985); background: var(--ink-06, rgba(42,31,20,.05)); }
+.cp-pick-row-icon {
+  width: 40px; height: 40px; flex-shrink: 0; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center; font-size: 18px;
+  background: rgba(255,107,74,.12);
+}
+.cp-pick-row-text { display: flex; flex-direction: column; min-width: 0; }
+.cp-pick-row-name {
+  font-family: 'Cabinet Grotesk', sans-serif; font-weight: 700; font-size: 15px;
+  color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cp-pick-row-sub { font-size: 12px; color: var(--muted); margin-top: 1px; }
+
+/* Tag-friend rows — avatar + name + check circle */
+.cp-tag-row {
+  display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+  background: transparent; border: none; cursor: pointer;
+  padding: 8px 12px; border-radius: 14px;
+  transition: transform .18s var(--ease-bounce), background .15s ease;
+  -webkit-tap-highlight-color: transparent; position: relative; overflow: hidden;
+}
+.cp-tag-row:active { transform: scale(.985); }
+.cp-tag-row.on { background: rgba(255,107,74,.07); }
+.cp-tag-row-avatar {
+  width: 44px; height: 44px; border-radius: 50%; overflow: hidden; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-size: 20px;
+}
+.cp-tag-row-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.cp-tag-row-name {
+  flex: 1; min-width: 0; font-family: 'DM Sans', sans-serif; font-weight: 600;
+  font-size: 15px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cp-tag-row-check {
+  width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0;
+  border: 2px solid var(--cp-glass-brd); background: transparent;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s ease, border-color .15s ease, transform .22s var(--ease-bounce);
+}
+.cp-tag-row.on .cp-tag-row-check { background: var(--coral); border-color: var(--coral); transform: scale(1.1); }
+.cp-tag-row.on .cp-tag-row-check::after {
+  content: ''; width: 6px; height: 11px;
+  border: solid #fff; border-width: 0 2.5px 2.5px 0;
+  transform: rotate(45deg) translateY(-1px);
+}
+.cp-pick-foot {
+  padding: 10px 20px max(16px, env(safe-area-inset-bottom, 16px));
+  flex-shrink: 0;
+}
+
+/* Section label above the options row (composer sleekness) */
+.cp-section-label--top { margin: 18px 2px 8px; font-weight: 700; letter-spacing: .02em; }
+
+/* ── Round-2 motion extend: gentle press-bounce on feed cards ── */
+.card:active { transform: scale(.985); }
+
+/* Sleeker hero text field */
+.cp-body--big { min-height: 116px; font-size: 17px; line-height: 1.45; }

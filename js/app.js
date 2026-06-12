@@ -412,7 +412,7 @@ function initSegSliders() {
 // nav "+" button; the matching CSS gives those selectors overflow:hidden so
 // the ink is clipped. Opt-in by selector, so it never touches the rest of
 // the app until we extend it.
-const RIPPLE_SELECTOR = '.cp-post-cta, .cp-opt, .cp-idea, .cp-photo-pick, .cp-iconbtn, .bottom-nav-post';
+const RIPPLE_SELECTOR = '.cp-post-cta, .cp-opt, .cp-idea, .cp-photo-pick, .cp-iconbtn, .bottom-nav-post, .cp-pick-row, .cp-tag-row';
 function initRipples() {
   document.addEventListener('pointerdown', e => {
     const el = e.target.closest && e.target.closest(RIPPLE_SELECTOR);
@@ -4067,14 +4067,13 @@ function _renderComposerCompose() {
         ${photoSection}
         ${perPhotoCaptions}
 
+        <div class="cp-section-label cp-section-label--top">Add to your post</div>
         <div class="cp-options-row">
           ${venueBtn}
           ${tagBtn}
           ${visBtn}
           ${storyBtn}
         </div>
-
-        <p class="cp-hint">Tag the spot, tag your friends, drop a few photos — show everyone the good time. 🍻</p>
       </div>
 
       <div class="cp-post-bar">
@@ -4102,14 +4101,16 @@ async function _composerOpenTagSheet() {
   const close = () => { overlay.classList.remove('open'); setTimeout(() => overlay.remove(), 200); renderComposer(); };
   overlay.onclick = e => { if (e.target === overlay) close(); };
   overlay.innerHTML = `
-    <div class="sheet" style="max-height:72vh;display:flex;flex-direction:column">
+    <div class="sheet cp-pick" style="max-height:74vh">
       <div class="sheet-handle"></div>
-      <div class="cp-tagsheet-title">Tag friends</div>
-      <div class="cp-tagsheet-sub">They'll see it in their feed and get a notification.</div>
-      <div class="tag-friends-grid" id="cpTagGrid" style="overflow-y:auto;flex:1;align-content:flex-start">
-        <div style="color:var(--muted);font-size:13px">Loading friends…</div>
+      <div class="cp-pick-head">
+        <div class="cp-pick-title">Tag friends</div>
+        <div class="cp-pick-sub">They'll see it in their feed and get a notification.</div>
       </div>
-      <button class="cp-post-cta" id="cpTagDone" style="margin-top:10px">Done</button>
+      <div class="cp-pick-list" id="cpTagGrid">
+        <div class="cp-pick-empty">Loading friends…</div>
+      </div>
+      <div class="cp-pick-foot"><button class="cp-post-cta" id="cpTagDone">Done</button></div>
     </div>`;
   document.body.appendChild(overlay);
   requestAnimationFrame(() => requestAnimationFrame(() => overlay.classList.add('open')));
@@ -4119,27 +4120,28 @@ async function _composerOpenTagSheet() {
     const grid = document.getElementById('cpTagGrid');
     if (!grid) return;
     const ids = (followingIds || []).filter(id => id && id !== currentUser.id);
-    if (!ids.length) { grid.innerHTML = `<div style="color:var(--muted);font-size:13px">Follow people to tag them here.</div>`; return; }
+    if (!ids.length) { grid.innerHTML = `<div class="cp-pick-empty">Follow people to tag them here.</div>`; return; }
     const { data: profiles } = await db.from('profiles')
       .select('id, display_name, avatar_emoji, avatar_url, username')
       .in('id', ids).not('display_name', 'is', null).limit(40);
     const listP = (profiles || []).filter(p => p.id !== currentUser.id);
     listP.forEach(p => { _composerTagProfiles[p.id] = p; });
-    if (!listP.length) { grid.innerHTML = `<div style="color:var(--muted);font-size:13px">No friends to tag yet.</div>`; return; }
+    if (!listP.length) { grid.innerHTML = `<div class="cp-pick-empty">No friends to tag yet.</div>`; return; }
     grid.innerHTML = listP.map(p => `
-      <button class="tag-friend-chip${_composerTags.has(p.id) ? ' tagged' : ''}" type="button" onclick="_composerToggleTag('${p.id}',this)">
-        <span class="tag-friend-chip-avatar">${initialsAvatar(p.display_name || 'Friend', '', p.avatar_emoji, p.avatar_url)}</span>
-        <span class="tag-friend-chip-name">${esc(p.display_name || 'Friend')}</span>
+      <button class="cp-tag-row${_composerTags.has(p.id) ? ' on' : ''}" type="button" onclick="_composerToggleTag('${p.id}',this)">
+        <span class="cp-tag-row-avatar">${initialsAvatar(p.display_name || 'Friend', '', p.avatar_emoji, p.avatar_url)}</span>
+        <span class="cp-tag-row-name">${esc(p.display_name || 'Friend')}</span>
+        <span class="cp-tag-row-check" aria-hidden="true"></span>
       </button>`).join('');
   } catch (e) {
     const grid = document.getElementById('cpTagGrid');
-    if (grid) grid.innerHTML = `<div style="color:var(--muted);font-size:13px">Couldn't load friends right now.</div>`;
+    if (grid) grid.innerHTML = `<div class="cp-pick-empty">Couldn't load friends right now.</div>`;
   }
 }
 function _composerToggleTag(id, el) {
   if (typeof haptic === 'function') haptic('light');
-  if (_composerTags.has(id)) { _composerTags.delete(id); el.classList.remove('tagged'); }
-  else { _composerTags.add(id); el.classList.add('tagged'); }
+  if (_composerTags.has(id)) { _composerTags.delete(id); el.classList.remove('on'); }
+  else { _composerTags.add(id); el.classList.add('on'); }
 }
 
 // ── Step: edit (canvas-based per-photo editor) ──────────────────
@@ -4276,12 +4278,19 @@ function _composerPickVenue() {
   const overlay = document.createElement('div');
   overlay.className = 'overlay';
   overlay.style.zIndex = 10000;
-  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+  const close = () => { overlay.classList.remove('open'); setTimeout(() => overlay.remove(), 260); };
+  overlay.onclick = e => { if (e.target === overlay) close(); };
   overlay.innerHTML = `
-    <div class="sheet sheet--tall" style="max-height:80vh;display:flex;flex-direction:column">
+    <div class="sheet sheet--tall cp-pick" style="max-height:82vh">
       <div class="sheet-handle"></div>
-      <div style="padding:0 16px 8px"><input class="cp-venue-search" id="cpVenueSearch" placeholder="Search venues…"></div>
-      <div id="cpVenueList" style="overflow-y:auto;padding:0 16px 16px"></div>
+      <div class="cp-pick-head">
+        <div class="cp-pick-title">Tag a venue</div>
+        <div class="cp-pick-search">
+          <span class="cp-pick-search-icon">🔍</span>
+          <input class="cp-pick-search-input" id="cpVenueSearch" placeholder="Search venues…">
+        </div>
+      </div>
+      <div id="cpVenueList" class="cp-pick-list"></div>
     </div>`;
   document.body.appendChild(overlay);
   // Trigger CSS transition: must be in the next frame after .open is added
@@ -4289,10 +4298,15 @@ function _composerPickVenue() {
   const renderList = (q) => {
     const ql = (q || '').toLowerCase().trim();
     const filtered = ql ? list.filter(v => (v.name||'').toLowerCase().includes(ql) || (v.neighborhood||'').toLowerCase().includes(ql)) : list;
-    document.getElementById('cpVenueList').innerHTML = filtered.slice(0, 80).map(v => `
-      <button class="cp-venue-row" onclick='_composerSelectVenue(${JSON.stringify(v.id)}, ${JSON.stringify(v.name)}, ${JSON.stringify(v.neighborhood || "")});this.closest(".overlay").classList.remove("open");setTimeout(()=>this.closest(".overlay")?.remove(),200);'>
-        <strong>${esc(v.name)}</strong>${v.neighborhood ? `<span class="cp-venue-row-meta"> · ${esc(v.neighborhood)}</span>` : ''}
+    const rows = filtered.slice(0, 80).map(v => `
+      <button class="cp-pick-row" onclick='_composerSelectVenue(${JSON.stringify(v.id)}, ${JSON.stringify(v.name)}, ${JSON.stringify(v.neighborhood || "")});this.closest(".overlay").classList.remove("open");setTimeout(()=>this.closest(".overlay")?.remove(),260);'>
+        <span class="cp-pick-row-icon">📍</span>
+        <span class="cp-pick-row-text">
+          <span class="cp-pick-row-name">${esc(v.name)}</span>
+          ${v.neighborhood ? `<span class="cp-pick-row-sub">${esc(v.neighborhood)}</span>` : ''}
+        </span>
       </button>`).join('');
+    document.getElementById('cpVenueList').innerHTML = rows || `<div class="cp-pick-empty">No venues match that search.</div>`;
   };
   renderList('');
   setTimeout(() => {
