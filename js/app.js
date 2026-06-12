@@ -2565,6 +2565,18 @@ function _renderCardsNow() {
 
   let html = '';
   let delay = 0;
+  // Bound the entrance stagger: only the first ~12 cards (initial viewport + a
+  // little) animate in, each capped at MAX_STAGGER so it all settles fast;
+  // cards below the fold render instantly (delay=false → animation:none) so
+  // scrolling the fresh feed never reveals a card mid-pop. The unbounded delay
+  // used to reach ~2s on a long list = the "glitchy first scroll".
+  const MAX_STAGGER = 240, ANIM_CARDS = 12;
+  let _ci = 0;
+  const nextDelay = (step) => {
+    const d = _ci < ANIM_CARDS ? Math.min(delay, MAX_STAGGER) : false;
+    delay += step; _ci++;
+    return d;
+  };
 
   if (isTwoPane()) {
     // ── Desktop two-pane: uniform horizontal list ──
@@ -2573,8 +2585,7 @@ function _renderCardsNow() {
     // hero/compact/standard size tiers. `venues` is the full filtered set in
     // sort order (heroes included), so nothing is dropped.
     venues.forEach((v, i) => {
-      html += standardCardHTML(v, delay, i === 0);
-      delay += 25;
+      html += standardCardHTML(v, nextDelay(25), i === 0);
     });
   } else {
     // ── Hero cards ──
@@ -2585,8 +2596,7 @@ function _renderCardsNow() {
       html += `<div class="feed-label">🔥 Hot right now</div>`;
       html += `<div class="card-hero-row">`;
       heroes.forEach((v, i) => {
-        html += heroCardHTML(v, delay, i);
-        delay += 80;
+        html += heroCardHTML(v, nextDelay(80), i);
       });
       html += `</div>`;
     }
@@ -2596,11 +2606,9 @@ function _renderCardsNow() {
       html += `<div class="feed-label">${heroes.length ? 'Near you' : 'Today\'s happy hours'}</div>`;
       for (let i = 0; i < compactVenues.length; i += 2) {
         html += `<div class="card-compact-row">`;
-        html += compactCardHTML(compactVenues[i], delay);
-        delay += 60;
+        html += compactCardHTML(compactVenues[i], nextDelay(60));
         if (compactVenues[i + 1]) {
-          html += compactCardHTML(compactVenues[i + 1], delay);
-          delay += 60;
+          html += compactCardHTML(compactVenues[i + 1], nextDelay(60));
         }
         html += `</div>`;
       }
@@ -2614,8 +2622,7 @@ function _renderCardsNow() {
       html += `<div class="feed-label">More spots</div>`;
       html += `<div class="card-std-row">`;
       standardVenues.forEach(v => {
-        html += standardCardHTML(v, delay);
-        delay += 40;
+        html += standardCardHTML(v, nextDelay(40));
       });
       html += `</div>`;
     }
@@ -2696,7 +2703,7 @@ function heroCardHTML(v, delay, idx = 0) {
     </div>`;
 
   return `<div class="card-hero" data-id="${v.id}"
-    onclick="openModal('${v.id}','venue')" style="animation-delay:${delay}ms">
+    onclick="openModal('${v.id}','venue')" style="${delay === false ? 'animation:none' : `animation-delay:${delay}ms`}">
     <img class="card-hero-img" src="${photoUrl}" alt="${esc(v.name)}" loading="${idx === 0 ? 'eager' : 'lazy'}" decoding="async"${idx === 0 ? ' fetchpriority="high"' : ''}
       onerror="this.closest('.card-hero').style.background='linear-gradient(135deg,#2A1F14,#1A1208)';this.remove()">
     <div class="card-hero-overlay"></div>
@@ -2741,7 +2748,7 @@ function compactCardHTML(v, delay) {
   const isMeIn = state.goingByMe.has(v.id);
 
   return `<div class="card-compact" data-id="${v.id}"
-    onclick="openModal('${v.id}','venue')" style="animation-delay:${delay}ms">
+    onclick="openModal('${v.id}','venue')" style="${delay === false ? 'animation:none' : `animation-delay:${delay}ms`}">
     <img class="card-compact-img" src="${photoUrl}" alt="${esc(v.name)}" loading="lazy" decoding="async"
       onerror="this.closest('.card-compact').style.background='linear-gradient(135deg,#2A1F14,#1A1208)';this.remove()">
     <div class="card-compact-overlay"></div>
@@ -2787,7 +2794,7 @@ function standardCardHTML(v, delay, first = false) {
   const isMeIn = state.goingByMe.has(v.id);
 
   return `<div class="card-std" data-id="${v.id}"
-    onclick="openModal('${v.id}','venue')" style="animation-delay:${delay}ms">
+    onclick="openModal('${v.id}','venue')" style="${delay === false ? 'animation:none' : `animation-delay:${delay}ms`}">
     ${photoEl}
     <div class="card-std-body">
       <div class="card-std-name">${esc(v.name)}</div>
