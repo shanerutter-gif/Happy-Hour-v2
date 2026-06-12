@@ -7630,3 +7630,70 @@ h1, h2, .sf-hero-venue, .sf-ed-title, .pf-name, .gw-hero__title,
 
 /* Sleeker hero text field */
 .cp-body--big { min-height: 116px; font-size: 17px; line-height: 1.45; }
+
+/* ════════════════════════════════════════════════════════════════
+   POST-CHECK-IN SHEET REDESIGN (round 3) + ripple on feed-modal /
+   check-in buttons. Class-scoped; the .checkin-sheet rides the shared
+   springy .sheet slide.
+   ════════════════════════════════════════════════════════════════ */
+
+/* Celebration header — glass badge instead of a bare emoji */
+.checkin-celebrate-badge {
+  width: 64px; height: 64px; border-radius: 50%; margin: 2px auto 12px;
+  display: flex; align-items: center; justify-content: center; font-size: 32px;
+  background: var(--cp-glass); border: 1px solid var(--cp-glass-brd);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  box-shadow: 0 6px 20px rgba(255,107,74,0.18);
+  animation: checkinBadgePop .5s var(--ease-bounce) both;
+}
+@keyframes checkinBadgePop { from { opacity: 0; transform: scale(.4); } to { opacity: 1; transform: none; } }
+
+/* Photo tile → glass card (matches the composer media tile) */
+.checkin-sheet .photo-upload-area {
+  background: var(--cp-glass); border: 1.5px dashed var(--cp-glass-brd);
+  border-radius: 18px; padding: 16px 18px; margin-bottom: 12px;
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  transition: transform .2s var(--ease-bounce), background .15s ease, border-color .15s ease;
+}
+.checkin-sheet .photo-upload-area:active { transform: scale(.985); background: rgba(255,107,74,.08); border-color: rgba(255,107,74,.4); }
+.checkin-sheet .photo-upload-icon { margin: 0; color: var(--ink); }
+.photo-upload-textwrap { text-align: left; }
+.photo-upload-hint { font-weight: 700; font-size: 14px; color: var(--ink); }
+.photo-upload-sub { font-size: 11.5px; color: var(--muted); margin-top: 1px; }
+
+/* Caption → glass field */
+.checkin-sheet .photo-caption-field {
+  background: var(--cp-glass); border: 1px solid var(--cp-glass-brd);
+  border-radius: 14px; padding: 12px 14px; font-size: 15px; color: var(--text);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+}
+.checkin-sheet .photo-caption-field:focus { border-color: rgba(255,107,74,.45); }
+
+/* Friend list — the loved cp-tag-row design, capped + scrollable here */
+.cp-tag-list { display: flex; flex-direction: column; }
+.checkin-sheet .cp-tag-list { max-height: 280px; overflow-y: auto; -webkit-overflow-scrolling: touch; margin-bottom: 14px; }
+
+/* Primary action → coral gradient pill, bouncy (was a flat teal/coral) */
+.checkin-sheet .photo-submit-btn {
+  background: linear-gradient(135deg, var(--coral) 0%, var(--amber) 100%);
+  color: #fff; border-radius: 14px; padding: 16px; font-size: 16px; font-weight: 800;
+  font-family: 'Cabinet Grotesk', sans-serif; letter-spacing: .2px; margin-top: 2px;
+  box-shadow: 0 6px 20px rgba(255,107,74,0.32), inset 0 1px 0 rgba(255,255,255,0.25);
+  transition: transform .18s var(--ease-bounce), filter .12s ease, box-shadow .15s ease;
+  position: relative; overflow: hidden;
+}
+.checkin-sheet .photo-submit-btn:not(:disabled):active { transform: scale(.96); opacity: 1; }
+.checkin-sheet .photo-skip-btn { font-weight: 600; color: var(--muted); position: relative; overflow: hidden; }
+
+/* ── Ripple clipping + ink colour for the feed-modal / check-in buttons ── */
+.modal-action, .modal-checkin-cta,
+.card-hero-going-btn, .card-compact-checkin, .card-std-checkin,
+.photo-submit-btn, .photo-skip-btn {
+  position: relative; overflow: hidden;
+}
+/* White ink on the coral/solid CTAs, coral ink on the neutral surfaces */
+.modal-checkin-cta .ripple-ink,
+.card-hero-going-btn .ripple-ink,
+.card-compact-checkin .ripple-ink,
+.card-std-checkin .ripple-ink,
+.checkin-sheet .photo-submit-btn .ripple-ink { background: rgba(255,255,255,0.45); }
