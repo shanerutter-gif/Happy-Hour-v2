@@ -75,8 +75,8 @@ PR style: sentence-case imperative title, optional `namespace:` prefix
 | DB + Auth + Storage | Supabase (`opcskuzbdfrlnyhraysk`) | direct REST + `@supabase/supabase-js@2` (admin only) |
 | Email (all of it) | **Loops**              | `api/loops-*.js`, `api/daily-deals.js`, `emails/*`   |
 | Payments       | Stripe (B2B subs)         | `api/stripe-*.js`                                    |
-| iOS push       | APNs (ES256 JWT inline)   | `api/send-push.js`                                   |
-| Web push       | VAPID (currently inert — keypair mismatch) | `api/send-push.js:114` short-circuits `platform === 'web'` |
+| iOS push       | APNs (ES256 JWT, `node:http2`) | `api/_lib/apns.js`, shared by `api/send-push.js` + `api/push-runner.js` (both **Node runtime** — APNs is HTTP/2-only) |
+| Web push       | VAPID (currently inert — keypair mismatch) | web rows excluded from `send-push`'s token query; old Edge VAPID code removed in the 2026-06-12 Node conversion |
 | Venue data enrichment | Google Places       | `api/admin-enrich-venues.js`                         |
 | Maps           | Leaflet 1.9.4 + markercluster 1.5.3 | unpkg CDN in `index.html`                  |
 | Analytics      | GA4 (`G-5271Q2407Q` — the ONLY property; an earlier version of this row wrongly said `G-9PXGE6LEPE`) | gtag loaded in `index.html`; `track()` helper in `js/db.js:25` |
@@ -96,8 +96,10 @@ tab exports MJML zips formatted for Loops upload.
 2. **Use Loops for all email.** Client side: fire-and-forget via `POST /api/loops-event`.
    Server side: `POST https://app.loops.so/api/v1/events/send`.
 3. **New API routes use Vercel Edge runtime.** First line:
-   `export const config = { runtime: 'edge' };`. Exception: `api/run-migration.js`
-   uses Node because it needs `pg`.
+   `export const config = { runtime: 'edge' };`. Exceptions: `api/run-migration.js`
+   (Node, needs `pg`) and `api/send-push.js` + `api/push-runner.js` (Node —
+   APNs is HTTP/2-only and Edge fetch can't negotiate it; every Edge APNs send
+   failed with an opaque "Network connection lost").
 4. **Use raw `fetch()` + Web Crypto** for everything (Supabase REST, Stripe API,
    Stripe webhook signature, APNs JWT, VAPID). No SDKs in edge functions.
 5. **For cron routes, accept BOTH auth methods:** `Authorization: Bearer ${CRON_SECRET}`
@@ -123,8 +125,14 @@ tab exports MJML zips formatted for Loops upload.
 1. Never propose Resend / SendGrid / Mailgun / Postmark / SES / any non-Loops email vendor.
 2. Never recreate `spotd-app/` or introduce a frontend framework.
 3. Never expose `LOOPS_API_KEY`, `SUPABASE_SERVICE_KEY`, or `STRIPE_SECRET_KEY` to the browser.
-4. Never enable web push without first replacing the hardcoded `VAPID_PUBLIC_KEY` in
-   `api/send-push.js:4` and verifying the keypair matches.
+4. Never enable web push without generating a fresh, matching VAPID keypair and
+   writing a Node-runtime web-push sender — the old Edge VAPID code (and its
+   mismatched hardcoded public key) was removed from `api/send-push.js` in the
+   2026-06-12 Node conversion.
+4b. Never build an absolute URL to the push/cron endpoints with bare
+   `spotd.biz` — always `https://www.spotd.biz`. The apex 308-redirects to www
+   and HTTP clients strip the `Authorization` header on the cross-host
+   redirect (this silently 401'd every automated push for ~3 months).
 5. Never add a Node-runtime dependency to `package.json` unless edge runtime
    genuinely cannot do the job (currently only `pg`).
 6. Never call a vendor SDK from an edge function. Raw HTTPS only.
@@ -138,7 +146,7 @@ tab exports MJML zips formatted for Loops upload.
 ## Admin portal — feature inventory
 
 **`admin.html` is a 385KB SPA** served by `api/admin-page.js`, which fetches the
-HTML from the GitHub Contents API (`?ref=main`) and **injects 4 extension
+HTML from the GitHub Contents API (`?ref=main`) and **injects 5 extension
 scripts before `</body>`** at serve time. To add a new admin tool:
 
 1. Create `admin-<feature>.js` at repo root (kebab-case).
@@ -166,7 +174,7 @@ scripts before `</body>`** at serve time. To add a new admin tool:
 |               | `nav-crm-pipeline`  | Pipeline (kanban)     | `crm_contacts.stage`                        |
 |               | `nav-crm-activity`  | Activity Log          | `crm_activities`                            |
 | Engage        | `nav-feedback`      | User Feedback         | `feedback` table                            |
-|               | `nav-push`          | Push composer + history | `push_tokens` → `/api/send-push`          |
+|               | `nav-push`          | **Push Center** — composer, schedule/recurring, automations, merged history | `push_tokens` → `/api/send-push`; `push_campaigns`/`push_automations`/`push_automation_log` → `/api/push-runner` (scheduling+automations UI injected by `admin-push-center.js` into the existing `#page-push`) |
 |               | `nav-newsletter`    | Newsletter Subscribers | `newsletter_subscribers`                   |
 |               | `nav-giveaway`      | Weekly Giveaway       | `giveaway_*` tables (injected by `admin-giveaway.js`) |
 |               | `nav-attribution`   | Signup Attribution    | `signup_attributions` (injected by `admin-attribution.js`) |
@@ -250,9 +258,9 @@ All edge runtime unless noted. Routes wired in `vercel.json`'s `routes` array.
 - `POST /api/stripe-billing-portal` — Customer Portal session.
 - `POST /api/stripe-webhook` — handles `checkout.session.completed`, `customer.subscription.{updated,deleted}`, `invoice.payment_{failed,succeeded}`. HMAC-SHA256 signature verified via Web Crypto.
 
-### Push
-- `POST /api/send-push` — APNs ES256 JWT built inline (no SDK). `?diagnose=true` returns JWT header+claims without sending. Web push currently inert (`platform === 'web'` skipped at line 114).
-  Auth: `Authorization: Bearer ${PUSH_API_KEY}` (also used by Postgres `pg_net` triggers).
+### Push (both **Node runtime** — APNs needs HTTP/2; shared sender in `api/_lib/apns.js`)
+- `POST /api/send-push` — instant sends. APNs ES256 JWT via `node:crypto` (cached ~40 min at module level), delivery via one `node:http2` session per batch. `diagnose: true` in the body returns env/JWT info (+ `runtime`/`node_version`) without sending. Response `{sent, total, errors}` (admin.html depends on this shape) + `hint` when ALL tokens get production `BadDeviceToken` (= sandbox-issued tokens; check `ios/App/App/App.entitlements` aps-environment). Auto-deletes tokens APNs rejects with 410 Unregistered / 400 BadDeviceToken. Web push inert (web rows pre-filtered out of the token query). Auth: `Authorization: Bearer ${PUSH_API_KEY}` (also used by Postgres `pg_net` triggers). **Always call via `https://www.spotd.biz`** — the apex redirect strips the Authorization header.
+- `GET|POST /api/push-runner` (cron, every 15 min) — Push Center engine. Mode A processes due `push_campaigns` (status=scheduled, send_at<=now; recurring campaigns get `send_at` advanced via an inline 5-field UTC cron parser instead of completing). Mode B evaluates enabled `push_automations` (`inactive_days`, `first_favorite`, `going_tonight_threshold`, `new_venue_in_city`) with `{{venue_name}}/{{city}}/{{count}}` templates, per-automation cooldowns enforced via `push_automation_log` (only successful deliveries are logged), 500 sends/automation/run cap. Audience jsonb: `{type:'all'|'user_ids'|'city_slug'|'platform', ...}`. Auth: `Bearer ${PUSH_API_KEY}` OR `Bearer ${CRON_SECRET}` (Vercel Cron) OR `?key=<service_role>`. `?mode=campaigns|automations` runs one mode.
 
 ### Admin-only (not routed by name)
 - `POST /api/run-migration` — **Node runtime**, uses `pg`. Auth: `Bearer ${SUPABASE_SERVICE_KEY}`. Raw SQL executor.
@@ -261,6 +269,7 @@ All edge runtime unless noted. Routes wired in `vercel.json`'s `routes` array.
 - `/api/loops-inactive` daily `0 14 * * *` UTC
 - `/api/daily-deals` daily `0 14 * * *` UTC
 - `/api/weekly-digest` weekly Thu `0 15 * * 4` UTC
+- `/api/push-runner` every 15 min `*/15 * * * *` (Push Center scheduler + automations)
 
 ---
 
@@ -365,6 +374,9 @@ Project ref: `opcskuzbdfrlnyhraysk` (hardcoded in `js/db.js`, `admin/board.html`
 - `feedback` — user feedback log.
 - `newsletter_subscribers` — email opt-ins.
 - `enrichment_runs` (`sql/enrichment_runs.sql`) — Google Places audit log; cost in micro-USD.
+- `push_campaigns` (`sql/push_center.sql`, applied via MCP 2026-06-12) — title, body, url, audience (jsonb `{type:'all'|'user_ids'|'city_slug'|'platform',...}`), status (`draft`/`scheduled`/`sent`/`canceled`), send_at, recurrence (5-field UTC cron expr or null), sent_at, result (jsonb `{sent,total,errors}`). RLS enabled, NO policies = service-role only.
+- `push_automations` (same file) — name, enabled, trigger_type (`inactive_days`/`first_favorite`/`going_tonight_threshold`/`new_venue_in_city`), trigger_config (jsonb e.g. `{days:7}`/`{threshold:2}`), template_title/template_body (`{{venue_name}}`/`{{city}}`/`{{count}}` placeholders), url, cooldown_hours (default 72). RLS, no policies.
+- `push_automation_log` (same file) — automation_id (FK cascade), user_id, sent_at. Enforces per-user cooldowns + powers per-automation stats. RLS, no policies.
 
 **Storage buckets**
 - `checkin-photos` — image + video MIME types.
@@ -379,6 +391,8 @@ Project ref: `opcskuzbdfrlnyhraysk` (hardcoded in `js/db.js`, `admin/board.html`
 | `SUPABASE_SERVICE_KEY`     | mainline                                             |
 | `NEXT_PUBLIC_SUPABASE_URL` | cron-only (`loops-inactive.js`, `daily-deals.js`)    |
 | `SUPABASE_SERVICE_ROLE_KEY`| cron-only                                            |
+
+(`api/_lib/apns.js` + `api/push-runner.js` accept either pair, bare convention first.)
 
 Both pairs point at the same project. When writing new code, **match the
 neighborhood** — copying from a cron file? Use the `_ROLE_` convention.
@@ -436,21 +450,36 @@ Copying from a mainline file? Use the bare convention.
 ### File naming
 - **Kebab-case** for everything: `admin-enrich-venues.js`, `loops-event.js`, `business-landing.html`.
 - API filenames map 1:1 to route names in `vercel.json`.
-- Admin extension scripts live at **repo root** (NOT inside `admin/`): `admin-attribution.js`, `admin-claims.js`, `admin-enrichment.js`, `admin-giveaway.js`.
+- Admin extension scripts live at **repo root** (NOT inside `admin/`): `admin-attribution.js`, `admin-claims.js`, `admin-enrichment.js`, `admin-giveaway.js`, `admin-push-center.js`.
 - `admin/` subdirectory holds full HTML pages: `admin/board.html`, `admin/giveaway.html`.
 
 ---
 
 ## Push notification pipeline
 
-- VAPID + APNs via Web Crypto, no SDK.
-- DB → `pg_net` → `POST /api/send-push` with `Bearer ${PUSH_API_KEY}`.
+- APNs via `node:http2` + `node:crypto` in `api/_lib/apns.js` (no SDK). **Node
+  runtime, not Edge** — APNs is HTTP/2-only; the Edge runtime's fetch can't
+  negotiate it, which is why every send failed with "Network connection lost"
+  until the 2026-06-12 conversion.
+- DB → `pg_net` → `POST https://www.spotd.biz/api/send-push` with
+  `Bearer ${PUSH_API_KEY}`. **Always www** — the apex 308 strips Authorization.
 - Triggered from:
-  - `on_venue_activated` trigger on `venues`
-  - `happy-hour-reminder` cron (11 PM UTC = 4 PM PT) — daily broadcast
+  - `on_venue_activated` trigger on `venues` (inert unless
+    `app.settings.push_api_key` is set at DB level — it currently isn't)
+  - `happy-hour-reminder` pg_cron (11 PM UTC = 4 PM PT) — daily broadcast.
+    Redundant once a recurring Push Center campaign replaces it (it lives in
+    the DB, not code — unschedule via `select cron.unschedule('happy-hour-reminder')`).
   - `trg_notify_on_tag` via `send_push_to_user()` Postgres function
-  - Admin Push composer tab (manual sends)
+  - Admin **Push Center** tab: instant sends, scheduled/recurring campaigns,
+    behavior automations (UI in `admin-push-center.js`, engine in
+    `/api/push-runner` on a 15-min Vercel cron)
 - Audience filter: includes "Just Me" option for self-testing (PR #73dcfaf).
+- Dead tokens (APNs 410 Unregistered / 400 BadDeviceToken) are auto-deleted
+  from `push_tokens` after each send.
+- If production APNs rejects ALL tokens with `BadDeviceToken`: the tokens were
+  issued by the sandbox env — check `ios/App/App/App.entitlements`
+  `aps-environment` (says `development`; the App Store export normally flips
+  it to `production`). `send-push` returns a `hint` field for this case.
 
 ---
 
@@ -581,6 +610,7 @@ ships, move it to "Recent decisions" with the PR or commit.
 
 Append-only architectural / vendor decisions. One line per entry.
 
+- 2026-06-12 · **Push notifications fixed (Node/HTTP2 conversion) + Push Center (scheduling & automations).** Two root causes had broken ALL pushes for ~3 months: (a) pg_cron/triggers called bare `spotd.biz` → the apex 308 strips the `Authorization` header → silent 401s (Shane already repointed the pg_cron job at www; this session fixed the `notify_new_venue` DB function fallback via MCP migration + `sql/push_triggers.sql`); (b) `api/send-push.js` ran on the Edge runtime whose fetch can't speak HTTP/2 to APNs → every send died with "Network connection lost". **Fix:** converted `send-push` to a **Node serverless function**; APNs delivery now lives in shared `api/_lib/apns.js` (`node:http2` one-session-per-batch, `node:crypto` ES256 JWT cached ~40 min, per-token APNs `reason` strings in errors, auto-delete of 410/BadDeviceToken rows, all-BadDeviceToken→sandbox-entitlements `hint`). Response shape `{sent,total,errors}` and `diagnose` mode preserved (+ `runtime`/`node_version`); old inert Edge VAPID web-push code removed. **Push Center (Prompt 2):** new tables `push_campaigns`/`push_automations`/`push_automation_log` (`sql/push_center.sql`, applied via MCP, RLS no-policies = service-role only); new `api/push-runner.js` (Node) on a `*/15 * * * *` Vercel cron — processes due/recurring campaigns (inline 5-field UTC cron parser advances `send_at`) and evaluates 4 automation trigger types with `{{venue_name}}/{{city}}/{{count}}` templates + per-user cooldowns (only successful deliveries logged); auth = PUSH_API_KEY / CRON_SECRET / `?key=`. Admin UI shipped as the 5th extension script **`admin-push-center.js`** (NOT an admin.html edit — that file is fetched from `main` at serve time, so branch edits to it never deploy): augments `#page-push` with a "Schedule for later" block (datetime + daily/weekly repeat + audience incl. city slug), Scheduled Campaigns list w/ cancel, Automations CRUD w/ pause + sent counts, and overrides `renderPushHistory` to merge localStorage manual sends with DB campaign results (expandable per-token errors). The DB-side `happy-hour-reminder` pg_cron becomes redundant once a recurring campaign replaces it (left in place). ⚠️ Watch after deploy: if production APNs returns BadDeviceToken for all tokens, flip `aps-environment` to `production` in the App Store export.
 - 2026-06-11 · **Nightly run: LCP `fetchpriority="high"` + blog post Costa Mesa.** (1) **Track 1 — LCP image priority:** added `fetchpriority="high"` to the first hero card image (`heroCardHTML`, `idx===0`) and to the first standard card in two-pane mode (`standardCardHTML` gained a `first=false` param; the two-pane `venues.forEach` now passes `i===0`). Also upgraded the first two-pane card from `loading="lazy"` → `loading="eager"` since lazy-loading the LCP candidate on desktop was actively harming the metric. Both changes are attribute-only, no logic change. `fetchpriority` is a well-known LCP hint that tells the browser to preload the candidate image above competing resources; industry benchmarks show 50–150ms LCP improvement. Bumped `app.js?v=20260611a`. Merged to main (low risk, confined to card renderers). (2) **Track 3 — Blog:** Added `blog/best-happy-hours-costa-mesa.html` (OC, keyword "best happy hours Costa Mesa"). Venues: Ospi (Aperitivo daily 3–6pm), Playa Mesa (M–F 3–6pm, Yelp best margarita in California), Descanso (M–F 3–6pm, $5 beers/$9 margs), Cafe Sevilla (Wed–Sun 5–7pm, 50% off all 26 tapas, all-night Wed/Thu), Yard House (M–F 3–6pm + late night Sun–Wed 10pm–close). All verified via Yelp/official sites June 2026. Wired into `blog.html` grid (top), `sitemap.xml`, `NEWS_ARTICLES` in `app.js`. Author: Sofia. Unsplash `photo-1567521464027-f127ff144326` verified 200.
 - 2026-06-10 · **Satellite-page CX pass: new About page, real legal URLs, GA property unified, fixed a `main` CSS leak that was mangling the SSR SEO pages.** Follow-up to the desktop revamp after a More-menu destination audit. (1) **New `about.html`** — static About Us page (blog-nav + blog-footer pattern from `css/blog.css`, own inline styles, `AboutPage`/`Organization` JSON-LD, www canonical, GA tag). Brand-level voice ("small independent team" — no founder names, consistent with the blog alias rule). Wired into: the desktop More menu (top item), landing `btf-footer-discover`, `blog.html` nav, `sitemap.xml`, the footers of `api/spots-directory.js` / `api/happy-hour.js` / `api/spots.js` / `api/blog-post.js`, and `privacy.html`/`terms.html` footers (which also gained Blog links). (2) **Privacy/Terms now link to the real `/privacy.html` + `/terms.html`** from the More menu and the landing footer (unique URLs, logo-home nav) instead of the URL-less `openLegalPage` overlay; **the overlay stays for mid-flow contexts** (auth wall, onboarding consent, profile settings — `js/app.js` callers untouched) where navigating away would lose state. (3) **GA unified:** the 3 SSR edge renderers (`spots.js`, `spots-directory.js`, `happy-hour.js`) were the ONLY pages sending to `G-9PXGE6LEPE`; everything else (app, blog, business, legal) uses **`G-5271Q2407Q`** — so SEO-page traffic was landing in a property nobody looks at. All three switched to `G-5271Q2407Q`; vendor table corrected. (4) **CRITICAL pre-existing bug found & fixed:** the two-pane block's bare `main { display:flex; … }` selector (`css/style.css` ≥1200px) leaked into every page that loads `style.css` and has a `<main>` — `blog.html`, `/spots`, `/happy-hour/*`, `/spots/<slug>` — flexing their content into squeezed side-by-side columns on desktop (live `/happy-hour/san-diego` rendered as a mangled 4-column squeeze). Scoped to `.app-page main`. **Rule: never add bare-element selectors to the desktop blocks — `style.css` is shared by the SSR/blog pages.** Verified in headless Chromium: about page (block, 720px column, desktop+mobile), app two-pane intact (flex, 460px list, 440 cards, zero errors), live `/spots` + `/happy-hour/san-diego` re-rendered with the patched CSS via route interception → clean single-column. Bumped `style.css?v=20260610d`.
 - 2026-06-10 · **Desktop revamp: slim one-line header, "More" nav menu, returning guests skip the city-selector landing.** Three changes for the desktop site (all inside the existing two desktop CSS blocks + small JS; mobile rendering unchanged). (1) **Single-line search/filter header (≥1024px):** `.controls` becomes `display:flex;flex-wrap:wrap` so its stacked children flow onto ONE line — `[search] [Filters] [suggested chips →]`; the active-filter `.chips-row` gets `order:5` + `flex-basis:100%` (+ `display:none` when `:empty`) so it only takes a line when filters are applied; the giveaway banner keeps `flex-basis:100%`. The verbose "Personalize Your Search" label swaps to "Filters" via two spans in the button (`.ft-label--long`/`.ft-label--short`; base rule near `.desktop-nav{display:none}` hides the short one, the ≥1024 block swaps). `#filterPanel` becomes a left-anchored 640px dropdown card (was a viewport-wide sheet) with amenity pills wrapping (`.fp-amenity-scroll{flex-wrap:wrap}`). Header now ends ~122px from the top (was ~290) → about one extra card row above the fold. (2) **"More" dropdown in the desktop nav** (`#desktopMoreWrap` in `index.html`, `toggleDesktopMoreMenu()` in `js/app.js` mirroring `toggleCityDropdown`'s outside-click pattern): Blog, For Business, `/spots` directory, both `/happy-hour/<city>` pages, Privacy/Terms (via `openLegalPage`), Support — previously only reachable from the landing-page footer, i.e. unreachable once inside the app. (3) **Desktop returning guests auto-enter their last city:** in `DOMContentLoaded` (`js/app.js`), a signed-out visitor at ≥1024px with a stored active `spotd-last-city` goes straight into the app — the city pill handles switching, so the selector landing was a speed bump. First-time visitors (no stored city) and all mobile users still get the landing + onboarding funnel; signed-in users already auto-entered. Also fixed while here: `_navBtns()` now includes `.desktop-nav-btn` so desktop tab switches clear the previous button's `.active` (it used to accumulate), and `bottomNavFeed` also scrolls `#listView` to top (the two-pane scroller). **Verified in headless Chromium against live Supabase data** at 1440/1100/1024/390px (auto-enter, one-line header geometry, filter dropdown, More menu → legal overlay, first-visit landing intact, mobile unchanged, zero page errors). **Env note: Playwright Chromium DOES work here if launched with `--ignore-certificate-errors` + context `ignore_https_errors=True` — the sandbox's TLS interception otherwise kills every CDN/Supabase load (`ERR_CERT_AUTHORITY_INVALID`), which is why earlier sessions thought headless verification was impossible.** Bumped `style.css?v=20260610c`, `app.js?v=20260610c`.

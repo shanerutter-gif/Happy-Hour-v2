@@ -3,7 +3,8 @@
   "crons": [
     { "path": "/api/loops-inactive", "schedule": "0 14 * * *" },
     { "path": "/api/daily-deals", "schedule": "0 14 * * *" },
-    { "path": "/api/weekly-digest", "schedule": "0 15 * * 4" }
+    { "path": "/api/weekly-digest", "schedule": "0 15 * * 4" },
+    { "path": "/api/push-runner", "schedule": "*/15 * * * *" }
   ],
   "redirects": [
     { "source": "/app-download", "destination": "https://apps.apple.com/us/app/spotd/id6760452388", "permanent": false }
@@ -29,6 +30,7 @@
     { "src": "/api/stripe-billing-portal", "dest": "/api/stripe-billing-portal.js" },
     { "src": "/api/stripe-webhook",        "dest": "/api/stripe-webhook.js" },
     { "src": "/api/send-push",              "dest": "/api/send-push.js" },
+    { "src": "/api/push-runner",            "dest": "/api/push-runner.js" },
     { "src": "/api/admin-enrich-venues",     "dest": "/api/admin-enrich-venues.js" }
   ]
 }
