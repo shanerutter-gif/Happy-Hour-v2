@@ -297,6 +297,7 @@ function renderBottomNav(user) {
     bar.id = 'bottomNav';
     bar.className = 'bottom-nav';
     bar.innerHTML = `
+      <div class="bn-pill" id="bnPill" aria-hidden="true"></div>
       <button class="bottom-nav-btn active" id="bnFeed" onclick="bottomNavFeed(this)">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><rect x="7" y="7" width="10" height="10" rx="1"/></svg>
         <span>Discover</span>
@@ -322,6 +323,28 @@ function renderBottomNav(user) {
     if (avatar) avatar.textContent = initials;
   }
   bar.style.display = 'flex';
+  // Place the sliding highlight capsule under the active tab (no animation
+  // on first paint). rAF so flex layout is measured after display:flex.
+  requestAnimationFrame(() => _moveNavPill(bar.querySelector('.bottom-nav-btn.active'), false));
+}
+
+// ── Sliding "liquid glass" highlight capsule (Instagram-style) ──
+// Moves a single frosted pill behind whichever bottom-nav tab is active,
+// gliding with a spring settle. `animate=false` snaps without a transition
+// (first paint / resize). Measured relative to the bar so flex layout,
+// padding and the centre "+" button are all accounted for automatically.
+function _moveNavPill(btn, animate = true) {
+  const bar  = document.getElementById('bottomNav');
+  const pill = document.getElementById('bnPill');
+  if (!bar || !pill || !btn || !bar.contains(btn)) return;
+  if (!animate) pill.style.transition = 'none';
+  const barRect = bar.getBoundingClientRect();
+  const r = btn.getBoundingClientRect();
+  pill.style.width  = r.width  + 'px';
+  pill.style.height = r.height + 'px';
+  pill.style.transform = `translate(${r.left - barRect.left}px, ${r.top - barRect.top}px)`;
+  pill.style.opacity = '1';
+  if (!animate) { void pill.offsetWidth; pill.style.transition = ''; } // restore after reflow
 }
 
 // ── THEME ──────────────────────────────────────────────
@@ -365,6 +388,9 @@ function _navBtns() {
 function _setActiveNavBtn(btn) {
   _navBtns().forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
+  // Glide the highlight capsule to the tapped tab (mobile bottom nav only;
+  // _moveNavPill no-ops for the desktop top-nav buttons it can't contain).
+  _moveNavPill(btn);
 }
 
 function bottomNavFeed(btn) {
@@ -5131,6 +5157,9 @@ window.addEventListener('resize', () => {
   _twoPaneRsz = setTimeout(() => {
     if (isTwoPane() && state.map) state.map.invalidateSize();
   }, 200);
+  // Keep the bottom-nav highlight capsule aligned to the active tab when the
+  // bar reflows (rotation, viewport change). Snap, don't animate.
+  _moveNavPill(document.querySelector('#bottomNav .bottom-nav-btn.active'), false);
 });
 
 // ── MAP ────────────────────────────────────────────────
