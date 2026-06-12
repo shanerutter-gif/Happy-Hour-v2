@@ -3015,7 +3015,7 @@ function renderModal(v, type, reviews) {
         <span class="modal-action-icon">${icn('globe',20)}</span>
         <span class="modal-action-label">Website</span>
       </div>
-      <div class="modal-action" onclick="goToMap('${v.id}')">
+      <div class="modal-action" onclick="getDirections(${v.lat || 'null'}, ${v.lng || 'null'}, '${esc((v.name || '').replace(/'/g, "\\'"))}')">
         <span class="modal-action-icon" style="background:var(--bg2);border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center">${icn('map',20)}</span>
         <span class="modal-action-label">Directions</span>
       </div>
@@ -5501,7 +5501,13 @@ function popupHTML(v) {
 function getDirections(lat, lng, name) {
   if(typeof haptic==='function')haptic('light');
   track('directions_clicked', { has_coords: !!(lat && lng) });
-  const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+  // Open external maps for turn-by-turn — works from ANYWHERE (no in-app view
+  // change, so opening Directions from a non-Discover modal can't leave you
+  // stranded in the Discover map view). Falls back to the venue name when a
+  // venue has no coords.
+  const dest = (lat != null && lng != null) ? `${lat},${lng}` : encodeURIComponent(name || '');
+  if (!dest) return;
+  const url = `https://www.google.com/maps/dir/?api=1&destination=${dest}`;
   window.open(url, '_blank');
 }
 function flyTo(id) {
