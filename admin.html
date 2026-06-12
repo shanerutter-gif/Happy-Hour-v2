@@ -5631,12 +5631,18 @@ in San Diego</textarea>
   }
 
   async function ccSavePostToDb(post) {
-    if (!_ccUseSupabase) { ccSavePosts(); return; }
+    if (!_ccUseSupabase) { ccSavePosts(); return true; }
     const data = { ...post };
     delete data._mediaUrls; // don't send blob URLs to DB
-    if (post.id && typeof post.id === 'string' && post.id.length > 10) {
+    // DB rows have uuid ids; unsaved posts carry a temp 'cc_<ts>_<rand>' id.
+    // (The old check was `id.length > 10`, which temp ids also pass — so every
+    // NEW post took the PATCH branch, 400'd on the uuid cast, and was silently
+    // never inserted.)
+    const isDbId = post.id && typeof post.id === 'string' && !post.id.startsWith('cc_');
+    let r;
+    if (isDbId) {
       // Update existing
-      await fetch(`${SUPABASE_URL}/rest/v1/content_posts?id=eq.${post.id}`, {
+      r = await fetch(`${SUPABASE_URL}/rest/v1/content_posts?id=eq.${post.id}`, {
         method: 'PATCH',
         headers: { ...svcHeaders(), 'Prefer': 'return=minimal' },
         body: JSON.stringify(data)
@@ -5644,14 +5650,22 @@ in San Diego</textarea>
     } else {
       // Insert new
       delete data.id;
-      const r = await fetch(`${SUPABASE_URL}/rest/v1/content_posts`, {
+      r = await fetch(`${SUPABASE_URL}/rest/v1/content_posts`, {
         method: 'POST',
         headers: { ...svcHeaders(), 'Prefer': 'return=representation' },
         body: JSON.stringify(data)
       });
-      const result = await r.json();
-      if (Array.isArray(result) && result[0]) post.id = result[0].id;
+      if (r.ok) {
+        const result = await r.json();
+        if (Array.isArray(result) && result[0]) post.id = result[0].id;
+      }
     }
+    if (!r.ok) {
+      const err = await r.text().catch(() => '');
+      console.error('content_posts save failed:', r.status, err);
+      return false;
+    }
+    return true;
   }
 
   async function ccDeletePostFromDb(id) {
@@ -6017,6 +6031,8 @@ in San Diego</textarea>
       }
     }
 
+    const wasEdit = !!_ccEditId;
+    let saved = true;
     if (_ccEditId) {
       const post = _ccPosts.find(p => p.id === _ccEditId);
       if (post) {
@@ -6029,7 +6045,7 @@ in San Diego</textarea>
         post.tags = [..._ccTags];
         post.media_urls = mediaUrls;
         post.updated_at = new Date().toISOString();
-        await ccSavePostToDb(post);
+        saved = await ccSavePostToDb(post);
       }
     } else {
       const post = {
@@ -6041,12 +6057,12 @@ in San Diego</textarea>
         updated_at: new Date().toISOString()
       };
       _ccPosts.push(post);
-      await ccSavePostToDb(post);
+      saved = await ccSavePostToDb(post);
     }
     await ccSavePosts();
     ccCloseCompose();
     ccRender();
-    showToast(_ccEditId ? 'Post updated' : 'Post created');
+    showToast(saved ? (wasEdit ? 'Post updated' : 'Post created') : '⚠️ Save failed — post NOT stored. Check console.');
   }
 
   // ── DELETE ──
