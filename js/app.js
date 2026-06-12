@@ -415,21 +415,34 @@ function initSegSliders() {
 const RIPPLE_SELECTOR = '.cp-post-cta, .cp-opt, .cp-idea, .cp-photo-pick, .cp-iconbtn, .bottom-nav-post, .cp-pick-row, .cp-tag-row, ' +
   '.modal-action, .modal-checkin-cta, .card-hero-going-btn, .card-compact-checkin, .card-std-checkin, ' +
   '.photo-submit-btn, .photo-skip-btn, .photo-upload-area, ' +
-  '.people-row, .feed-row, .dm-thread-main, .people-follow-btn, .sub-page-back, .dm-back-btn, .dm-new-btn, .dm-send-btn';
+  '.people-row, .feed-row, .dm-thread-main, .people-follow-btn, .sub-page-back, .dm-back-btn, .dm-new-btn, .dm-send-btn, ' +
+  '.card-hero, .card-compact, .card-std, .sf-hero, .sf-compact, .sf-wide';
+// Surfaces that also get the glass "sheen" light-sweep on press (big cards + CTAs).
+const SHEEN_SELECTOR = '.card-hero, .card-compact, .card-std, .sf-hero, .sf-compact, .sf-wide, .cp-post-cta, .modal-checkin-cta, .giveaway-tile__cta';
 function initRipples() {
   document.addEventListener('pointerdown', e => {
     const el = e.target.closest && e.target.closest(RIPPLE_SELECTOR);
     if (!el || el.disabled) return;
     const rect = el.getBoundingClientRect();
     const size = Math.max(rect.width, rect.height);
-    const ink = document.createElement('span');
-    ink.className = 'ripple-ink';
-    ink.style.width = ink.style.height = size + 'px';
-    ink.style.left = (e.clientX - rect.left - size / 2) + 'px';
-    ink.style.top  = (e.clientY - rect.top  - size / 2) + 'px';
-    el.appendChild(ink);
-    ink.addEventListener('animationend', () => ink.remove(), { once: true });
-    setTimeout(() => { if (ink.parentNode) ink.remove(); }, 700); // safety
+    const x = e.clientX - rect.left, y = e.clientY - rect.top;
+    const made = [];
+    // Watery droplet (filled bulge) + expanding wave ring → a water drop.
+    for (const cls of ['ripple-ink', 'ripple-wave']) {
+      const s = document.createElement('span');
+      s.className = cls;
+      s.style.width = s.style.height = size + 'px';
+      s.style.left = (x - size / 2) + 'px';
+      s.style.top  = (y - size / 2) + 'px';
+      el.appendChild(s); made.push(s);
+    }
+    // Glass sheen: a light streak sweeps across the surface (cards/CTAs).
+    if (el.matches && el.matches(SHEEN_SELECTOR)) {
+      const sheen = document.createElement('span');
+      sheen.className = 'glass-sheen';
+      el.appendChild(sheen); made.push(sheen);
+    }
+    setTimeout(() => made.forEach(n => n.remove()), 820);
   }, { passive: true });
 }
 

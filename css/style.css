@@ -8187,3 +8187,53 @@ h1, h2, .sf-hero-venue, .sf-ed-title, .pf-name, .gw-hero__title,
   background: var(--cp-glass);
   border: 1px solid var(--cp-glass-brd);
 }
+
+/* ════════════════════════════════════════════════════════════════
+   LIQUID-GLASS MOTION (round 9) — watery ripple + glass sheen sweep
+   on press. All transform/opacity, one-shot per tap → no scroll cost.
+   ════════════════════════════════════════════════════════════════ */
+
+/* Water droplet: a soft radial bulge instead of a flat ink circle */
+.ripple-ink {
+  background: radial-gradient(circle, rgba(255,255,255,0.55) 0%, rgba(255,107,74,0.30) 38%, rgba(255,107,74,0) 70%) !important;
+  z-index: 4;
+  animation: rippleOut .72s cubic-bezier(.22,.61,.36,1) forwards !important;
+}
+@keyframes rippleOut {
+  0%   { transform: scale(0);   opacity: .95; }
+  100% { transform: scale(3.1); opacity: 0; }
+}
+/* Expanding wave ring (the "ripple") */
+.ripple-wave {
+  position: absolute; border-radius: 50%; pointer-events: none; z-index: 4;
+  transform: scale(.18);
+  border: 2px solid rgba(255,255,255,0.5);
+  box-shadow: 0 0 12px rgba(255,255,255,0.25), inset 0 0 8px rgba(255,255,255,0.2);
+  animation: rippleWave .72s cubic-bezier(.22,.61,.36,1) .05s forwards;
+}
+@keyframes rippleWave {
+  0%   { transform: scale(.18); opacity: .8; }
+  100% { transform: scale(2.7); opacity: 0; }
+}
+
+/* Glass sheen: a diagonal light streak sweeps across the surface */
+.glass-sheen {
+  position: absolute; inset: 0; pointer-events: none; z-index: 5;
+  border-radius: inherit; overflow: hidden;
+}
+.glass-sheen::after {
+  content: ''; position: absolute; top: -30%; bottom: -30%; left: 0; width: 38%;
+  background: linear-gradient(100deg, transparent 0%, rgba(255,255,255,0.18) 35%, rgba(255,255,255,0.6) 50%, rgba(255,255,255,0.18) 65%, transparent 100%);
+  transform: translateX(-180%) skewX(-14deg);
+  animation: sheenSweep .62s cubic-bezier(.4,0,.2,1) forwards;
+}
+@keyframes sheenSweep { to { transform: translateX(360%) skewX(-14deg); } }
+
+/* The cards now host ripple/sheen spans — make sure they clip + position. */
+.card-hero, .card-compact, .card-std, .sf-hero, .sf-compact, .sf-wide {
+  position: relative; overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ripple-wave, .glass-sheen { animation: none; display: none; }
+}
