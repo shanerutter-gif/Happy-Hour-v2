@@ -7806,9 +7806,12 @@ h1, h2, .sf-hero-venue, .sf-ed-title, .pf-name, .gw-hero__title,
 .view-toggle.vt-pop { animation: vtPop .32s var(--ease-bounce); }
 .view-toggle.map-active .vt-ic { transform: rotateY(180deg); }
 
-/* Nicer list/map crossfade */
-@keyframes viewFadeIn { from { opacity: 0; transform: translateY(8px) scale(.992); } to { opacity: 1; transform: none; } }
-.list-view, .map-view { animation: viewFadeIn .3s var(--ease-bounce) both; }
+/* List/map crossfade — opacity ONLY. A transform/scale here animates the
+   entire list view (hundreds of cards), forcing a full-layer repaint each
+   frame and defeating the cards' content-visibility optimization → janky/slow
+   return to the list. Opacity is compositor-only and cheap. */
+@keyframes viewFadeIn { from { opacity: 0; } to { opacity: 1; } }
+.list-view, .map-view { animation: viewFadeIn .18s ease both; }
 
 /* ── Filter panel → liquid glass ── */
 .filter-panel {
