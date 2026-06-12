@@ -397,6 +397,16 @@ function _mountSegSlider(container) {
   // Re-glide whenever a child's active class changes (handlers toggle it).
   new MutationObserver(() => _moveSegPill(container, true))
     .observe(container, { attributes: true, attributeFilter: ['class'], subtree: true });
+  // Re-place the pill (snap, no glide) whenever the control resizes — most
+  // importantly when it goes from hidden (0 width inside a display:none tab) to
+  // visible. Without this the pill was mounted/measured while hidden, so it sat
+  // at the top-left corner with 0 size: invisible until the first click, and
+  // that click glided it from the corner = glitchy. The RO snaps it correctly
+  // the instant the tab is shown (also covers font-load + rotation). The pill
+  // is position:absolute so it never feeds back into the container's size.
+  if (window.ResizeObserver) {
+    new ResizeObserver(() => _moveSegPill(container, false)).observe(container);
+  }
   requestAnimationFrame(() => _moveSegPill(container, false)); // snap into place
 }
 function _scanSegSliders(root) {
