@@ -28,9 +28,12 @@ begin
   push_url := current_setting('app.settings.site_url', true);
   push_key := current_setting('app.settings.push_api_key', true);
 
-  -- Fall back to hardcoded values if custom settings aren't configured
+  -- Fall back to hardcoded values if custom settings aren't configured.
+  -- MUST be www: the apex (spotd.biz) 308-redirects to www.spotd.biz and
+  -- HTTP clients drop the Authorization header on the cross-host redirect,
+  -- which silently 401s every call.
   if push_url is null or push_url = '' then
-    push_url := 'https://spotd.biz';
+    push_url := 'https://www.spotd.biz';
   end if;
 
   if push_key is not null and push_key != '' then
@@ -68,8 +71,8 @@ select cron.unschedule('happy-hour-reminder')
   where exists (select 1 from cron.job where jobname = 'happy-hour-reminder');
 
 -- NOTE: Replace YOUR_SITE_URL and YOUR_PUSH_API_KEY before running
--- Or set them as Supabase custom config:
---   alter database postgres set app.settings.site_url = 'https://spotd.biz';
+-- Or set them as Supabase custom config (always www — see redirect note above):
+--   alter database postgres set app.settings.site_url = 'https://www.spotd.biz';
 --   alter database postgres set app.settings.push_api_key = 'your-key-here';
 
 select cron.schedule(
@@ -77,7 +80,7 @@ select cron.schedule(
   '0 23 * * *',  -- 11:00 PM UTC = 4:00 PM PT
   $$
   select net.http_post(
-    url     := coalesce(current_setting('app.settings.site_url', true), 'https://spotd.biz') || '/api/send-push',
+    url     := coalesce(current_setting('app.settings.site_url', true), 'https://www.spotd.biz') || '/api/send-push',
     headers := jsonb_build_object(
       'Authorization', 'Bearer ' || current_setting('app.settings.push_api_key', true),
       'Content-Type',  'application/json'
@@ -96,7 +99,7 @@ select cron.schedule(
 -- ── 3. HELPER: Set Supabase custom config ──
 -- Run these to configure the triggers/cron above:
 --
---   alter database postgres set app.settings.site_url = 'https://spotd.biz';
+--   alter database postgres set app.settings.site_url = 'https://www.spotd.biz';
 --   alter database postgres set app.settings.push_api_key = 'your-push-api-key-here';
 --
 -- Then reload config:
