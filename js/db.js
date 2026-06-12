@@ -1635,7 +1635,7 @@ async function fetchMyNotifications(limit = 50) {
   if (!currentUser) return [];
   try {
     const { data, error } = await db.from('notifications')
-      .select('id, actor_id, type, post_id, post_type, preview, created_at, read_at')
+      .select('id, actor_id, type, post_id, post_type, preview, title, url, created_at, read_at')
       .eq('user_id', currentUser.id)
       .order('created_at', { ascending: false })
       .limit(limit);
@@ -1670,6 +1670,18 @@ async function markAllNotificationsRead() {
     await db.rpc('mark_all_notifications_read');
     return true;
   } catch (e) { return false; }
+}
+
+// Clears the iOS app-icon badge by asking the server to send a silent
+// badge-only APNs push (badge: 0) to this user's own devices — no native
+// code needed. Fire-and-forget; no-op for users without iOS push tokens.
+function clearPushBadge() {
+  if (!_accessToken) return;
+  if (!/iPad|iPhone|iPod/.test(navigator.userAgent)) return;
+  fetch('/api/clear-badge', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${_accessToken}` },
+  }).catch(() => {});
 }
 
 // ── ACTIVITY NOTIFICATIONS (legacy — kept for backwards compat) ─────

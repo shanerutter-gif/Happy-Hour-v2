@@ -31,6 +31,7 @@
     { "src": "/api/stripe-webhook",        "dest": "/api/stripe-webhook.js" },
     { "src": "/api/send-push",              "dest": "/api/send-push.js" },
     { "src": "/api/push-runner",            "dest": "/api/push-runner.js" },
+    { "src": "/api/clear-badge",            "dest": "/api/clear-badge.js" },
     { "src": "/api/admin-enrich-venues",     "dest": "/api/admin-enrich-venues.js" }
   ]
 }

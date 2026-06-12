@@ -68,7 +68,7 @@ function connectApns(host) {
   });
 }
 
-function sendOnSession(session, deviceToken, jwt, bundleId, payload) {
+function sendOnSession(session, deviceToken, jwt, bundleId, payload, priority) {
   return new Promise((resolve) => {
     let settled = false;
     const done = (r) => { if (!settled) { settled = true; resolve(r); } };
@@ -80,7 +80,7 @@ function sendOnSession(session, deviceToken, jwt, bundleId, payload) {
         'authorization': `bearer ${jwt}`,
         'apns-topic': bundleId,
         'apns-push-type': 'alert',
-        'apns-priority': '10',
+        'apns-priority': priority || '10',
         'apns-expiration': '0',
         'content-type': 'application/json',
       });
@@ -108,14 +108,16 @@ function sendOnSession(session, deviceToken, jwt, bundleId, payload) {
 // ── Batch send ──────────────────────────────────────────────────
 // tokenRows: [{ token, platform }] — web rows are skipped (web push inert).
 // message:   { title, body, url, tag }
-// opts:      { sandbox } — TestFlight/Xcode-dev tokens validate only against sandbox.
+// opts:      { sandbox }   — TestFlight/Xcode-dev tokens validate only against sandbox.
+//            { badgeOnly } — send a silent badge-reset ({"aps":{"badge":0}});
+//                            no banner/sound, used to clear the icon badge.
 //
 // Returns { sent, errors, deadTokens, badDeviceTokens, results } where:
 //   errors          [{ platform, tag, error }] (tag = first 8 chars of the token)
 //   deadTokens      tokens APNs reported 410 Unregistered / 400 BadDeviceToken
 //   badDeviceTokens count of BadDeviceToken rejections (env-mismatch heuristic)
 //   results         per-token [{ token, platform, ok, status, reason }]
-export async function sendApnsBatch(tokenRows, { title, body, url, tag }, { sandbox = false } = {}) {
+export async function sendApnsBatch(tokenRows, { title, body, url, tag } = {}, { sandbox = false, badgeOnly = false } = {}) {
   const { keyBase64, keyId, teamId, bundleId } = getApnsConfig();
   const out = { sent: 0, errors: [], deadTokens: [], badDeviceTokens: 0, results: [] };
 
@@ -142,16 +144,21 @@ export async function sendApnsBatch(tokenRows, { title, body, url, tag }, { sand
     return out;
   }
 
-  const payload = JSON.stringify({
-    aps: {
-      alert: { title, body },
-      sound: 'default',
-      badge: 1,
-      'mutable-content': 1,
-    },
-    url: url || '/',
-    tag: tag || 'spotd',
-  });
+  // Badge-only pushes carry no alert/sound — iOS just updates the icon badge
+  // silently. Push type stays 'alert' (Apple requires it for badge changes);
+  // priority 5 since nothing is shown to the user.
+  const payload = badgeOnly
+    ? JSON.stringify({ aps: { badge: 0 } })
+    : JSON.stringify({
+        aps: {
+          alert: { title, body },
+          sound: 'default',
+          badge: 1,
+          'mutable-content': 1,
+        },
+        url: url || '/',
+        tag: tag || 'spotd',
+      });
 
   const host = sandbox ? 'api.sandbox.push.apple.com' : 'api.push.apple.com';
   let session;
@@ -172,7 +179,7 @@ export async function sendApnsBatch(tokenRows, { title, body, url, tag }, { sand
       if (!t.token || t.token.length !== 64) {
         return { ...t, tagId, status: 0, reason: `APNs token format invalid (expected 64 hex chars, got ${t.token?.length ?? 0})` };
       }
-      const r = await sendOnSession(session, t.token, jwt, bundleId, payload);
+      const r = await sendOnSession(session, t.token, jwt, bundleId, payload, badgeOnly ? '5' : '10');
       return { ...t, tagId, ...r };
     }));
 
@@ -195,6 +202,46 @@ export async function sendApnsBatch(tokenRows, { title, body, url, tag }, { sand
     session.close();
   }
   return out;
+}
+
+// ── In-app notification mirror ──────────────────────────────────
+// Saves a delivered push as a notifications row (type='push', no actor) per
+// recipient so it appears in the app's social bell panel. Callers pass only
+// users with at least one successful delivery. DB-trigger pushes
+// (send_push_to_user) opt out via body {inapp:false} — their triggers insert
+// their own social-shaped notifications rows already.
+export async function saveInAppNotifications(userIds, { title, body, url }) {
+  if (!userIds?.length) return 0;
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!supabaseUrl || !supabaseKey) return 0;
+  const rows = [...new Set(userIds)].map(uid => ({
+    user_id: uid,
+    type: 'push',
+    title: title || 'Spotd',
+    preview: body || '',
+    url: url || '/',
+  }));
+  try {
+    const res = await fetch(`${supabaseUrl}/rest/v1/notifications`, {
+      method: 'POST',
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal',
+      },
+      body: JSON.stringify(rows),
+    });
+    if (!res.ok) {
+      console.error('[apns] in-app notification insert failed:', res.status, await res.text().catch(() => ''));
+      return 0;
+    }
+    return rows.length;
+  } catch (e) {
+    console.error('[apns] in-app notification insert error:', e.message);
+    return 0;
+  }
 }
 
 // ── Dead-token cleanup ──────────────────────────────────────────
