@@ -7952,3 +7952,125 @@ h1, h2, .sf-hero-venue, .sf-ed-title, .pf-name, .gw-hero__title,
   transition: transform .16s var(--ease-bounce);
 }
 .giveaway-tile__cta:active { transform: scale(.95); }
+
+/* ════════════════════════════════════════════════════════════════
+   SOCIAL SUB-PAGES + MESSAGES — LIQUID GLASS (round 7)
+   Find People, Followers, Activity, and the DM inbox + conversation.
+   Class-scoped overrides at end of file. Frosted-white/dark cards so
+   they stay distinct over the page bg (matches the profile pass).
+   ════════════════════════════════════════════════════════════════ */
+
+/* Frosted sub-page header + glass back button */
+.sub-page-header {
+  background: var(--cp-glass);
+  -webkit-backdrop-filter: blur(22px) saturate(1.7);
+  backdrop-filter: blur(22px) saturate(1.7);
+  border-bottom: 1px solid var(--cp-glass-brd);
+}
+.sub-page-back {
+  background: var(--cp-glass); border: 1px solid var(--cp-glass-brd);
+  color: var(--ink);
+  transition: transform .16s var(--ease-bounce), background .15s ease;
+}
+.sub-page-back:active { transform: scale(.86); background: rgba(255,107,74,.14); }
+.sub-page-title { color: var(--ink); }
+
+/* Search field inside sub-pages → glass */
+.sub-page .field {
+  background: var(--cp-glass); border: 1px solid var(--cp-glass-brd);
+  border-radius: 14px; color: var(--text);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  box-shadow: none;
+}
+.sub-page .field:focus { border-color: rgba(255,107,74,.45); box-shadow: none; }
+.sub-page .field::placeholder { color: var(--muted); }
+
+/* People rows (Find People + Followers) → glass cards, bouncy */
+.people-row {
+  background: rgba(255,255,255,0.60);
+  border: 1px solid var(--cp-glass-brd);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  backdrop-filter: blur(14px) saturate(1.4);
+  border-radius: 16px;
+  padding: 11px 14px;
+  margin-bottom: 8px;
+  box-shadow: 0 6px 18px -12px rgba(42,31,20,0.22);
+  transition: transform .16s var(--ease-bounce), background .15s ease;
+}
+[data-theme="dark"] .people-row { background: rgba(40,34,28,0.55); box-shadow: 0 6px 18px -12px rgba(0,0,0,0.6); }
+.people-row:last-child { border-bottom: 1px solid var(--cp-glass-brd); }
+.people-row:active { transform: scale(.985); }
+.people-name { color: var(--ink); }
+.people-follow-btn {
+  background: linear-gradient(135deg, var(--coral), var(--amber)); color: #fff;
+  box-shadow: 0 3px 10px rgba(255,107,74,.28); border: none;
+  transition: transform .16s var(--ease-bounce);
+}
+.people-follow-btn:active { transform: scale(.92); }
+.people-follow-btn.following {
+  background: var(--cp-glass); color: var(--ink);
+  border: 1px solid var(--cp-glass-brd); box-shadow: none;
+}
+
+/* Activity feed → glass cards + glass segmented tabs */
+.feed-row {
+  background: rgba(255,255,255,0.60);
+  border: 1px solid var(--cp-glass-brd);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  backdrop-filter: blur(14px) saturate(1.4);
+  box-shadow: 0 6px 18px -12px rgba(42,31,20,0.22);
+}
+[data-theme="dark"] .feed-row { background: rgba(40,34,28,0.55); box-shadow: 0 6px 18px -12px rgba(0,0,0,0.6); }
+#feedContent .feed-header {
+  background: var(--cp-glass); border: 1px solid var(--cp-glass-brd);
+  border-radius: 16px; padding: 4px; gap: 4px;
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+}
+.feed-tab-btn {
+  flex: 1; background: transparent; border: none; color: var(--muted);
+  border-radius: 13px; padding: 9px 0;
+  transition: transform .16s var(--ease-bounce), color .15s ease, background .15s ease;
+}
+.feed-tab-btn:active { transform: scale(.96); }
+.feed-tab-btn.active {
+  background: linear-gradient(135deg, var(--coral), var(--amber)); color: #fff;
+  border-color: transparent;
+}
+
+/* ── Messages: glass header / compose / input / bubbles ── */
+.dm-header {
+  background: var(--cp-glass);
+  -webkit-backdrop-filter: blur(22px) saturate(1.7);
+  backdrop-filter: blur(22px) saturate(1.7);
+  border-bottom: 1px solid var(--cp-glass-brd);
+}
+.dm-title { color: var(--ink); }
+.dm-back-btn, .dm-new-btn {
+  background: var(--cp-glass); border: 1px solid var(--cp-glass-brd);
+  color: var(--ink); box-shadow: none;
+  transition: transform .16s var(--ease-bounce), background .15s ease;
+}
+.dm-back-btn:active, .dm-new-btn:active { transform: scale(.86); }
+.dm-thread-main {
+  transition: transform .16s var(--ease-bounce), background-color .15s;
+}
+.dm-thread-main:active { transform: scale(.99); background: var(--cp-glass); }
+.dm-compose {
+  background: var(--cp-glass);
+  -webkit-backdrop-filter: blur(22px) saturate(1.6);
+  backdrop-filter: blur(22px) saturate(1.6);
+  border-top: 1px solid var(--cp-glass-brd);
+  box-shadow: none;
+}
+.dm-input {
+  background: var(--cp-glass); border: 1px solid var(--cp-glass-brd);
+  color: var(--text); box-shadow: none;
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+}
+.dm-input:focus { border-color: rgba(255,107,74,.45); box-shadow: none; }
+.dm-msg--theirs .dm-bubble {
+  background: var(--cp-glass); border: 1px solid var(--cp-glass-brd);
+  box-shadow: none;
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+}
+.dm-send-btn { box-shadow: 0 4px 14px rgba(255,107,74,.32); }
