@@ -8239,3 +8239,63 @@ h1, h2, .sf-hero-venue, .sf-ed-title, .pf-name, .gw-hero__title,
 @media (prefers-reduced-motion: reduce) {
   .ripple-wave, .glass-sheen { animation: none; display: none; }
 }
+
+/* ════════════════════════════════════════════════════════════════
+   FILTER PANEL REDESIGN (round 10) — cleaner + less opaque.
+   Panel: lighter, more-blurred glass so the feed behind becomes a soft
+   wash (not busy photos). Controls: crisp solid chips so they read
+   clearly instead of translucent ghosts over the cards.
+   ════════════════════════════════════════════════════════════════ */
+.filter-panel {
+  background: rgba(250,249,247,0.58);
+  -webkit-backdrop-filter: blur(34px) saturate(1.4);
+  backdrop-filter: blur(34px) saturate(1.4);
+  border: 1px solid rgba(42,31,20,0.06);
+  border-top: none;
+  border-radius: 0 0 24px 24px;
+  box-shadow: 0 26px 48px -18px rgba(42,31,20,0.26);
+}
+[data-theme="dark"] .filter-panel {
+  background: rgba(20,16,12,0.62);
+  border-color: rgba(255,255,255,0.07);
+  box-shadow: 0 26px 48px -18px rgba(0,0,0,0.7);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .filter-panel { background: var(--card); }
+}
+
+.fp-inner { padding: 14px 18px 18px; gap: 18px; }
+.fp-header { border-bottom: none; padding-bottom: 0; }
+.fp-title { font-size: 19px; color: var(--ink); letter-spacing: -0.02em; }
+.fp-clear-all { font-size: 13px; font-weight: 600; }
+.fp-done { padding: 9px 22px; font-size: 14px; }
+
+.fg-label {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--muted); opacity: .72; margin-bottom: 9px;
+}
+.fp-row-selects { gap: 10px; }
+
+/* Crisp solid controls — clean + readable over the glass */
+.filter-panel .pill,
+.filter-panel .amenity-card,
+.filter-panel .filter-select {
+  background: var(--card);
+  border: 1px solid rgba(42,31,20,0.08);
+  box-shadow: 0 1px 3px rgba(42,31,20,0.05);
+  color: var(--text);
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+}
+[data-theme="dark"] .filter-panel .pill,
+[data-theme="dark"] .filter-panel .amenity-card,
+[data-theme="dark"] .filter-panel .filter-select {
+  background: var(--bg2); border-color: rgba(255,255,255,0.08); color: var(--text);
+}
+.filter-panel .pill { padding: 9px 17px; font-weight: 600; min-height: 38px; }
+.filter-panel .amenity-card { padding: 9px 14px; font-weight: 600; }
+.filter-panel .filter-select { padding: 12px 30px 12px 13px; font-size: 13px; border-radius: 13px; font-weight: 600; }
+.filter-panel .pill.active,
+.filter-panel .amenity-card.active {
+  background: linear-gradient(135deg, var(--coral), var(--amber)); color: #fff;
+  border-color: transparent; box-shadow: 0 4px 12px rgba(255,107,74,.32);
+}
