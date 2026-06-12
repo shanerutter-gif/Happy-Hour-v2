@@ -135,6 +135,8 @@ const CITIES = [
 ];
 
 document.addEventListener('DOMContentLoaded', () => {
+  // App-wide sliding highlight for every segmented tab control.
+  initSegSliders();
   // Global iOS tap fix — iOS WKWebView has unreliable click event delivery.
   // This handler synthesizes immediate clicks via touchend for ALL tappable elements.
   let _tapX = 0, _tapY = 0;
@@ -345,6 +347,61 @@ function _moveNavPill(btn, animate = true) {
   pill.style.transform = `translate(${r.left - barRect.left}px, ${r.top - barRect.top}px)`;
   pill.style.opacity = '1';
   if (!animate) { void pill.offsetWidth; pill.style.transition = ''; } // restore after reflow
+}
+
+// ── Segmented-control sliding pill (same glide, app-wide) ──────────
+// Gives every segmented tab control (social Following/Public/Trending,
+// profile tabs, friend leaderboard, saved Spots/Posts) the same sliding
+// highlight as the bottom nav. Fully automatic: a body observer mounts
+// controls as they render, and a per-control observer re-glides whenever
+// the active class (.active or .on) moves — so the existing tab-switch
+// handlers need no changes. The static .active/.on backgrounds are removed
+// in CSS; this pill is the only highlight.
+const SEG_SELECTORS = '.social-sub-tabs-inner, .pf-tabs-inner, .pf-lb-tabs, .pf-saved-subtabs';
+
+function _segActiveChild(c) {
+  return c.querySelector(':scope > .active, :scope > .on');
+}
+function _moveSegPill(container, animate = true) {
+  const pill = container._segPill;
+  if (!pill) return;
+  const active = _segActiveChild(container);
+  if (!active) { pill.style.opacity = '0'; return; }
+  if (!animate) pill.style.transition = 'none';
+  // offsetLeft/Top are relative to the (position:relative) container's padding
+  // box; the pill shares that origin, and being inside the scroller it tracks
+  // horizontal scroll on the profile tabs for free.
+  pill.style.width  = active.offsetWidth  + 'px';
+  pill.style.height = active.offsetHeight + 'px';
+  pill.style.transform = `translate(${active.offsetLeft}px, ${active.offsetTop}px)`;
+  pill.style.opacity = '1';
+  if (!animate) { void pill.offsetWidth; pill.style.transition = ''; }
+}
+function _mountSegSlider(container) {
+  if (container._segMounted) return;
+  container._segMounted = true;
+  container.classList.add('seg-host');
+  const pill = document.createElement('div');
+  pill.className = 'seg-pill';
+  pill.setAttribute('aria-hidden', 'true');
+  container.insertBefore(pill, container.firstChild);
+  container._segPill = pill;
+  // Re-glide whenever a child's active class changes (handlers toggle it).
+  new MutationObserver(() => _moveSegPill(container, true))
+    .observe(container, { attributes: true, attributeFilter: ['class'], subtree: true });
+  requestAnimationFrame(() => _moveSegPill(container, false)); // snap into place
+}
+function _scanSegSliders(root) {
+  if (!root || !root.querySelectorAll) return;
+  if (root.matches && root.matches(SEG_SELECTORS)) _mountSegSlider(root);
+  root.querySelectorAll(SEG_SELECTORS).forEach(_mountSegSlider);
+}
+function initSegSliders() {
+  _scanSegSliders(document.body);
+  // Mount controls created by future renders (profile/leaderboard rebuild).
+  new MutationObserver(muts => {
+    for (const m of muts) m.addedNodes.forEach(n => { if (n.nodeType === 1) _scanSegSliders(n); });
+  }).observe(document.body, { childList: true, subtree: true });
 }
 
 // ── THEME ──────────────────────────────────────────────
