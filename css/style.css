@@ -37,15 +37,16 @@ input, textarea, select { font-size: 16px; }
 
 /* ── LIGHT (default) — Claymorphism ── */
 :root,[data-theme="light"]{
-  --bg:#F7F1EA; --bg2:#EEE6DA; --card:#FFFFFF; --card2:#FAF5EE;
+  /* Clean cool-white base (was warm cream #F7F1EA) — Apple/Notion-like. */
+  --bg:#F6F7F9; --bg2:#ECEEF2; --card:#FFFFFF; --card2:#FAFBFC;
   --teal:#FF6B4A; --teal-dk:#E5543A; --teal-lt:#FF8566;
   --coral:#FF6B4A;
   --ink:#1A1208; --text:#2A1F14; --muted:rgba(42,31,20,0.45);
-  --border:rgba(255,107,74,0.18); --border2:rgba(42,31,20,0.03);
+  --border:rgba(255,107,74,0.18); --border2:rgba(28,38,56,0.07);
   --tap:44px; --r:14px; --r-sm:10px; --r-lg:20px;
   --ring:0 0 0 3px rgba(255,107,74,0.18);
-  --glass:rgba(247,241,234,0.85);
-  --nav-bg:rgba(247,241,234,0.95);
+  --glass:rgba(255,255,255,0.85);
+  --nav-bg:rgba(246,247,249,0.82);
   /* ── Clay shadow system (directional light from top-left) ── */
   --clay-highlight:-4px -4px 10px rgba(255,255,255,0.75);
   --clay-depth:6px 6px 14px rgba(42,31,20,0.10);
@@ -390,7 +391,7 @@ main{min-height:60vh}
 .popup-btn:active,.popup-share:active,.popup-directions:active{transform:scale(.93);opacity:.85}
 .popup-btn{background:var(--teal);color:#080C14}
 .popup-directions{background:var(--coral);color:#fff}
-.popup-share{background:#F5EFE6;color:rgba(42,31,20,0.5);border:1px solid rgba(42,31,20,0.1)}
+.popup-share{background:var(--bg2);color:rgba(42,31,20,0.5);border:1px solid rgba(42,31,20,0.1)}
 .map-sidebar{display:none;width:300px;background:var(--card);border-left:1px solid var(--border2);overflow-y:auto;flex-shrink:0}
 .map-sidebar-title{padding:12px 16px;font-family:'DM Sans',sans-serif;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:rgba(42,31,20,0.35);border-bottom:1px solid var(--border2);position:sticky;top:0;background:var(--card);z-index:5}
 .map-cards{padding:8px 8px 40px;display:flex;flex-direction:column;gap:4px}
@@ -5506,7 +5507,7 @@ button:not([disabled]),
   margin-bottom: 14px;
 }
 .gw-stat {
-  background: #F5EFE6;
+  background: var(--bg2);
   border-radius: 10px;
   padding: 12px 8px;
   text-align: center;
@@ -5527,7 +5528,7 @@ button:not([disabled]),
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #F5EFE6;
+  background: var(--bg2);
   border-radius: 10px;
   padding: 10px 14px;
   margin-bottom: 12px;
@@ -5845,7 +5846,7 @@ button:not([disabled]),
 .cp-thumb {
   position: relative; flex-shrink: 0;
   width: 90px; height: 90px; border-radius: 10px; overflow: hidden;
-  background: #F5EFE6;
+  background: var(--bg2);
 }
 .cp-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .cp-thumb-x {
@@ -6285,7 +6286,7 @@ button:not([disabled]),
   flex-shrink: 0;
   border-radius: 12px;
   overflow: hidden;
-  background: #F5EFE6;
+  background: var(--bg2);
   border: 2px solid rgba(42,31,20,0.08);
   padding: 0;
   cursor: pointer;
@@ -6748,9 +6749,9 @@ button:not([disabled]),
   --motion-fast: 150ms;
   --motion:      220ms;
   --motion-slow: 320ms;
-  /* Composer / liquid-glass surfaces */
-  --cp-glass:     rgba(247,241,234,0.72);
-  --cp-glass-brd: rgba(42,31,20,0.08);
+  /* Composer / liquid-glass surfaces (cool-white tint to match the bg) */
+  --cp-glass:     rgba(255,255,255,0.72);
+  --cp-glass-brd: rgba(28,38,56,0.10);
 }
 [data-theme="dark"] {
   --cp-glass:     rgba(18,14,10,0.64);
@@ -8081,11 +8082,12 @@ h1, h2, .sf-hero-venue, .sf-ed-title, .pf-name, .gw-hero__title,
    segmented control). The pill provides the highlight, so drop the static
    active background. */
 #feedContent .feed-header > .seg-pill {
-  background: linear-gradient(135deg, var(--coral), var(--amber));
+  background: var(--bg2);
   border-radius: 13px;
-  box-shadow: 0 3px 10px rgba(255,107,74,.28);
+  box-shadow: 0 1px 4px rgba(28,38,56,.10);
 }
-.feed-tab-btn.active { background: transparent; color: #fff; }
+/* dark, readable text with or without the pill (no white-on-white flash) */
+.feed-tab-btn.active { background: transparent; color: var(--ink); font-weight: 800; }
 
 /* Tap ripple: clip the ink on these surfaces */
 .people-row, .feed-row, .dm-thread-main,
