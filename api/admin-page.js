@@ -10,6 +10,7 @@ const SCRIPT_TAGS = [
   '<script src="/admin-giveaway.js" defer></script>',
   '<script src="/admin-attribution.js" defer></script>',
   '<script src="/admin-enrichment.js" defer></script>',
+  '<script src="/admin-push-center.js" defer></script>',
 ];
 
 // Fetch admin.html from the GitHub Contents API instead of raw.githubusercontent.com.
