@@ -412,7 +412,9 @@ function initSegSliders() {
 // nav "+" button; the matching CSS gives those selectors overflow:hidden so
 // the ink is clipped. Opt-in by selector, so it never touches the rest of
 // the app until we extend it.
-const RIPPLE_SELECTOR = '.cp-post-cta, .cp-opt, .cp-idea, .cp-photo-pick, .cp-iconbtn, .bottom-nav-post, .cp-pick-row, .cp-tag-row';
+const RIPPLE_SELECTOR = '.cp-post-cta, .cp-opt, .cp-idea, .cp-photo-pick, .cp-iconbtn, .bottom-nav-post, .cp-pick-row, .cp-tag-row, ' +
+  '.modal-action, .modal-checkin-cta, .card-hero-going-btn, .card-compact-checkin, .card-std-checkin, ' +
+  '.photo-submit-btn, .photo-skip-btn, .photo-upload-area';
 function initRipples() {
   document.addEventListener('pointerdown', e => {
     const el = e.target.closest && e.target.closest(RIPPLE_SELECTOR);
@@ -6715,29 +6717,32 @@ function openPhotoCheckinPrompt(venueId, venueName) {
     <div class="sheet checkin-sheet">
       <div class="sheet-handle"></div>
       <div class="checkin-celebrate">
-        <div class="checkin-celebrate-emoji">🎉</div>
+        <div class="checkin-celebrate-badge">🎉</div>
         <div class="checkin-celebrate-title">You're checked in!</div>
         <div class="checkin-celebrate-sub">Add a photo or tag who you're with at ${esc(venueName)} — all optional.</div>
       </div>
 
       <div class="photo-upload-area" id="photoUploadArea" style="position:relative">
-        <div style="position:relative;z-index:1;pointer-events:none;text-align:center">
-          <div class="photo-upload-icon">${icn('camera',26)}</div>
-          <div class="photo-upload-hint">Add a photo</div>
+        <div style="position:relative;z-index:1;pointer-events:none;display:flex;align-items:center;justify-content:center;gap:12px">
+          <div class="photo-upload-icon">${icn('camera',22)}</div>
+          <div class="photo-upload-textwrap">
+            <div class="photo-upload-hint">Add a photo</div>
+            <div class="photo-upload-sub">Show the moment — optional</div>
+          </div>
         </div>
       </div>
 
       <div id="checkinPhotoPreview" style="display:none;position:relative;margin-bottom:12px">
-        <img id="checkinPreviewImg" src="" alt="Preview" style="width:100%;border-radius:12px;max-height:240px;object-fit:cover">
-        <button onclick="clearCheckinPhotoPreview()" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.5);color:#fff;border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:14px">✕</button>
+        <img id="checkinPreviewImg" src="" alt="Preview" style="width:100%;border-radius:14px;max-height:240px;object-fit:cover">
+        <button onclick="clearCheckinPhotoPreview()" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.55);color:#fff;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:14px">✕</button>
       </div>
 
       <textarea class="photo-caption-field" id="photoCaptionField"
         placeholder="Say something… (optional)" rows="2" oninput="_updateCheckinShareLabel()"></textarea>
 
-      <div class="checkin-tag-head">Who's with you?</div>
-      <div class="tag-friends-grid" id="tagFriendsGridInline">
-        <div style="color:var(--muted);font-size:13px">Loading friends…</div>
+      <div class="cp-section-label cp-section-label--top">Who's with you?</div>
+      <div class="cp-tag-list" id="tagFriendsGridInline">
+        <div class="cp-pick-empty">Loading friends…</div>
       </div>
 
       <button class="photo-submit-btn" id="checkinShareBtn"
@@ -6807,7 +6812,7 @@ async function _loadTagFriendsInline(venueId, venueName) {
     // Defense in depth: exclude self in case self-follow somehow exists
     const ids = (followingIds || []).filter(id => id && id !== currentUser.id);
     if (!ids.length) {
-      grid.innerHTML = `<div style="color:var(--muted);font-size:13px">Follow people to tag them here.</div>`;
+      grid.innerHTML = `<div class="cp-pick-empty">Follow people to tag them here.</div>`;
       return;
     }
     const { data: profiles } = await db.from('profiles')
@@ -6817,18 +6822,19 @@ async function _loadTagFriendsInline(venueId, venueName) {
       .limit(12);
     const list = (profiles || []).filter(p => p.id !== currentUser.id);
     if (!list.length) {
-      grid.innerHTML = `<div style="color:var(--muted);font-size:13px">No friends to tag yet — follow people first.</div>`;
+      grid.innerHTML = `<div class="cp-pick-empty">No friends to tag yet — follow people first.</div>`;
       return;
     }
     grid.innerHTML = list.map(p => `
-      <button class="tag-friend-chip" id="tag-chip-${p.id}" type="button"
+      <button class="cp-tag-row" id="tag-chip-${p.id}" type="button"
         onclick="toggleStagedTag('${p.id}','${esc(p.display_name || '')}',this)">
-        <span class="tag-friend-chip-avatar">${initialsAvatar(p.display_name || 'Friend', '', p.avatar_emoji, p.avatar_url)}</span>
-        <span class="tag-friend-chip-name">${esc(p.display_name || 'Friend')}</span>
+        <span class="cp-tag-row-avatar">${initialsAvatar(p.display_name || 'Friend', '', p.avatar_emoji, p.avatar_url)}</span>
+        <span class="cp-tag-row-name">${esc(p.display_name || 'Friend')}</span>
+        <span class="cp-tag-row-check" aria-hidden="true"></span>
       </button>`).join('');
   } catch(e) {
     const grid = document.getElementById('tagFriendsGridInline');
-    if (grid) grid.innerHTML = `<div style="color:var(--muted);font-size:13px">Couldn't load friends right now.</div>`;
+    if (grid) grid.innerHTML = `<div class="cp-pick-empty">Couldn't load friends right now.</div>`;
   }
 }
 
@@ -6839,10 +6845,10 @@ function toggleStagedTag(userId, name, chip) {
   if (!window._stagedTagIds) window._stagedTagIds = new Set();
   if (window._stagedTagIds.has(userId)) {
     window._stagedTagIds.delete(userId);
-    chip.classList.remove('tagged');
+    chip.classList.remove('on');
   } else {
     window._stagedTagIds.add(userId);
-    chip.classList.add('tagged');
+    chip.classList.add('on');
   }
   _updateCheckinShareLabel();
 }
