@@ -5005,8 +5005,10 @@ async function openSocialNotifications() {
 
   const items = await fetchMyNotifications(80);
 
-  // Mark all read on view (next render of the bell will hide the badge)
+  // Mark all read on view (next render of the bell will hide the badge),
+  // and reset the iOS app-icon badge via a silent badge-only push.
   await markAllNotificationsRead();
+  clearPushBadge();
   const dot = document.getElementById('socialNotifDot');
   if (dot) { dot.style.display = 'none'; dot.textContent = ''; }
 
@@ -5016,6 +5018,7 @@ async function openSocialNotifications() {
   }
 
   const labelFor = (n) => {
+    if (n.type === 'push')    return esc((n.preview || '').slice(0, 120));
     if (n.type === 'follow')  return 'started following you';
     if (n.type === 'like')    return 'liked your post';
     if (n.type === 'comment') return n.preview ? `commented: "${esc((n.preview || '').slice(0,80))}"` : 'commented on your post';
@@ -5027,8 +5030,10 @@ async function openSocialNotifications() {
                        : t === 'comment' ? (ICN.comment || '💬')
                        : t === 'follow' ? '👤'
                        : t === 'tagged' ? '📷'
+                       : t === 'push' ? '🔔'
                        : '✨';
   const onClick = (n) => {
+    if (n.type === 'push') return `void(0)`;
     if (n.type === 'follow' && n.actor_id) return `openPublicProfile('${n.actor_id}')`;
     if (n.post_id && n.post_type) return `openCommentsSheet('${n.post_id}','${n.post_type}')`;
     return `void(0)`;
@@ -5039,9 +5044,11 @@ async function openSocialNotifications() {
       <button class="notif-back" onclick="loadSocialFeed()">Back</button>
     </div>` +
     items.map(n => {
+      const isPush = n.type === 'push';
       const actor = n.actor || {};
-      const name = actor.display_name || 'Someone';
-      const avatar = initialsAvatar(name, '', actor.avatar_emoji, actor.avatar_url);
+      // Push rows have no actor — lead with the push title as the bold name
+      const name = isPush ? (n.title || 'Spotd') : (actor.display_name || 'Someone');
+      const avatar = initialsAvatar(name, '', isPush ? '🔔' : actor.avatar_emoji, isPush ? null : actor.avatar_url);
       const time = fmtDate(n.created_at);
       const unread = !n.read_at;
       return `<div class="notif-row${unread ? ' notif-row--unread' : ''}" onclick="${onClick(n)}">

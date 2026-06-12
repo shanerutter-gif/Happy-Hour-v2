@@ -23,7 +23,7 @@
 //                                                convention)
 // Optional: ?mode=campaigns|automations to run a single mode.
 
-import { sendApnsBatch, cleanupDeadTokens } from './_lib/apns.js';
+import { sendApnsBatch, cleanupDeadTokens, saveInAppNotifications } from './_lib/apns.js';
 
 const MAX_SENDS_PER_AUTOMATION_RUN = 500; // safety cap per automation per run
 
@@ -156,6 +156,12 @@ async function processCampaigns(ctx) {
           { sandbox: false }
         );
         if (batch.deadTokens.length) await cleanupDeadTokens(batch.deadTokens);
+        if (batch.sent > 0) {
+          // Mirror into the in-app bell panel for delivered users
+          const tokenUser = new Map(tokens.map(t => [t.token, t.user_id]));
+          const okUserIds = batch.results.filter(r => r.ok).map(r => tokenUser.get(r.token)).filter(Boolean);
+          await saveInAppNotifications(okUserIds, { title: c.title, body: c.body, url: c.url || '/' });
+        }
         result = { sent: batch.sent, total: tokens.length, errors: batch.errors.length ? batch.errors : undefined };
       }
 
@@ -237,14 +243,11 @@ async function processAutomations(ctx) {
         const tokens = await fetchTokens(ctx, userIds);
         if (!tokens.length) continue;
 
+        const renderedTitle = renderTemplate(a.template_title, group.props);
+        const renderedBody = renderTemplate(a.template_body, group.props);
         const batch = await sendApnsBatch(
           tokens,
-          {
-            title: renderTemplate(a.template_title, group.props),
-            body:  renderTemplate(a.template_body, group.props),
-            url:   a.url || '/',
-            tag:   'auto-' + a.trigger_type,
-          },
+          { title: renderedTitle, body: renderedBody, url: a.url || '/', tag: 'auto-' + a.trigger_type },
           { sandbox: false }
         );
         if (batch.deadTokens.length) await cleanupDeadTokens(batch.deadTokens);
@@ -264,6 +267,9 @@ async function processAutomations(ctx) {
           excluded.add(uid); // one push per automation per run, across groups
           summary.sent++;
           capLeft--;
+        }
+        if (okUsers.size) {
+          await saveInAppNotifications([...okUsers], { title: renderedTitle, body: renderedBody, url: a.url || '/' });
         }
       }
       await sbInsert(ctx, 'push_automation_log', logRows);

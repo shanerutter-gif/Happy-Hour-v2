@@ -15,7 +15,7 @@
 // excluded from the token query. The old Edge-runtime VAPID/web-push code was
 // removed with the conversion — re-implement in Node if web push returns.
 
-import { getApnsConfig, createApnsJwt, sendApnsBatch, cleanupDeadTokens } from './_lib/apns.js';
+import { getApnsConfig, createApnsJwt, sendApnsBatch, cleanupDeadTokens, saveInAppNotifications } from './_lib/apns.js';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -47,7 +47,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Invalid JSON' });
   }
 
-  const { user_ids, title, body: msgBody, url, tag, sandbox, diagnose } = body;
+  const { user_ids, title, body: msgBody, url, tag, sandbox, diagnose, inapp } = body;
 
   // Diagnostic mode: build the JWT, return its header+claims (NOT the
   // signature), don't actually call Apple. Lets us verify env vars are
@@ -88,7 +88,7 @@ export default async function handler(req, res) {
 
   // Fetch push tokens from Supabase. Web platform is excluded (web push is
   // inert); pre-filter so denominators are honest.
-  let query = `${supabaseUrl}/rest/v1/push_tokens?select=token,platform&platform=in.(ios,native)`;
+  let query = `${supabaseUrl}/rest/v1/push_tokens?select=token,platform,user_id&platform=in.(ios,native)`;
   if (user_ids?.length) {
     query += `&user_id=in.(${user_ids.join(',')})`;
   }
@@ -114,6 +114,15 @@ export default async function handler(req, res) {
   // Auto-cleanup: 410 Unregistered / 400 BadDeviceToken rows are dead forever.
   if (batch.deadTokens.length) {
     await cleanupDeadTokens(batch.deadTokens);
+  }
+
+  // Mirror the push into the in-app bell panel (notifications, type='push')
+  // for every user with at least one successful delivery. DB triggers pass
+  // inapp:false because they insert their own notifications rows.
+  if (inapp !== false && batch.sent > 0) {
+    const tokenUser = new Map(tokens.map(t => [t.token, t.user_id]));
+    const okUserIds = batch.results.filter(r => r.ok).map(r => tokenUser.get(r.token)).filter(Boolean);
+    await saveInAppNotifications(okUserIds, { title, body: msgBody, url: url || '/' });
   }
 
   const out = {
