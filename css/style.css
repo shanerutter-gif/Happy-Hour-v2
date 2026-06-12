@@ -7857,3 +7857,98 @@ h1, h2, .sf-hero-venue, .sf-ed-title, .pf-name, .gw-hero__title,
   transition: transform .16s var(--ease-bounce), color .15s ease;
 }
 .request-venue-btn:active { transform: scale(.94); box-shadow: none; }
+
+/* ════════════════════════════════════════════════════════════════
+   PROFILE — LIQUID GLASS REDESIGN (round 6)
+   Converts the clay/neumorphic profile surfaces to frosted glass with
+   bouncy interactions, consistent with the rest of the app. Frosted
+   *white/dark* (not bg-tinted) so cards stay distinct over the page bg.
+   Class-scoped overrides at end of file → win over the earlier rules.
+   ════════════════════════════════════════════════════════════════ */
+
+/* Frosted card surfaces */
+.pf-card, .pf-stat, .pf-idea-banner, .pf-lb-section, .pf-row {
+  background: rgba(255,255,255,0.60);
+  border: 1px solid var(--cp-glass-brd);
+  -webkit-backdrop-filter: blur(16px) saturate(1.5);
+  backdrop-filter: blur(16px) saturate(1.5);
+  box-shadow: 0 8px 22px -12px rgba(42,31,20,0.22), inset 0 1px 0 rgba(255,255,255,0.55);
+}
+[data-theme="dark"] .pf-card,
+[data-theme="dark"] .pf-stat,
+[data-theme="dark"] .pf-idea-banner,
+[data-theme="dark"] .pf-lb-section,
+[data-theme="dark"] .pf-row {
+  background: rgba(40,34,28,0.55);
+  box-shadow: 0 8px 22px -12px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+
+/* Bouncy presses */
+.pf-stat, .pf-row, .pf-lb-row, .pf-badge, .pf-header-btn {
+  transition: transform .16s var(--ease-bounce), background .15s ease, box-shadow .2s ease, color .15s ease;
+}
+.pf-stat:active { transform: scale(.95); box-shadow: 0 4px 12px -8px rgba(42,31,20,0.3); }
+.pf-row:active  { transform: scale(.975); }
+.pf-lb-row:active { transform: scale(.985); }
+.pf-badge:active { transform: scale(.93); }
+
+/* Header buttons + dropdown → glass */
+.pf-header-btn {
+  background: var(--cp-glass); border: 1px solid var(--cp-glass-brd);
+  color: var(--ink); box-shadow: none;
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+}
+.pf-header-btn:active { transform: scale(.86); }
+.pf-dropdown {
+  background: var(--cp-glass);
+  -webkit-backdrop-filter: blur(26px) saturate(1.8);
+  backdrop-filter: blur(26px) saturate(1.8);
+  border: 1px solid var(--cp-glass-brd);
+  box-shadow: 0 18px 40px -14px rgba(42,31,20,0.4);
+}
+[data-theme="dark"] .pf-dropdown { box-shadow: 0 18px 40px -14px rgba(0,0,0,0.75); }
+
+/* Avatar → coral→amber gradient ring */
+.pf-avatar {
+  background: var(--cp-glass);
+  border: none;
+  box-shadow: 0 0 0 2.5px transparent, 0 6px 18px -6px rgba(255,107,74,0.4);
+  background-image: linear-gradient(var(--card), var(--card)), linear-gradient(135deg, var(--coral), var(--amber));
+  background-origin: border-box; background-clip: content-box, border-box;
+  padding: 2.5px;
+  transition: transform .16s var(--ease-bounce);
+}
+.pf-avatar:active { transform: scale(.93); }
+
+/* Stat numbers → gradient accent */
+.pf-snum {
+  background: linear-gradient(135deg, var(--coral), var(--amber));
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
+}
+
+/* Badges → glass coral */
+.pf-badge {
+  background: rgba(255,107,74,0.10); border: 1px solid rgba(255,107,74,0.28);
+  color: #FF6B4A;
+}
+
+/* Row icon → glass coral tile */
+.pf-row-icon {
+  background: rgba(255,107,74,0.12); border: 1px solid rgba(255,107,74,0.18);
+}
+
+/* Leaderboard rows: softer divider on glass */
+.pf-lb-row { border-radius: 12px; padding: 8px 8px; border-bottom: none; }
+
+/* Idea banner → glass, theme-aware text */
+.pf-idea-text { color: var(--ink); }
+
+/* Giveaway tile: keep the coral gradient (brand) but add a glassy inner sheen */
+.giveaway-tile {
+  box-shadow: 0 10px 26px -10px rgba(255,107,74,0.5), inset 0 1px 0 rgba(255,255,255,0.25);
+}
+.giveaway-tile__cta {
+  transition: transform .16s var(--ease-bounce);
+}
+.giveaway-tile__cta:active { transform: scale(.95); }
