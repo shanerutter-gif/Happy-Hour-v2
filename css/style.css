@@ -8074,3 +8074,28 @@ h1, h2, .sf-hero-venue, .sf-ed-title, .pf-name, .gw-hero__title,
   -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
 }
 .dm-send-btn { box-shadow: 0 4px 14px rgba(255,107,74,.32); }
+
+/* ── Round 7b: motion parity for the social sub-pages + Messages ── */
+
+/* Activity Following/My-Activity → sliding gradient pill (like every other
+   segmented control). The pill provides the highlight, so drop the static
+   active background. */
+#feedContent .feed-header > .seg-pill {
+  background: linear-gradient(135deg, var(--coral), var(--amber));
+  border-radius: 13px;
+  box-shadow: 0 3px 10px rgba(255,107,74,.28);
+}
+.feed-tab-btn.active { background: transparent; color: #fff; }
+
+/* Tap ripple: clip the ink on these surfaces */
+.people-row, .feed-row, .dm-thread-main,
+.people-follow-btn, .sub-page-back, .dm-back-btn, .dm-new-btn, .dm-send-btn {
+  position: relative; overflow: hidden;
+}
+/* White ink on the coral/solid buttons, coral ink on the neutral cards */
+.people-follow-btn:not(.following) .ripple-ink,
+.dm-send-btn .ripple-ink { background: rgba(255,255,255,0.5); }
+
+/* (No per-row entrance animation — these lists re-render on search/tab
+   switch, so a keyframe would replay and jank. The sub-page slide-in +
+   ripple + bouncy press are the motion treatment.) */

@@ -359,7 +359,7 @@ function _moveNavPill(btn, animate = true) {
 // the active class (.active or .on) moves — so the existing tab-switch
 // handlers need no changes. The static .active/.on backgrounds are removed
 // in CSS; this pill is the only highlight.
-const SEG_SELECTORS = '.social-sub-tabs-inner, .pf-tabs-inner, .pf-lb-tabs, .pf-saved-subtabs';
+const SEG_SELECTORS = '.social-sub-tabs-inner, .pf-tabs-inner, .pf-lb-tabs, .pf-saved-subtabs, #feedContent .feed-header';
 
 function _segActiveChild(c) {
   return c.querySelector(':scope > .active, :scope > .on');
@@ -414,7 +414,8 @@ function initSegSliders() {
 // the app until we extend it.
 const RIPPLE_SELECTOR = '.cp-post-cta, .cp-opt, .cp-idea, .cp-photo-pick, .cp-iconbtn, .bottom-nav-post, .cp-pick-row, .cp-tag-row, ' +
   '.modal-action, .modal-checkin-cta, .card-hero-going-btn, .card-compact-checkin, .card-std-checkin, ' +
-  '.photo-submit-btn, .photo-skip-btn, .photo-upload-area';
+  '.photo-submit-btn, .photo-skip-btn, .photo-upload-area, ' +
+  '.people-row, .feed-row, .dm-thread-main, .people-follow-btn, .sub-page-back, .dm-back-btn, .dm-new-btn, .dm-send-btn';
 function initRipples() {
   document.addEventListener('pointerdown', e => {
     const el = e.target.closest && e.target.closest(RIPPLE_SELECTOR);
