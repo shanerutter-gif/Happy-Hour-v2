@@ -1761,11 +1761,14 @@ async function fetchSocialFeed(citySlug, followingIds = [], limit = 60) {
         .order('created_at', { ascending: false })
         .limit(limit),
 
-      // 3. Going tonight (today only)
+      // 3. Going tonight (today only). Anonymous rows (user_id null — demo
+      // badge-count seeds) are excluded: a feed card needs an author, otherwise
+      // it renders as "Someone checked in". They still count toward fire badges.
       db.from('check_ins')
         .select('id, user_id, venue_id, city_slug, created_at')
         .eq('city_slug', citySlug)
         .eq('date', new Date().toISOString().slice(0, 10))
+        .not('user_id', 'is', null)
         .order('created_at', { ascending: false })
         .limit(40),
     ]);
@@ -2042,7 +2045,8 @@ async function fetchTodayCheckInsWithProfiles(citySlug) {
     const { data } = await db.from('check_ins')
       .select('venue_id, user_id, profiles(display_name, avatar_url, avatar_emoji)')
       .eq('city_slug', citySlug)
-      .eq('date', today);
+      .eq('date', today)
+      .not('user_id', 'is', null);
     return data || [];
   } catch(e) { return []; }
 }

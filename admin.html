@@ -4079,12 +4079,6 @@ in San Diego</textarea>
   ];
   const SOCIAL_AVATAR_EMOJIS = ['🍺','🍹','🍸','🌮','🎉','🌊','🌴','🎸','🦋','🌺','🐬','🔥','🎨','🍕','🍷','🥂','🌅','🪩','🍔','🥑','🦊','🐳','🌙','⭐','🍻','🥃'];
 
-  // Generic photo URLs via picsum (deterministic per-seed, varied content)
-  function _picsum(seed) {
-    const cleanSeed = String(seed).replace(/[^a-zA-Z0-9]/g,'').slice(0, 20) || Math.random().toString(36).slice(2);
-    return `https://picsum.photos/seed/spotd-${cleanSeed}/800/1000`;
-  }
-
   function _pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
   function _randPastDate(maxDaysAgo) {
     const ms = Math.floor(Math.random() * maxDaysAgo * 24 * 60 * 60 * 1000);
@@ -4125,7 +4119,7 @@ in San Diego</textarea>
     try {
       // Fetch venue IDs
       demoSetProgress(5, 'Fetching venues…');
-      const venueRes = await fetch(`${SUPABASE_URL}/rest/v1/venues?select=id&city_slug=eq.${citySlug}`, { headers: svcHeaders() });
+      const venueRes = await fetch(`${SUPABASE_URL}/rest/v1/venues?select=id,name,neighborhood,photo_url,photo_urls&city_slug=eq.${citySlug}`, { headers: svcHeaders() });
       const venues = await venueRes.json();
       if (!venueRes.ok) throw new Error('Supabase error: ' + (venues.message || venueRes.status));
       if (!venues || !venues.length) throw new Error(`No venues found for "${citySlug}" — have you run the SQL chunks yet?`);
@@ -4191,7 +4185,7 @@ in San Diego</textarea>
 
       let socialNote = '';
       if (doSocial) {
-        const socialResult = await runDemoSocialSeed({ citySlug, venueIds, userCount: socialUsers, postsPer: socialPostsPer });
+        const socialResult = await runDemoSocialSeed({ citySlug, venues, userCount: socialUsers, postsPer: socialPostsPer });
         socialNote = socialResult ? `${socialResult.posts} social posts (${socialResult.users} demo users)` : '';
       }
 
@@ -4211,8 +4205,15 @@ in San Diego</textarea>
   // Build casual social-feed posts: photos, check-in notes, reviews, favorites.
   // Creates demo auth users (so each post has a real profile w/ name + avatar in the feed),
   // then seeds a mix of post types across the past 14 days.
-  async function runDemoSocialSeed({ citySlug, venueIds, userCount, postsPer }) {
-    if (!venueIds || !venueIds.length) return null;
+  async function runDemoSocialSeed({ citySlug, venues, userCount, postsPer }) {
+    if (!venues || !venues.length) return null;
+    const venueIds = venues.map(v => v.id);
+    const vMap = {};
+    venues.forEach(v => { vMap[v.id] = v; });
+    // Photo posts must look like real photos taken at the venue, so they reuse
+    // the venue's own enrichment photos. Venues without a photo can't host one.
+    const photoVenues = venues.filter(v => (Array.isArray(v.photo_urls) && v.photo_urls.length) || v.photo_url);
+    const venuePhoto = (v) => (Array.isArray(v.photo_urls) && v.photo_urls.length) ? _pick(v.photo_urls) : v.photo_url;
 
     demoSetProgress(86, 'Creating demo social profiles…');
 
@@ -4272,13 +4273,15 @@ in San Diego</textarea>
         const created = _randPastDate(14);
         const r = Math.random();
 
-        if (r < 0.40) {
-          // Photo post
+        if (r < 0.40 && photoVenues.length) {
+          // Photo post — reuses one of the venue's own photos so it reads as
+          // a real shot taken there (picsum stock images looked obviously fake)
+          const pv = _pick(photoVenues);
           photoRows.push({
             user_id:      p.id,
-            venue_id:     venueId,
+            venue_id:     pv.id,
             city_slug:    citySlug,
-            photo_url:    _picsum(p.id + j),
+            photo_url:    venuePhoto(pv),
             storage_path: null,
             caption:      Math.random() > 0.2 ? _pick(SOCIAL_CAPTIONS) : null,
             created_at:   created,
@@ -4319,19 +4322,10 @@ in San Diego</textarea>
     }
 
     // Denormalize venue_name + neighborhood for activity_feed (the feed reads these directly)
-    if (activityRows.length) {
-      const uniqVenueIds = [...new Set(activityRows.map(a => a.venue_id))];
-      const vRes = await fetch(`${SUPABASE_URL}/rest/v1/venues?select=id,name,neighborhood&id=in.(${uniqVenueIds.join(',')})`, { headers: svcHeaders() });
-      const vMap = {};
-      if (vRes.ok) {
-        const vs = await vRes.json();
-        vs.forEach(v => { vMap[v.id] = v; });
-      }
-      activityRows.forEach(a => {
-        a.venue_name  = vMap[a.venue_id]?.name || null;
-        a.neighborhood = vMap[a.venue_id]?.neighborhood || null;
-      });
-    }
+    activityRows.forEach(a => {
+      a.venue_name  = vMap[a.venue_id]?.name || null;
+      a.neighborhood = vMap[a.venue_id]?.neighborhood || null;
+    });
 
     // 4. Insert in batches
     const SBATCH = 200;
