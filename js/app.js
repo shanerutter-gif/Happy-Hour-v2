@@ -6745,9 +6745,11 @@ function openPhotoCheckinPrompt(venueId, venueName) {
         <div class="cp-pick-empty">Loading friends…</div>
       </div>
 
-      <button class="photo-submit-btn" id="checkinShareBtn"
-        onclick="submitCheckin(window._checkinPhotoVenueId, window._checkinPhotoVenueName)">Done</button>
-      <button class="photo-skip-btn" id="checkinSkipBtn">Maybe later</button>
+      <div class="checkin-foot">
+        <button class="photo-submit-btn" id="checkinShareBtn"
+          onclick="submitCheckin(window._checkinPhotoVenueId, window._checkinPhotoVenueName)">Done</button>
+        <button class="photo-skip-btn" id="checkinSkipBtn">Maybe later</button>
+      </div>
     </div>`;
 
   // Insert file input into the upload area and attach listener AFTER DOM is ready
