@@ -1411,7 +1411,7 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 }
 .social-sub-tab.active {
   color: var(--ink);
-  background: var(--bg2);
+  /* highlight is the sliding .seg-pill */
   font-weight: 800;
 }
 .social-sub-tab:active { transform: scale(.95); }
@@ -3656,6 +3656,35 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 @media (prefers-reduced-motion: reduce) {
   .bn-pill { transition: opacity .2s ease; }
 }
+
+/* ── Segmented-control sliding pill (app-wide) ──
+   The single highlight under the active tab for social sub-tabs, profile
+   tabs, friend leaderboard and saved subtabs. Positioned/sized by
+   _moveSegPill(); the per-control static .active/.on backgrounds are
+   removed so this is the only highlight. Default look = profile/social
+   (soft bg2, 16px); pill-shaped white controls override below. */
+.seg-host { position: relative; }
+.seg-host > *:not(.seg-pill) { position: relative; z-index: 1; }
+.seg-pill {
+  position: absolute; top: 0; left: 0;
+  width: 0; height: 0;
+  background: var(--bg2);
+  border-radius: 16px;
+  opacity: 0; z-index: 0; pointer-events: none;
+  transition: transform .4s cubic-bezier(.34,1.5,.5,1),
+              width     .4s cubic-bezier(.34,1.5,.5,1),
+              height    .4s cubic-bezier(.34,1.5,.5,1);
+}
+.pf-lb-tabs > .seg-pill,
+.pf-saved-subtabs > .seg-pill {
+  background: #FFFFFF; /* white in both themes, matching prior .on look */
+  border-radius: 999px;
+  box-shadow: 0 1px 3px rgba(42,31,20,.10);
+}
+@media (prefers-reduced-motion: reduce) {
+  .seg-pill { transition: opacity .2s ease; }
+}
+
 .bottom-nav-btn {
   flex: 1; display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 4px;
@@ -3955,7 +3984,7 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 }
 .pf-tab.on {
   color: var(--ink);
-  background: var(--bg2);
+  /* highlight is the sliding .seg-pill */
   font-weight: 800;
 }
 .pf-tab:active { opacity: .7; }
@@ -4083,7 +4112,6 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 [data-theme="dark"] .city-dropdown-item:active { background: var(--bg2); }
 [data-theme="dark"] .pf-stat { background: var(--card); border-color: var(--border2); }
 [data-theme="dark"] .pf-tabs-inner { background: var(--card); border-color: var(--border2); }
-[data-theme="dark"] .pf-tab.on { background: var(--bg2); }
 [data-theme="dark"] .pf-row { background: var(--card); border-color: var(--border2); }
 [data-theme="dark"] .pf-idea-banner { background: var(--card); border-color: var(--border2); }
 [data-theme="dark"] .profile-page { background: var(--bg); }
@@ -6174,7 +6202,7 @@ button:not([disabled]),
   font-weight: 700; font-size: 12px;
   color: rgba(42,31,20,.6);
 }
-.pf-lb-tab.on { background: #FFFFFF; color: #2A1F14; box-shadow: 0 1px 3px rgba(42,31,20,.10); }
+.pf-lb-tab.on { color: #2A1F14; } /* highlight is the sliding .seg-pill */
 .pf-lb-row {
   display: flex; align-items: center; gap: 10px;
   padding: 8px 4px; cursor: pointer;
@@ -6545,7 +6573,7 @@ button:not([disabled]),
   font-weight: 700; font-size: 13px;
   color: rgba(42,31,20,.55);
 }
-.pf-saved-subtab.on { background: #FFFFFF; color: #2A1F14; box-shadow: 0 1px 3px rgba(42,31,20,.06); }
+.pf-saved-subtab.on { color: #2A1F14; } /* highlight is the sliding .seg-pill */
 
 /* ── Notifications ── */
 .notif-dot--count {
