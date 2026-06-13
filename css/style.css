@@ -449,8 +449,16 @@ main{min-height:60vh}
 .sheet--wide{max-width:740px}
 
 .sheet-handle{width:36px;height:4px;background:rgba(42,31,20,0.12);border-radius:3px;margin:0 auto 16px;cursor:grab}
-#venueSheet{padding:10px 0 calc(72px + env(safe-area-inset-bottom, 0px))}
-#venueSheet .sheet-handle{margin:0 auto 8px}
+#venueSheet{padding:0 0 calc(72px + env(safe-area-inset-bottom, 0px))}
+/* Handle floats over the hero photo (which now runs flush to the sheet's
+   rounded top) instead of sitting on a white band above it. Translucent white
+   + soft shadow so it reads on both photos and the rare no-photo header. */
+#venueSheet .sheet-handle{
+  position:absolute; top:10px; left:50%; transform:translateX(-50%);
+  margin:0; z-index:30;
+  background:rgba(255,255,255,0.9);
+  box-shadow:0 1px 4px rgba(0,0,0,0.3);
+}
 .sheet-close{position:sticky;top:0;float:right;margin:0 0 -32px;z-index:20;background:var(--bg2);border:none;color:var(--muted);width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;box-shadow:var(--clay-sm);transition:transform .15s,box-shadow .15s}
 .sheet-close:active{transform:scale(.9);box-shadow:var(--clay-pressed)}
 .s-tag{display:inline-block;font-family:'DM Sans',sans-serif;font-size:9px;text-transform:uppercase;letter-spacing:1px;padding:3px 9px;border-radius:4px;margin-bottom:8px}
