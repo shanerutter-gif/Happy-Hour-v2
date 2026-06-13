@@ -370,23 +370,43 @@ const SEG_SELECTORS = '.social-sub-tabs-inner, .pf-tabs-inner, .pf-lb-tabs, .pf-
 function _segActiveChild(c) {
   return c.querySelector(':scope > .active, :scope > .on');
 }
+// rAF-coalesced pill move: each container moves at most once per frame, and the
+// read+write is wrapped so a stray exception (or a control torn down mid-switch)
+// can never escape into the tab-switch handler — that escape was crashing the
+// iOS WKWebView content process when nav was switched rapidly on the feed.
+function _scheduleSegMove(container, animate) {
+  if (!container || container._segMovePending) {
+    if (container && animate === false) container._segMoveSnap = true; // snap wins
+    return;
+  }
+  container._segMovePending = true;
+  if (animate === false) container._segMoveSnap = true;
+  requestAnimationFrame(() => {
+    const snap = container._segMoveSnap;
+    container._segMovePending = false;
+    container._segMoveSnap = false;
+    _moveSegPill(container, !snap);
+  });
+}
 function _moveSegPill(container, animate = true) {
-  const pill = container._segPill;
-  if (!pill) return;
-  const active = _segActiveChild(container);
-  if (!active) { pill.style.opacity = '0'; return; }
-  if (!animate) pill.style.transition = 'none';
-  // offsetLeft/Top are relative to the (position:relative) container's padding
-  // box; the pill shares that origin, and being inside the scroller it tracks
-  // horizontal scroll on the profile tabs for free.
-  pill.style.width  = active.offsetWidth  + 'px';
-  pill.style.height = active.offsetHeight + 'px';
-  pill.style.transform = `translate(${active.offsetLeft}px, ${active.offsetTop}px)`;
-  pill.style.opacity = '1';
-  if (!animate) { void pill.offsetWidth; pill.style.transition = ''; }
+  try {
+    const pill = container && container._segPill;
+    if (!pill || !container.isConnected) return;
+    const active = _segActiveChild(container);
+    if (!active) { pill.style.opacity = '0'; return; }
+    if (!animate) pill.style.transition = 'none';
+    // offsetLeft/Top are relative to the (position:relative) container's padding
+    // box; the pill shares that origin, and being inside the scroller it tracks
+    // horizontal scroll on the profile tabs for free.
+    pill.style.width  = active.offsetWidth  + 'px';
+    pill.style.height = active.offsetHeight + 'px';
+    pill.style.transform = `translate(${active.offsetLeft}px, ${active.offsetTop}px)`;
+    pill.style.opacity = '1';
+    if (!animate) { void pill.offsetWidth; pill.style.transition = ''; }
+  } catch (e) { /* never let a pill measure crash a tab switch */ }
 }
 function _mountSegSlider(container) {
-  if (container._segMounted) return;
+  if (!container || container._segMounted) return;
   container._segMounted = true;
   container.classList.add('seg-host');
   const pill = document.createElement('div');
@@ -395,8 +415,11 @@ function _mountSegSlider(container) {
   container.insertBefore(pill, container.firstChild);
   container._segPill = pill;
   // Re-glide whenever a child's active class changes (handlers toggle it).
-  new MutationObserver(() => _moveSegPill(container, true))
-    .observe(container, { attributes: true, attributeFilter: ['class'], subtree: true });
+  // Coalesced to one move per frame + guarded so it can't throw.
+  try {
+    new MutationObserver(() => _scheduleSegMove(container, true))
+      .observe(container, { attributes: true, attributeFilter: ['class'], subtree: true });
+  } catch (e) {}
   // Re-place the pill (snap, no glide) whenever the control resizes — most
   // importantly when it goes from hidden (0 width inside a display:none tab) to
   // visible. Without this the pill was mounted/measured while hidden, so it sat
@@ -404,22 +427,43 @@ function _mountSegSlider(container) {
   // that click glided it from the corner = glitchy. The RO snaps it correctly
   // the instant the tab is shown (also covers font-load + rotation). The pill
   // is position:absolute so it never feeds back into the container's size.
+  // The callback is rAF-coalesced so it can't spin a ResizeObserver loop.
   if (window.ResizeObserver) {
-    new ResizeObserver(() => _moveSegPill(container, false)).observe(container);
+    try {
+      new ResizeObserver(() => _scheduleSegMove(container, false)).observe(container);
+    } catch (e) {}
   }
-  requestAnimationFrame(() => _moveSegPill(container, false)); // snap into place
+  _scheduleSegMove(container, false); // snap into place
 }
 function _scanSegSliders(root) {
-  if (!root || !root.querySelectorAll) return;
-  if (root.matches && root.matches(SEG_SELECTORS)) _mountSegSlider(root);
-  root.querySelectorAll(SEG_SELECTORS).forEach(_mountSegSlider);
+  try {
+    if (!root || !root.querySelectorAll) return;
+    if (root.matches && root.matches(SEG_SELECTORS)) _mountSegSlider(root);
+    root.querySelectorAll(SEG_SELECTORS).forEach(_mountSegSlider);
+  } catch (e) {}
+}
+// Body-level observer: coalesced to a SINGLE document scan per frame. The old
+// version ran querySelectorAll on every added node of every mutation, so a feed
+// re-render (dozens of card nodes) fired dozens of subtree scans per switch —
+// an observer storm that, on top of the per-control observers, was killing the
+// WKWebView. One body scan per frame (with the _segMounted guard making it a
+// near-no-op once everything is mounted) is far cheaper and just as correct.
+let _segScanPending = false;
+function _scheduleSegScan() {
+  if (_segScanPending) return;
+  _segScanPending = true;
+  requestAnimationFrame(() => { _segScanPending = false; _scanSegSliders(document.body); });
 }
 function initSegSliders() {
   _scanSegSliders(document.body);
   // Mount controls created by future renders (profile/leaderboard rebuild).
-  new MutationObserver(muts => {
-    for (const m of muts) m.addedNodes.forEach(n => { if (n.nodeType === 1) _scanSegSliders(n); });
-  }).observe(document.body, { childList: true, subtree: true });
+  try {
+    new MutationObserver(muts => {
+      for (const m of muts) {
+        if (m.addedNodes && m.addedNodes.length) { _scheduleSegScan(); return; }
+      }
+    }).observe(document.body, { childList: true, subtree: true });
+  } catch (e) {}
 }
 
 // ── Tap ripple ─────────────────────────────────────────────────
