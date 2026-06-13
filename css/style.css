@@ -8351,13 +8351,15 @@ h1, h2, .sf-hero-venue, .sf-ed-title, .pf-name, .gw-hero__title,
 .sf-wide { position: relative; }                  /* anchor the double-tap heart */
 
 /* (2) Glassy action icons — frosted pills, icon-forward, springy press.
-   Replaces the flat coral-bordered pills. */
+   Replaces the flat coral-bordered pills. NOTE: NO backdrop-filter — there are
+   4 of these per post × a full feed = hundreds of buttons, and a blur on each
+   crashed the iOS WKWebView (the documented "never blur long-list elements"
+   rule). The action bar sits on a solid card strip, so a translucent fill +
+   inset highlight reads identically to frosted glass at zero GPU cost. */
 .sf-actions { gap: 8px; padding: 9px 12px 12px; }
 .sf-action-btn {
   background: var(--cp-glass);
   border: 1px solid var(--cp-glass-brd);
-  -webkit-backdrop-filter: blur(12px) saturate(1.5);
-  backdrop-filter: blur(12px) saturate(1.5);
   color: var(--text);
   font-size: 12.5px; font-weight: 700;
   padding: 8px 13px; border-radius: 50px;
