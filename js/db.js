@@ -384,7 +384,21 @@ async function authSignUp(email, password, displayName) {
       _persistSignupCity();
       return res;
     }
-    return { data, error: null };
+    // No session token in the signup response. With email-confirmation OFF
+    // (our current setting), Supabase returns an obfuscated user with no tokens
+    // when the email is ALREADY registered (anti-enumeration). Returning a
+    // success-shaped {error:null} here used to silently drop the user onto the
+    // guest city-selector landing with an "Account created!" toast but no
+    // session. Instead, try to sign them in with the same credentials (recovers
+    // a returning user who hit "sign up" by mistake); if that fails, surface a
+    // clear, actionable error.
+    const signin = await authSignIn(email, password);
+    if (!signin.error) {
+      _persistSignupCity();
+      return signin;
+    }
+    track('signup_failed', { method: 'email', reason: 'no_session' });
+    return { error: { message: 'This email may already be registered. Try signing in instead.' } };
   } catch (e) {
     track('signup_failed', { method: 'email', reason: 'network' });
     return { error: { message: e.message } };

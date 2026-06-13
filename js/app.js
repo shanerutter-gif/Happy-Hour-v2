@@ -3333,6 +3333,12 @@ async function doAuth(mode) {
       ? await authSignUp(email, password, (document.getElementById('aName')?.value || '').trim())
       : await authSignIn(email, password);
     if (result.error) throw result.error;
+    // Defensive: a signup result with no established session must never present
+    // as success — otherwise the modal closes over the guest landing and the
+    // user is left unauthenticated despite an "Account created!" toast.
+    if (mode === 'signup' && !currentUser) {
+      throw new Error('This email may already be registered. Try signing in instead.');
+    }
     // Save phone + consent after signup
     if (mode === 'signup' && currentUser) {
       const phone = (document.getElementById('aPhone')?.value || '').trim();
