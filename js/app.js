@@ -446,6 +446,12 @@ function initRipples() {
   document.addEventListener('pointerdown', e => {
     const el = e.target.closest && e.target.closest(RIPPLE_SELECTOR);
     if (!el || el.disabled) { downEl = null; return; }
+    // If the press landed on an interactive child INSIDE a big ripple surface
+    // (e.g. a like/comment/save button inside a feed card), don't fire the
+    // card's full-surface ripple+sheen — that read as the card "glitching" on
+    // every button tap. Let the child handle its own action.
+    const inner = e.target.closest('button, a, input, select, textarea, label, [role="button"]');
+    if (inner && inner !== el && el.contains(inner)) { downEl = null; return; }
     downEl = el; sx = e.clientX; sy = e.clientY; moved = false;
   }, { passive: true });
   document.addEventListener('pointermove', e => {
