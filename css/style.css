@@ -1454,7 +1454,9 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
-  padding: 10px 10px calc(96px + env(safe-area-inset-bottom, 0px));
+  /* Edge-to-edge feed (Instagram-style): no side padding so photo + text
+     posts span the full width. Individual cards add their own breathing room. */
+  padding: 0 0 calc(96px + env(safe-area-inset-bottom, 0px));
 }
 
 /* Loading */
@@ -1524,13 +1526,13 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   display: inline-block;
 }
 
-/* ── Hero card (full-bleed photo/video) ── */
+/* ── Hero card (full-bleed photo/video, Instagram-style) ── */
 .sf-hero {
-  border-radius: 26px;
+  border-radius: 0;
   overflow: hidden;
   position: relative;
-  margin-bottom: 12px;
-  box-shadow: var(--clay-lg);
+  margin: 0 0 6px;
+  box-shadow: none;
   -webkit-tap-highlight-color: transparent;
 }
 .sf-hero .sf-actions { position: relative; z-index: 3; }
@@ -1627,42 +1629,44 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 .sf-compact .sf-action-btn { font-size: 10px; padding: 5px 10px; }
 
 /* ── Wide card (full-width text) ── */
+/* Full-width "long & slim" text post — edge-to-edge, no card chrome, just a
+   hairline divider between posts. Header is a compact row (small avatar + name)
+   on the card surface, not a chunky coral bar. */
 .sf-wide {
-  background: var(--card); border-radius: 22px; overflow: hidden;
-  margin-bottom: 10px;
-  box-shadow: var(--clay-md);
+  background: var(--card); border-radius: 0; overflow: hidden;
+  margin: 0;
+  box-shadow: none;
+  border-bottom: 1px solid var(--sf-hairline, rgba(42,31,20,0.08));
   -webkit-tap-highlight-color: transparent;
-  transition: transform .15s ease, box-shadow .15s;
+  transition: background .15s ease;
 }
-.sf-wide:active { transform: scale(.98); box-shadow: var(--clay-sm); }
+.sf-wide:active { background: var(--bg2); }
 .sf-wide-header {
-  display: flex; align-items: center; gap: 10px;
-  padding: 12px 16px;
-  background: linear-gradient(135deg, var(--coral), var(--amber));
+  display: flex; align-items: center; gap: 9px;
+  padding: 11px 16px 4px;
   cursor: pointer;
 }
 .sf-wide-avatar {
   width: 30px; height: 30px; border-radius: 50%;
   overflow: hidden; flex-shrink: 0;
-  border: 2px solid rgba(255,255,255,0.4);
+  border: 2px solid rgba(255,107,74,0.25);
 }
 .sf-wide-avatar .initials-avatar { width: 30px !important; height: 30px !important; font-size: 12px !important; }
 .sf-wide-hname {
-  font-weight: 700; font-size: 14px; color: #fff;
-  text-shadow: 0 1px 4px rgba(0,0,0,0.15);
+  font-weight: 700; font-size: 14px; color: var(--text);
 }
-.sf-wide-body { padding: 14px 16px 8px; cursor: pointer; }
-.sf-wide-headline { font-size: 14px; color: var(--text); line-height: 1.5; }
+.sf-wide-body { padding: 2px 16px 4px; cursor: pointer; }
+.sf-wide-headline { font-size: 14px; color: var(--text); line-height: 1.45; }
 .sf-wide-name { font-weight: 700; }
 .sf-wide-verb { color: var(--muted); }
 .sf-wide-venue { color: var(--coral); font-weight: 700; }
 .sf-wide-rating { margin-top: 4px; }
 .sf-wide-caption {
-  font-size: 13px; color: var(--muted); margin-top: 6px; font-style: italic; line-height: 1.5;
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  font-size: 13px; color: var(--muted); margin-top: 4px; font-style: italic; line-height: 1.45;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
 }
-.sf-wide-meta { font-size: 11px; color: var(--muted); margin-top: 6px; opacity: .6; }
-.sf-wide .sf-actions { padding: 6px 14px 12px; }
+.sf-wide-meta { font-size: 11px; color: var(--muted); margin-top: 5px; opacity: .6; }
+.sf-wide .sf-actions { padding: 2px 12px 10px; }
 
 /* ── Comments bottom sheet ── */
 .sf-comments-list { max-height: 50vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
@@ -6463,7 +6467,7 @@ button:not([disabled]),
 .sf-editorial {
   background: #FFFFFF;
   border-radius: 18px;
-  margin: 14px 0;
+  margin: 12px 10px;
   padding: 0;
   border: 1px solid rgba(42,31,20,.06);
   box-shadow: 0 4px 18px rgba(42,31,20,.06);
@@ -8169,20 +8173,24 @@ h1, h2, .sf-hero-venue, .sf-ed-title, .pf-name, .gw-hero__title,
   box-shadow: 0 8px 22px -14px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05);
 }
 
-/* ── Share tab: compact + wide cards → frosted-white look, NO blur ── */
-.sf-compact, .sf-wide {
+/* ── Share tab: full-bleed text posts → solid surface + hairline divider ──
+   (The text feed is now edge-to-edge "long & slim" rows, not floating cards,
+   so they keep a solid card surface and a divider instead of a frosted border
+   + shadow.) .sf-compact is legacy/unused (the 2-up grid was removed) but kept
+   styled for safety. */
+.sf-compact {
   background: rgba(255,255,255,0.62);
   border: 1px solid var(--cp-glass-brd);
   box-shadow: 0 8px 22px -14px rgba(42,31,20,0.25), inset 0 1px 0 rgba(255,255,255,0.55);
 }
-[data-theme="dark"] .sf-compact,
-[data-theme="dark"] .sf-wide {
+[data-theme="dark"] .sf-compact {
   background: rgba(40,34,28,0.55);
   box-shadow: 0 8px 22px -14px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05);
 }
-/* The action strip inside translucent cards must not stay an opaque slab.
-   (.sf-hero keeps the solid var(--card) strip — its card has no bg of its own.) */
-.sf-compact .sf-actions, .sf-wide .sf-actions { background: transparent; }
+[data-theme="dark"] .sf-wide { background: var(--card); }
+[data-theme="dark"] { --sf-hairline: rgba(255,255,255,0.08); }
+.sf-wide .sf-actions { background: transparent; }
+.sf-compact .sf-actions { background: transparent; }
 
 /* Glassier action chips on the share cards */
 .sf-action-btn:not(.sf-liked):not(.sf-more) {

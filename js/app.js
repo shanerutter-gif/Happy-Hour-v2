@@ -1350,8 +1350,9 @@ async function renderTrendingTab() {
 
     let html = `<div style="padding:10px 16px 4px;font-size:12px;color:var(--muted);font-weight:600">Top posts in the last 7 days</div>`;
     items.forEach(item => {
-      if (item.type === 'editorial') html += renderSocialItem(item, 'editorial');
-      else html += renderSocialItem(item, 'hero');
+      if (item.type === 'editorial') { html += renderSocialItem(item, 'editorial'); return; }
+      const hasMedia = item.type === 'photo' || (item.media_urls && item.media_urls.length) || item.photo_url;
+      html += renderSocialItem(item, hasMedia ? 'hero' : 'wide');
     });
     container.innerHTML = html;
     _feedEnter(container);
@@ -1420,46 +1421,19 @@ function renderSocialTab(tab) {
     return;
   }
 
-  // ── Modular masonry layout ──
-  // Stories strip → very top
-  // Pinned editorials → above feed, distinct card style
-  // Photo/video posts → full-width hero cards
-  // Text-only posts → batched into 2-up compact rows with occasional full-width singles
+  // ── Single-column feed (Instagram-style) ──
+  // Stories strip → very top; pinned editorials above the feed; photo/video
+  // posts → full-bleed hero cards; everything text-only → full-width "wide"
+  // cards. No more 2-up compact grid — every post spans the full width.
   let html = storiesHtml;
   // Pinned editorial(s) at the top
   pinned.forEach(item => { html += renderSocialItem(item, 'editorial'); });
 
-  let textBatch = [];
-  let batchIdx = 0;
-
-  const flushTextBatch = () => {
-    if (!textBatch.length) return;
-    // Every 3rd batch, let the first item be full-width for rhythm
-    while (textBatch.length > 0) {
-      if (textBatch.length >= 2 && batchIdx % 3 !== 2) {
-        html += `<div class="sf-compact-row">${renderSocialItem(textBatch.shift(), 'compact')}${renderSocialItem(textBatch.shift(), 'compact')}</div>`;
-      } else {
-        html += renderSocialItem(textBatch.shift(), 'wide');
-      }
-      batchIdx++;
-    }
-  };
-
   filtered.forEach(item => {
-    if (item.type === 'editorial') {
-      flushTextBatch();
-      html += renderSocialItem(item, 'editorial');
-      return;
-    }
+    if (item.type === 'editorial') { html += renderSocialItem(item, 'editorial'); return; }
     const hasMedia = item.type === 'photo' || (item.type === 'check_in' && (item.meta?.photo_url || item.meta?.video_url)) || (item.media_urls && item.media_urls.length);
-    if (hasMedia) {
-      flushTextBatch();
-      html += renderSocialItem(item, 'hero');
-    } else {
-      textBatch.push(item);
-    }
+    html += renderSocialItem(item, hasMedia ? 'hero' : 'wide');
   });
-  flushTextBatch();
 
   container.innerHTML = html;
   _feedEnter(container);
@@ -1676,7 +1650,6 @@ function renderSocialItem(item, variant) {
         </div>`;
 
     return `<div class="sf-hero">
-      <button class="sf-fullscreen-btn" onclick="event.stopPropagation();openImmersiveViewer('${postId}')" title="Full screen" aria-label="Full screen">⤢</button>
       ${mediaInner}
       ${actionBtns}
     </div>`;
@@ -1918,19 +1891,14 @@ function handleFeedPhotoTap(ev, postId, postType) {
   const now = Date.now();
   const last = +(el.dataset.lastTap || 0);
 
+  // Double-tap → like (Instagram). Photos are already shown full-size in the
+  // feed, so a single tap does nothing — there's no tap-to-enlarge anymore.
   if (now - last < 280) {
     el.dataset.lastTap = '0';
-    if (el._tapTimer) { clearTimeout(el._tapTimer); el._tapTimer = null; }
     _feedPhotoDoubleTapLike(postId, postType, el);
     return;
   }
-
   el.dataset.lastTap = String(now);
-  el._tapTimer = setTimeout(() => {
-    el.dataset.lastTap = '0';
-    el._tapTimer = null;
-    if (typeof openImmersiveViewer === 'function') openImmersiveViewer(postId);
-  }, 280);
 }
 
 async function _feedPhotoDoubleTapLike(postId, postType, mediaEl) {
