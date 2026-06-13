@@ -1685,7 +1685,7 @@ function renderSocialItem(item, variant) {
   // ═══════════════════════════════════════════
   // WIDE VARIANT — full-width text card
   // ═══════════════════════════════════════════
-  return `<div class="sf-wide">
+  return `<div class="sf-wide" onclick="handleFeedPhotoTap(event,'${postId}','${postType}')">
     <div class="sf-wide-header" ${profileClick}>
       <div class="sf-wide-avatar">${avatarHtml}</div>
       <span class="sf-wide-hname">${esc(displayName)}${officialBadge(item.profile)}</span>
