@@ -3020,7 +3020,7 @@ function renderModal(v, type, reviews) {
       <button class="modal-hero-fav${faved ? ' faved' : ''}" onclick="event.stopPropagation();doFavorite('${v.id}','${type}',this)">${faved ? '★' : '☆'}</button>
       ${photos.length > 1 ? `<div class="modal-hero-dots">${photos.map((_, i) => `<span class="modal-hero-dot${i === 0 ? ' on' : ''}"></span>`).join('')}</div>` : ''}
     </div>` : `
-    <div style="padding:16px 18px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
+    <div style="padding:26px 18px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
       <div>
         ${!isVenue ? `<div class="s-tag ev">${esc(v.event_type || 'Event')}</div>` : ''}
         <div class="s-name">${esc(v.name)}${v.owner_verified ? ' <span class="verified-badge verified-badge--modal">✓ Verified</span>' : ''}</div>
