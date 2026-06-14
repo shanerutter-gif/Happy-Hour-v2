@@ -1,15 +1,23 @@
 # Spotd Editorial Account ("Official") setup
 
-How to spin up the Spotd-run editor account that every user auto-follows.
+How to spin up the Spotd-run editor account, plus the `is_official` badge.
+
+> ⚠️ **Auto-follow is DISABLED (2026-06-14).** New signups no longer auto-follow
+> official accounts, and flipping an account to official no longer back-fills
+> follows. Both DB triggers were dropped (`sql/disable-signup-auto-follow.sql`)
+> because force-following new users onto a personal account ("Shane") felt weird.
+> The `is_official` flag + badge still work; only the auto-follow side effect is
+> gone. The trigger functions are retained, so re-creating the two triggers would
+> turn it back on. The "auto-follow" / "every user follows" statements below are
+> historical.
 
 ## What's already wired
 
 - New column: `profiles.is_official boolean default false`.
-- DB trigger: when a profile is INSERTed, it auto-follows every existing
-  `is_official=true` account.
-- DB trigger: when a profile UPDATE flips `is_official` from false to true,
-  every existing user retroactively follows it.
-- Reconciliation INSERT runs at migration time so the system always converges.
+- ~~DB trigger: when a profile is INSERTed, it auto-follows every existing
+  `is_official=true` account.~~ (dropped — see note above)
+- ~~DB trigger: when a profile UPDATE flips `is_official` from false to true,
+  every existing user retroactively follows it.~~ (dropped — see note above)
 - Frontend: profile fetches return `is_official`; the helper `officialBadge()`
   renders an orange "✓ Spotd" pill next to the display name on:
     - All three social feed cards (hero / compact / wide)
