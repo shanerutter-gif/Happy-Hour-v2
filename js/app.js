@@ -2943,12 +2943,11 @@ async function openModal(id, type = 'venue') {
   // a clean paint before the slide-up animation starts — avoids a snap on
   // slower iOS devices where layout settles mid-animation otherwise.
   requestAnimationFrame(() => requestAnimationFrame(() => openOverlay('modalOverlay')));
-  const reviews = await getCachedReviews(id, type);
-  const le = document.getElementById(`rlist-${id}`);
-  const ae = document.getElementById(`ravg-${id}`);
-  if (le) le.innerHTML = renderReviewList(reviews, id, type);
-  if (ae) ae.innerHTML = avgHTML(reviews);
-  // Load venue follow state (deal alerts button)
+  // Kick off all three independent fetches simultaneously — none depends on
+  // another. Previously isFollowingVenue + fetchCheckinPhotos only started
+  // after getCachedReviews resolved (~100–300ms for the 2-query reviews path),
+  // so the photo strip and follow button lagged a full DB round-trip behind.
+  const reviewsP = getCachedReviews(id, type);
   if (type === 'venue' && currentUser) {
     isFollowingVenue(currentUser.id, id).then(following => {
       const fb = document.getElementById(`venue-follow-btn-${id}`);
@@ -2958,19 +2957,21 @@ async function openModal(id, type = 'venue') {
       }
     });
   }
-  // Load UGC check-in photos + tagged posts feed
   if (type === 'venue') {
     fetchCheckinPhotos(id).then(allPosts => {
-      // The strip is for visual posts (photo or editorial-with-hero) only.
       const photoPosts = allPosts.filter(p => p.photo_url);
       const elPhotos = document.getElementById(`ugc-photos-${id}`);
       if (elPhotos) elPhotos.innerHTML = renderCheckinPhotos(photoPosts, id);
-      // The feed list shows ALL post types — text-only get included here.
       const elPosts = document.getElementById(`venue-posts-${id}`);
       if (elPosts) elPosts.innerHTML = renderVenuePosts(allPosts, id);
       observeFeedVideos();
     });
   }
+  const reviews = await reviewsP;
+  const le = document.getElementById(`rlist-${id}`);
+  const ae = document.getElementById(`ravg-${id}`);
+  if (le) le.innerHTML = renderReviewList(reviews, id, type);
+  if (ae) ae.innerHTML = avgHTML(reviews);
 }
 
 async function getCachedReviews(id, type) {
@@ -7079,6 +7080,7 @@ function skipToTagFriends(venueId) {
 
 // ── YOUR NEWS (ARTICLE FEED) ──────────────────────────
 const NEWS_ARTICLES = [
+  { city: 'san-diego', img: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=800&q=80', tag: 'City Guide', author: 'Tyler', title: 'Where to Watch the 2026 World Cup in San Diego', excerpt: 'Tom\'s Watch Bar, Rustic Root (Sat HH 3–5pm), Hidden Craft streaming every game, and more — the verified San Diego World Cup bar guide with drink deals during game time.', url: '/blog/watch-world-cup-2026-san-diego.html', date: 'June 14, 2026', readTime: '7 min' },
   { city: 'orange-county', img: 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=800&q=80', tag: 'Neighborhood Guide', author: 'Priya', title: 'Best Happy Hours in Irvine, CA (2026)', excerpt: 'Daily deals at Bosscat Kitchen, $7 wine at Postino Park Place, 50% off apps at Yard House — the Irvine Spectrum and Park Place happy hour guide for OC\'s most underrated bar scene.', url: '/blog/best-happy-hours-irvine.html', date: 'June 13, 2026', readTime: '8 min' },
   { city: 'orange-county', img: 'https://images.unsplash.com/photo-1567521464027-f127ff144326?w=800&q=80', tag: 'Neighborhood Guide', author: 'Sofia', title: 'Best Happy Hours in Costa Mesa (2026)', excerpt: 'Aperitivo cocktails at Ospi, best margarita in California at Playa Mesa, 50% off tapas at Cafe Sevilla — the 17th Street happy hour guide Costa Mesa locals keep to themselves.', url: '/blog/best-happy-hours-costa-mesa.html', date: 'June 11, 2026', readTime: '8 min' },
   { city: 'san-diego', img: 'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=800&q=80', tag: 'Neighborhood Guide', author: 'Ryan', title: 'Best Happy Hours in Ocean Beach, San Diego (2026)', excerpt: '$6 drafts at Raglan Public House, $5 pints at Wonderland Ocean Pub, live music every night at The Holding Company — the Newport Avenue happy hour guide OB regulars keep to themselves.', url: '/blog/best-happy-hours-ocean-beach-san-diego.html', date: 'June 10, 2026', readTime: '8 min' },
