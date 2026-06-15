@@ -122,8 +122,11 @@ export default async function handler(req) {
     const displayArea = target ? `${target.name}, ${cityNameStr}` : cityNameStr;
     const shortArea = target ? target.name : cityNameStr;
 
-    // URLs.
+    // URLs. `basePath` (absolute, www) backs the canonical/og tags; `basePathRel`
+    // (relative) backs the on-page <a href> nav so every internal link is a plain
+    // crawlable relative anchor that resolves to the current (www) host.
     const basePath = target ? `${SITE_URL}/happy-hour/${city}/${target.slug}` : `${SITE_URL}/happy-hour/${city}`;
+    const basePathRel = target ? `/happy-hour/${city}/${target.slug}` : `/happy-hour/${city}`;
     const canonical = activeDay ? `${basePath}?day=${activeDay.q}` : basePath;
 
     // Headings / meta.
@@ -149,15 +152,15 @@ export default async function handler(req) {
 
     // ── Day filter chips ──
     const dayChips = DAYS.map(d => {
-      const href = `${basePath}?day=${d.q}`;
+      const href = `${basePathRel}?day=${d.q}`;
       const cls = activeDay && activeDay.q === d.q ? 'hh-chip hh-chip--on' : 'hh-chip';
       return `<a class="${cls}" href="${href}">${d.label}</a>`;
     }).join('');
-    const allDaysChip = `<a class="hh-chip${activeDay ? '' : ' hh-chip--on'}" href="${basePath}">All days</a>`;
+    const allDaysChip = `<a class="hh-chip${activeDay ? '' : ' hh-chip--on'}" href="${basePathRel}">All days</a>`;
 
     // ── Neighborhood chips (city page only) ──
     const hoodChips = !target ? neighborhoods.map(n =>
-      `<a class="hh-chip" href="${SITE_URL}/happy-hour/${city}/${n.slug}">${esc(n.name)} <span>(${n.count})</span></a>`
+      `<a class="hh-chip" href="/happy-hour/${city}/${n.slug}">${esc(n.name)} <span>(${n.count})</span></a>`
     ).join('') : '';
 
     // ── Venue list ──
@@ -168,7 +171,7 @@ export default async function handler(req) {
       if (!target && v.neighborhood) metaBits.push(esc(v.neighborhood));
       if (v.hours) metaBits.push(esc(v.hours));
       return `<li class="hh-venue">
-        <a class="hh-venue-name" href="${SITE_URL}/spots/${slug}">${esc(v.name)}</a>
+        <a class="hh-venue-name" href="/spots/${slug}">${esc(v.name)}</a>
         ${metaBits.length ? `<span class="hh-venue-meta">${metaBits.join(' · ')}</span>` : ''}
         ${t ? `<span class="hh-venue-deal">🍹 ${esc(t)}</span>` : ''}
       </li>`;
@@ -340,7 +343,7 @@ export default async function handler(req) {
 
 <main class="hh-wrap">
   <nav class="hh-crumbs">
-    <a href="/">Home</a> › <a href="${SITE_URL}/happy-hour/${city}">${esc(cityNameStr)} Happy Hour</a>${target ? ` › <span>${esc(target.name)}</span>` : ''}
+    <a href="/">Home</a> › <a href="/happy-hour/${city}">${esc(cityNameStr)} Happy Hour</a>${target ? ` › <span>${esc(target.name)}</span>` : ''}
   </nav>
 
   <div class="hh-head">
@@ -361,7 +364,7 @@ export default async function handler(req) {
   <div class="hh-count">${count} ${count === 1 ? 'spot' : 'spots'}${activeDay ? ` with ${activeDay.label} happy hour` : ''} in ${esc(displayArea)}</div>
   <ul class="hh-list">${venueList}</ul>
 
-  ${target ? `<a class="hh-back" href="${SITE_URL}/happy-hour/${city}">← All ${esc(cityNameStr)} happy hours</a>` : `<a class="hh-back" href="/spots">← Browse every spot on Spotd</a>`}
+  ${target ? `<a class="hh-back" href="/happy-hour/${city}">← All ${esc(cityNameStr)} happy hours</a>` : `<a class="hh-back" href="/spots">← Browse every spot on Spotd</a>`}
 
   <h2 class="hh-section-title">Frequently Asked Questions</h2>
   <div class="blog-faq">${faqHtml}</div>
@@ -374,8 +377,8 @@ export default async function handler(req) {
     <div class="blog-footer-links">
       <a href="/">Home</a>
       <a href="/spots">All Spots</a>
-      <a href="${SITE_URL}/happy-hour/san-diego">San Diego</a>
-      <a href="${SITE_URL}/happy-hour/orange-county">Orange County</a>
+      <a href="/happy-hour/san-diego">San Diego</a>
+      <a href="/happy-hour/orange-county">Orange County</a>
       <a href="/blog.html">Blog</a>
       <a href="/about.html">About</a>
     </div>
