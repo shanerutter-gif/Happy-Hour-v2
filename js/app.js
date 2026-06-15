@@ -5866,15 +5866,17 @@ async function loadReviewAverages(citySlug) {
 async function loadGoingTonight(citySlug) {
   try {
     const today = new Date().toISOString().slice(0, 10);
-    const counts = await fetchCheckInCounts(citySlug, today);
+    // Fire both queries in parallel — city counts and user's own check-ins are
+    // independent. For logged-out users the second resolves immediately.
+    const [counts, mine] = await Promise.all([
+      fetchCheckInCounts(citySlug, today),
+      currentUser ? fetchMyCheckIns(currentUser.id, today) : Promise.resolve([]),
+    ]);
     state.goingCounts = {};
     (counts || []).forEach(r => { state.goingCounts[r.venue_id] = r.count; });
     state.goingByMe = new Set();
     state.todayCheckInCount = 0;
-    if (currentUser) {
-      const mine = await fetchMyCheckIns(currentUser.id, today);
-      (mine || []).forEach(r => { state.goingByMe.add(r.venue_id); state.todayCheckInCount++; });
-    }
+    (mine || []).forEach(r => { state.goingByMe.add(r.venue_id); state.todayCheckInCount++; });
   } catch(e) { console.warn('Check-in load failed', e); }
 }
 
@@ -7079,6 +7081,7 @@ function skipToTagFriends(venueId) {
 
 // ── YOUR NEWS (ARTICLE FEED) ──────────────────────────
 const NEWS_ARTICLES = [
+  { city: 'san-diego', img: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800&q=80', tag: 'Neighborhood Guide', author: 'Emma', title: 'Best Happy Hours in the Gaslamp Quarter, San Diego (2026)', excerpt: '51% off drinks at GARAGE, half-off all alcohol at Barleymash, 50% off craft cocktails at Rustic Root — the downtown San Diego happy hour guide locals actually use.', url: '/blog/best-happy-hours-gaslamp-san-diego.html', date: 'June 15, 2026', readTime: '8 min' },
   { city: 'orange-county', img: 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=800&q=80', tag: 'Neighborhood Guide', author: 'Priya', title: 'Best Happy Hours in Irvine, CA (2026)', excerpt: 'Daily deals at Bosscat Kitchen, $7 wine at Postino Park Place, 50% off apps at Yard House — the Irvine Spectrum and Park Place happy hour guide for OC\'s most underrated bar scene.', url: '/blog/best-happy-hours-irvine.html', date: 'June 13, 2026', readTime: '8 min' },
   { city: 'orange-county', img: 'https://images.unsplash.com/photo-1567521464027-f127ff144326?w=800&q=80', tag: 'Neighborhood Guide', author: 'Sofia', title: 'Best Happy Hours in Costa Mesa (2026)', excerpt: 'Aperitivo cocktails at Ospi, best margarita in California at Playa Mesa, 50% off tapas at Cafe Sevilla — the 17th Street happy hour guide Costa Mesa locals keep to themselves.', url: '/blog/best-happy-hours-costa-mesa.html', date: 'June 11, 2026', readTime: '8 min' },
   { city: 'san-diego', img: 'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=800&q=80', tag: 'Neighborhood Guide', author: 'Ryan', title: 'Best Happy Hours in Ocean Beach, San Diego (2026)', excerpt: '$6 drafts at Raglan Public House, $5 pints at Wonderland Ocean Pub, live music every night at The Holding Company — the Newport Avenue happy hour guide OB regulars keep to themselves.', url: '/blog/best-happy-hours-ocean-beach-san-diego.html', date: 'June 10, 2026', readTime: '8 min' },
