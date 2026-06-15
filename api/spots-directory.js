@@ -96,7 +96,7 @@ export default async function handler() {
         const slug = slugify(v.name);
         const t = teaser(v.deals);
         return `<li class="dir-item">
-          <a class="dir-link" href="${SITE_URL}/spots/${slug}">${esc(v.name)}</a>
+          <a class="dir-link" href="/spots/${slug}">${esc(v.name)}</a>
           <span class="dir-meta">${esc(v.neighborhood || '')}${t ? ` · ${esc(t)}` : ''}</span>
         </li>`;
       }).join('');
@@ -187,7 +187,7 @@ export default async function handler() {
 <main class="dir-wrap">
   <div class="dir-head">
     <h1 class="dir-h1">Every Happy Hour Spot on Spotd</h1>
-    <p class="dir-intro">Browse all ${total} happy hour bars and restaurants on Spotd, organised by city. Tap any spot for its deals, hours, reviews and map. Looking for a specific area? Try our <a href="${SITE_URL}/happy-hour/san-diego">San Diego happy hour guide</a>.</p>
+    <p class="dir-intro">Browse all ${total} happy hour bars and restaurants on Spotd, organised by city. Tap any spot for its deals, hours, reviews and map. Looking for a specific area? Try our <a href="/happy-hour/san-diego">San Diego happy hour guide</a>.</p>
     <nav class="dir-jumps">${jumpNav}</nav>
   </div>
   ${sections}
@@ -199,8 +199,8 @@ export default async function handler() {
     <p class="blog-footer-copy">&copy; 2026 Spotd. Always verify times directly with venues.</p>
     <div class="blog-footer-links">
       <a href="/">Home</a>
-      <a href="${SITE_URL}/spots">All Spots</a>
-      <a href="${SITE_URL}/happy-hour/san-diego">San Diego</a>
+      <a href="/spots">All Spots</a>
+      <a href="/happy-hour/san-diego">San Diego</a>
       <a href="/blog.html">Blog</a>
       <a href="/about.html">About</a>
       <a href="/business-landing.html">For Business</a>
