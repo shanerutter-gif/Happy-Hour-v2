@@ -1827,6 +1827,18 @@ const _feedVideoObserver = new IntersectionObserver((entries) => {
 }, { threshold: 0.5 });
 
 function observeFeedVideos() {
+  // CRITICAL: drop references to the PREVIOUS render's wraps before re-observing.
+  // Every feed re-render (tab switch, pull-to-refresh, city change, profile saved
+  // tab, venue modal) replaces innerHTML, orphaning the old `.social-video-wrap`
+  // nodes. An IntersectionObserver keeps a STRONG reference to each target, so
+  // those orphaned wraps — and their heavy <video> elements / decoded frames —
+  // could never be garbage-collected. On iOS WKWebView that memory climbs with
+  // every navigation until the web-content process is killed (→ reload → lands on
+  // Discover), which is the intermittent "crash when moving around the Share tab".
+  // Disconnecting first, then re-observing every LIVE wrap document-wide, releases
+  // the orphans while keeping all currently-attached videos observed.
+  _feedVideoPreloader.disconnect();
+  _feedVideoObserver.disconnect();
   document.querySelectorAll('.social-video-wrap').forEach(wrap => {
     _feedVideoPreloader.observe(wrap);
     _feedVideoObserver.observe(wrap);
