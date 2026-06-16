@@ -577,6 +577,7 @@ function _setActiveNavBtn(btn) {
 
 function bottomNavFeed(btn) {
   if(typeof haptic==='function')haptic('light');
+  track('tab_change', { tab: 'discover' });
   _setActiveNavBtn(btn);
   _navHideAll();
   if (!state.city) showHome();
@@ -588,6 +589,7 @@ function bottomNavFeed(btn) {
 
 function bottomNavSocial(btn) {
   if(typeof haptic==='function')haptic('light');
+  track('tab_change', { tab: 'share' });
   _setActiveNavBtn(btn);
   _navHideAll('social');
   openSocialTab();
@@ -595,6 +597,7 @@ function bottomNavSocial(btn) {
 
 function bottomNavNews(btn) {
   if(typeof haptic==='function')haptic('light');
+  track('tab_change', { tab: 'blog' });
   _setActiveNavBtn(btn);
   _navHideAll('news');
   openNewsTab();
@@ -602,6 +605,7 @@ function bottomNavNews(btn) {
 
 function bottomNavProfile(btn) {
   if(typeof haptic==='function')haptic('light');
+  track('tab_change', { tab: 'profile' });
   _setActiveNavBtn(btn);
   _navHideAll('profile');
   if (currentUser) openProfile();
@@ -3001,7 +3005,7 @@ async function openModal(id, type = 'venue') {
   const items = type === 'venue' ? state.venues : state.events;
   const item  = items.find(x => String(x.id) === String(id));
   if (!item) return;
-  track(type === 'event' ? 'event_modal_opened' : 'venue_modal_opened', { item_id: id });
+  track(type === 'event' ? 'event_modal_opened' : 'venue_modal_opened', { item_id: id, name: item.name, city: state.city?.slug });
   renderModal(item, type, []);
   // Double-rAF before opening the overlay so the modal's initial markup has
   // a clean paint before the slide-up animation starts — avoids a snap on
@@ -7175,6 +7179,7 @@ const NEWS_ARTICLES = [
 
 function openNewsTab() {
   document.getElementById('newsTab').classList.add('tab-open');
+  track('blog_tab_viewed', { city: state.city?.slug });
   renderNewsFeed();
 }
 
@@ -7202,7 +7207,7 @@ function renderNewsFeed() {
   var rest = articles.slice(1);
   container.innerHTML =
     '<div class="news-city-label">' + cityName + '</div>' +
-    '<a href="' + hero.url + '?inapp=1" class="news-hero">' +
+    '<a href="' + hero.url + '?inapp=1" class="news-hero" onclick="track(\'blog_article_opened\',{url:\'' + hero.url + '\',city:\'' + citySlug + '\'})">' +
       '<img src="' + hero.img + '" alt="" class="news-hero-img" loading="eager">' +
       '<div class="news-hero-overlay"></div>' +
       '<div class="news-hero-content">' +
@@ -7213,7 +7218,7 @@ function renderNewsFeed() {
     '</a>' +
     '<div class="news-grid">' +
     rest.map(function(a) {
-      return '<a href="' + a.url + '?inapp=1" class="news-card">' +
+      return '<a href="' + a.url + '?inapp=1" class="news-card" onclick="track(\'blog_article_opened\',{url:\'' + a.url + '\',city:\'' + citySlug + '\'})">' +
         '<div class="news-card-img-wrap">' +
           '<img src="' + a.img + '" alt="" class="news-card-img" loading="lazy" decoding="async">' +
         '</div>' +
