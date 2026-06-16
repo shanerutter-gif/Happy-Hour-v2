@@ -1784,12 +1784,39 @@ async function submitCommentSheet(postId, postType) {
 }
 
 // ── Feed video controls ──────────────────────────────────
+// Feed videos are TAP-TO-PLAY — they NEVER autoplay. The <video> elements render
+// with preload="none" and no src (just the poster), so scrolling the feed decodes
+// nothing. Only one video ever holds a decoder at a time: tapping one releases any
+// other, and a playing video is released the moment it scrolls out of view. This
+// is deliberate — inline autoplay of arbitrary user videos is a memory risk on iOS
+// WKWebView. (The previous autoplay/preload observers targeted a `.social-video-wrap`
+// class that the Jun-13 feed redesign renamed to `.sf-hero-media`, so they silently
+// observed nothing — videos already weren't autoplaying; this just makes it correct
+// and adds proper cleanup.)
+let _activeFeedVideo = null;
+
+// Pause a feed video and free its decoder. On WebKit, pause()+clear src+load() is
+// what actually releases the native media resource (detaching/hiding does not).
+// data-src is kept so a later tap can reload the same video.
+function _pauseReleaseVideo(vid) {
+  if (!vid) return;
+  try { vid.pause(); vid.removeAttribute('src'); vid.load(); } catch (e) {}
+  const wrap = vid.closest && vid.closest('.sf-hero-media');
+  const ov = wrap && wrap.querySelector('.social-video-play-overlay');
+  if (ov) ov.style.opacity = '1';
+  if (_activeFeedVideo === vid) _activeFeedVideo = null;
+}
+
 function toggleFeedVideo(wrap) {
   const vid = wrap.querySelector('video');
   const overlay = wrap.querySelector('.social-video-play-overlay');
   if (!vid) return;
   if (vid.paused) {
+    // One decoder at a time: stop whatever was playing first.
+    if (_activeFeedVideo && _activeFeedVideo !== vid) _pauseReleaseVideo(_activeFeedVideo);
+    if (!vid.getAttribute('src') && vid.dataset.src) vid.src = vid.dataset.src;
     vid.play().catch(() => {});
+    _activeFeedVideo = vid;
     if (overlay) overlay.style.opacity = '0';
   } else {
     vid.pause();
@@ -1798,62 +1825,34 @@ function toggleFeedVideo(wrap) {
 }
 
 function toggleFeedVideoMute(btn) {
-  const vid = btn.closest('.social-video-wrap')?.querySelector('video');
+  const vid = btn.closest('.sf-hero-media')?.querySelector('video');
   if (!vid) return;
   vid.muted = !vid.muted;
   btn.innerHTML = vid.muted ? (ICN.volumeOff || '🔇') : (ICN.volumeOn || '🔊');
 }
 
-// Preload observer — loads video src when approaching viewport
-const _preloadMargin = (navigator.connection?.effectiveType === '4g') ? '300px' : '100px';
-const _feedVideoPreloader = new IntersectionObserver((entries) => {
-  entries.forEach(entry => {
-    if (!entry.isIntersecting) return;
-    const vid = entry.target.querySelector('video[data-src]');
-    if (vid && !vid.src) {
-      vid.src = vid.dataset.src;
-      vid.removeAttribute('data-src');
-    }
-    _feedVideoPreloader.unobserve(entry.target);
-  });
-}, { rootMargin: _preloadMargin });
-
-// Play/pause observer — autoplay muted when visible, pause when out
+// Cleanup observer: when a wrap holding a PLAYING video scrolls out of view, pause
+// and release it so a tapped video can't keep decoding off-screen. It never plays
+// on the way in — that's the tap's job.
 const _feedVideoObserver = new IntersectionObserver((entries) => {
   entries.forEach(entry => {
+    if (entry.isIntersecting) return;
     const vid = entry.target.querySelector('video');
-    if (!vid) return;
-    const overlay = entry.target.querySelector('.social-video-play-overlay');
-    if (entry.isIntersecting) {
-      // Ensure src is loaded before playing
-      if (vid.dataset.src && !vid.src) { vid.src = vid.dataset.src; vid.removeAttribute('data-src'); }
-      vid.play().catch(() => {});
-      if (overlay) overlay.style.opacity = '0';
-    } else {
-      vid.pause();
-      if (overlay) overlay.style.opacity = '1';
-    }
+    if (vid && !vid.paused) _pauseReleaseVideo(vid);
   });
-}, { threshold: 0.5 });
+}, { threshold: 0.01 });
 
-// Wraps the two feed observers are currently watching. We keep our own list so
-// that after innerHTML rebuilds (which detach the old wraps) we can still reach
-// them to release their <video> decoders — a detached node is unreachable via
+// Registry of the wraps the cleanup observer is watching, so that after an
+// innerHTML rebuild (which detaches the old wraps) we can still reach them to
+// release any loaded <video> decoder — a detached node is unreachable via
 // querySelector, but it's still in this array until we clear it.
 let _observedVideoWraps = [];
 
-// Hard-release a single video's native decode resources. Detaching or pausing a
-// <video> does NOT free its decoder/buffers on WebKit; clearing src + load() does.
 function _releaseVideo(wrap) {
   const v = wrap && wrap.querySelector && wrap.querySelector('video');
   if (!v) return;
-  try {
-    v.pause();
-    v.removeAttribute('src');
-    // Also clear any not-yet-loaded lazy src so it can't reload after teardown.
-    if (v.dataset) delete v.dataset.src;
-    v.load(); // forces WebKit to drop the media resource now
-  } catch (e) {}
+  try { v.pause(); v.removeAttribute('src'); v.load(); } catch (e) {}
+  if (_activeFeedVideo === v) _activeFeedVideo = null;
 }
 
 // Release every tracked wrap that has fallen out of the live document.
@@ -1865,37 +1864,24 @@ function _teardownOrphanFeedVideos() {
 // feed keeps its <video> decoders alive otherwise, and reopening just re-renders).
 function teardownAllFeedVideos() {
   try {
-    _feedVideoPreloader.disconnect();
     _feedVideoObserver.disconnect();
     _observedVideoWraps.forEach(_releaseVideo);
     _observedVideoWraps = [];
+    _activeFeedVideo = null;
   } catch (e) {}
 }
 
 function observeFeedVideos() {
-  // CRITICAL: drop references to the PREVIOUS render's wraps before re-observing.
-  // Every feed re-render (tab switch, pull-to-refresh, city change, profile saved
-  // tab, venue modal) replaces innerHTML, orphaning the old `.social-video-wrap`
-  // nodes. An IntersectionObserver keeps a STRONG reference to each target, so
-  // those orphaned wraps — and their heavy <video> elements / decoded frames —
-  // could never be garbage-collected. On iOS WKWebView that memory climbs with
-  // every navigation until the web-content process is killed (→ reload → lands on
-  // Discover), which is the intermittent "crash when moving around the Share tab".
-  // Disconnecting first, then re-observing every LIVE wrap document-wide, releases
-  // the orphans while keeping all currently-attached videos observed.
-  //
-  // But disconnecting the observers is NOT enough on its own: on WebKit a detached
-  // <video> keeps its decode pipeline + buffered media in native memory until GC
-  // eventually runs (if ever). So we ALSO explicitly tear down any previously-
-  // tracked wrap that is no longer in the document — pause it, drop its src, and
-  // call load() to release the decoder immediately. This is the part that actually
-  // frees the heavy iOS video memory between feed re-renders.
+  // Release any previously-tracked video wrap that left the document (innerHTML
+  // rebuilds orphan them — and a detached node is unreachable via querySelector,
+  // hence the _observedVideoWraps registry), then re-track the live ones. On
+  // WebKit a detached <video> keeps its decode pipeline + buffered media in native
+  // memory until GC, so we explicitly pause+clear-src+load() to free it now.
   _teardownOrphanFeedVideos();
-  _feedVideoPreloader.disconnect();
   _feedVideoObserver.disconnect();
   _observedVideoWraps = [];
-  document.querySelectorAll('.social-video-wrap').forEach(wrap => {
-    _feedVideoPreloader.observe(wrap);
+  document.querySelectorAll('.sf-hero-media').forEach(wrap => {
+    if (!wrap.querySelector('video')) return; // only video posts need tracking
     _feedVideoObserver.observe(wrap);
     _observedVideoWraps.push(wrap);
   });
