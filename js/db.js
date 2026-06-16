@@ -34,10 +34,9 @@ function _trackPlatform() {
   return 'web';
 }
 function track(eventName, params) {
+  if (!eventName) return;
+  const safe = {};
   try {
-    if (typeof gtag !== 'function') return;
-    if (!eventName) return;
-    const safe = {};
     if (params && typeof params === 'object') {
       const blocked = new Set(['email','password','token','phone','full_name','display_name']);
       for (const k of Object.keys(params)) {
@@ -53,9 +52,82 @@ function track(eventName, params) {
     // Auto-tag every event with the running platform (GA4 custom dimension
     // "platform") so native-app vs web traffic is segmentable.
     safe.platform = _trackPlatform();
-    gtag('event', String(eventName).slice(0, 40), safe);
+    if (typeof gtag === 'function') gtag('event', String(eventName).slice(0, 40), safe);
   } catch (e) { /* never let analytics break the app */ }
+  // Tee to our own backend so events are captured per-user for the admin
+  // User Activity dashboard. Runs even when gtag is unavailable (blocked / not
+  // yet loaded), so the backend log is complete.
+  try { captureEvent(eventName, safe); } catch (e) { /* analytics must never break the app */ }
 }
+
+// ── BACKEND EVENT CAPTURE ─────────────────────────────
+// Buffers track() events and flushes them to /api/track-event in small batches.
+// Server-side, the signed-in user is derived from _accessToken (sent as the
+// bearer) so events are attributed without trusting client-supplied ids; guests
+// are captured against an anonymous per-tab session id only. Fire-and-forget:
+// every path is swallowed so analytics can never disrupt the UI.
+const _AE_ENDPOINT   = '/api/track-event';
+const _AE_FLUSH_MS   = 8000;
+const _AE_MAX_BUFFER = 25;
+let   _aeBuffer  = [];
+let   _aeTimer   = null;
+let   _aeSession = null;
+
+function _aeSessionId() {
+  if (_aeSession) return _aeSession;
+  try {
+    _aeSession = sessionStorage.getItem('spotd_ae_sid');
+    if (!_aeSession) {
+      _aeSession = (self.crypto && crypto.randomUUID)
+        ? crypto.randomUUID()
+        : 's_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+      sessionStorage.setItem('spotd_ae_sid', _aeSession);
+    }
+  } catch (e) { _aeSession = 's_' + Date.now(); }
+  return _aeSession;
+}
+
+function captureEvent(name, props) {
+  if (!name) return;
+  try {
+    _aeBuffer.push({
+      n: String(name).slice(0, 60),
+      p: (props && typeof props === 'object') ? props : {},
+      path: location.pathname,
+      t: Date.now(),
+    });
+    if (_aeBuffer.length >= _AE_MAX_BUFFER) { _aeFlush(); return; }
+    if (!_aeTimer) _aeTimer = setTimeout(_aeFlush, _AE_FLUSH_MS);
+  } catch (e) { /* swallow */ }
+}
+
+function _aeFlush() {
+  if (_aeTimer) { clearTimeout(_aeTimer); _aeTimer = null; }
+  if (!_aeBuffer.length) return;
+  const batch = _aeBuffer;
+  _aeBuffer = [];
+  let payload;
+  try {
+    payload = JSON.stringify({
+      session_id: _aeSessionId(),
+      platform:   _trackPlatform(),
+      events:     batch,
+    });
+  } catch (e) { return; }
+  const headers = { 'Content-Type': 'application/json' };
+  if (_accessToken) headers['Authorization'] = 'Bearer ' + _accessToken;
+  try {
+    // keepalive lets the request outlive a page navigation / app backgrounding
+    // (so we don't lose the last actions), and still carries the auth header
+    // (which navigator.sendBeacon cannot).
+    fetch(_AE_ENDPOINT, { method: 'POST', headers, body: payload, keepalive: true }).catch(() => {});
+  } catch (e) { /* swallow */ }
+}
+
+// Flush the buffer when the app is hidden or being torn down so trailing
+// actions (e.g. tapping a blog link that navigates away) aren't lost.
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') _aeFlush(); });
+window.addEventListener('pagehide', _aeFlush);
 
 // ── AUTH STATE ─────────────────────────────────────────
 let currentUser   = null;

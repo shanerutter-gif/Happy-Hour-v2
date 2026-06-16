@@ -22,6 +22,7 @@
     { "src": "/api/auth",                  "dest": "/api/auth.js" },
     { "src": "/api/loops-onboarding",      "dest": "/api/loops-onboarding.js" },
     { "src": "/api/loops-event",           "dest": "/api/loops-event.js" },
+    { "src": "/api/track-event",           "dest": "/api/track-event.js" },
     { "src": "/api/loops-update-contact",  "dest": "/api/loops-update-contact.js" },
     { "src": "/api/loops-inactive",        "dest": "/api/loops-inactive.js" },
     { "src": "/api/daily-deals",           "dest": "/api/daily-deals.js" },
