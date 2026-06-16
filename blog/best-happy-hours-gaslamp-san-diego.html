@@ -133,19 +133,29 @@
 <link href="https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@400;700;800&family=DM+Sans:wght@400;500;600&family=DM+Mono&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <noscript><link href="https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@400;700;800&family=DM+Sans:wght@400;500;600&family=DM+Mono&display=swap" rel="stylesheet"></noscript>
 
-<link rel="stylesheet" href="../css/blog.css">
-<link rel="icon" href="../icons/icon-192.png">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="stylesheet" href="/css/blog.css">
+<link rel="icon" href="/icons/icon-192.png">
 </head>
 <body>
 
+<!-- Reading Progress Bar -->
+<div class="blog-progress" id="blogProgress"></div>
+
 <nav class="blog-nav">
-  <a href="https://www.spotd.biz" class="blog-nav-logo">spotd</a>
+  <a href="/" class="nav-brand">
+    <img src="/spotd_logo_v5.png" alt="Spotd" class="nav-logo-img"
+      onerror="this.style.display='none';this.nextElementSibling.style.display='inline'">
+    <span style="display:none">Spotd</span>
+  </a>
   <div class="blog-nav-links">
-    <a href="https://www.spotd.biz/blog.html">Blog</a>
-    <a href="https://www.spotd.biz/about.html">About</a>
-    <a href="https://www.spotd.biz" class="blog-nav-cta">Find Happy Hours →</a>
+    <a href="/" class="blog-nav-link">App</a>
+    <a href="/blog.html" class="blog-nav-link blog-nav-link--active">Blog</a>
+    <a href="/" class="blog-nav-cta">Open App</a>
   </div>
+  <a href="javascript:history.back()" class="blog-nav-back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>Back</a>
 </nav>
+<script>if(window.navigator.standalone||window.matchMedia('(display-mode:standalone)').matches||/[?&]inapp=1/.test(location.search))document.documentElement.classList.add('standalone');</script>
 
 <article class="blog-article">
   <div class="blog-article-header">
@@ -281,5 +291,18 @@
   </div>
 </footer>
 
+<script>
+// Reading progress bar
+(function() {
+  var bar = document.getElementById('blogProgress');
+  if (!bar) return;
+  window.addEventListener('scroll', function() {
+    var doc = document.documentElement;
+    var scrollTop = doc.scrollTop || document.body.scrollTop;
+    var scrollHeight = doc.scrollHeight - doc.clientHeight;
+    bar.style.width = (scrollHeight > 0 ? (scrollTop / scrollHeight) * 100 : 0) + '%';
+  }, { passive: true });
+})();
+</script>
 </body>
 </html>
