@@ -3011,9 +3011,9 @@ function renderModal(v, type, reviews) {
     <div class="modal-hero-wrap${photos.length > 1 ? ' modal-hero-carousel' : ''}"${photos.length > 1 ? '' : ` onclick="openPhotoLightbox('${esc(photo)}','${esc(v.name)}')"`}>
       ${photos.length > 1
         ? `<div class="modal-hero-track" onscroll="_syncModalDots(this)">
-            ${photos.map(p => `<div class="modal-hero-slide" onclick="openPhotoLightbox('${esc(p)}','${esc(v.name)}')"><img src="${esc(p)}" alt="${esc(v.name)}" loading="lazy" decoding="async" onerror="this.style.display='none'"></div>`).join('')}
+            ${photos.map((p, i) => `<div class="modal-hero-slide" onclick="openPhotoLightbox('${esc(p)}','${esc(v.name)}')"><img src="${esc(p)}" alt="${esc(v.name)}" ${i === 0 ? 'loading="eager" fetchpriority="high"' : 'loading="lazy"'} decoding="async" onerror="this.style.display='none'"></div>`).join('')}
           </div>`
-        : `<img src="${esc(photo)}" alt="${esc(v.name)}" loading="lazy" decoding="async" onerror="this.closest('.modal-hero-wrap').style.background='linear-gradient(135deg,#2A1F14,#1A1208)';this.remove()">`}
+        : `<img src="${esc(photo)}" alt="${esc(v.name)}" loading="eager" fetchpriority="high" decoding="async" onerror="this.closest('.modal-hero-wrap').style.background='linear-gradient(135deg,#2A1F14,#1A1208)';this.remove()">`}
       <div class="modal-hero-grad"></div>
       ${!isVenue ? `<div class="modal-hero-tag">${esc(v.event_type || 'Event')}</div>` : ''}
       <div class="modal-hero-name">${esc(v.name)}${v.owner_verified ? ' ✓' : ''}</div>
@@ -7081,6 +7081,7 @@ function skipToTagFriends(venueId) {
 
 // ── YOUR NEWS (ARTICLE FEED) ──────────────────────────
 const NEWS_ARTICLES = [
+  { city: 'orange-county', img: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&q=80', tag: 'Neighborhood Guide', author: 'Tyler', title: 'Best Happy Hours in Fullerton, CA (2026)', excerpt: 'Award-winning margaritas at Madero 1899, 140+ whiskeys at Hopscotch Tavern, $5 house margs at Farolito — downtown Fullerton is quietly one of the best happy hour scenes in Orange County.', url: '/blog/best-happy-hours-fullerton.html', date: 'June 16, 2026', readTime: '8 min' },
   { city: 'san-diego', img: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800&q=80', tag: 'Neighborhood Guide', author: 'Emma', title: 'Best Happy Hours in the Gaslamp Quarter, San Diego (2026)', excerpt: '51% off drinks at GARAGE, half-off all alcohol at Barleymash, 50% off craft cocktails at Rustic Root — the downtown San Diego happy hour guide locals actually use.', url: '/blog/best-happy-hours-gaslamp-san-diego.html', date: 'June 15, 2026', readTime: '8 min' },
   { city: 'orange-county', img: 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=800&q=80', tag: 'Neighborhood Guide', author: 'Priya', title: 'Best Happy Hours in Irvine, CA (2026)', excerpt: 'Daily deals at Bosscat Kitchen, $7 wine at Postino Park Place, 50% off apps at Yard House — the Irvine Spectrum and Park Place happy hour guide for OC\'s most underrated bar scene.', url: '/blog/best-happy-hours-irvine.html', date: 'June 13, 2026', readTime: '8 min' },
   { city: 'orange-county', img: 'https://images.unsplash.com/photo-1567521464027-f127ff144326?w=800&q=80', tag: 'Neighborhood Guide', author: 'Sofia', title: 'Best Happy Hours in Costa Mesa (2026)', excerpt: 'Aperitivo cocktails at Ospi, best margarita in California at Playa Mesa, 50% off tapas at Cafe Sevilla — the 17th Street happy hour guide Costa Mesa locals keep to themselves.', url: '/blog/best-happy-hours-costa-mesa.html', date: 'June 11, 2026', readTime: '8 min' },
