@@ -1542,6 +1542,14 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   margin: 0 0 6px;
   box-shadow: none;
   -webkit-tap-highlight-color: transparent;
+  /* Skip layout/paint AND image decode for off-screen feed posts. The full-bleed
+     redesign made every feed photo full-width, so without this all ~60 posts'
+     large images decode at once and the cumulative bitmap memory (on top of the
+     other tabs that stay resident) was crashing the iOS WKWebView content process
+     when scrolling/navigating into the Share feed. `auto <h>` remembers the real
+     height after first render so the scrollbar doesn't jump. */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 460px;
 }
 .sf-hero .sf-actions { position: relative; z-index: 3; }
 .sf-hero-media {
@@ -1647,6 +1655,9 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   border-bottom: 1px solid var(--sf-hairline, rgba(42,31,20,0.08));
   -webkit-tap-highlight-color: transparent;
   transition: background .15s ease;
+  /* Off-screen text posts skip layout/paint too (see .sf-hero note). */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 150px;
 }
 .sf-wide:active { background: var(--bg2); }
 .sf-wide-header {
