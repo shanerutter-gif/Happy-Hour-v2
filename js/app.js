@@ -642,6 +642,12 @@ function maybeShowSocialNudge() {
 }
 function closeSocialTab() {
   document.getElementById('socialTab').classList.remove('tab-open');
+  // Release the feed's video decoders when leaving the tab. The feed DOM stays in
+  // place (hidden), so without this every <video> you scrolled past keeps its
+  // native decode buffer alive in the background — a big chunk of the memory that
+  // was tipping the iOS WKWebView over when navigating around the app. Reopening
+  // the tab re-renders the feed and reloads visible videos via the observers.
+  teardownAllFeedVideos();
 }
 
 function openAddSpotForm() {
@@ -1826,6 +1832,42 @@ const _feedVideoObserver = new IntersectionObserver((entries) => {
   });
 }, { threshold: 0.5 });
 
+// Wraps the two feed observers are currently watching. We keep our own list so
+// that after innerHTML rebuilds (which detach the old wraps) we can still reach
+// them to release their <video> decoders — a detached node is unreachable via
+// querySelector, but it's still in this array until we clear it.
+let _observedVideoWraps = [];
+
+// Hard-release a single video's native decode resources. Detaching or pausing a
+// <video> does NOT free its decoder/buffers on WebKit; clearing src + load() does.
+function _releaseVideo(wrap) {
+  const v = wrap && wrap.querySelector && wrap.querySelector('video');
+  if (!v) return;
+  try {
+    v.pause();
+    v.removeAttribute('src');
+    // Also clear any not-yet-loaded lazy src so it can't reload after teardown.
+    if (v.dataset) delete v.dataset.src;
+    v.load(); // forces WebKit to drop the media resource now
+  } catch (e) {}
+}
+
+// Release every tracked wrap that has fallen out of the live document.
+function _teardownOrphanFeedVideos() {
+  _observedVideoWraps.forEach(wrap => { if (!wrap.isConnected) _releaseVideo(wrap); });
+}
+
+// Tear down ALL tracked feed videos (used when leaving the Share tab — the hidden
+// feed keeps its <video> decoders alive otherwise, and reopening just re-renders).
+function teardownAllFeedVideos() {
+  try {
+    _feedVideoPreloader.disconnect();
+    _feedVideoObserver.disconnect();
+    _observedVideoWraps.forEach(_releaseVideo);
+    _observedVideoWraps = [];
+  } catch (e) {}
+}
+
 function observeFeedVideos() {
   // CRITICAL: drop references to the PREVIOUS render's wraps before re-observing.
   // Every feed re-render (tab switch, pull-to-refresh, city change, profile saved
@@ -1837,11 +1879,21 @@ function observeFeedVideos() {
   // Discover), which is the intermittent "crash when moving around the Share tab".
   // Disconnecting first, then re-observing every LIVE wrap document-wide, releases
   // the orphans while keeping all currently-attached videos observed.
+  //
+  // But disconnecting the observers is NOT enough on its own: on WebKit a detached
+  // <video> keeps its decode pipeline + buffered media in native memory until GC
+  // eventually runs (if ever). So we ALSO explicitly tear down any previously-
+  // tracked wrap that is no longer in the document — pause it, drop its src, and
+  // call load() to release the decoder immediately. This is the part that actually
+  // frees the heavy iOS video memory between feed re-renders.
+  _teardownOrphanFeedVideos();
   _feedVideoPreloader.disconnect();
   _feedVideoObserver.disconnect();
+  _observedVideoWraps = [];
   document.querySelectorAll('.social-video-wrap').forEach(wrap => {
     _feedVideoPreloader.observe(wrap);
     _feedVideoObserver.observe(wrap);
+    _observedVideoWraps.push(wrap);
   });
   // Multi-photo carousel: light up the active dot on scroll. CSS scroll-snap
   // does the actual paging; this just keeps the indicator in sync.
