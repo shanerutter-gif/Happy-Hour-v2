@@ -127,9 +127,20 @@ function captureEvent(name, props) {
   } catch (e) { /* swallow */ }
 }
 
+// Consent state owned by js/consent.js (window.__spotdConsent). 'unknown' falls
+// open so analytics never silently breaks if consent.js is absent.
+function _aeConsentState() {
+  try { return window.__spotdConsent || localStorage.getItem('spotd_consent') || 'unknown'; }
+  catch (e) { return 'unknown'; }
+}
+
 function _aeFlush() {
   if (_aeTimer) { clearTimeout(_aeTimer); _aeTimer = null; }
   if (!_aeBuffer.length) return;
+  // Consent gate: hold (capped) while undecided, drop if declined, send if granted.
+  const _cs = _aeConsentState();
+  if (_cs === 'denied') { _aeBuffer = []; return; }
+  if (_cs === 'pending') { if (_aeBuffer.length > 60) _aeBuffer = _aeBuffer.slice(-60); return; }
   const batch = _aeBuffer;
   _aeBuffer = [];
   let payload;
@@ -185,6 +196,16 @@ function analyticsIdentify() {
 // actions (e.g. tapping a blog link that navigates away) aren't lost.
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') _aeFlush(); });
 window.addEventListener('pagehide', _aeFlush);
+// Flush held events (or drop them) the moment the visitor makes a consent choice.
+document.addEventListener('spotd:consent', () => {
+  const cs = _aeConsentState();
+  if (cs === 'granted') _aeFlush();
+  else if (cs === 'denied') _aeBuffer = [];
+});
+
+// One page_view per app load (counts the app shell in site-wide traffic).
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', analyticsPageView);
+else analyticsPageView();
 
 // One page_view per app load (counts the app shell in site-wide traffic).
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', analyticsPageView);

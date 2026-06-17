@@ -385,6 +385,7 @@ export default async function handler(req) {
   </div>
 </footer>
 
+<script defer src="/js/consent.js?v=20260617a"></script>
 <script defer src="/js/site-analytics.js?v=20260616a"></script>
 </body>
 </html>`;

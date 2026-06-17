@@ -26,12 +26,16 @@
       return /bot|crawl|spider|slurp|mediapartners|googlebot|bingpreview|adsbot|headless|lighthouse|pagespeed|gtmetrix|pingdom|uptime|facebookexternalhit|embedly|quora|whatsapp|telegram|slackbot|discordbot|preview|scrapy|python-requests|axios|curl|wget|phantomjs/i.test(navigator.userAgent || '');
     } catch (e) { return false; }
   }
-  // Respect Do-Not-Track as a basic privacy signal. (A full cookie-consent
-  // banner is the recommended next step before this is GDPR-complete.)
-  function consentOk() {
-    try { return navigator.doNotTrack !== '1' && window.doNotTrack !== '1'; } catch (e) { return true; }
+  // Respect Do-Not-Track and the consent gate (js/consent.js). DNT is turned
+  // into a 'denied' state by consent.js; here we only hard-skip obvious bots.
+  if (isBot()) return;
+
+  // Consent state is owned by js/consent.js (window.__spotdConsent). 'unknown'
+  // (consent.js absent) falls open so analytics never silently breaks.
+  function consentState() {
+    try { return window.__spotdConsent || localStorage.getItem('spotd_consent') || 'unknown'; }
+    catch (e) { return 'unknown'; }
   }
-  if (isBot() || !consentOk()) return;
 
   function uuid() {
     try { if (self.crypto && crypto.randomUUID) return crypto.randomUUID(); } catch (e) {}
@@ -76,6 +80,11 @@
   function flush() {
     if (timer) { clearTimeout(timer); timer = null; }
     if (!buffer.length) return;
+    // Consent gate: never send until granted. Hold (capped) while undecided so
+    // the landing page_view isn't lost if the visitor accepts; drop if declined.
+    var cs = consentState();
+    if (cs === 'denied') { buffer = []; return; }
+    if (cs === 'pending') { if (buffer.length > 60) buffer = buffer.slice(-60); return; }
     var batch = buffer; buffer = [];
     var payload;
     try {
@@ -127,4 +136,10 @@
   // Flush trailing events when the page is hidden / navigated away.
   document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') flush(); });
   window.addEventListener('pagehide', flush);
+  // When the visitor makes a consent choice, flush held events (or drop them).
+  document.addEventListener('spotd:consent', function () {
+    var cs = consentState();
+    if (cs === 'granted') flush();
+    else if (cs === 'denied') buffer = [];
+  });
 })();
