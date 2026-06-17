@@ -20,6 +20,11 @@ const SERVICE_KEY =
 
 const MAX_EVENTS = 50; // hard cap per batch
 
+// Internal/founder accounts whose traffic is excluded from analytics entirely
+// (GA-style "internal traffic" exclusion) — they test the app constantly and
+// would otherwise dominate the dashboard. Their events are never stored.
+const INTERNAL_EMAILS = ['shanerutter@gmail.com'];
+
 export default async function handler(req) {
   if (req.method === 'OPTIONS') return new Response(null, { status: 200, headers: cors() });
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
@@ -32,7 +37,7 @@ export default async function handler(req) {
   if (!events.length) return json({ ok: true, inserted: 0 });
 
   // Trusted user id from the bearer token (if any). Never from the body.
-  let userId = null;
+  let userId = null, userEmail = null;
   const auth = req.headers.get('authorization') || '';
   const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
   if (token) {
@@ -40,8 +45,17 @@ export default async function handler(req) {
       const u = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
         headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${token}` },
       });
-      if (u.ok) { const j = await u.json(); userId = j && j.id ? j.id : null; }
+      if (u.ok) {
+        const j = await u.json();
+        userId    = j && j.id ? j.id : null;
+        userEmail = j && j.email ? String(j.email).toLowerCase() : null;
+      }
     } catch { /* treat as guest */ }
+  }
+
+  // Drop internal/founder traffic — don't even store it.
+  if (userEmail && INTERNAL_EMAILS.includes(userEmail)) {
+    return json({ ok: true, excluded: true, inserted: 0 });
   }
 
   const sid  = typeof body.session_id === 'string' ? body.session_id.slice(0, 64) : null;
