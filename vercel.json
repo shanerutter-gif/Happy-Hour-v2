@@ -4,7 +4,8 @@
     { "path": "/api/loops-inactive", "schedule": "0 14 * * *" },
     { "path": "/api/daily-deals", "schedule": "0 14 * * *" },
     { "path": "/api/weekly-digest", "schedule": "0 15 * * 4" },
-    { "path": "/api/push-runner", "schedule": "*/15 * * * *" }
+    { "path": "/api/push-runner", "schedule": "*/15 * * * *" },
+    { "path": "/api/analytics-rollup", "schedule": "30 9 * * *" }
   ],
   "redirects": [
     { "source": "/app-download", "destination": "https://apps.apple.com/us/app/spotd/id6760452388", "permanent": false }
@@ -23,6 +24,7 @@
     { "src": "/api/loops-onboarding",      "dest": "/api/loops-onboarding.js" },
     { "src": "/api/loops-event",           "dest": "/api/loops-event.js" },
     { "src": "/api/track-event",           "dest": "/api/track-event.js" },
+    { "src": "/api/analytics-rollup",      "dest": "/api/analytics-rollup.js" },
     { "src": "/api/loops-update-contact",  "dest": "/api/loops-update-contact.js" },
     { "src": "/api/loops-inactive",        "dest": "/api/loops-inactive.js" },
     { "src": "/api/daily-deals",           "dest": "/api/daily-deals.js" },
