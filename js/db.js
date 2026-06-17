@@ -207,6 +207,10 @@ document.addEventListener('spotd:consent', () => {
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', analyticsPageView);
 else analyticsPageView();
 
+// One page_view per app load (counts the app shell in site-wide traffic).
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', analyticsPageView);
+else analyticsPageView();
+
 // ── AUTH STATE ─────────────────────────────────────────
 let currentUser   = null;
 let userFavorites = new Set();
