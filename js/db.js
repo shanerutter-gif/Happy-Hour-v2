@@ -150,6 +150,7 @@ function _aeFlush() {
       visitor_id: _aeVisitorId(),
       platform:   _trackPlatform(),
       device:     _aeDevice(),
+      surface:    'app',   // the app shell (web PWA + iOS); SEO pages send 'site'
       events:     batch,
     });
   } catch (e) { return; }
@@ -202,10 +203,6 @@ document.addEventListener('spotd:consent', () => {
   if (cs === 'granted') _aeFlush();
   else if (cs === 'denied') _aeBuffer = [];
 });
-
-// One page_view per app load (counts the app shell in site-wide traffic).
-if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', analyticsPageView);
-else analyticsPageView();
 
 // One page_view per app load (counts the app shell in site-wide traffic).
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', analyticsPageView);

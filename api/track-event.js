@@ -71,6 +71,7 @@ export default async function handler(req) {
   const vid  = typeof body.visitor_id === 'string' ? body.visitor_id.slice(0, 64) : null;
   const plat = typeof body.platform === 'string' ? body.platform.slice(0, 16) : null;
   const dev  = typeof body.device === 'string' ? body.device.slice(0, 16) : null;
+  const surf = (body.surface === 'app' || body.surface === 'site') ? body.surface : null;
   // Geo from Vercel's edge request headers (free, no IP stored).
   const country = req.headers.get('x-vercel-ip-country') || null;
   const now  = Date.now();
@@ -84,6 +85,7 @@ export default async function handler(req) {
     path:       (e && typeof e.path === 'string') ? e.path.slice(0, 200) : null,
     platform:   plat,
     device:     dev,
+    surface:    surf,
     country:    country,
     created_at: new Date((e && typeof e.t === 'number') ? e.t : now).toISOString(),
   })).filter(r => r.event_name);
@@ -107,11 +109,14 @@ export default async function handler(req) {
       return json({ error: 'insert failed' }, r.status);
     }
 
-    // Identity stitching: when a now-authenticated visitor sends an "identify"
-    // event, backfill their earlier ANONYMOUS rows (same visitor_id, no user_id)
-    // onto their account so the full pre-signup journey is attributed. Bounded
-    // to 30 days to avoid sweeping up a long-shared device's history.
-    if (userId && vid && rows.some(r2 => r2.event_name === 'identify')) {
+    // Identity stitching: whenever an AUTHENTICATED batch arrives with a
+    // visitor_id, backfill that visitor's earlier ANONYMOUS rows (same
+    // visitor_id, no user_id) onto their account so the full pre-signup journey
+    // is attributed. Triggering on any attributed batch (not a specific
+    // "identify" event) makes this robust to client token-timing — the first
+    // batch sent after auth completes does the stitch. Idempotent (only touches
+    // null-user rows) and bounded to 30 days (avoids a long-shared device's history).
+    if (userId && vid) {
       try {
         const since = new Date(now - 30 * 864e5).toISOString();
         await fetch(`${SUPABASE_URL}/rest/v1/analytics_events?visitor_id=eq.${encodeURIComponent(vid)}&user_id=is.null&created_at=gte.${since}`, {

@@ -146,7 +146,7 @@
   const state = {
     view: 'users',                 // 'users' | 'traffic'
     preset: '7d', customFrom: '', customTo: '', bucket: 'day',
-    bdSel: 'venue', tdSel: 'source', selUser: null,
+    bdSel: 'venue', tdSel: 'source', surface: 'site', selUser: null,
   };
   const data = {
     kpis: {}, series: [], topEvents: [], activeUsers: [],
@@ -198,9 +198,9 @@
     setLoading();
     try {
       const [k, ts, tp] = await Promise.all([
-        rpc('ae_traffic_kpis',       { p_from: from, p_to: to }),
-        rpc('ae_traffic_timeseries', { p_from: from, p_to: to, p_bucket: bucket }),
-        rpc('ae_traffic_breakdown',  { p_dim: 'page', p_from: from, p_to: to, p_limit: 20 }),
+        rpc('ae_traffic_kpis',       { p_from: from, p_to: to, p_surface: state.surface }),
+        rpc('ae_traffic_timeseries', { p_from: from, p_to: to, p_bucket: bucket, p_surface: state.surface }),
+        rpc('ae_traffic_breakdown',  { p_dim: 'page', p_from: from, p_to: to, p_limit: 20, p_surface: state.surface }),
       ]);
       data.tKpis    = (k && typeof k === 'object') ? k : {};
       data.tSeries  = Array.isArray(ts) ? ts : [];
@@ -213,7 +213,7 @@
   async function loadTrafficBreakdown() {
     const { from, to } = rangeBounds();
     try {
-      const rows = await rpc('ae_traffic_breakdown', { p_dim: state.tdSel, p_from: from, p_to: to, p_limit: 15 });
+      const rows = await rpc('ae_traffic_breakdown', { p_dim: state.tdSel, p_from: from, p_to: to, p_limit: 15, p_surface: state.surface });
       data.tBreakdown = Array.isArray(rows) ? rows : [];
     } catch (e) { data.tBreakdown = []; }
     renderTrafficBreakdown();
@@ -564,6 +564,13 @@
 
   function wireTraffic() {
     wireShared();
+    document.querySelectorAll('#activity-content .ae-surface').forEach(b => {
+      b.addEventListener('click', () => {
+        if (state.surface === b.dataset.surface) return;
+        state.surface = b.dataset.surface;
+        loadTraffic();
+      });
+    });
     document.getElementById('ae-td-select')?.addEventListener('change', e => {
       state.tdSel = e.target.value;
       loadTrafficBreakdown();
@@ -583,8 +590,20 @@
     // Reuse chartSVG by mapping pageviews→events, visitors→users.
     const chartRows = data.tSeries.map(r => ({ bucket: r.bucket, events: r.pageviews, users: r.visitors }));
 
+    const surfaces = [['site', 'Website'], ['app', 'App'], ['all', 'All']];
+
     wrap.innerHTML = `
       ${controlsBarHTML()}
+
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px">
+        <span style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:700">Source</span>
+        <div style="display:inline-flex;background:var(--bg2);border-radius:999px;padding:3px;gap:2px">
+          ${surfaces.map(([id, lbl]) => `
+            <button class="ae-surface" data-surface="${id}"
+              style="padding:6px 16px;border-radius:999px;border:none;font-weight:600;font-size:13px;cursor:pointer;background:${state.surface === id ? 'var(--coral)' : 'transparent'};color:${state.surface === id ? '#fff' : 'var(--text)'}">${lbl}</button>`).join('')}
+        </div>
+        <span style="font-size:12px;color:var(--muted)">${state.surface === 'site' ? 'Public website pages only (the app shell is excluded)' : state.surface === 'app' ? 'The web + iOS app only' : 'Website + app combined'}</span>
+      </div>
 
       <div class="kpi-row" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px">
         ${kpiCard('Pageviews', fmtNum(pageviews))}
