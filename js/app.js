@@ -1306,18 +1306,26 @@ async function renderTrendingTab() {
     }
     // Hydrate full post + profile + venue
     const photoIds = rows.filter(r => r.post_id?.startsWith('photo-')).map(r => r.post_id.slice(6));
-    const { data: posts } = await db.from('checkin_photos')
-      .select('id, user_id, venue_id, photo_url, media_urls, caption, title, body, post_type, city_slug, created_at, edited')
-      .in('id', photoIds);
-    const userIds  = [...new Set((posts || []).map(p => p.user_id))];
-    const venueIds = [...new Set((posts || []).map(p => p.venue_id).filter(Boolean))];
+    const rowPostIds = rows.map(r => r.post_id);
+    // checkin_photos fetch runs in parallel with likes/saves/tags — all IDs are known from the RPC result
+    const [postsRes, likesMap, savedSet, tagsByPost] = await Promise.all([
+      db.from('checkin_photos')
+        .select('id, user_id, venue_id, photo_url, media_urls, caption, title, body, post_type, city_slug, created_at, edited')
+        .in('id', photoIds),
+      fetchLikesBulk(rowPostIds),
+      fetchMySavesBulk(rowPostIds),
+      photoIds.length ? fetchTagsForPosts(photoIds) : Promise.resolve({}),
+    ]);
+    const posts = postsRes.data || [];
+    const userIds  = [...new Set(posts.map(p => p.user_id))];
+    const venueIds = [...new Set(posts.map(p => p.venue_id).filter(Boolean))];
     const [pRes, vRes] = await Promise.all([
       userIds.length ? db.from('profiles').select('id, display_name, avatar_emoji, avatar_url, username, is_official').in('id', userIds) : Promise.resolve({ data: [] }),
       venueIds.length ? db.from('venues').select('id, name, neighborhood').in('id', venueIds) : Promise.resolve({ data: [] }),
     ]);
     const pMap = {}; (pRes.data || []).forEach(p => pMap[p.id] = p);
     const vMap = {}; (vRes.data || []).forEach(v => vMap[v.id] = v);
-    const byId = {}; (posts || []).forEach(p => byId[`photo-${p.id}`] = p);
+    const byId = {}; posts.forEach(p => byId[`photo-${p.id}`] = p);
 
     const items = rows.map(r => {
       const p = byId[r.post_id];
@@ -1344,14 +1352,6 @@ async function renderTrendingTab() {
       };
     }).filter(Boolean);
 
-    // Hydrate liked + saved + tagged-friends state for the visible set
-    const ids = items.map(i => i.id);
-    const rawIds = items.map(i => i.post_id_raw).filter(Boolean);
-    const [likesMap, savedSet, tagsByPost] = await Promise.all([
-      fetchLikesBulk(ids),
-      fetchMySavesBulk(ids),
-      rawIds.length ? fetchTagsForPosts(rawIds) : Promise.resolve({}),
-    ]);
     items.forEach(i => {
       i._liked = currentUser ? (likesMap[i.id] || []).includes(currentUser.id) : false;
       i._saved = savedSet.has(i.id);
@@ -7135,6 +7135,7 @@ function skipToTagFriends(venueId) {
 
 // ── YOUR NEWS (ARTICLE FEED) ──────────────────────────
 const NEWS_ARTICLES = [
+  { city: 'san-diego', img: 'https://images.unsplash.com/photo-1538488881038-e252a119ace7?w=800&q=80', tag: 'Neighborhood Guide', author: 'Diego', title: 'Best Happy Hours in La Jolla, San Diego (2026)', excerpt: 'Daily deals at George\'s at the Cove, Aloha Hour at Duke\'s, 50% off Asian tapas at Roppongi — La Jolla\'s most scenic neighborhood has a better happy hour scene than anyone gives it credit for.', url: '/blog/best-happy-hours-la-jolla.html', date: 'June 17, 2026', readTime: '8 min' },
   { city: 'orange-county', img: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&q=80', tag: 'Neighborhood Guide', author: 'Tyler', title: 'Best Happy Hours in Fullerton, CA (2026)', excerpt: 'Award-winning margaritas at Madero 1899, 140+ whiskeys at Hopscotch Tavern, $5 house margs at Farolito — downtown Fullerton is quietly one of the best happy hour scenes in Orange County.', url: '/blog/best-happy-hours-fullerton.html', date: 'June 16, 2026', readTime: '8 min' },
   { city: 'san-diego', img: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800&q=80', tag: 'Neighborhood Guide', author: 'Emma', title: 'Best Happy Hours in the Gaslamp Quarter, San Diego (2026)', excerpt: '51% off drinks at GARAGE, half-off all alcohol at Barleymash, 50% off craft cocktails at Rustic Root — the downtown San Diego happy hour guide locals actually use.', url: '/blog/best-happy-hours-gaslamp-san-diego.html', date: 'June 15, 2026', readTime: '8 min' },
   { city: 'orange-county', img: 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=800&q=80', tag: 'Neighborhood Guide', author: 'Priya', title: 'Best Happy Hours in Irvine, CA (2026)', excerpt: 'Daily deals at Bosscat Kitchen, $7 wine at Postino Park Place, 50% off apps at Yard House — the Irvine Spectrum and Park Place happy hour guide for OC\'s most underrated bar scene.', url: '/blog/best-happy-hours-irvine.html', date: 'June 13, 2026', readTime: '8 min' },
