@@ -93,6 +93,7 @@
         visitor_id: visitorId(),
         platform: 'web',
         device: DEV,
+        surface: 'site',   // the public website pages; the app shell sends 'app'
         events: batch,
       });
     } catch (e) { return; }
