@@ -133,14 +133,25 @@
     { id: 'plat',  label: 'Platform (all events)', event: '__all__',          prop: 'platform' },
   ];
 
+  // Site-traffic breakdown dimensions (passed to ae_traffic_breakdown).
+  const TRAFFIC_DIMS = [
+    { id: 'source',   label: 'Top sources' },
+    { id: 'referrer', label: 'Referrers' },
+    { id: 'device',   label: 'Device' },
+    { id: 'country',  label: 'Country' },
+    { id: 'platform', label: 'Platform' },
+  ];
+
   // ── state ──────────────────────────────────────────
   const state = {
+    view: 'users',                 // 'users' | 'traffic'
     preset: '7d', customFrom: '', customTo: '', bucket: 'day',
-    bdSel: 'venue', selUser: null,
+    bdSel: 'venue', tdSel: 'source', selUser: null,
   };
   const data = {
     kpis: {}, series: [], topEvents: [], activeUsers: [],
     breakdown: [], userResults: [], timeline: [],
+    tKpis: {}, tSeries: [], topPages: [], tBreakdown: [],
   };
 
   function rangeBounds() {
@@ -159,7 +170,9 @@
   }
 
   // ── data loads ─────────────────────────────────────
-  async function loadAll() {
+  function loadAll() { return state.view === 'traffic' ? loadTraffic() : loadUsers(); }
+
+  async function loadUsers() {
     const { from, to, bucket } = rangeBounds();
     state.bucket = bucket;
     setLoading();
@@ -177,6 +190,33 @@
       render();
       loadBreakdown();
     } catch (e) { showError(e); }
+  }
+
+  async function loadTraffic() {
+    const { from, to, bucket } = rangeBounds();
+    state.bucket = bucket;
+    setLoading();
+    try {
+      const [k, ts, tp] = await Promise.all([
+        rpc('ae_traffic_kpis',       { p_from: from, p_to: to }),
+        rpc('ae_traffic_timeseries', { p_from: from, p_to: to, p_bucket: bucket }),
+        rpc('ae_traffic_breakdown',  { p_dim: 'page', p_from: from, p_to: to, p_limit: 20 }),
+      ]);
+      data.tKpis    = (k && typeof k === 'object') ? k : {};
+      data.tSeries  = Array.isArray(ts) ? ts : [];
+      data.topPages = Array.isArray(tp) ? tp : [];
+      renderTraffic();
+      loadTrafficBreakdown();
+    } catch (e) { showError(e); }
+  }
+
+  async function loadTrafficBreakdown() {
+    const { from, to } = rangeBounds();
+    try {
+      const rows = await rpc('ae_traffic_breakdown', { p_dim: state.tdSel, p_from: from, p_to: to, p_limit: 15 });
+      data.tBreakdown = Array.isArray(rows) ? rows : [];
+    } catch (e) { data.tBreakdown = []; }
+    renderTrafficBreakdown();
   }
 
   async function loadBreakdown() {
@@ -268,22 +308,18 @@
     </svg>`;
   }
 
-  function render() {
-    const wrap = document.getElementById('activity-content');
-    if (!wrap) return;
-
-    const k = data.kpis || {};
-    const totalEvents = +k.total_events || 0;
-    const uniqUsers   = +k.unique_users || 0;
-    const perUser     = uniqUsers ? (totalEvents / uniqUsers).toFixed(1) : '0';
-
+  // Shared top bar: App Users / Site Traffic mode toggle + date range controls.
+  function controlsBarHTML() {
     const presets = [['today', 'Today'], ['7d', '7 days'], ['30d', '30 days'], ['90d', '90 days']];
-    const maxEvt = data.topEvents.reduce((m, r) => Math.max(m, +r.events || 0), 0);
-
-    wrap.innerHTML = `
-      <!-- Controls -->
+    const modes = [['users', '👤 App Users'], ['traffic', '🌐 Site Traffic']];
+    return `
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
-        <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <div style="display:inline-flex;background:var(--bg2);border-radius:999px;padding:3px;gap:2px">
+          ${modes.map(([id, lbl]) => `
+            <button class="ae-mode" data-mode="${id}"
+              style="padding:7px 14px;border-radius:999px;border:none;font-weight:700;font-size:13px;cursor:pointer;background:${state.view === id ? 'var(--coral)' : 'transparent'};color:${state.view === id ? '#fff' : 'var(--text)'}">${lbl}</button>`).join('')}
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-left:8px">
           ${presets.map(([id, lbl]) => `
             <button class="ae-preset" data-preset="${id}"
               style="padding:7px 14px;border-radius:999px;border:1px solid var(--border);font-weight:600;font-size:13px;cursor:pointer;background:${state.preset === id ? 'var(--coral)' : 'var(--card)'};color:${state.preset === id ? '#fff' : 'var(--text)'}">${lbl}</button>`).join('')}
@@ -294,7 +330,22 @@
           <input type="date" id="ae-to" value="${esc(state.customTo)}" style="padding:6px 8px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:13px">
           <button id="ae-refresh" style="padding:7px 14px;border-radius:999px;border:1px solid var(--border);background:var(--card);color:var(--text);font-weight:600;font-size:13px;cursor:pointer">↻ Refresh</button>
         </div>
-      </div>
+      </div>`;
+  }
+
+  function render() {
+    const wrap = document.getElementById('activity-content');
+    if (!wrap) return;
+
+    const k = data.kpis || {};
+    const totalEvents = +k.total_events || 0;
+    const uniqUsers   = +k.unique_users || 0;
+    const perUser     = uniqUsers ? (totalEvents / uniqUsers).toFixed(1) : '0';
+
+    const maxEvt = data.topEvents.reduce((m, r) => Math.max(m, +r.events || 0), 0);
+
+    wrap.innerHTML = `
+      ${controlsBarHTML()}
 
       <!-- KPI cards -->
       <div class="kpi-row" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px">
@@ -471,9 +522,16 @@
     });
   }
 
-  function wireControls() {
+  function wireShared() {
     const wrap = document.getElementById('activity-content');
     if (!wrap) return;
+    wrap.querySelectorAll('.ae-mode').forEach(b => {
+      b.addEventListener('click', () => {
+        if (state.view === b.dataset.mode) return;
+        state.view = b.dataset.mode;
+        loadAll();
+      });
+    });
     wrap.querySelectorAll('.ae-preset').forEach(b => {
       b.addEventListener('click', () => {
         state.preset = b.dataset.preset;
@@ -491,13 +549,115 @@
     if (from) from.addEventListener('change', onCustom);
     if (to)   to.addEventListener('change', onCustom);
     document.getElementById('ae-refresh')?.addEventListener('click', loadAll);
+  }
+
+  function wireControls() {
+    wireShared();
     document.getElementById('ae-bd-select')?.addEventListener('change', e => {
       state.bdSel = e.target.value;
       loadBreakdown();
     });
-    wrap.querySelectorAll('.ae-user-row').forEach(r => {
+    document.querySelectorAll('#activity-content .ae-user-row').forEach(r => {
       r.addEventListener('click', () => selectUser(r.dataset.uid, r.dataset.name));
     });
+  }
+
+  function wireTraffic() {
+    wireShared();
+    document.getElementById('ae-td-select')?.addEventListener('change', e => {
+      state.tdSel = e.target.value;
+      loadTrafficBreakdown();
+    });
+  }
+
+  // ── Site Traffic view ──────────────────────────────
+  function renderTraffic() {
+    const wrap = document.getElementById('activity-content');
+    if (!wrap) return;
+    const k = data.tKpis || {};
+    const pageviews = +k.pageviews || 0;
+    const visitors  = +k.visitors || 0;
+    const signups   = +k.signups || 0;
+    const conv = visitors ? ((signups / visitors) * 100).toFixed(1) + '%' : '0%';
+    const maxPv = data.topPages.reduce((m, r) => Math.max(m, +r.pageviews || 0), 0);
+    // Reuse chartSVG by mapping pageviews→events, visitors→users.
+    const chartRows = data.tSeries.map(r => ({ bucket: r.bucket, events: r.pageviews, users: r.visitors }));
+
+    wrap.innerHTML = `
+      ${controlsBarHTML()}
+
+      <div class="kpi-row" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px">
+        ${kpiCard('Pageviews', fmtNum(pageviews))}
+        ${kpiCard('Sessions', fmtNum(k.sessions))}
+        ${kpiCard('Visitors', fmtNum(visitors), 'unique')}
+        ${kpiCard('Signed-in', fmtNum(k.signed_in_users))}
+        ${kpiCard('Signups', fmtNum(signups))}
+        ${kpiCard('Conversion', conv, 'signups / visitors')}
+      </div>
+
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:18px;overflow:hidden">
+        <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+          <div style="font-family:'Cabinet Grotesk',sans-serif;font-size:16px;font-weight:700">Traffic over time</div>
+          <div style="display:flex;gap:14px;font-size:12px;color:var(--muted)">
+            <span><span style="display:inline-block;width:14px;height:3px;background:#FF6B4A;vertical-align:middle;border-radius:2px"></span> Pageviews</span>
+            <span><span style="display:inline-block;width:14px;height:0;border-top:2px dashed #3B82F6;vertical-align:middle"></span> Visitors</span>
+            <span style="font-family:'DM Mono',monospace">${state.bucket === 'hour' ? 'hourly' : 'daily'}</span>
+          </div>
+        </div>
+        <div style="padding:14px 10px 6px">${chartSVG(chartRows, state.bucket)}</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px">
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+          <div style="padding:14px 16px;border-bottom:1px solid var(--border);font-family:'Cabinet Grotesk',sans-serif;font-size:16px;font-weight:700">Top pages</div>
+          <div style="padding:8px 16px 14px">
+            ${data.topPages.length === 0 ? `<div style="padding:18px;text-align:center;color:var(--muted)">No pageviews yet.</div>` :
+              data.topPages.map(r => {
+                const w = maxPv > 0 ? Math.round((+r.pageviews / maxPv) * 100) : 0;
+                return `<div style="padding:7px 0">
+                  <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px;gap:10px">
+                    <span style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.value)}</span>
+                    <span style="font-family:'DM Mono',monospace;color:var(--muted)"><strong style="color:var(--text)">${fmtNum(r.pageviews)}</strong> · ${fmtNum(r.sessions)}s</span>
+                  </div>
+                  <div style="background:var(--bg2);border-radius:5px;height:8px;overflow:hidden"><div style="background:linear-gradient(90deg,#FF6B4A,#E8943A);height:100%;width:${w}%;border-radius:5px"></div></div>
+                </div>`;
+              }).join('')}
+          </div>
+        </div>
+
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+          <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+            <span style="font-family:'Cabinet Grotesk',sans-serif;font-size:16px;font-weight:700">Breakdown</span>
+            <select id="ae-td-select" style="padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:13px;font-weight:600;cursor:pointer">
+              ${TRAFFIC_DIMS.map(d => `<option value="${d.id}"${d.id === state.tdSel ? ' selected' : ''}>${esc(d.label)}</option>`).join('')}
+            </select>
+          </div>
+          <div id="ae-tbreakdown-body" style="padding:8px 16px 14px"></div>
+        </div>
+      </div>
+    `;
+
+    renderTrafficBreakdown();
+    wireTraffic();
+  }
+
+  function renderTrafficBreakdown() {
+    const body = document.getElementById('ae-tbreakdown-body');
+    if (!body) return;
+    const rows = data.tBreakdown || [];
+    const max = rows.reduce((m, r) => Math.max(m, +r.pageviews || 0), 0);
+    body.innerHTML = rows.length === 0
+      ? `<div style="padding:18px;text-align:center;color:var(--muted)">No data for this dimension yet.</div>`
+      : rows.map(r => {
+          const w = max > 0 ? Math.round((+r.pageviews / max) * 100) : 0;
+          return `<div style="padding:7px 0">
+            <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px;gap:10px">
+              <span style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.value)}</span>
+              <span style="font-family:'DM Mono',monospace;color:var(--text)"><strong>${fmtNum(r.pageviews)}</strong> <span style="color:var(--muted)">· ${fmtNum(r.sessions)}s</span></span>
+            </div>
+            <div style="background:var(--bg2);border-radius:5px;height:8px;overflow:hidden"><div style="background:linear-gradient(90deg,#3B82F6,#60A5FA);height:100%;width:${w}%;border-radius:5px"></div></div>
+          </div>`;
+        }).join('');
   }
 
   // ── navigation ─────────────────────────────────────
@@ -557,8 +717,10 @@
       page.innerHTML = `
         <div class="page-title">📈 User Activity</div>
         <div class="page-sub">
-          Per-user actions captured from the app — tab changes, venue opens, blog
-          views, searches, auth, and more. Adjust the date range and drill into any user.
+          Our own in-house analytics. <strong>App Users</strong> = per-user actions
+          (tab changes, venue opens, searches, auth…). <strong>Site Traffic</strong> =
+          everyone who reaches any page (venue/blog/landing) across desktop + mobile —
+          pageviews, sources, devices, geography, conversions. Adjust the date range, switch modes, drill into any user.
         </div>
         <div id="activity-content"></div>
       `;

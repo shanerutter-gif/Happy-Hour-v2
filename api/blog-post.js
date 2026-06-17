@@ -329,6 +329,7 @@ function blogNewsletterSubmit(e){
 }
 </script>
 
+<script defer src="/js/site-analytics.js?v=20260616a"></script>
 </body>
 </html>`;
 }

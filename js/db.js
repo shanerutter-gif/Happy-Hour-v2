@@ -72,6 +72,32 @@ const _AE_MAX_BUFFER = 25;
 let   _aeBuffer  = [];
 let   _aeTimer   = null;
 let   _aeSession = null;
+let   _aeVisitor = null;
+
+function _aeVisitorId() {
+  if (_aeVisitor) return _aeVisitor;
+  try {
+    // Shared with js/site-analytics.js (key 'spotd_vid') so a visitor's
+    // pre-signup journey across the SEO pages + the app is one identity.
+    _aeVisitor = localStorage.getItem('spotd_vid');
+    if (!_aeVisitor) {
+      _aeVisitor = (self.crypto && crypto.randomUUID)
+        ? crypto.randomUUID()
+        : 'v_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+      localStorage.setItem('spotd_vid', _aeVisitor);
+    }
+  } catch (e) { _aeVisitor = 'v_' + Date.now(); }
+  return _aeVisitor;
+}
+
+function _aeDevice() {
+  try {
+    const ua = navigator.userAgent || '';
+    if (/iPad|Tablet|PlayBook|Silk/.test(ua) || (/Android/.test(ua) && !/Mobile/.test(ua))) return 'tablet';
+    if (/Mobi|iPhone|iPod|Android.*Mobile|Windows Phone|IEMobile/.test(ua)) return 'mobile';
+    return 'desktop';
+  } catch (e) { return 'unknown'; }
+}
 
 function _aeSessionId() {
   if (_aeSession) return _aeSession;
@@ -110,7 +136,9 @@ function _aeFlush() {
   try {
     payload = JSON.stringify({
       session_id: _aeSessionId(),
+      visitor_id: _aeVisitorId(),
       platform:   _trackPlatform(),
+      device:     _aeDevice(),
       events:     batch,
     });
   } catch (e) { return; }
@@ -124,10 +152,43 @@ function _aeFlush() {
   } catch (e) { /* swallow */ }
 }
 
+// Records a page_view for the app shell (the SEO pages do this themselves via
+// js/site-analytics.js). One per app load is enough for traffic counts.
+function analyticsPageView() {
+  let props = { device: _aeDevice() };
+  try { if (document.referrer) props.referrer = document.referrer.slice(0, 300); } catch (e) {}
+  try {
+    const p = new URLSearchParams(location.search);
+    ['utm_source','utm_medium','utm_campaign','utm_term','utm_content'].forEach(k => {
+      const v = p.get(k); if (v) props[k] = String(v).slice(0, 80);
+    });
+  } catch (e) {}
+  captureEvent('page_view', props);
+}
+
+// Fired once per session right after the user authenticates. The server uses
+// the (now-known) user_id + the shared visitor_id to backfill this visitor's
+// earlier ANONYMOUS events onto their account — stitching the full journey
+// from "landed on a venue page from Google" through signup.
+function analyticsIdentify() {
+  try {
+    if (!currentUser?.id) return;
+    const key = 'spotd_ae_identified_' + currentUser.id;
+    if (sessionStorage.getItem(key)) return;
+    sessionStorage.setItem(key, '1');
+    captureEvent('identify', {});
+    _aeFlush(); // send promptly so the backfill runs
+  } catch (e) {}
+}
+
 // Flush the buffer when the app is hidden or being torn down so trailing
 // actions (e.g. tapping a blog link that navigates away) aren't lost.
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') _aeFlush(); });
 window.addEventListener('pagehide', _aeFlush);
+
+// One page_view per app load (counts the app shell in site-wide traffic).
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', analyticsPageView);
+else analyticsPageView();
 
 // ── AUTH STATE ─────────────────────────────────────────
 let currentUser   = null;
@@ -165,6 +226,7 @@ async function _refreshAndPersist(refreshToken) {
   // had lapsed never recorded a last_seen — the main reason the admin column
   // showed "Never" for clearly-active users. Throttled to 1/hour internally.
   _updateLastSeen();
+  analyticsIdentify();
   return s;
 }
 
@@ -233,6 +295,7 @@ async function initAuth() {
     // Fire-and-forget: record this authenticated session start (force past the
     // hourly throttle so every launch is logged, not just one per hour).
     _updateLastSeen(true);
+    analyticsIdentify();
   } catch(e) {
     console.warn('[initAuth] error', e);
     // If we had a user but hit an error, still try to enter
@@ -431,6 +494,7 @@ async function authSignIn(email, password) {
     if (data.expires_in) _scheduleTokenRefresh(data.expires_in);
     await loadFavorites();
     if (typeof onAuthChange === 'function') onAuthChange(currentUser);
+    analyticsIdentify();
     return { data, error: null };
   } catch (e) {
     return { error: { message: e.message } };
@@ -564,6 +628,7 @@ async function handleOAuthCallback() {
     }
     // Persist the chosen city to the profile for per-city digest routing.
     _persistSignupCity();
+    analyticsIdentify();
 
     const _provider = user.app_metadata?.provider || 'oauth';
     const _isNew = !!(user.created_at && (Date.now() - new Date(user.created_at).getTime() < 60000));

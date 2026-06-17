@@ -25,10 +25,19 @@ const MAX_EVENTS = 50; // hard cap per batch
 // would otherwise dominate the dashboard. Their events are never stored.
 const INTERNAL_EMAILS = ['shanerutter@gmail.com'];
 
+// Crawlers / bots / link-preview fetchers — never stored (they'd swamp the
+// site-wide pageview counts). Client-side site-analytics.js also self-filters,
+// but Googlebot renders JS, so we filter here too as the reliable backstop.
+const BOT_RE = /bot|crawl|spider|slurp|mediapartners|googlebot|bingpreview|adsbot|headless|lighthouse|pagespeed|gtmetrix|pingdom|uptime|facebookexternalhit|embedly|quora|whatsapp|telegram|slackbot|discordbot|preview|scrapy|python-requests|axios|node-fetch|go-http|curl|wget|phantomjs/i;
+
 export default async function handler(req) {
   if (req.method === 'OPTIONS') return new Response(null, { status: 200, headers: cors() });
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
   if (!SERVICE_KEY) return json({ error: 'Missing service key' }, 500);
+
+  // Drop crawler/bot traffic outright.
+  const ua = req.headers.get('user-agent') || '';
+  if (BOT_RE.test(ua)) return json({ ok: true, bot: true, inserted: 0 });
 
   let body;
   try { body = await req.json(); } catch { return json({ error: 'Invalid JSON' }, 400); }
@@ -59,16 +68,23 @@ export default async function handler(req) {
   }
 
   const sid  = typeof body.session_id === 'string' ? body.session_id.slice(0, 64) : null;
+  const vid  = typeof body.visitor_id === 'string' ? body.visitor_id.slice(0, 64) : null;
   const plat = typeof body.platform === 'string' ? body.platform.slice(0, 16) : null;
+  const dev  = typeof body.device === 'string' ? body.device.slice(0, 16) : null;
+  // Geo from Vercel's edge request headers (free, no IP stored).
+  const country = req.headers.get('x-vercel-ip-country') || null;
   const now  = Date.now();
 
   const rows = events.slice(0, MAX_EVENTS).map(e => ({
     user_id:    userId,
     session_id: sid,
+    visitor_id: vid,
     event_name: String((e && (e.n || e.event_name)) || '').slice(0, 60),
     props:      (e && e.p && typeof e.p === 'object') ? e.p : {},
     path:       (e && typeof e.path === 'string') ? e.path.slice(0, 200) : null,
     platform:   plat,
+    device:     dev,
+    country:    country,
     created_at: new Date((e && typeof e.t === 'number') ? e.t : now).toISOString(),
   })).filter(r => r.event_name);
 
@@ -90,6 +106,27 @@ export default async function handler(req) {
       console.error('[track-event] insert failed', r.status, t.slice(0, 300));
       return json({ error: 'insert failed' }, r.status);
     }
+
+    // Identity stitching: when a now-authenticated visitor sends an "identify"
+    // event, backfill their earlier ANONYMOUS rows (same visitor_id, no user_id)
+    // onto their account so the full pre-signup journey is attributed. Bounded
+    // to 30 days to avoid sweeping up a long-shared device's history.
+    if (userId && vid && rows.some(r2 => r2.event_name === 'identify')) {
+      try {
+        const since = new Date(now - 30 * 864e5).toISOString();
+        await fetch(`${SUPABASE_URL}/rest/v1/analytics_events?visitor_id=eq.${encodeURIComponent(vid)}&user_id=is.null&created_at=gte.${since}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: SERVICE_KEY,
+            Authorization: `Bearer ${SERVICE_KEY}`,
+            Prefer: 'return=minimal',
+          },
+          body: JSON.stringify({ user_id: userId }),
+        });
+      } catch (e) { /* best-effort stitch */ }
+    }
+
     return json({ ok: true, inserted: rows.length });
   } catch (e) {
     console.error('[track-event] error', e && e.message);
