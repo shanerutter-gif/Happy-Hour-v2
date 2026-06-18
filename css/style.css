@@ -8417,3 +8417,73 @@ h1, h2, .sf-hero-venue, .sf-ed-title, .pf-name, .gw-hero__title,
 [data-theme="dark"] .sf-action-btn {
   box-shadow: 0 3px 10px -6px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.08);
 }
+
+/* ══════════════════════════════════════════════════════════
+   "HAPPENING NOW" — live happy-hour filter button + countdown badges
+   Self-contained block (component-scoped selectors only, safe past the
+   desktop media blocks). Button toggles state.happeningNow; cards show a
+   live countdown badge whenever their happy hour is currently active.
+   ══════════════════════════════════════════════════════════ */
+.happening-toggle{
+  flex:1;background:var(--card);border:1px solid rgba(255,107,74,0.28);
+  border-radius:var(--r-lg);color:var(--text);font-family:'DM Sans',sans-serif;
+  font-size:13px;font-weight:700;padding:10px 12px;cursor:pointer;min-height:var(--tap);
+  display:flex;align-items:center;justify-content:center;gap:7px;white-space:nowrap;
+  flex-shrink:0;box-shadow:var(--clay-sm);
+  transition:background .2s,color .2s,transform .15s,box-shadow .2s,border-color .2s;
+}
+.happening-toggle .ht-ic{flex-shrink:0}
+.happening-toggle .ht-label{overflow:hidden;text-overflow:ellipsis}
+.happening-toggle:active{transform:scale(.96);box-shadow:var(--clay-pressed)}
+.happening-toggle.active{
+  background:linear-gradient(135deg,var(--coral),var(--amber));
+  color:#fff;border-color:transparent;box-shadow:0 6px 18px -8px rgba(255,107,74,0.6);
+}
+.happening-toggle.active .happening-dot{background:#fff;box-shadow:0 0 0 0 rgba(255,255,255,0.7)}
+.happening-dot{
+  width:8px;height:8px;border-radius:50%;background:#22c55e;flex-shrink:0;
+  box-shadow:0 0 0 0 rgba(34,197,94,0.7);animation:hhPulse 2s infinite;
+}
+@keyframes hhPulse{
+  0%{box-shadow:0 0 0 0 rgba(34,197,94,0.55)}
+  70%{box-shadow:0 0 0 7px rgba(34,197,94,0)}
+  100%{box-shadow:0 0 0 0 rgba(34,197,94,0)}
+}
+
+/* Live countdown badge on cards */
+.hh-badge{
+  display:inline-flex;align-items:center;gap:5px;align-self:flex-start;
+  margin:3px 0 5px;padding:3px 9px;border-radius:50px;
+  font-size:11.5px;font-weight:700;line-height:1;letter-spacing:.1px;
+  color:#15803d;background:rgba(34,197,94,0.13);border:1px solid rgba(34,197,94,0.28);
+}
+.hh-badge .hh-badge-ic{flex-shrink:0;opacity:.9}
+.hh-badge-dot{
+  width:6px;height:6px;border-radius:50%;background:#22c55e;flex-shrink:0;
+  box-shadow:0 0 0 0 rgba(34,197,94,0.7);animation:hhPulse 2s infinite;
+}
+.hh-badge--soon{color:#b45309;background:rgba(245,158,11,0.16);border-color:rgba(245,158,11,0.35)}
+.hh-badge--soon .hh-badge-dot{background:#f59e0b}
+.hh-badge--ended{color:var(--muted);background:var(--bg2);border-color:transparent}
+.hh-badge--ended .hh-badge-dot{background:var(--muted);animation:none}
+/* On photo hero cards the badge sits on the dark overlay — lift contrast */
+.card-hero .hh-badge{
+  color:#bbf7d0;background:rgba(34,197,94,0.22);border-color:rgba(255,255,255,0.18);
+  -webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);
+}
+.card-hero .hh-badge--soon{color:#fde68a;background:rgba(245,158,11,0.28)}
+
+/* Live header for the "Happening now" feed */
+.feed-label--live{display:flex;align-items:center;gap:8px}
+.hh-live-dot{
+  width:9px;height:9px;border-radius:50%;background:#22c55e;flex-shrink:0;
+  box-shadow:0 0 0 0 rgba(34,197,94,0.7);animation:hhPulse 2s infinite;
+}
+
+[data-theme="dark"] .hh-badge{color:#86efac;background:rgba(34,197,94,0.15);border-color:rgba(34,197,94,0.3)}
+[data-theme="dark"] .hh-badge--soon{color:#fcd34d;background:rgba(245,158,11,0.16);border-color:rgba(245,158,11,0.32)}
+[data-theme="dark"] .happening-toggle{border-color:rgba(255,107,74,0.35)}
+
+@media (prefers-reduced-motion:reduce){
+  .happening-dot,.hh-badge-dot,.hh-live-dot{animation:none}
+}
