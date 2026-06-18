@@ -92,6 +92,7 @@ const state = {
   view: 'list',
   showFilter: 'all', // 'all' | 'happyhour' | 'events'
   filtersOpen: false, favFilterOn: false,
+  happeningNow: false, // "Happening now" — only venues whose happy hour is live
   filters: { day: null, area: null, type: null, amenities: [], search: '' },
   city: null,
   venues: [], events: [], filtered: [],
@@ -2129,6 +2130,7 @@ function showHome() {
   // Reset filters
   state.filters = { day: null, area: null, type: null, search: '', amenities: [] };
   state.favFilterOn = false;
+  resetHappeningNow();
   if (state.map) { state.map.remove(); state.map = null; state.markers = {}; }
   renderNav(currentUser);
 }
@@ -2152,6 +2154,7 @@ async function enterCity(slug, name, stateCode) {
   state.filters.amenity = null;
   state.filters = { day: null, area: null, type: null, search: '', amenities: [] };
   state.favFilterOn = false;
+  resetHappeningNow();
   state.filtered = [];
   document.getElementById('searchBox').value = '';
   document.getElementById('filterPanel').classList.remove('open');
@@ -2373,6 +2376,7 @@ function clearAllVisible() {
   if(typeof haptic==='function')haptic('light');
   state.filters = { day: null, area: null, type: null, search: '', amenities: [] };
   state.favFilterOn = false;
+  resetHappeningNow();
   _activeSuggestion = null;
   document.getElementById('searchBox').value = '';
   ['dayFilters','areaFilters','typeFilters'].forEach(id => {
@@ -2385,13 +2389,14 @@ function clearAllVisible() {
   applyFilters(); updateDot(); renderSuggestions(); updateClearBtn();
 }
 function updateClearBtn() {
-  const has = state.filters.day || state.filters.area || state.filters.type || state.filters.search || state.filters.amenities.length || state.favFilterOn;
+  const has = state.filters.day || state.filters.area || state.filters.type || state.filters.search || state.filters.amenities.length || state.favFilterOn || state.happeningNow;
   const btn = document.getElementById('clearAllBtn');
   if (btn) btn.style.display = has ? '' : 'none';
 }
 function clearAllFilters() {
   state.filters = { day: null, area: null, type: null, search: '', amenities: [] };
   state.favFilterOn = false;
+  resetHappeningNow();
   _activeSuggestion = null;
   document.getElementById('searchBox').value = '';
   ['dayFilters','areaFilters','typeFilters'].forEach(id => {
@@ -2442,6 +2447,7 @@ function updateChips() {
     });
   }
   if (state.favFilterOn) addChip(row, '★ Saved', () => { state.favFilterOn = false; document.getElementById('favFilterBtn').classList.remove('active'); applyFilters(); updateChips(); });
+  if (state.happeningNow) addChip(row, '🟢 Happening now', () => toggleHappeningNow());
 }
 function addChip(row, label, fn) {
   const c = document.createElement('div'); c.className = 'chip';
@@ -2510,6 +2516,191 @@ function debounceSearch() {
     if (q.length >= 2) track('search', { query_length: q.length });
   }, 250);
 }
+// ══════════════════════════════════════════════════════════
+// HAPPY HOUR — "Happening now" parsing + live countdowns
+// ──────────────────────────────────────────────────────────
+// Parses the happy-hour TIME WINDOWS out of a venue's `deals[]` (NOT its
+// operating `hours` — those are general open hours). HH windows live in deals
+// as free text in many shapes: "Happy hour 3:00 PM - 6:00 PM", "daily 4-7pm",
+// "Happy Hour Mon-Fri 3-7pm: $2 off", "Late-night Fri-Sat 9pm-11pm". For each
+// deal line we extract a time range + (optional) day set, fall back to
+// v.days[] and then to "every day" when a line carries no day info, and cache
+// the parsed windows on the venue object. A price range like "$12 - $14 rolls"
+// never matches because we REQUIRE the end time to carry an am/pm meridiem.
+// ══════════════════════════════════════════════════════════
+
+const HH_DAY_IDX = { sun:0, mon:1, tue:2, wed:3, thu:4, fri:5, sat:6 };
+// Both live markets are Pacific. This map keeps "now" correct when the user's
+// device is in another timezone (e.g. the UK founder) and is the single place
+// to extend when a non-Pacific city launches.
+const CITY_TZ = { 'san-diego':'America/Los_Angeles', 'orange-county':'America/Los_Angeles' };
+// Time range with an OPTIONAL start meridiem and a REQUIRED end meridiem.
+// Groups: 1=startH 2=startMin 3=startMer 4=endH 5=endMin 6=endMer
+const HH_TIME_RE = /(\d{1,2})(?::(\d{2}))?\s*([ap]\.?m\.?)?\s*(?:[-–—]|to)\s*(\d{1,2})(?::(\d{2}))?\s*([ap]\.?m\.?)/i;
+const HH_CLOCK_SVG = `<svg class="hh-badge-ic" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg>`;
+
+function _hhDayName(tok) {
+  const t = String(tok).slice(0, 3).toLowerCase();
+  return (t in HH_DAY_IDX) ? HH_DAY_IDX[t] : -1;
+}
+// Expand an inclusive day range (week wraps): mon..fri → [1,2,3,4,5].
+function _hhDayRange(a, b) {
+  const out = []; let i = a;
+  for (let n = 0; n < 7; n++) { out.push(i); if (i === b) break; i = (i + 1) % 7; }
+  return out;
+}
+// Pull a day-set from text. Returns a Set of 0–6, or null when the text has no
+// day info (caller falls back to v.days[], then to every day).
+function parseHHDays(text) {
+  const s = text.toLowerCase();
+  if (/\b(daily|every\s?day|everyday|all\s?week|7\s?days)\b/.test(s)) return new Set([0,1,2,3,4,5,6]);
+  const days = new Set();
+  const NAME = '(sun|mon|tue|wed|thu|fri|sat)[a-z]*';
+  const rangeRe = new RegExp(NAME + '\\s*(?:[-–—]|to)\\s*' + NAME, 'g');
+  let m, matchedRange = false;
+  while ((m = rangeRe.exec(s))) {
+    const a = _hhDayName(m[1]), b = _hhDayName(m[2]);
+    if (a >= 0 && b >= 0) { _hhDayRange(a, b).forEach(d => days.add(d)); matchedRange = true; }
+  }
+  if (!matchedRange) {
+    const oneRe = new RegExp('\\b' + NAME + '\\b', 'g');
+    while ((m = oneRe.exec(s))) { const d = _hhDayName(m[1]); if (d >= 0) days.add(d); }
+  }
+  return days.size ? days : null;
+}
+function _hhTo24(h, min, mer) { h = h % 12; if (mer === 'p') h += 12; return h * 60 + min; }
+// Parse one deal line into a window {start, end} (minutes from midnight) or
+// null. `end` can exceed 1440 when the window crosses midnight (e.g. 9pm–1am).
+function parseHHWindow(line) {
+  const m = line.match(HH_TIME_RE);
+  if (!m) return null;
+  const sh = +m[1], sm = m[2] ? +m[2] : 0, smer = m[3] ? m[3][0].toLowerCase() : null;
+  const eh = +m[4], em = m[5] ? +m[5] : 0, emer = m[6][0].toLowerCase();
+  if (sh < 1 || sh > 12 || eh < 1 || eh > 12) return null;
+  const end = _hhTo24(eh, em, emer);
+  let start;
+  if (smer) {
+    start = _hhTo24(sh, sm, smer);
+  } else {
+    // Infer start meridiem from the end: prefer the same, flip if that lands
+    // start at/after end ("11-2pm" → 11am, "3-6pm" → 3pm).
+    start = _hhTo24(sh, sm, emer);
+    if (start >= end) start = _hhTo24(sh, sm, emer === 'p' ? 'a' : 'p');
+  }
+  let e = end;
+  if (e <= start) e += 1440; // crosses midnight
+  return { start, end: e };
+}
+// All happy-hour windows for a venue, cached on the object.
+function parseHHWindows(v) {
+  if (v._hhWindows) return v._hhWindows;
+  const out = [];
+  const venueDays = (v.days || []).map(_hhDayName).filter(d => d >= 0);
+  for (const line of (v.deals || [])) {
+    if (typeof line !== 'string') continue;
+    if (/\bno\b.{0,18}happy\s?hour/i.test(line)) continue; // "no traditional happy hour"
+    const w = parseHHWindow(line);
+    if (!w) continue;
+    const days = parseHHDays(line) || (venueDays.length ? new Set(venueDays) : new Set([0,1,2,3,4,5,6]));
+    out.push({ days, start: w.start, end: w.end });
+  }
+  v._hhWindows = out;
+  return out;
+}
+// Current weekday/minute in the loaded city's timezone (short-cached).
+let _hhNowCache = null, _hhNowAt = 0;
+function hhNow() {
+  const tz = (state.city && CITY_TZ[state.city.slug]) || 'America/Los_Angeles';
+  const t = Date.now();
+  if (_hhNowCache && _hhNowCache.tz === tz && (t - _hhNowAt) < 15000) return _hhNowCache;
+  let day, min;
+  try {
+    const map = {};
+    new Intl.DateTimeFormat('en-US', { timeZone: tz, hour12: false, weekday: 'short', hour: '2-digit', minute: '2-digit' })
+      .formatToParts(new Date()).forEach(p => { map[p.type] = p.value; });
+    day = DAYS.indexOf(map.weekday);
+    let h = parseInt(map.hour, 10); if (h === 24) h = 0;
+    min = h * 60 + parseInt(map.minute, 10);
+    if (day < 0) throw new Error('weekday');
+  } catch (e) {
+    const d = new Date(); day = d.getDay(); min = d.getHours() * 60 + d.getMinutes();
+  }
+  _hhNowCache = { tz, day, min }; _hhNowAt = t;
+  return _hhNowCache;
+}
+// If a venue's happy hour is live right now, returns { remaining } (minutes
+// until it ends); otherwise null. Picks the soonest-ending active window.
+function hhActive(v) {
+  const windows = parseHHWindows(v);
+  if (!windows.length) return null;
+  const { day, min } = hhNow();
+  let best = null;
+  for (const w of windows) {
+    const todayEnd = Math.min(w.end, 1440);
+    if (w.days.has(day) && min >= w.start && min < todayEnd) {
+      const rem = todayEnd - min;
+      if (!best || rem < best.remaining) best = { remaining: rem };
+    }
+    if (w.end > 1440) { // past-midnight tail belongs to the previous day's window
+      const tail = w.end - 1440;
+      if (w.days.has((day + 6) % 7) && min < tail) {
+        const rem = tail - min;
+        if (!best || rem < best.remaining) best = { remaining: rem };
+      }
+    }
+  }
+  return best;
+}
+function fmtHHRemaining(mins) {
+  if (mins >= 60) { const h = Math.floor(mins / 60), m = mins % 60; return m ? `${h}h ${m}m` : `${h}h`; }
+  return `${Math.max(1, mins)}m`;
+}
+// Live countdown badge shown on any card whose happy hour is active now.
+function hhBadgeHTML(v) {
+  const r = hhActive(v);
+  if (!r) return '';
+  return `<div class="hh-badge${r.remaining <= 15 ? ' hh-badge--soon' : ''}" data-vid="${v.id}">`
+    + `<span class="hh-badge-dot"></span>${HH_CLOCK_SVG}`
+    + `<span class="hh-badge-txt">Ends in ${fmtHHRemaining(r.remaining)}</span></div>`;
+}
+// Ticker keeps the visible countdowns fresh and drops just-ended venues from
+// the focused "Happening now" view. Only runs while that view is active.
+let _hhTicker = null;
+function startHHTicker() { if (!_hhTicker) _hhTicker = setInterval(_hhTick, 30000); }
+function stopHHTicker() { if (_hhTicker) { clearInterval(_hhTicker); _hhTicker = null; } }
+function _hhTick() {
+  _hhNowAt = 0; // force a fresh "now"
+  let anyEnded = false;
+  document.querySelectorAll('.hh-badge[data-vid]').forEach(el => {
+    const v = state.venues.find(x => x.id === el.dataset.vid);
+    const r = v && hhActive(v);
+    const txt = el.querySelector('.hh-badge-txt');
+    if (!r) {
+      anyEnded = true;
+      el.classList.add('hh-badge--ended'); el.classList.remove('hh-badge--soon');
+      if (txt) txt.textContent = 'Just ended';
+    } else {
+      if (txt) txt.textContent = 'Ends in ' + fmtHHRemaining(r.remaining);
+      el.classList.toggle('hh-badge--soon', r.remaining <= 15);
+    }
+  });
+  if (anyEnded && state.happeningNow) applyFilters();
+}
+function toggleHappeningNow() {
+  if (typeof haptic === 'function') haptic('light');
+  state.happeningNow = !state.happeningNow;
+  document.getElementById('happeningToggle')?.classList.toggle('active', state.happeningNow);
+  if (state.happeningNow) { _hhNowAt = 0; startHHTicker(); track('happening_now_filter', { on: true }); }
+  else { stopHHTicker(); }
+  applyFilters(); updateChips(); updateClearBtn();
+}
+// Clear the "Happening now" view (used by the city-change / clear-all resets).
+function resetHappeningNow() {
+  state.happeningNow = false;
+  stopHHTicker();
+  document.getElementById('happeningToggle')?.classList.remove('active');
+}
+
 function applyFilters() {
   const search = (document.getElementById('searchBox')?.value || '').toLowerCase().trim();
   state.filters.search = search;
@@ -2545,11 +2736,18 @@ function applyFilters() {
       if (!h.includes(search)) return false;
     }
     if (state.favFilterOn && !isFavorite(v.id)) return false;
+    if (state.happeningNow && !hhActive(v)) return false;
     return true;
   });
 
   // Sort
-  if (state.sort === 'distance' && state.userLat !== null) {
+  if (state.happeningNow) {
+    // Most urgent first — whose happy hour ends soonest.
+    state.filtered.sort((a, b) => {
+      const ra = hhActive(a), rb = hhActive(b);
+      return (ra ? ra.remaining : Infinity) - (rb ? rb.remaining : Infinity);
+    });
+  } else if (state.sort === 'distance' && state.userLat !== null) {
     // Pin featured venues to the top, then sort by distance within each group
     state.filtered.sort((a, b) => {
       if (a.featured && !b.featured) return -1;
@@ -2571,7 +2769,9 @@ function applyFilters() {
   // toggled map view (mobile) or the always-on desktop two-pane right pane.
   if (state.map && (state.view === 'map' || isTwoPane())) updateMapMarkers();
   const rc = document.getElementById('resultsCount');
-  if (rc) rc.textContent = `${state.filtered.length} of ${pool.length} venues`;
+  if (rc) rc.textContent = state.happeningNow
+    ? `${state.filtered.length} happy hour${state.filtered.length === 1 ? '' : 's'} on right now`
+    : `${state.filtered.length} of ${pool.length} venues`;
 }
 // ── SORT & GEO ────────────────────────────────────────
 function haversine(lat1, lng1, lat2, lng2) {
@@ -2650,6 +2850,19 @@ function _renderCardsNow() {
   if (!grid) return;
 
   if (!state.filtered.length) {
+    if (state.happeningNow) {
+      grid.innerHTML = `<div class="empty-state">
+        <svg width="96" height="96" viewBox="0 0 96 96" fill="none" stroke="#FF6B4A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="48" cy="48" r="34" fill="rgba(255,107,74,0.08)"/>
+          <circle cx="48" cy="48" r="22" fill="none"/>
+          <polyline points="48 34 48 48 58 54" fill="none"/>
+        </svg>
+        <div class="empty-state-title">No happy hours on right now</div>
+        <div class="empty-state-sub">Nothing's mid–happy-hour at the moment. Browse all spots to plan ahead.</div>
+        <button class="request-venue-btn request-venue-btn--empty" onclick="toggleHappeningNow()">Show all spots</button>
+      </div>`;
+      return;
+    }
     grid.innerHTML = `<div class="empty-state">
       <svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
         <circle cx="48" cy="48" r="40" fill="rgba(255,107,74,0.08)"/>
@@ -2696,12 +2909,17 @@ function _renderCardsNow() {
     return d;
   };
 
-  if (isTwoPane()) {
-    // ── Desktop two-pane: uniform horizontal list ──
-    // Next to the persistent map, a single scannable column of same-shape
-    // horizontal cards (Yelp/Airbnb style) reads better than the editorial
-    // hero/compact/standard size tiers. `venues` is the full filtered set in
-    // sort order (heroes included), so nothing is dropped.
+  if (isTwoPane() || state.happeningNow) {
+    // ── Uniform horizontal list ──
+    // Two cases share this layout:
+    //  • Desktop two-pane: a single scannable column beside the persistent map.
+    //  • "Happening now": the editorial hero/compact/standard tiers re-bucket
+    //    cards and would destroy the ending-soonest sort order, so we render one
+    //    flat list that preserves it.
+    // `venues` is the full filtered set in sort order (heroes included).
+    if (state.happeningNow && !isTwoPane()) {
+      html += `<div class="feed-label feed-label--live"><span class="hh-live-dot"></span>Happy hour right now · ending soonest first</div>`;
+    }
     venues.forEach((v, i) => {
       html += standardCardHTML(v, nextDelay(25), i === 0);
     });
@@ -2837,6 +3055,7 @@ function heroCardHTML(v, delay, idx = 0) {
         ${todayH ? `<span class="dot"></span><span>${esc(todayH)}</span>` : ''}
         ${v.yelp_rating ? `<span class="dot"></span><span>★ ${v.yelp_rating}</span>` : avg > 0 ? `<span class="dot"></span><span>★ ${avg.toFixed(1)}</span>` : ''}
       </div>
+      ${hhBadgeHTML(v)}
       <div class="card-hero-deals">${deals}</div>
       ${eventChipsHTML(v)}
       ${goingBar}
@@ -2876,6 +3095,7 @@ function compactCardHTML(v, delay) {
     <div class="card-compact-info">
       <div class="card-compact-name">${esc(v.name)}</div>
       <div class="card-compact-sub">${esc(v.cuisine || '')}${v.yelp_rating ? ` · ★ ${v.yelp_rating}` : avg > 0 ? ` · ★ ${avg.toFixed(1)}` : ''}${count > 0 ? ` · 🔥 ${count}` : ''}</div>
+      ${hhBadgeHTML(v)}
       ${dealsHtml}
       ${eventChipsHTML(v)}
       <button class="card-compact-checkin${isMeIn ? ' joined' : ''}" data-vid="${v.id}"
@@ -2917,6 +3137,7 @@ function standardCardHTML(v, delay, first = false) {
     <div class="card-std-body">
       <div class="card-std-name">${esc(v.name)}</div>
       <div class="card-std-meta">${esc(v.neighborhood || '')} · ${esc(v.cuisine || '')}${todayH ? ' · ' + esc(todayH) : ''}</div>
+      ${hhBadgeHTML(v)}
       ${deals.length ? deals.map(d => `<div class="card-std-deal">${esc(d)}</div>`).join('') : ''}
       ${eventChipsHTML(v)}
       ${count > 0 ? `<div class="card-std-going">🔥 ${count} checked in tonight</div>` : starsEl}
