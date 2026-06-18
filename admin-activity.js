@@ -680,66 +680,44 @@
   }
 
   // ── navigation ─────────────────────────────────────
+  // Consolidated into the "Users" hub — Activity is reached via the hub tab bar,
+  // so it no longer owns a standalone sidebar/drawer nav item. It lights up the
+  // parent "Users" nav instead.
   function switchTo() {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
     document.querySelectorAll('.drawer-item').forEach(i => i.classList.remove('active'));
     document.getElementById('page-activity')?.classList.add('active');
-    document.getElementById('nav-activity')?.classList.add('active');
-    document.getElementById('mob-nav-activity')?.classList.add('active');
+    document.getElementById('nav-users')?.classList.add('active');
+    document.getElementById('mob-nav-users')?.classList.add('active');
     const title = document.getElementById('mobilePageTitle');
-    if (title) title.textContent = 'User Activity';
+    if (title) title.textContent = 'Users';
+    window.scrollTo(0, 0);
     loadAll();
   }
+  // Expose so the Users-hub tab bar (in admin.html) can open this view.
+  window.showActivityPage = switchTo;
 
   // ── DOM injection ──────────────────────────────────
   function inject() {
-    // Sidebar — place under the Users group (near Churned Users / User Analytics)
-    const sidebar = document.querySelector('.sidebar');
-    if (sidebar && !document.getElementById('nav-activity')) {
-      const item = document.createElement('div');
-      item.className = 'sidebar-item';
-      item.id = 'nav-activity';
-      item.style.cursor = 'pointer';
-      item.innerHTML = `📈 User Activity`;
-      item.addEventListener('click', switchTo);
-      const anchor = document.getElementById('nav-churn') || document.getElementById('nav-users');
-      if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(item, anchor.nextSibling);
-      else sidebar.appendChild(item);
-    }
-
-    // Mobile drawer
-    const drawer = document.getElementById('mobileDrawer');
-    if (drawer && !document.getElementById('mob-nav-activity')) {
-      const btn = document.createElement('button');
-      btn.className = 'drawer-item';
-      btn.id = 'mob-nav-activity';
-      btn.innerHTML = `📈 User Activity`;
-      btn.addEventListener('click', () => {
-        switchTo();
-        if (typeof window.closeMobileMenu === 'function') window.closeMobileMenu();
-      });
-      const anchor = document.getElementById('mob-nav-churn') || document.getElementById('mob-nav-users');
-      if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(btn, anchor.nextSibling);
-      else {
-        const footer = drawer.querySelector('.drawer-footer');
-        if (footer) drawer.insertBefore(btn, footer); else drawer.appendChild(btn);
-      }
-    }
-
-    // Page
+    // Page only — navigation lives in the Users hub tab bar.
     const main = document.querySelector('.main-content');
     if (main && !document.getElementById('page-activity')) {
       const page = document.createElement('div');
       page.className = 'page';
       page.id = 'page-activity';
       page.innerHTML = `
-        <div class="page-title">📈 User Activity</div>
+        <div class="page-title">Users</div>
         <div class="page-sub">
           Our own in-house analytics. <strong>App Users</strong> = per-user actions
           (tab changes, venue opens, searches, auth…). <strong>Site Traffic</strong> =
           everyone who reaches any page (venue/blog/landing) across desktop + mobile —
           pageviews, sources, devices, geography, conversions. Adjust the date range, switch modes, drill into any user.
+        </div>
+        <div class="hub-tabs">
+          <button class="hub-tab" onclick="showPage('users')">📊 Overview</button>
+          <button class="hub-tab active" onclick="window.showActivityPage&&window.showActivityPage()">📈 Activity</button>
+          <button class="hub-tab" onclick="showPage('churn')">📉 Churn</button>
         </div>
         <div id="activity-content"></div>
       `;
