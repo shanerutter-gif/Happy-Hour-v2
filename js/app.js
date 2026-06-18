@@ -9,10 +9,10 @@ const TODAY   = DAYS[new Date().getDay()];
 // Parse just today's hours from the full hours string
 // Handles both "Mon–Thu 5–9pm" and "11am – 10pm Mon–Thu" formats
 // Separators: ", " or " · "
-function getTodayHours(v) {
+function getTodayHours(v, dayName = TODAY) {
   if (!v.hours) return '';
   const dayOrder = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-  const todayIdx = dayOrder.indexOf(TODAY);
+  const todayIdx = dayOrder.indexOf(dayName);
   if (todayIdx === -1) return v.hours;
 
   // Split by " · " or ", "
@@ -50,7 +50,7 @@ function getTodayHours(v) {
   }
 
   // No match for today — venue not open today
-  return (v.days || []).includes(TODAY) ? v.hours : 'Not open today';
+  return (v.days || []).includes(dayName) ? v.hours : 'Not open today';
 }
 const EVENT_TYPES = ['Trivia','Live Music','Karaoke','Bingo','Game Night','Comedy'];
 const HH_TYPES    = ['Bar','Brewery','Seafood','Mexican','Italian','Asian','BBQ','Wine Bar','Steakhouse','Beach Bar'];
@@ -2628,18 +2628,45 @@ function hhNow() {
   _hhNowCache = { tz, day, min }; _hhNowAt = t;
   return _hhNowCache;
 }
+// Today's operating window {start, end} in city-tz minutes, or null when the
+// hours can't be parsed, or 'closed' when the venue isn't open today at all.
+function venueOpenWindow(v) {
+  const { day } = hhNow();
+  const todayH = getTodayHours(v, DAYS[day]);
+  if (todayH === 'Not open today') return 'closed';
+  if (!todayH) return null;
+  return parseHHWindow(todayH) || null; // reuse the time-range parser on the hours string
+}
+
 // If a venue's happy hour is live right now, returns { remaining } (minutes
 // until it ends); otherwise null. Picks the soonest-ending active window.
+//
+// Cross-checks operating hours because enrichment sometimes invents bogus
+// morning "happy hours" (e.g. 9am at a bar that opens at 11am). We therefore:
+//   • never report "happening now" while the venue is closed, and
+//   • ignore any window that STARTS before the venue opens (untrustworthy), and
+//   • clamp the countdown so a happy hour can't outlast closing time.
+// When hours are unknown (null) we fall back to the window alone.
 function hhActive(v) {
   const windows = parseHHWindows(v);
   if (!windows.length) return null;
   const { day, min } = hhNow();
+  const open = venueOpenWindow(v);
+  if (open === 'closed') return null;
+  if (open) {
+    const isOpen = (min >= open.start && min < open.end) || (min + 1440 >= open.start && min + 1440 < open.end);
+    if (!isOpen) return null; // doors are shut → not "happening"
+  }
   let best = null;
   for (const w of windows) {
-    const todayEnd = Math.min(w.end, 1440);
-    if (w.days.has(day) && min >= w.start && min < todayEnd) {
-      const rem = todayEnd - min;
-      if (!best || rem < best.remaining) best = { remaining: rem };
+    // Same-day portion. Skip windows starting before the venue opens — that's
+    // bogus data, not a real happy hour.
+    if (!(open && w.start < open.start)) {
+      const todayEnd = open ? Math.min(w.end, 1440, open.end) : Math.min(w.end, 1440);
+      if (w.days.has(day) && min >= w.start && min < todayEnd) {
+        const rem = todayEnd - min;
+        if (!best || rem < best.remaining) best = { remaining: rem };
+      }
     }
     if (w.end > 1440) { // past-midnight tail belongs to the previous day's window
       const tail = w.end - 1440;
