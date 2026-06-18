@@ -59,7 +59,11 @@
 
     /* LAYOUT */
     .app-layout { display:flex; min-height:calc(100vh - 56px); }
-    .sidebar { width:220px; flex-shrink:0; background:var(--card2); border-right:1px solid var(--border); padding:24px 0; }
+    /* Sticky, independently-scrollable sidebar so a long nav list is never cut off
+       and the nav stays put while the main content scrolls. */
+    .sidebar { width:220px; flex-shrink:0; background:var(--card2); border-right:1px solid var(--border); padding:24px 0; position:sticky; top:56px; height:calc(100vh - 56px); overflow-y:auto; overscroll-behavior:contain; }
+    .sidebar::-webkit-scrollbar { width:6px; }
+    .sidebar::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
     .sidebar-label { font-family:'DM Sans',sans-serif; font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); padding:6px 20px 4px; }
     .sidebar-item { display:flex; align-items:center; justify-content:space-between; padding:10px 20px; cursor:pointer; color:var(--muted); font-size:14px; font-weight:500; border-radius:0; transition:background .15s, color .15s; }
     .sidebar-item:hover { background:rgba(255,107,74,0.06); color:var(--text); }
@@ -1158,6 +1162,31 @@
       .blog-table th:nth-child(4), .blog-table td:nth-child(4),
       .blog-table th:nth-child(6), .blog-table td:nth-child(6) { display:none; }
     }
+
+    /* ── Hub sub-tabs (consolidated Users / Pipeline pages) ── */
+    .hub-tabs { display:flex; gap:4px; background:var(--bg2); padding:4px; border-radius:10px; margin-bottom:22px; max-width:480px; flex-wrap:wrap; }
+    .hub-tab { flex:1; min-width:90px; padding:9px 14px; border-radius:7px; font-size:13px; font-weight:600; cursor:pointer; text-align:center; color:var(--muted); transition:all .15s; border:none; background:transparent; font-family:'DM Sans',sans-serif; white-space:nowrap; }
+    .hub-tab.active { background:var(--card); color:var(--text); box-shadow:0 1px 4px rgba(42,31,20,0.1); }
+    .hub-tab:hover:not(.active) { color:var(--text); }
+
+    /* ── Tablet polish (sidebar visible but tighter) ── */
+    @media(max-width:900px) and (min-width:681px) {
+      .sidebar { width:188px; }
+      .main-content { padding:28px 24px; }
+    }
+
+    /* ── Long tables never blow out the layout ── */
+    .users-table-wrap, .blog-table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+
+    /* ── Site Copy (CMS): split editor + live preview is desktop-only;
+          stack it and drop the height lock on phones so it's usable. ── */
+    @media(max-width:680px) {
+      #cms-container { flex-direction:column; height:auto !important; }
+      #cms-panel { width:100% !important; border-right:none !important; border-bottom:1px solid #e8e0d8; }
+      #cms-fields { max-height:none !important; }
+      #cms-container > div:last-child { min-height:440px; }
+      .hub-tabs { max-width:100%; }
+    }
   </style>
 </head>
 <body>
@@ -1220,13 +1249,12 @@
     </button>
     <div class="drawer-section-label">Listings</div>
     <button class="drawer-item" onclick="showPage('venues');closeMobileMenu()" id="mob-nav-venues">📍 All Venues</button>
+    <button class="drawer-item" onclick="showPage('heroes');closeMobileMenu()" id="mob-nav-heroes">🔥 Hero Picker</button>
     <div class="drawer-section-label">Users</div>
-    <button class="drawer-item" onclick="showPage('users');closeMobileMenu()" id="mob-nav-users">👥 User Analytics</button>
-    <button class="drawer-item" onclick="showPage('churn');closeMobileMenu()" id="mob-nav-churn">📉 Churned Users</button>
+    <button class="drawer-item" onclick="showPage('users');closeMobileMenu()" id="mob-nav-users">👥 Users</button>
     <div class="drawer-section-label">Insights</div>
     <button class="drawer-item" onclick="showPage('venues-top');closeMobileMenu()" id="mob-nav-venues-top">🏆 Top Venues</button>
     <button class="drawer-item" onclick="showPage('cities');closeMobileMenu()" id="mob-nav-cities">🗺️ City Breakdown</button>
-    <button class="drawer-item" onclick="showPage('pipeline');closeMobileMenu()" id="mob-nav-pipeline">💰 Revenue Pipeline</button>
     <div class="drawer-section-label">CRM</div>
     <button class="drawer-item" onclick="showPage('crm');closeMobileMenu()" id="mob-nav-crm">📊 Dashboard</button>
     <button class="drawer-item" onclick="showPage('crm-contacts');closeMobileMenu()" id="mob-nav-crm-contacts">👤 Contacts</button>
@@ -1270,10 +1298,7 @@
       </div>
       <div class="sidebar-label" style="margin-top:20px;margin-bottom:8px">Users</div>
       <div class="sidebar-item" onclick="showPage('users')" id="nav-users">
-        User Analytics
-      </div>
-      <div class="sidebar-item" onclick="showPage('churn')" id="nav-churn">
-        Churned Users
+        Users
       </div>
       <div class="sidebar-label" style="margin-top:20px;margin-bottom:8px">Insights</div>
       <div class="sidebar-item" onclick="showPage('venues-top')" id="nav-venues-top">
@@ -1281,9 +1306,6 @@
       </div>
       <div class="sidebar-item" onclick="showPage('cities')" id="nav-cities">
         City Breakdown
-      </div>
-      <div class="sidebar-item" onclick="showPage('pipeline')" id="nav-pipeline">
-        Revenue Pipeline
       </div>
       <div class="sidebar-label" style="margin-top:20px;margin-bottom:8px">CRM</div>
       <div class="sidebar-item" onclick="showPage('crm')" id="nav-crm">
@@ -1465,8 +1487,13 @@
 
       <!-- USERS PAGE -->
       <div class="page" id="page-users">
-        <div class="page-title">User Analytics</div>
+        <div class="page-title">Users</div>
         <div class="page-sub">Overview of your user base, growth, and engagement.</div>
+        <div class="hub-tabs">
+          <button class="hub-tab active" onclick="showPage('users')">📊 Overview</button>
+          <button class="hub-tab" onclick="window.showActivityPage&&window.showActivityPage()">📈 Activity</button>
+          <button class="hub-tab" onclick="showPage('churn')">📉 Churn</button>
+        </div>
 
         <!-- KPI cards -->
         <div class="kpi-grid" id="kpi-grid">
@@ -1581,8 +1608,13 @@
 
       <!-- CHURNED USERS PAGE -->
       <div class="page" id="page-churn">
-        <div class="page-title">Churned Users</div>
+        <div class="page-title">Users</div>
         <div class="page-sub">Signed up but never checked in — potential re-engagement targets.</div>
+        <div class="hub-tabs">
+          <button class="hub-tab" onclick="showPage('users')">📊 Overview</button>
+          <button class="hub-tab" onclick="window.showActivityPage&&window.showActivityPage()">📈 Activity</button>
+          <button class="hub-tab active" onclick="showPage('churn')">📉 Churn</button>
+        </div>
         <div class="kpi-grid" style="margin-bottom:28px">
           <div class="kpi-card">
             <div class="kpi-label">Never Checked In</div>
@@ -1631,8 +1663,12 @@
 
       <!-- REVENUE PIPELINE PAGE -->
       <div class="page" id="page-pipeline">
-        <div class="page-title">Revenue Pipeline</div>
+        <div class="page-title">Pipeline</div>
         <div class="page-sub">Business venue requests moving from submission to claimed listing.</div>
+        <div class="hub-tabs">
+          <button class="hub-tab" onclick="showPage('crm-pipeline')">🔀 Kanban</button>
+          <button class="hub-tab active" onclick="showPage('pipeline')">💰 Revenue Funnel</button>
+        </div>
         <div class="pipeline-stages" id="pipeline-stages">
           <div class="empty-state"><div class="empty-icon">⏳</div><h3>Loading…</h3></div>
         </div>
@@ -1736,6 +1772,10 @@
       <div class="page" id="page-crm-pipeline">
         <div class="page-title">Pipeline</div>
         <div class="page-sub">Drag-free kanban view of your deal stages. Click a card to manage.</div>
+        <div class="hub-tabs">
+          <button class="hub-tab active" onclick="showPage('crm-pipeline')">🔀 Kanban</button>
+          <button class="hub-tab" onclick="showPage('pipeline')">💰 Revenue Funnel</button>
+        </div>
         <div class="crm-pipeline" id="crm-pipeline-board" style="min-height:400px"></div>
       </div>
 
@@ -3401,20 +3441,24 @@ in San Diego</textarea>
     return formatDate(iso);
   }
   const PAGE_TITLES = {
-    dashboard: 'Dashboard', requests: 'Venue Requests', venues: 'All Venues', heroes: 'Hero Picker', users: 'User Analytics',
-    churn: 'Churned Users', 'venues-top': 'Top Venues', cities: 'City Breakdown',
-    pipeline: 'Revenue Pipeline', crm: 'CRM Dashboard', 'crm-contacts': 'Contacts', 'crm-pipeline': 'Pipeline', 'crm-activity': 'Activity Log', feedback: 'User Feedback', push: 'Push Notifications', newsletter: 'Newsletter Subs', cms: 'Site Copy', board: 'Project Board', demo: 'Demo Data', assets: 'Asset Generator', 'email-builder': 'Email Builder', 'content-calendar': 'Content Calendar', blog: 'Blog Manager'
+    dashboard: 'Dashboard', requests: 'Venue Requests', venues: 'All Venues', heroes: 'Hero Picker', users: 'Users',
+    churn: 'Users', 'venues-top': 'Top Venues', cities: 'City Breakdown',
+    pipeline: 'Pipeline', crm: 'CRM Dashboard', 'crm-contacts': 'Contacts', 'crm-pipeline': 'Pipeline', 'crm-activity': 'Activity Log', feedback: 'User Feedback', push: 'Push Notifications', newsletter: 'Newsletter Subs', cms: 'Site Copy', board: 'Project Board', demo: 'Demo Data', assets: 'Asset Generator', 'email-builder': 'Email Builder', 'content-calendar': 'Content Calendar', blog: 'Blog Manager'
   };
+  // Consolidated child pages light up their parent's nav item.
+  const NAV_PARENT = { churn: 'users', activity: 'users', pipeline: 'crm-pipeline' };
 
   function showPage(page) {
     document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
     document.querySelectorAll('.sidebar-item').forEach(i=>i.classList.remove('active'));
     document.querySelectorAll('.drawer-item').forEach(i=>i.classList.remove('active'));
     document.getElementById('page-'+page)?.classList.add('active');
-    document.getElementById('nav-'+page)?.classList.add('active');
-    document.getElementById('mob-nav-'+page)?.classList.add('active');
+    const navKey = NAV_PARENT[page] || page;
+    document.getElementById('nav-'+navKey)?.classList.add('active');
+    document.getElementById('mob-nav-'+navKey)?.classList.add('active');
     const titleEl = document.getElementById('mobilePageTitle');
     if (titleEl) titleEl.textContent = PAGE_TITLES[page] || page;
+    window.scrollTo(0, 0);
     if (page === 'dashboard')  loadDashboard();
     if (page === 'venues')     loadVenues();
     if (page === 'heroes')     loadHeroes();
