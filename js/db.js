@@ -1671,6 +1671,91 @@ async function fetchMySavesBulk(postIds) {
   } catch(e) { return new Set(); }
 }
 
+// Hydrate a single post item with author profile, venue name, and the
+// like/comment/save state — so a post opened on its own (e.g. from a
+// notification) renders identically to one from the loaded feed.
+async function _hydratePostExtras(item, venueId, userId) {
+  try {
+    const [profRes, venRes, likes, cmts, saves] = await Promise.all([
+      userId ? db.from('profiles')
+        .select('id, display_name, avatar_emoji, avatar_url, username, is_official')
+        .eq('id', userId).maybeSingle() : Promise.resolve({ data: null }),
+      (venueId && !item.venue_name) ? db.from('venues')
+        .select('id, name, neighborhood').eq('id', venueId).maybeSingle() : Promise.resolve({ data: null }),
+      fetchLikesBulk([item.id]),
+      fetchCommentCountsBulk([item.id]),
+      fetchMySavesBulk([item.id]),
+    ]);
+    item.profile = profRes.data || item.profile || null;
+    if (venRes.data) { item.venue_name = venRes.data.name; item.neighborhood = venRes.data.neighborhood; }
+    const likers = likes[item.id] || [];
+    item._likeCount = likers.length;
+    item._liked = currentUser ? likers.includes(currentUser.id) : false;
+    item._commentCount = cmts[item.id] || 0;
+    item._saved = saves.has(item.id);
+  } catch (e) { /* best-effort hydration */ }
+  return item;
+}
+
+// Resolve a single post from its composed feed id ("photo-<uuid>",
+// "activity-<uuid>", "going-<uuid>"). Used when a notification points at a post
+// that isn't in the currently-loaded feed. Returns a feed-shaped item or null.
+async function fetchPostById(composedId, postType) {
+  if (!composedId) return null;
+  try {
+    const dash = composedId.indexOf('-');
+    if (dash < 0) return null;
+    const prefix = composedId.slice(0, dash);
+    const rawId = composedId.slice(dash + 1);
+
+    if (prefix === 'photo') {
+      const { data: r } = await db.from('checkin_photos')
+        .select('id, user_id, venue_id, photo_url, media_urls, media_captions, caption, title, body, post_type, edited, created_at')
+        .eq('id', rawId).maybeSingle();
+      if (!r) return null;
+      const item = {
+        id: `photo-${r.id}`, post_id_raw: r.id,
+        type: r.post_type === 'editorial' ? 'editorial' : r.post_type === 'text' ? 'text' : 'photo',
+        user_id: r.user_id, venue_id: r.venue_id, photo_url: r.photo_url,
+        media_urls: Array.isArray(r.media_urls) ? r.media_urls : (r.photo_url ? [r.photo_url] : []),
+        media_captions: Array.isArray(r.media_captions) ? r.media_captions : null,
+        caption: r.caption || '', title: r.title || null, body: r.body || null,
+        edited: !!r.edited, created_at: r.created_at,
+      };
+      return await _hydratePostExtras(item, r.venue_id, r.user_id);
+    }
+
+    if (prefix === 'activity') {
+      const { data: r } = await db.from('activity_feed')
+        .select('id, user_id, activity_type, venue_id, venue_name, neighborhood, meta, created_at')
+        .eq('id', rawId).maybeSingle();
+      if (!r) return null;
+      const meta = r.meta || {};
+      const item = {
+        id: `activity-${r.id}`, type: r.activity_type, user_id: r.user_id,
+        venue_id: r.venue_id, venue_name: r.venue_name, neighborhood: r.neighborhood,
+        meta, caption: meta.note || meta.text || '', photo_url: meta.photo_url || '',
+        created_at: r.created_at,
+      };
+      return await _hydratePostExtras(item, r.venue_id, r.user_id);
+    }
+
+    if (prefix === 'going') {
+      const { data: r } = await db.from('check_ins')
+        .select('id, user_id, venue_id, created_at')
+        .eq('id', rawId).maybeSingle();
+      if (!r) return null;
+      const item = {
+        id: `going-${r.id}`, type: 'going_tonight', user_id: r.user_id,
+        venue_id: r.venue_id, caption: '', created_at: r.created_at,
+      };
+      return await _hydratePostExtras(item, r.venue_id, r.user_id);
+    }
+
+    return null;
+  } catch (e) { console.error('fetchPostById:', e); return null; }
+}
+
 async function toggleSavePost(postId, postType) {
   if (!currentUser) return { error: 'Not signed in' };
   try {

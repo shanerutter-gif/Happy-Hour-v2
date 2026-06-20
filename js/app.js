@@ -263,8 +263,9 @@ function onAuthChange(user) {
   const ffg = document.getElementById('favFilterGroup');
   if (ffg) ffg.style.display = user ? '' : 'none';
   if (!user && state.favFilterOn) { state.favFilterOn = false; applyFilters(); }
-  // Refresh unread badge whenever auth state changes
-  if (user) dmRefreshBadge();
+  // Refresh unread badges whenever auth state changes
+  if (user) { dmRefreshBadge(); checkSocialNotifications(); }
+  else checkSocialNotifications(); // clears the Share-tab badge on sign-out
   // Push prompt is now shown via the soft modal after check-in/save flow
   // If user just signed in, enter pending city or auto-enter last city
   if (user && window._pendingCity) {
@@ -310,6 +311,7 @@ function renderBottomNav(user) {
       <button class="bottom-nav-btn" id="bnSocial" onclick="bottomNavSocial(this)">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-1a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v1"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-1a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         <span>Share</span>
+        <span class="bn-count" id="bnSocialBadge" style="display:none"></span>
       </button>
       <button class="bottom-nav-post" id="bnPost" onclick="openComposer()" aria-label="New post" title="New post">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -1716,10 +1718,56 @@ function renderSocialItem(item, variant) {
   </div>`;
 }
 // ── COMMENTS BOTTOM SHEET ──
+// Shared building blocks (used by the comments sheet AND the post-detail sheet).
+function _commentRowHTML(c) {
+  const p = c.profile || {};
+  const name = p.display_name || 'User';
+  const av = initialsAvatar(name, '', p.avatar_emoji, p.avatar_url);
+  return `<div class="cmt-row">
+    <div class="cmt-avatar">${av}</div>
+    <div class="cmt-main">
+      <div class="cmt-bubble">
+        <span class="cmt-author">${esc(name)}${officialBadge(p)}</span>
+        <span class="cmt-text">${esc(c.text)}</span>
+      </div>
+      <span class="cmt-time">${fmtDate(c.created_at)}</span>
+    </div>
+  </div>`;
+}
+function _commentsSkeletonHTML() {
+  return `<div class="cmts-loading">${[0,1,2].map(() =>
+    `<div class="cmt-skel"><div class="cmt-skel-av"></div><div class="cmt-skel-lines"><div class="cmt-skel-line"></div><div class="cmt-skel-line short"></div></div></div>`
+  ).join('')}</div>`;
+}
+function _commentsComposeHTML(postId, postType) {
+  if (!currentUser) return `<div class="cmts-signin">Sign in to join the conversation</div>`;
+  const me = currentUser.user_metadata?.full_name || 'You';
+  const av = initialsAvatar(me, '', null, currentUser.user_metadata?.avatar_url);
+  return `<div class="cmts-compose">
+    <div class="cmts-compose-av">${av}</div>
+    <input class="cmts-input" id="cinput-sheet-${postId}" type="text" placeholder="Add a comment…" maxlength="280"
+      onkeydown="if(event.key==='Enter')submitCommentSheet('${postId}','${postType}')">
+    <button class="cmts-send" onclick="submitCommentSheet('${postId}','${postType}')" aria-label="Send comment">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+    </button>
+  </div>`;
+}
+async function _loadCommentsInto(postId, postType) {
+  const list = document.getElementById('clist-sheet-' + postId);
+  if (!list) return;
+  const comments = await fetchComments(postId, postType);
+  if (!document.getElementById('clist-sheet-' + postId)) return; // sheet closed mid-fetch
+  const cc = document.getElementById('ccount-' + postId);
+  if (cc) cc.textContent = comments.length ? String(comments.length) : '';
+  list.innerHTML = comments.length
+    ? comments.map(_commentRowHTML).join('')
+    : `<div class="cmts-empty"><div class="cmts-empty-emoji">💬</div><div class="cmts-empty-title">No comments yet</div><div class="cmts-empty-sub">Be the first to say something</div></div>`;
+}
+
 async function openCommentsSheet(postId, postType) {
   if(typeof haptic==='function')haptic('light');
   const overlay = document.createElement('div');
-  overlay.className = 'overlay';
+  overlay.className = 'overlay overlay--comments';
   // The immersive viewer sits at z-index:10000, above the normal .overlay (~700),
   // so a comments sheet opened from inside it would be hidden behind the photo.
   // Bump this overlay above the viewer when it's open so it's visible in place.
@@ -1728,31 +1776,17 @@ async function openCommentsSheet(postId, postType) {
   }
   overlay.onclick = e => { if (e.target === overlay) dismissOverlay(overlay); };
   overlay.innerHTML = `
-    <div class="sheet" style="max-height:70vh">
+    <div class="sheet sheet--comments" style="max-height:78vh">
       <div class="sheet-handle"></div>
-      <div style="font-weight:800;font-size:17px;margin-bottom:16px">Comments</div>
-      <div class="sf-comments-list" id="clist-sheet-${postId}">
-        <div style="padding:20px 0;text-align:center;color:var(--muted);font-size:13px">Loading...</div>
+      <div class="cmts-head">
+        <span class="cmts-title">Comments</span>
+        <span class="cmts-count" id="ccount-${postId}"></span>
       </div>
-      ${currentUser ? `<div class="sf-comment-compose">
-        <input class="field" id="cinput-sheet-${postId}" type="text" placeholder="Add a comment..." maxlength="280"
-          onkeydown="if(event.key==='Enter')submitCommentSheet('${postId}','${postType}')" style="flex:1">
-        <button class="sf-comment-send-btn" onclick="submitCommentSheet('${postId}','${postType}')">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-        </button>
-      </div>` : ''}
+      <div class="cmts-list" id="clist-sheet-${postId}">${_commentsSkeletonHTML()}</div>
+      ${_commentsComposeHTML(postId, postType)}
     </div>`;
   presentOverlay(overlay);
-
-  const list = document.getElementById('clist-sheet-' + postId);
-  const comments = await fetchComments(postId, postType);
-  list.innerHTML = comments.length
-    ? comments.map(c => `<div class="sf-comment-row">
-        <span class="sf-comment-author">${esc(c.profile?.display_name || 'User')}</span>
-        <span class="sf-comment-text">${esc(c.text)}</span>
-        <span class="sf-comment-time">${fmtDate(c.created_at)}</span>
-      </div>`).join('')
-    : '<div style="padding:24px 0;text-align:center;color:var(--muted);font-size:13px">No comments yet — be the first</div>';
+  _loadCommentsInto(postId, postType);
 }
 
 async function submitCommentSheet(postId, postType) {
@@ -1765,15 +1799,18 @@ async function submitCommentSheet(postId, postType) {
   const result = await addComment(postId, postType, currentUser.id, text);
   if (result) {
     const list = document.getElementById('clist-sheet-' + postId);
-    const name = currentUser.user_metadata?.full_name || 'You';
-    // Remove "No comments" placeholder
-    const placeholder = list?.querySelector('div[style*="text-align:center"]');
-    if (placeholder) placeholder.remove();
-    const el = document.createElement('div');
-    el.className = 'sf-comment-row';
-    el.innerHTML = `<span class="sf-comment-author">${esc(name)}</span><span class="sf-comment-text">${esc(text)}</span><span class="sf-comment-time">Just now</span>`;
-    list?.appendChild(el);
-    // Update comment count on the card button
+    // Drop the empty-state placeholder if it's showing
+    list?.querySelector('.cmts-empty')?.remove();
+    const me = currentUser.user_metadata?.full_name || 'You';
+    list?.insertAdjacentHTML('beforeend', _commentRowHTML({
+      text, created_at: new Date().toISOString(),
+      profile: { display_name: me, avatar_url: currentUser.user_metadata?.avatar_url },
+    }));
+    if (list) list.scrollTop = list.scrollHeight; // keep newest in view
+    // Bump the count chip in the sheet header
+    const cc = document.getElementById('ccount-' + postId);
+    if (cc) cc.textContent = String((parseInt(cc.textContent || '0', 10) || 0) + 1);
+    // Update comment count on the card buttons in the feed
     const btn = document.querySelectorAll(`[onclick*="openCommentsSheet('${postId}"]`);
     btn.forEach(b => {
       const countEl = b.querySelector('span');
@@ -5390,6 +5427,9 @@ async function openSocialNotifications() {
   clearPushBadge();
   const dot = document.getElementById('socialNotifDot');
   if (dot) { dot.style.display = 'none'; dot.textContent = ''; }
+  // Clear the Share bottom-nav count badge too (everything is now read).
+  const navBadge = document.getElementById('bnSocialBadge');
+  if (navBadge) { navBadge.style.display = 'none'; navBadge.textContent = ''; }
 
   if (!items.length) {
     container.innerHTML = `<div class="social-empty"><div class="social-empty-icon">🔔</div><div class="social-empty-title">No notifications yet</div><div class="social-empty-sub">When people like, comment on, or follow you, you'll see it here</div></div>`;
@@ -5412,9 +5452,13 @@ async function openSocialNotifications() {
                        : t === 'push' ? '🔔'
                        : '✨';
   const onClick = (n) => {
-    if (n.type === 'push') return `void(0)`;
+    // Push rows carry a destination url ("/" = home/discover for the daily
+    // happy-hour blast). Take the user there instead of a dead tap.
+    if (n.type === 'push') return `openPushNotification('${(n.url || '/').replace(/'/g, "\\'")}')`;
     if (n.type === 'follow' && n.actor_id) return `openPublicProfile('${n.actor_id}')`;
-    if (n.post_id && n.post_type) return `openCommentsSheet('${n.post_id}','${n.post_type}')`;
+    // Like / comment / tagged / mention → open the actual POST (not a bare
+    // comments popup). The post view shows the photo/caption with comments below.
+    if (n.post_id && n.post_type) return `openPostFromNotification('${n.post_id}','${n.post_type}')`;
     return `void(0)`;
   };
 
@@ -5442,22 +5486,97 @@ async function openSocialNotifications() {
 }
 
 async function checkSocialNotifications() {
-  if (!currentUser) return;
+  if (!currentUser) {
+    // Signed out — clear any lingering badge on the Share tab.
+    const nav = document.getElementById('bnSocialBadge');
+    if (nav) { nav.style.display = 'none'; nav.textContent = ''; }
+    return;
+  }
   try {
     const count = await fetchUnreadNotificationCount();
+    // (1) The bell badge inside the Share tab header.
     const dot = document.getElementById('socialNotifDot');
-    if (!dot) return;
-    if (count > 0) {
-      dot.style.display = '';
-      // Render a number badge if > 0; the original was a tiny dot.
-      dot.textContent = count > 99 ? '99+' : String(count);
-      dot.classList.add('notif-dot--count');
-    } else {
-      dot.style.display = 'none';
-      dot.textContent = '';
-      dot.classList.remove('notif-dot--count');
+    if (dot) {
+      if (count > 0) {
+        dot.style.display = '';
+        // Render a number badge if > 0; the original was a tiny dot.
+        dot.textContent = count > 99 ? '99+' : String(count);
+        dot.classList.add('notif-dot--count');
+      } else {
+        dot.style.display = 'none';
+        dot.textContent = '';
+        dot.classList.remove('notif-dot--count');
+      }
+    }
+    // (2) The count badge on the Share bottom-nav tab — visible from any tab so
+    //     users know to open Activity (mirrors the app-icon push badge).
+    const nav = document.getElementById('bnSocialBadge');
+    if (nav) {
+      if (count > 0) { nav.textContent = count > 9 ? '9+' : String(count); nav.style.display = ''; }
+      else { nav.style.display = 'none'; nav.textContent = ''; }
     }
   } catch(e) {}
+}
+
+// Tapping a "push" notification row → go to its destination. Every push row's
+// url is currently "/" (the daily happy-hour blast), so the right destination
+// is Discover; bottomNavFeed also closes the Share tab. (url kept for when
+// targeted pushes start pointing at a specific venue/feed.)
+function openPushNotification(url) {
+  if (typeof haptic === 'function') haptic('light');
+  bottomNavFeed(document.getElementById('bnFeed'));
+}
+
+// Open the actual POST a notification refers to (like / comment / tagged /
+// mention). The notification's post_id IS the composed feed id (e.g.
+// "photo-<uuid>") and post_type the feed type, so we can resolve it directly.
+// Media posts open in the full-screen immersive viewer; text/check-in posts
+// open in a focused post-detail sheet. Both show the post first — never a bare
+// comments popup.
+async function openPostFromNotification(postId, postType) {
+  if (!currentUser) { openAuth('signin', 'social'); return; }
+  if (typeof haptic === 'function') haptic('light');
+  // Prefer the already-loaded feed item (carries hydrated like/save/comment
+  // state); otherwise fetch it on demand so it works even if the post isn't in
+  // the current city's feed (your own older post, a different city, etc.).
+  const inFeed = (Array.isArray(_socialItems) ? _socialItems : []).find(i => i.id === postId);
+  let item = inFeed || await fetchPostById(postId, postType);
+  if (!item) { showToast('This post is no longer available'); return; }
+  const hasMedia = (item.media_urls && item.media_urls.length) || item.photo_url
+    || item.meta?.photo_url || item.meta?.video_url;
+  if (hasMedia) {
+    // Always seed the viewer with this exact post — a notification targets one
+    // specific post, and it may be filtered out of the active feed tab (e.g.
+    // someone liked YOUR post while you're on the "Following" tab), which would
+    // otherwise show "Nothing to view".
+    openImmersiveViewer(postId, [item]);
+  } else {
+    openPostDetailSheet(item);
+  }
+}
+
+// Focused post view for non-media posts (text status / check-in). Shows the
+// post card with its comments below — a real "post page", not a comments popup.
+async function openPostDetailSheet(item) {
+  const postId = item.id, postType = item.type;
+  if (!window._socialPostMeta) window._socialPostMeta = {};
+  window._socialPostMeta[postId] = item.meta || null;
+  const overlay = document.createElement('div');
+  overlay.className = 'overlay overlay--comments';
+  overlay.onclick = e => { if (e.target === overlay) dismissOverlay(overlay); };
+  overlay.innerHTML = `
+    <div class="sheet sheet--comments" style="max-height:88vh">
+      <div class="sheet-handle"></div>
+      <div class="post-detail-card">${renderSocialItem(item, 'wide')}</div>
+      <div class="cmts-head">
+        <span class="cmts-title">Comments</span>
+        <span class="cmts-count" id="ccount-${postId}"></span>
+      </div>
+      <div class="cmts-list" id="clist-sheet-${postId}">${_commentsSkeletonHTML()}</div>
+      ${_commentsComposeHTML(postId, postType)}
+    </div>`;
+  presentOverlay(overlay);
+  _loadCommentsInto(postId, postType);
 }
 
 // ── FIND PEOPLE ────────────────────────────────────────
@@ -8104,10 +8223,10 @@ async function dmRefreshBadge() {
 // battery + bandwidth on backgrounded sessions; runs a fresh check the
 // moment the page becomes visible again.
 setInterval(() => {
-  if (currentUser && document.visibilityState === 'visible') dmRefreshBadge();
+  if (currentUser && document.visibilityState === 'visible') { dmRefreshBadge(); checkSocialNotifications(); }
 }, 120000);
 document.addEventListener('visibilitychange', () => {
-  if (currentUser && document.visibilityState === 'visible') dmRefreshBadge();
+  if (currentUser && document.visibilityState === 'visible') { dmRefreshBadge(); checkSocialNotifications(); }
 });
 
 function dmUpdateBadge(count) {
@@ -8777,18 +8896,26 @@ function closeStoryViewer() {
 let _immersiveItems = [];
 let _immersiveIndex = 0;
 
-function openImmersiveViewer(startPostId) {
-  // Build the list from whatever's currently visible
-  const tab = _socialActiveTab;
-  const pinned = _socialItems.filter(i => i.type === 'editorial' && _socialPinnedIds.has(i.id));
-  const tabFiltered = tab === 'following'
-    ? _socialItems.filter(i => i.isFollowing)
-    : tab === 'public'
-    ? _socialItems.filter(i => !i.isFollowing)
-    : _socialItems;
-  const allVisible = [...pinned, ...tabFiltered.filter(i => !pinned.some(p => p.id === i.id))];
+function openImmersiveViewer(startPostId, seedItems) {
+  // Normally the viewer list is whatever's currently visible in the feed. But
+  // when opened from a notification for a post that isn't loaded (different
+  // city / older than the feed window), the caller passes a seed array so the
+  // single post can still be viewed full-screen.
+  let pool;
+  if (Array.isArray(seedItems) && seedItems.length) {
+    pool = seedItems;
+  } else {
+    const tab = _socialActiveTab;
+    const pinned = _socialItems.filter(i => i.type === 'editorial' && _socialPinnedIds.has(i.id));
+    const tabFiltered = tab === 'following'
+      ? _socialItems.filter(i => i.isFollowing)
+      : tab === 'public'
+      ? _socialItems.filter(i => !i.isFollowing)
+      : _socialItems;
+    pool = [...pinned, ...tabFiltered.filter(i => !pinned.some(p => p.id === i.id))];
+  }
   // Only items with media (photo posts + multi-photo + editorial with hero image) work in immersive.
-  _immersiveItems = allVisible.filter(i =>
+  _immersiveItems = pool.filter(i =>
     (i.media_urls && i.media_urls.length) || i.photo_url || i.meta?.photo_url || i.meta?.video_url
   );
   if (!_immersiveItems.length) { showToast('Nothing to view'); return; }
