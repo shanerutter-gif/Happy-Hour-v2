@@ -8618,3 +8618,110 @@ h1, h2, .sf-hero-venue, .sf-ed-title, .pf-name, .gw-hero__title,
   .cmts-loading .cmt-skel-av, .cmts-loading .cmt-skel-line { animation: none; }
   .sheet--comments { transition: transform .2s ease; }
 }
+
+/* ══════════════════════════════════════════════════════════
+   NIGHT PLANNER — "Plan my night out" CTA + builder sheet.
+   Appended last so it wins over earlier generic .overlay/.sheet rules.
+   ══════════════════════════════════════════════════════════ */
+.plan-night-cta {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  margin: 10px 0 2px; padding: 12px 14px; border: none; cursor: pointer;
+  border-radius: 18px; text-align: left;
+  background: linear-gradient(135deg, var(--coral), var(--amber));
+  color: #fff; box-shadow: 0 8px 22px rgba(255,107,74,0.28);
+  transition: transform .16s var(--ease-bounce, cubic-bezier(.34,1.5,.5,1)), box-shadow .2s;
+}
+.plan-night-cta:active { transform: scale(.975); }
+.plan-night-cta .pnc-emoji { font-size: 22px; line-height: 1; flex: 0 0 auto; }
+.plan-night-cta .pnc-text { display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; }
+.plan-night-cta .pnc-title { font-weight: 800; font-size: 15px; letter-spacing: -0.2px; }
+.plan-night-cta .pnc-sub { font-weight: 500; font-size: 12px; opacity: 0.92; }
+.plan-night-cta .pnc-go { font-size: 24px; font-weight: 700; opacity: 0.85; flex: 0 0 auto; }
+
+/* Stack below the venue modal (z-index 700) so tapping a stop opens it on top. */
+#nightPlannerOverlay { z-index: 690; }
+#nightPlannerSheet { display: flex; flex-direction: column; max-height: 88vh; padding-bottom: 0; }
+
+.np-head { padding: 4px 4px 12px; }
+.np-title { font-family: 'Cabinet Grotesk', sans-serif; font-weight: 800; font-size: 22px; color: var(--text); letter-spacing: -0.4px; }
+.np-sub { font-size: 13px; color: var(--muted); margin-top: 4px; line-height: 1.4; }
+
+.np-scroll { overflow-y: auto; -webkit-overflow-scrolling: touch; flex: 1 1 auto; padding: 2px 2px 8px; }
+.np-section { margin-bottom: 18px; }
+.np-label { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 9px; }
+.np-label .np-hint { font-weight: 500; color: var(--muted); font-size: 12px; }
+.np-empty { font-size: 13px; color: var(--muted); }
+
+.np-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.np-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 9px 13px; border-radius: 14px; cursor: pointer;
+  font-size: 13px; font-weight: 600; color: var(--text);
+  background: var(--card); border: 1.5px solid var(--border2, rgba(28,38,56,0.07));
+  transition: transform .14s var(--ease-bounce, cubic-bezier(.34,1.5,.5,1)), background .15s, border-color .15s, color .15s;
+}
+.np-chip:active { transform: scale(.93); }
+.np-chip.active { background: linear-gradient(135deg, var(--coral), var(--amber)); border-color: transparent; color: #fff; }
+.np-chip .np-chip-emoji { font-size: 15px; }
+.np-chip .np-chip-n { font-size: 11px; font-weight: 700; opacity: 0.55; }
+.np-chip.active .np-chip-n { opacity: 0.85; }
+
+.np-segs { display: flex; gap: 8px; }
+.np-seg {
+  flex: 1 1 0; padding: 11px 0; border-radius: 13px; cursor: pointer;
+  font-size: 14px; font-weight: 700; color: var(--text);
+  background: var(--card); border: 1.5px solid var(--border2, rgba(28,38,56,0.07));
+  transition: transform .14s var(--ease-bounce, cubic-bezier(.34,1.5,.5,1)), background .15s, color .15s;
+}
+.np-seg:active { transform: scale(.95); }
+.np-seg.active { background: linear-gradient(135deg, var(--coral), var(--amber)); border-color: transparent; color: #fff; }
+
+.np-foot { padding: 12px 2px calc(14px + env(safe-area-inset-bottom, 0px)); background: var(--card); }
+.np-build-btn {
+  width: 100%; padding: 15px; border: none; border-radius: 16px; cursor: pointer;
+  font-size: 16px; font-weight: 800; color: #fff; letter-spacing: -0.2px;
+  background: linear-gradient(135deg, var(--coral), var(--amber));
+  box-shadow: 0 8px 22px rgba(255,107,74,0.3);
+  transition: transform .16s var(--ease-bounce, cubic-bezier(.34,1.5,.5,1));
+}
+.np-build-btn:active { transform: scale(.98); }
+.np-build-btn--ghost { background: var(--bg2); color: var(--text); box-shadow: none; }
+
+.np-foot--results { display: flex; flex-direction: column; gap: 10px; }
+.np-foot-row { display: flex; gap: 8px; }
+.np-pill-btn {
+  flex: 1 1 0; padding: 11px 0; border-radius: 13px; cursor: pointer;
+  font-size: 13px; font-weight: 700; color: var(--text);
+  background: var(--bg2); border: none;
+  transition: transform .14s var(--ease-bounce, cubic-bezier(.34,1.5,.5,1));
+}
+.np-pill-btn:active { transform: scale(.95); }
+
+/* Itinerary stops */
+.np-results { padding-top: 2px; }
+.np-stop { display: flex; align-items: stretch; gap: 10px; cursor: pointer; }
+.np-stop-num {
+  flex: 0 0 auto; width: 26px; display: flex; align-items: center; justify-content: center;
+  font-family: 'Cabinet Grotesk', sans-serif; font-weight: 800; font-size: 17px; color: var(--coral);
+}
+.np-stop-card {
+  flex: 1 1 auto; display: flex; align-items: center; gap: 11px; min-width: 0;
+  background: var(--card); border-radius: 16px; padding: 9px; margin: 2px 0;
+  border: 1.5px solid var(--border2, rgba(28,38,56,0.07));
+  transition: transform .14s var(--ease-bounce, cubic-bezier(.34,1.5,.5,1));
+}
+.np-stop:active .np-stop-card { transform: scale(.98); }
+.np-stop-photo {
+  flex: 0 0 auto; width: 54px; height: 54px; border-radius: 12px; background-size: cover; background-position: center;
+  background-color: var(--bg2);
+}
+.np-stop-photo--none { display: flex; align-items: center; justify-content: center; font-size: 22px; }
+.np-stop-body { flex: 1 1 auto; min-width: 0; }
+.np-stop-name { font-weight: 800; font-size: 15px; color: var(--text); letter-spacing: -0.2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.np-stop-meta { font-size: 12px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.np-stop-deal { font-size: 12px; color: var(--coral); font-weight: 600; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.np-stop-go { flex: 0 0 auto; font-size: 22px; color: var(--muted); font-weight: 700; padding-right: 4px; }
+.np-leg { font-size: 12px; font-weight: 600; color: var(--muted); padding: 4px 0 4px 36px; }
+
+[data-theme="dark"] .np-chip, [data-theme="dark"] .np-seg, [data-theme="dark"] .np-stop-card { background: var(--bg2); border-color: rgba(255,255,255,0.08); }
+[data-theme="dark"] .np-pill-btn { background: rgba(255,255,255,0.07); }

@@ -99,7 +99,7 @@
 <noscript><link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"></noscript>
 <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script defer src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
-<link rel="stylesheet" href="css/style.css?v=20260620a">
+<link rel="stylesheet" href="css/style.css?v=20260623b">
 <style>
 .card-claim { padding: 4px 16px 12px; }
 .claim-link { font-size: 12px; color: rgba(42,31,20,0.4); text-decoration: none; }
@@ -498,6 +498,11 @@
         <span id="viewIcon">Map</span>
       </button>
     </div>
+    <button class="plan-night-cta" id="planNightCta" onclick="openNightPlanner()">
+      <span class="pnc-emoji">🌙</span>
+      <span class="pnc-text"><span class="pnc-title">Plan my night out</span><span class="pnc-sub">Build a bar crawl in seconds</span></span>
+      <span class="pnc-go">›</span>
+    </button>
     <div class="chips-row" id="chipsRow"></div>
     <div class="filter-panel" id="filterPanel">
       <div class="fp-inner">
@@ -686,6 +691,14 @@
   </div>
 </div>
 
+<!-- NIGHT PLANNER OVERLAY -->
+<div class="overlay" id="nightPlannerOverlay" onclick="if(event.target===this)closeNightPlanner()">
+  <div class="sheet sheet--tall" id="nightPlannerSheet">
+    <div class="sheet-handle"></div>
+    <div id="nightPlannerBody"></div>
+  </div>
+</div>
+
 <!-- TAG FRIENDS OVERLAY -->
 
 <div class="overlay" id="tagFriendsOverlay" onclick="if(event.target===this)closeOverlay('tagFriendsOverlay')">
@@ -808,7 +821,7 @@ function dismissAppDownload() {
 <script defer src="js/onboarding.js?v=20260612a"></script>
 <script defer src="js/push.js?v=20260408a"></script>
 <script defer src="js/icons.js?v=20260609a"></script>
-<script defer src="js/app.js?v=20260623a"></script>
+<script defer src="js/app.js?v=20260623b"></script>
 <script defer src="js/tooltips.js?v=20260408a"></script>
 <script>
 // Hide business/Pro links and App Store badge on native iOS
