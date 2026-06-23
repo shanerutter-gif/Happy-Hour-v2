@@ -2765,9 +2765,152 @@ function resetHappeningNow() {
   document.getElementById('happeningToggle')?.classList.remove('active');
 }
 
+// ══════════════════════════════════════════════════════════
+// SMART SEARCH — context / assumption aware, typo tolerant, ranked
+// ──────────────────────────────────────────────────────────
+// The search box is NOT a strict substring filter. We:
+//  1. Expand the query through a CONCEPT_MAP so natural-language asks surface
+//     the right venues even with no literal match — "dive bars" → dive-bar
+//     cuisine, "speakeasy" → cocktail bars, "watch the game" → sports TV,
+//     "date night" → cocktail/wine/rooftop, "cheap" → dive bars + $ deals.
+//  2. Tokenize + singularize ("bars" → "bar") so plurals match.
+//  3. Score every venue (name > full-phrase > token > concept > fuzzy) and rank
+//     by relevance, so near-misses and typos still show, best match first.
+// The matched haystack is name + neighborhood + cuisine + address + event_type
+// + description + deals. Concept signals also lean on the amenity booleans.
+// ══════════════════════════════════════════════════════════
+
+// Generic connective / place words that carry no discriminating signal — the
+// descriptive word ("dive", "wine", "sports") does the work, and the CONCEPT_MAP
+// already handles the bar-type, so dropping these sharpens precision.
+const SEARCH_STOP = new Set(['the','a','an','and','or','of','for','in','on','with','to','me','my','some','any','that','this','where','which','can','i','get','go','out','at','is','are','be','near','around','place','places','spot','spots','bar','bars','pub','pubs','restaurant','restaurants','venue','venues','somewhere','something','area','tonight']);
+
+// Concept aliases → keyword/amenity expansion. Multi-word aliases match as a
+// phrase against the cleaned query; single-word aliases match a (singularized)
+// query token. `kw` = substrings to look for in the venue haystack; `amen` =
+// venue amenity boolean columns that satisfy the concept.
+const CONCEPT_MAP = {
+  dive:      { aliases:['dive','divey','divebar','hole in the wall','holeinthewall'], kw:['dive bar','dive'], amen:[] },
+  cocktail:  { aliases:['cocktail','mixology','mixologist','speakeasy','martini','craft cocktail'], kw:['cocktail'], amen:[] },
+  wine:      { aliases:['wine','vino','winebar','vineyard','prosecco'], kw:['wine'], amen:[] },
+  beer:      { aliases:['beer','brewery','brewpub','craft beer','ipa','draft','draught','ale','lager','pilsner'], kw:['brew','beer'], amen:[] },
+  whiskey:   { aliases:['whiskey','whisky','scotch','bourbon'], kw:['whiskey','whisky'], amen:[] },
+  sports:    { aliases:['sport','game','watch the game','watching the game','football','nfl','nba','basketball','baseball','soccer','ufc','fight','game day'], kw:['sports'], amen:['has_sports_tv'] },
+  karaoke:   { aliases:['karaoke','sing','singing','singalong'], kw:['karaoke'], amen:['has_karaoke'] },
+  trivia:    { aliases:['trivia','quiz','pub quiz'], kw:['trivia'], amen:['has_trivia'] },
+  livemusic: { aliases:['live music','livemusic','band','gig','concert','dj','jazz','acoustic','music venue'], kw:['live music','music'], amen:['has_live_music'] },
+  comedy:    { aliases:['comedy','standup','stand up','stand-up','comedian','laugh'], kw:['comedy'], amen:['has_comedy'] },
+  bingo:     { aliases:['bingo'], kw:['bingo'], amen:['has_bingo'] },
+  dog:       { aliases:['dog','pup','puppy','doggo','dog friendly','dogfriendly','pet','pet friendly','pets'], kw:['dog'], amen:['is_dog_friendly'] },
+  rooftop:   { aliases:['rooftop','roof top','roof deck','skyline','view','scenic'], kw:['rooftop','view'], amen:[] },
+  patio:     { aliases:['patio','outdoor','outdoors','outside','al fresco','alfresco','garden','terrace','sunny'], kw:['patio','outdoor','outside'], amen:[] },
+  beach:     { aliases:['beach','beachfront','oceanfront','waterfront','ocean','seaside','by the water','on the water'], kw:['beach','ocean','waterfront'], amen:[] },
+  tiki:      { aliases:['tiki','tropical','island','polynesian'], kw:['tiki'], amen:[] },
+  irish:     { aliases:['irish','gastropub','public house'], kw:['irish','pub','gastropub'], amen:[] },
+  lounge:    { aliases:['lounge','chill','chilled','relaxed','lowkey','low key','low-key','cozy','cosy','mellow','quiet'], kw:['lounge'], amen:[] },
+  club:      { aliases:['club','nightclub','dance','dancing','party','late night','rave','edm'], kw:['club','nightclub','dance'], amen:[] },
+  mexican:   { aliases:['mexican','margarita','marg','margs','taco','tequila','mezcal','cantina'], kw:['mexican','margarita','taco','tequila'], amen:[] },
+  italian:   { aliases:['italian','pasta','pizza','aperitivo','negroni'], kw:['italian','pizza','pasta'], amen:[] },
+  asian:     { aliases:['sushi','japanese','sake','ramen','izakaya','nigiri','asian','thai','vietnamese','korean'], kw:['japanese','sushi','asian','vietnamese'], amen:[] },
+  seafood:   { aliases:['seafood','oyster','raw bar','fish'], kw:['seafood','oyster'], amen:[] },
+  date:      { aliases:['date','date night','datenight','romantic','romance','intimate','first date'], kw:['cocktail','wine','rooftop'], amen:[] },
+  fancy:     { aliases:['fancy','upscale','classy','elegant','fine dining','swanky','posh','high end','high-end','sophisticated'], kw:['cocktail','wine','rooftop','lounge'], amen:[] },
+  cheap:     { aliases:['cheap','cheapest','budget','affordable','inexpensive','deal','steal','bargain','college','student'], kw:['dive','$'], amen:[] },
+  happy:     { aliases:['happy hour','happyhour','drink special','drink specials','specials'], kw:['happy hour'], amen:['has_happy_hour'] }
+};
+
+// "bars" → "bar", "breweries" → "brewery", "tacos" → "taco".
+function _singular(w) {
+  if (w.length > 4 && w.endsWith('ies')) return w.slice(0, -3) + 'y';
+  if (w.length > 4 && w.endsWith('ses')) return w.slice(0, -2);
+  if (w.length > 3 && w.endsWith('s') && !w.endsWith('ss')) return w.slice(0, -1);
+  return w;
+}
+
+// Bounded Levenshtein: true iff edit distance(a,b) <= max. Early-exits so it's
+// cheap to run against a venue's token set for typo tolerance.
+function _levLE(a, b, max) {
+  if (a === b) return true;
+  if (Math.abs(a.length - b.length) > max) return false;
+  let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    let cur = [i];
+    let best = i;
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost);
+      if (cur[j] < best) best = cur[j];
+    }
+    if (best > max) return false; // whole row already over budget
+    prev = cur;
+  }
+  return prev[b.length] <= max;
+}
+
+// Parse the raw query into { tokens, concept keywords, concept amenities }.
+function parseSearchQuery(raw) {
+  const q = (raw || '').toLowerCase().trim();
+  const qCompact = q.replace(/[^a-z0-9$ ]+/g, ' ').replace(/\s+/g, ' ').trim();
+  const tokens = [];
+  for (const t of qCompact.split(' ')) {
+    if (!t || SEARCH_STOP.has(t)) continue;
+    const s = _singular(t);
+    if (s.length >= 2 && !SEARCH_STOP.has(s)) tokens.push(s);
+  }
+  const kw = new Set(), amen = new Set();
+  for (const key in CONCEPT_MAP) {
+    const c = CONCEPT_MAP[key];
+    let hit = false;
+    for (const a of c.aliases) {
+      if (a.indexOf(' ') >= 0 || a.indexOf('-') >= 0) { if (qCompact.includes(a) || q.includes(a)) hit = true; }
+      else if (tokens.includes(_singular(a))) hit = true;
+      if (hit) break;
+    }
+    if (hit) { c.kw.forEach(k => kw.add(k)); c.amen.forEach(x => amen.add(x)); }
+  }
+  return { qCompact, tokens, kw: [...kw], amen: [...amen] };
+}
+
+// Lazily build + cache the searchable haystack and token set on the venue.
+function _venueHay(v) {
+  if (v._searchHay == null) {
+    v._searchHay = [v.name, v.neighborhood, v.cuisine, v.address, v.event_type, v.description, ...(v.deals || [])]
+      .filter(Boolean).join(' ').toLowerCase();
+    v._searchToks = [...new Set(v._searchHay.replace(/[^a-z0-9$ ]+/g, ' ').split(/\s+/).filter(w => w.length >= 3))];
+  }
+  return v._searchHay;
+}
+
+// Relevance score for a venue against a parsed query. 0 = no match (dropped).
+function scoreVenueForSearch(v, ps) {
+  const hay = _venueHay(v);
+  const name = (v.name || '').toLowerCase();
+  let score = 0;
+  if (ps.qCompact.length >= 2) {
+    if (name === ps.qCompact) score += 140;
+    else if (name.startsWith(ps.qCompact)) score += 80;
+    else if (name.includes(ps.qCompact)) score += 55;
+    if (ps.tokens.length > 1 && hay.includes(ps.qCompact)) score += 30;
+  }
+  for (const t of ps.tokens) {
+    if (name.includes(t)) score += 18;
+    else if (hay.includes(t)) score += 12;
+    else {
+      const max = t.length >= 7 ? 2 : (t.length >= 4 ? 1 : 0);
+      if (max > 0) {
+        for (const wt of v._searchToks) { if (_levLE(t, wt, max)) { score += 6; break; } }
+      }
+    }
+  }
+  for (const k of ps.kw) { if (hay.includes(k)) score += 11; }
+  for (const a of ps.amen) { if (v[a]) score += 15; }
+  return score;
+}
+
 function applyFilters() {
   const search = (document.getElementById('searchBox')?.value || '').toLowerCase().trim();
   state.filters.search = search;
+  const parsedSearch = search ? parseSearchQuery(search) : null;
 
   // Events are never shown as standalone cards. They surface on their venue
   // (card chips + the "Events at this venue" modal section), so the grid and
@@ -2795,17 +2938,35 @@ function applyFilters() {
         }
       }
     }
-    if (search) {
-      const h = [v.name, v.neighborhood, v.cuisine, v.address, v.event_type, ...(v.deals || [])].join(' ').toLowerCase();
-      if (!h.includes(search)) return false;
-    }
     if (state.favFilterOn && !isFavorite(v.id)) return false;
     if (state.happeningNow && !hhActive(v)) return false;
     return true;
   });
 
+  // Smart search ranks the hard-filtered survivors by relevance (concept-aware
+  // + typo tolerant) and drops zero-score venues. When active, it owns the order
+  // (relevance, then featured/rating tiebreak) — the normal sort block is skipped.
+  if (parsedSearch) {
+    const scored = [];
+    for (const v of state.filtered) {
+      const s = scoreVenueForSearch(v, parsedSearch);
+      if (s > 0) scored.push([v, s]);
+    }
+    scored.sort((a, b) => {
+      if (b[1] !== a[1]) return b[1] - a[1];
+      const fa = a[0].featured ? 1 : 0, fb = b[0].featured ? 1 : 0;
+      if (fb !== fa) return fb - fa;
+      const ra = a[0].google_rating || 0, rb = b[0].google_rating || 0;
+      if (rb !== ra) return rb - ra;
+      return (a[0].name || '').localeCompare(b[0].name || '');
+    });
+    state.filtered = scored.map(x => x[0]);
+  }
+
   // Sort
-  if (state.happeningNow) {
+  if (parsedSearch) {
+    // Already ranked by relevance above — leave the order intact.
+  } else if (state.happeningNow) {
     // Most urgent first — whose happy hour ends soonest.
     state.filtered.sort((a, b) => {
       const ra = hhActive(a), rb = hhActive(b);
@@ -2973,16 +3134,20 @@ function _renderCardsNow() {
     return d;
   };
 
-  if (isTwoPane() || state.happeningNow) {
+  const isSearchView = !!(state.filters.search && state.filters.search.trim());
+  if (isTwoPane() || state.happeningNow || isSearchView) {
     // ── Uniform horizontal list ──
-    // Two cases share this layout:
+    // Three cases share this layout:
     //  • Desktop two-pane: a single scannable column beside the persistent map.
     //  • "Happening now": the editorial hero/compact/standard tiers re-bucket
     //    cards and would destroy the ending-soonest sort order, so we render one
     //    flat list that preserves it.
+    //  • Active search: same reason — keep the relevance ranking intact.
     // `venues` is the full filtered set in sort order (heroes included).
     if (state.happeningNow && !isTwoPane()) {
       html += `<div class="feed-label feed-label--live"><span class="hh-live-dot"></span>Happy hour right now · ending soonest first</div>`;
+    } else if (isSearchView && !isTwoPane()) {
+      html += `<div class="feed-label">Best matches</div>`;
     }
     venues.forEach((v, i) => {
       html += standardCardHTML(v, nextDelay(25), i === 0);
