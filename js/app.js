@@ -2766,6 +2766,298 @@ function resetHappeningNow() {
 }
 
 // ══════════════════════════════════════════════════════════
+// NIGHT PLANNER — "Plan my night out" guided crawl builder
+// ──────────────────────────────────────────────────────────
+// A self-contained feature: the user picks neighborhood(s), how many stops,
+// vibes, must-have amenities and a price feel; we score every venue in the
+// current city (reusing the smart-search CONCEPT_MAP + amenity booleans + a
+// quality nudge), pick the best N, order them into a walkable route
+// (nearest-neighbor over the existing haversine), and render an itinerary with
+// per-leg walking times, tap-to-open venue modals, a one-tap multi-stop Google
+// Maps walking route, regenerate (shuffle) and share. No backend, no new
+// tables — it runs entirely over the venues already loaded into state.
+// ══════════════════════════════════════════════════════════
+
+// Vibe chips → smart-search concept keys (see CONCEPT_MAP). Curated + friendly.
+const NIGHT_VIBES = [
+  { id: 'cocktail',  emoji: '🍸', label: 'Cocktails' },
+  { id: 'dive',      emoji: '🍻', label: 'Dive bars' },
+  { id: 'wine',      emoji: '🍷', label: 'Wine' },
+  { id: 'beer',      emoji: '🍺', label: 'Beer & breweries' },
+  { id: 'rooftop',   emoji: '🌅', label: 'Rooftop' },
+  { id: 'club',      emoji: '🪩', label: 'Dancing' },
+  { id: 'livemusic', emoji: '🎵', label: 'Live music' },
+  { id: 'lounge',    emoji: '🛋️', label: 'Chill / lounge' },
+  { id: 'sports',    emoji: '📺', label: 'Sports' },
+  { id: 'mexican',   emoji: '🌮', label: 'Margaritas' },
+  { id: 'date',      emoji: '💖', label: 'Date night' },
+  { id: 'cheap',     emoji: '💸', label: 'Budget' },
+];
+
+const npState = { hoods: new Set(), stops: 3, vibes: new Set(), amenities: new Set(), price: 0, seed: 0, plan: [] };
+
+function openNightPlanner() {
+  if (typeof haptic === 'function') haptic('light');
+  track('night_planner_open', { city: state.city?.slug || '' });
+  _npRenderForm();
+  openOverlay('nightPlannerOverlay');
+}
+function closeNightPlanner() { closeOverlay('nightPlannerOverlay'); }
+
+// Neighborhoods present in the current city, with a live venue count.
+function _npHoods() {
+  const counts = {};
+  for (const v of state.venues) { if (v.neighborhood) counts[v.neighborhood] = (counts[v.neighborhood] || 0) + 1; }
+  return Object.keys(counts).sort().map(name => ({ name, count: counts[name] }));
+}
+
+function _npRenderForm() {
+  const hoods = _npHoods();
+  // Pass the index (not the raw name) to the handler — neighborhood names can
+  // contain apostrophes/quotes that esc() turns into entities the HTML parser
+  // decodes back, which would break an inline string arg.
+  npState._hoodNames = hoods.map(h => h.name);
+  const hoodChips = hoods.map((h, i) =>
+    `<button class="np-chip ${npState.hoods.has(h.name) ? 'active' : ''}" onclick="npToggleHood(${i},this)">${esc(h.name)} <span class="np-chip-n">${h.count}</span></button>`
+  ).join('');
+  const vibeChips = NIGHT_VIBES.map(v =>
+    `<button class="np-chip ${npState.vibes.has(v.id) ? 'active' : ''}" onclick="npToggleVibe('${v.id}',this)"><span class="np-chip-emoji">${v.emoji}</span> ${v.label}</button>`
+  ).join('');
+  const amenChips = AMENITIES.map(a =>
+    `<button class="np-chip ${npState.amenities.has(a.key) ? 'active' : ''}" onclick="npToggleAmenity('${a.key}',this)"><span class="np-chip-emoji">${a.emoji}</span> ${a.label}</button>`
+  ).join('');
+  const stopsBtns = [2, 3, 4, 5].map(n =>
+    `<button class="np-seg ${npState.stops === n ? 'active' : ''}" onclick="npSetStops(${n},this)">${n}</button>`
+  ).join('');
+  const priceBtns = [[0, 'Any'], [1, '$'], [2, '$$'], [3, '$$$']].map(([v, l]) =>
+    `<button class="np-seg ${npState.price === v ? 'active' : ''}" onclick="npSetPrice(${v},this)">${l}</button>`
+  ).join('');
+
+  document.getElementById('nightPlannerBody').innerHTML = `
+    <div class="np-head">
+      <div class="np-title">🌙 Plan my night out</div>
+      <div class="np-sub">Tell us the vibe in ${esc(state.city?.name || 'your city')} — we'll build the route.</div>
+    </div>
+    <div class="np-scroll">
+      <div class="np-section">
+        <div class="np-label">Where to? <span class="np-hint">leave blank for anywhere</span></div>
+        <div class="np-chips">${hoodChips || '<div class="np-empty">No neighborhoods yet</div>'}</div>
+      </div>
+      <div class="np-section">
+        <div class="np-label">How many stops?</div>
+        <div class="np-segs">${stopsBtns}</div>
+      </div>
+      <div class="np-section">
+        <div class="np-label">Vibe <span class="np-hint">pick any</span></div>
+        <div class="np-chips">${vibeChips}</div>
+      </div>
+      <div class="np-section">
+        <div class="np-label">Must have <span class="np-hint">optional</span></div>
+        <div class="np-chips">${amenChips}</div>
+      </div>
+      <div class="np-section">
+        <div class="np-label">Price feel</div>
+        <div class="np-segs">${priceBtns}</div>
+      </div>
+    </div>
+    <div class="np-foot">
+      <button class="np-build-btn" onclick="npBuild()">Build my night ✨</button>
+    </div>`;
+}
+
+function npToggleHood(idx, btn) { if (typeof haptic === 'function') haptic('light'); const name = npState._hoodNames[idx]; if (name == null) return; npState.hoods.has(name) ? npState.hoods.delete(name) : npState.hoods.add(name); btn.classList.toggle('active'); }
+function npToggleVibe(id, btn) { if (typeof haptic === 'function') haptic('light'); npState.vibes.has(id) ? npState.vibes.delete(id) : npState.vibes.add(id); btn.classList.toggle('active'); }
+function npToggleAmenity(key, btn) { if (typeof haptic === 'function') haptic('light'); npState.amenities.has(key) ? npState.amenities.delete(key) : npState.amenities.add(key); btn.classList.toggle('active'); }
+function npSetStops(n, btn) { if (typeof haptic === 'function') haptic('light'); npState.stops = n; btn.parentElement.querySelectorAll('.np-seg').forEach(b => b.classList.remove('active')); btn.classList.add('active'); }
+function npSetPrice(v, btn) { if (typeof haptic === 'function') haptic('light'); npState.price = v; btn.parentElement.querySelectorAll('.np-seg').forEach(b => b.classList.remove('active')); btn.classList.add('active'); }
+
+// Union the selected vibes' concept keywords/amenities into a search-style
+// signal, then score a venue (reusing scoreVenueForSearch) + price + quality.
+function _npVibeSignal() {
+  const kw = new Set(), amen = new Set();
+  for (const id of npState.vibes) {
+    const c = CONCEPT_MAP[id];
+    if (!c) continue;
+    c.kw.forEach(k => kw.add(k));
+    c.amen.forEach(a => amen.add(a));
+  }
+  return { qCompact: '', tokens: [], kw: [...kw], amen: [...amen] };
+}
+
+function _npScore(v, signal) {
+  let score = 10; // base so a no-vibe plan still ranks by quality
+  if (signal.kw.length || signal.amen.length) score += scoreVenueForSearch(v, signal);
+  // Price feel — soft: reward a match, lightly nudge a mismatch, keep unknowns.
+  if (npState.price && v.price_level != null) {
+    if (v.price_level === npState.price) score += 14;
+    else if (Math.abs(v.price_level - npState.price) === 1) score += 4;
+    else score -= 4;
+  }
+  // Quality nudge.
+  if (v.featured) score += 7;
+  if (v.photo_url || (v.photo_urls && v.photo_urls.length)) score += 5;
+  if (v.deals && v.deals.length) score += 3;
+  if ((v.google_rating || 0) >= 4.3) score += 4;
+  // Deterministic jitter keyed to the regenerate seed, for fresh shuffles.
+  const h = ((String(v.id).split('').reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7) ^ (npState.seed * 2654435761)) >>> 0);
+  score += (h % 1000) / 1000 * 9;
+  return score;
+}
+
+// Greedy nearest-neighbor route so the stops read as a walkable crawl. Starts
+// from the user's location when known, else the highest-scored venue.
+function _npOrderRoute(list) {
+  if (list.length <= 2) return list;
+  const remaining = list.slice();
+  const route = [];
+  let curLat = state.userLat, curLng = state.userLng;
+  if (curLat == null) { route.push(remaining.shift()); curLat = route[0].lat; curLng = route[0].lng; }
+  while (remaining.length) {
+    let bi = 0, bd = Infinity;
+    for (let i = 0; i < remaining.length; i++) {
+      const d = haversine(curLat, curLng, remaining[i].lat, remaining[i].lng);
+      if (d < bd) { bd = d; bi = i; }
+    }
+    const next = remaining.splice(bi, 1)[0];
+    route.push(next);
+    if (next.lat != null) { curLat = next.lat; curLng = next.lng; }
+  }
+  return route;
+}
+
+function npBuild() {
+  if (typeof haptic === 'function') haptic('medium');
+  const signal = _npVibeSignal();
+  // Hard filters: neighborhood (if chosen) + every must-have amenity.
+  let pool = state.venues.filter(v => !v.event_type);
+  if (npState.hoods.size) pool = pool.filter(v => npState.hoods.has(v.neighborhood));
+  if (npState.amenities.size) pool = pool.filter(v => [...npState.amenities].every(a => v[a]));
+  // Score + rank.
+  const scored = pool.map(v => [v, _npScore(v, signal)]).sort((a, b) => b[1] - a[1]);
+  const n = Math.min(npState.stops, scored.length);
+  let picks = scored.slice(0, Math.max(n, 0)).map(x => x[0]);
+  // If multiple neighborhoods were chosen, spread the picks across them.
+  if (npState.hoods.size > 1 && scored.length > n) {
+    picks = _npSpreadHoods(scored, n);
+  }
+  npState.plan = _npOrderRoute(picks);
+  track('night_planner_build', { stops: npState.plan.length, vibes: [...npState.vibes].join(','), hoods: npState.hoods.size, requested: npState.stops });
+  _npRenderResults();
+}
+
+// Round-robin across the selected neighborhoods so a multi-hood plan visits
+// each, filling any shortfall from the overall ranked list.
+function _npSpreadHoods(scored, n) {
+  const byHood = {};
+  for (const [v, s] of scored) { (byHood[v.neighborhood] = byHood[v.neighborhood] || []).push(v); }
+  const hoods = [...npState.hoods].filter(h => byHood[h]);
+  const picks = [], used = new Set();
+  let i = 0;
+  while (picks.length < n && hoods.length) {
+    const h = hoods[i % hoods.length];
+    const list = byHood[h];
+    const next = list && list.shift();
+    if (next) { picks.push(next); used.add(next.id); }
+    i++;
+    if (i > n * 6) break; // safety
+  }
+  // Top up from the ranked list if any hood ran dry.
+  for (const [v] of scored) { if (picks.length >= n) break; if (!used.has(v.id)) { picks.push(v); used.add(v.id); } }
+  return picks;
+}
+
+// ~20 min per mile walking; show a friendly leg label.
+function _npLeg(a, b) {
+  if (a.lat == null || b.lat == null) return '';
+  const mi = haversine(a.lat, a.lng, b.lat, b.lng);
+  if (mi >= 1.4) return `🚕 ${mi.toFixed(1)} mi to next`;
+  const min = Math.max(1, Math.round(mi * 20));
+  return `🚶 ~${min} min walk to next`;
+}
+
+function _npMatchTag(v) {
+  // Surface why this venue was picked (the strongest matching vibe).
+  for (const vibe of NIGHT_VIBES) {
+    if (!npState.vibes.has(vibe.id)) continue;
+    const c = CONCEPT_MAP[vibe.id];
+    const hay = _venueHay(v);
+    if ((c.amen || []).some(a => v[a]) || (c.kw || []).some(k => hay.includes(k))) return `${vibe.emoji} ${vibe.label}`;
+  }
+  return v.cuisine ? esc(v.cuisine) : (v.neighborhood ? esc(v.neighborhood) : '');
+}
+
+function _npRenderResults() {
+  const plan = npState.plan;
+  if (!plan.length) {
+    document.getElementById('nightPlannerBody').innerHTML = `
+      <div class="np-head"><div class="np-title">No matches</div><div class="np-sub">Try fewer must-haves or another neighborhood.</div></div>
+      <div class="np-foot"><button class="np-build-btn np-build-btn--ghost" onclick="npEditPlan()">← Adjust</button></div>`;
+    return;
+  }
+  const stops = plan.map((v, i) => {
+    const leg = i < plan.length - 1 ? _npLeg(v, plan[i + 1]) : '';
+    const photo = v.photo_url || (v.photo_urls && v.photo_urls[0]);
+    const deal = (v.deals && v.deals[0]) ? esc(v.deals[0]) : '';
+    return `
+      <div class="np-stop" onclick="npOpenStop('${v.id}')">
+        <div class="np-stop-num">${i + 1}</div>
+        <div class="np-stop-card">
+          ${photo ? `<div class="np-stop-photo" style="background-image:url('${esc(photo)}')"></div>` : `<div class="np-stop-photo np-stop-photo--none">🍸</div>`}
+          <div class="np-stop-body">
+            <div class="np-stop-name">${esc(v.name)}</div>
+            <div class="np-stop-meta">${_npMatchTag(v)}${v.neighborhood ? ` · ${esc(v.neighborhood)}` : ''}</div>
+            ${deal ? `<div class="np-stop-deal">${deal}</div>` : ''}
+          </div>
+          <div class="np-stop-go">›</div>
+        </div>
+      </div>
+      ${leg ? `<div class="np-leg">${leg}</div>` : ''}`;
+  }).join('');
+
+  document.getElementById('nightPlannerBody').innerHTML = `
+    <div class="np-head">
+      <div class="np-title">Your night out 🌙</div>
+      <div class="np-sub">${plan.length} stop${plan.length === 1 ? '' : 's'}${npState.hoods.size ? ' · ' + [...npState.hoods].join(', ') : ''} — tap a spot for details.</div>
+    </div>
+    <div class="np-scroll np-results">${stops}</div>
+    <div class="np-foot np-foot--results">
+      <div class="np-foot-row">
+        <button class="np-pill-btn" onclick="npEditPlan()">← Adjust</button>
+        <button class="np-pill-btn" onclick="npRegenerate()">🔀 Shuffle</button>
+        <button class="np-pill-btn" onclick="npSharePlan()">↗ Share</button>
+      </div>
+      ${plan.some(v => v.lat != null) ? `<button class="np-build-btn" onclick="npWalkingDirections()">🗺️ Get the route</button>` : ''}
+    </div>`;
+}
+
+function npEditPlan() { if (typeof haptic === 'function') haptic('light'); _npRenderForm(); }
+function npRegenerate() { npState.seed++; npBuild(); }
+function npOpenStop(id) { if (typeof haptic === 'function') haptic('light'); openModal(id); } // venue modal is z-index 700, planner 690 → modal stacks on top
+
+// One Google Maps walking route through every stop (origin = current location).
+function npWalkingDirections() {
+  if (typeof haptic === 'function') haptic('light');
+  const pts = npState.plan.filter(v => v.lat != null && v.lng != null);
+  if (!pts.length) return;
+  const dest = `${pts[pts.length - 1].lat},${pts[pts.length - 1].lng}`;
+  const waypoints = pts.slice(0, -1).map(v => `${v.lat},${v.lng}`).join('|');
+  let url = `https://www.google.com/maps/dir/?api=1&travelmode=walking&destination=${dest}`;
+  if (waypoints) url += `&waypoints=${encodeURIComponent(waypoints)}`;
+  track('night_planner_route', { stops: pts.length });
+  window.open(url, '_blank');
+}
+
+function npSharePlan() {
+  if (typeof haptic === 'function') haptic('light');
+  const lines = npState.plan.map((v, i) => `${i + 1}. ${v.name}${v.neighborhood ? ' — ' + v.neighborhood : ''}`).join('\n');
+  const msg = `My ${state.city?.name || ''} night out 🌙\n\n${lines}\n\nPlan yours on Spotd → https://www.spotd.biz`;
+  track('night_planner_share', { stops: npState.plan.length });
+  if (navigator.share) { navigator.share({ title: 'My Spotd night out', text: msg }).catch(() => {}); }
+  else if (navigator.clipboard) { navigator.clipboard.writeText(msg).then(() => showToast('Plan copied to clipboard')).catch(() => {}); }
+  else { window.open(`sms:?body=${encodeURIComponent(msg)}`, '_blank'); }
+}
+
+// ══════════════════════════════════════════════════════════
 // SMART SEARCH — context / assumption aware, typo tolerant, ranked
 // ──────────────────────────────────────────────────────────
 // The search box is NOT a strict substring filter. We:
