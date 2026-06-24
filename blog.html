@@ -600,5 +600,61 @@ function filterBlogTag(tag, btn) {
   </div>
 </footer>
 
+<!-- DB-backed posts (admin Blog Manager). Additive + graceful: prepends any
+     published blog_posts rows as cards. If the fetch fails, the static cards
+     above are unaffected. DB posts link to the extensionless /blog/<slug>
+     route (the edge renderer), distinct from the static /blog/<slug>.html. -->
+<script>
+(function(){
+  var SUPABASE_URL = 'https://opcskuzbdfrlnyhraysk.supabase.co';
+  var ANON = 'sb_publishable_M97B-GmwsRF6xPVahp_ytw_49nI9igs';
+  var TAG_EMOJI = { 'City Guide':'🍹','Neighborhood Guide':'🥂','Events':'🎉','Tips':'💡','Niche Guide':'🍸' };
+  function esc(s){ var d=document.createElement('div'); d.textContent=s==null?'':s; return d.innerHTML; }
+  function stem(href){ return (href||'').replace(/^.*\/blog\//,'').replace(/\.html$/,'').replace(/[?#].*$/,''); }
+
+  fetch(SUPABASE_URL + '/rest/v1/blog_posts?status=eq.published&select=slug,title,author,tag,city_slug,excerpt,featured_image_url,content,created_at&order=created_at.desc', {
+    headers: { apikey: ANON, Authorization: 'Bearer ' + ANON }
+  })
+  .then(function(r){ return r.ok ? r.json() : []; })
+  .then(function(posts){
+    if (!Array.isArray(posts) || !posts.length) return;
+    var grid = document.getElementById('blogGrid');
+    if (!grid) return;
+    // Don't duplicate a slug already present as a static card.
+    var existing = {};
+    grid.querySelectorAll('.blog-card[href]').forEach(function(a){ existing[stem(a.getAttribute('href'))] = 1; });
+
+    // Insert oldest-first at the top so the newest DB post ends up first.
+    posts.slice().reverse().forEach(function(p){
+      if (!p.slug || existing[p.slug]) return;
+      var tag = p.tag || 'City Guide';
+      var words = (p.content || '').split(/\s+/).filter(Boolean).length;
+      var readMin = Math.max(1, Math.round(words / 200));
+      var dateStr = p.created_at ? new Date(p.created_at).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}) : '';
+      var a = document.createElement('a');
+      a.href = '/blog/' + encodeURIComponent(p.slug);
+      a.className = 'blog-card';
+      a.setAttribute('data-city', p.city_slug || 'all');
+      a.setAttribute('data-tag', tag);
+      a.innerHTML =
+        '<div class="blog-card-emoji">' + (TAG_EMOJI[tag] || '🍹') + '</div>' +
+        '<div class="blog-card-body">' +
+          '<span class="blog-card-tag">' + esc(tag) + '</span>' +
+          '<h2 class="blog-card-title">' + esc(p.title) + '</h2>' +
+          (p.excerpt ? '<p class="blog-card-excerpt">' + esc(p.excerpt) + '</p>' : '') +
+          '<div class="blog-card-meta"><span>By ' + esc(p.author || 'Spotd') + '</span>' +
+            (dateStr ? ' &middot; <span>' + dateStr + '</span>' : '') +
+            ' &middot; <span>' + readMin + ' min</span></div>' +
+        '</div>';
+      grid.insertBefore(a, grid.firstChild);
+    });
+
+    // Re-run the existing filter so injected cards respect the active city/tag.
+    if (typeof _blogApplyFilters === 'function') _blogApplyFilters();
+  })
+  .catch(function(){ /* static grid stands on its own */ });
+})();
+</script>
+
 </body>
 </html>

@@ -2701,6 +2701,12 @@ in San Diego</textarea>
               </div>
 
               <div class="blog-field">
+                <div class="blog-label">FAQ (optional — one per line: Question | Answer)</div>
+                <textarea class="cms-input cms-textarea" id="blog-faq" style="min-height:90px" placeholder="What time is happy hour? | Most spots run 3–6pm on weekdays.&#10;Is it dog friendly? | Yes — the patio welcomes dogs."></textarea>
+                <div class="blog-char-count">Adds a Google-eligible FAQ rich result + a visible FAQ section.</div>
+              </div>
+
+              <div class="blog-field">
                 <div class="blog-label">Content (Markdown)</div>
                 <div class="blog-md-toolbar">
                   <button class="blog-md-btn" onclick="blogInsertMarkdown('bold')" title="Bold"><b>B</b></button>
@@ -6776,6 +6782,7 @@ ${sectionsMjml}
     document.getElementById('blog-keywords').value = '';
     document.getElementById('blog-featured-img').value = '';
     document.getElementById('blog-content-editor').value = '';
+    document.getElementById('blog-faq').value = '';
 
     if (postId) {
       const post = _blogPosts.find(p => p.id === postId);
@@ -6805,6 +6812,27 @@ ${sectionsMjml}
     document.getElementById('blog-keywords').value = post.keywords || '';
     document.getElementById('blog-featured-img').value = post.featured_image_url || '';
     document.getElementById('blog-content-editor').value = post.content || '';
+    document.getElementById('blog-faq').value = blogFaqToText(post.faq);
+  }
+
+  // FAQ helpers: editor uses "Question | Answer" lines; DB stores jsonb [{q,a}].
+  function blogParseFaq(text) {
+    const items = (text || '').split('\n')
+      .map(line => {
+        const i = line.indexOf('|');
+        if (i === -1) return null;
+        const q = line.slice(0, i).trim();
+        const a = line.slice(i + 1).trim();
+        return (q && a) ? { q, a } : null;
+      })
+      .filter(Boolean);
+    return items.length ? items : null;
+  }
+  function blogFaqToText(faq) {
+    let arr = faq;
+    if (typeof arr === 'string') { try { arr = JSON.parse(arr); } catch { arr = null; } }
+    if (!Array.isArray(arr)) return '';
+    return arr.map(f => `${(f.q || '').trim()} | ${(f.a || '').trim()}`).join('\n');
   }
 
   function blogBackToList() {
@@ -6832,6 +6860,7 @@ ${sectionsMjml}
       keywords: document.getElementById('blog-keywords').value.trim(),
       featured_image_url: document.getElementById('blog-featured-img').value.trim(),
       content: document.getElementById('blog-content-editor').value,
+      faq: blogParseFaq(document.getElementById('blog-faq').value),
       status,
       updated_at: new Date().toISOString()
     };

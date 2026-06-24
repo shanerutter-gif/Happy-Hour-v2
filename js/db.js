@@ -729,6 +729,19 @@ async function fetchVenues(citySlug) {
     .order('name');
   return data || [];
 }
+// Published DB-backed blog posts (admin Blog Manager) for the in-app Blog tab.
+// RLS limits anon reads to status='published'. Graceful: returns [] on any error
+// so the hardcoded NEWS_ARTICLES list is never affected.
+async function fetchDbBlogPosts() {
+  try {
+    const { data, error } = await db.from('blog_posts')
+      .select('slug,title,author,tag,city_slug,excerpt,featured_image_url,content,created_at')
+      .eq('status', 'published')
+      .order('created_at', { ascending: false });
+    if (error) return [];
+    return data || [];
+  } catch (e) { return []; }
+}
 async function fetchEvents(citySlug) {
   // Same rule as fetchVenues — `deals`/`photo_url`/`photo_urls` do NOT exist on
   // the `events` table, so selecting them 400s the query and drops all events.

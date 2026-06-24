@@ -5,6 +5,7 @@ Allow: /spots/
 Allow: /happy-hour/
 Allow: /api/sitemap-venues
 Allow: /api/sitemap-cities
+Allow: /api/sitemap-blog
 
 Disallow: /api/
 Disallow: /admin.html

@@ -7987,10 +7987,44 @@ const NEWS_ARTICLES = [
   { city: 'san-diego', img: 'https://images.unsplash.com/photo-1501612780327-45045538702b?w=800&q=80', tag: 'Events',      author: 'Alexis', title: 'Live Music + Happy Hour: San Diego\u2019s Best Combos', excerpt: 'Why choose between cheap drinks and great music? These San Diego spots serve both \u2014 and they\u2019re all on Spotd.', url: '/blog/live-music-happy-hours-san-diego.html', date: 'March 18, 2026', readTime: '6 min' },
 ];
 
+// DB-backed posts (admin Blog Manager) merged into the in-app Blog tab.
+// Additive: NEWS_ARTICLES (hardcoded) is the baseline; these are appended.
+let _dbArticles = [];
+let _dbArticlesLoaded = false;
+const NEWS_IMG_FALLBACK = 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=800&q=80';
+
+async function loadDbArticles() {
+  if (_dbArticlesLoaded) return;
+  try {
+    const posts = await fetchDbBlogPosts();
+    _dbArticles = (posts || []).map(function(p) {
+      const words = (p.content || '').split(/\s+/).filter(Boolean).length;
+      const readMin = Math.max(1, Math.round(words / 200));
+      const date = p.created_at ? new Date(p.created_at).toLocaleDateString('en-US', { month:'long', day:'numeric', year:'numeric' }) : '';
+      return {
+        city: p.city_slug || 'all',
+        img: p.featured_image_url || NEWS_IMG_FALLBACK,
+        tag: p.tag || 'City Guide',
+        author: p.author || 'Spotd',
+        title: p.title || 'Untitled',
+        excerpt: p.excerpt || '',
+        url: '/blog/' + encodeURIComponent(p.slug),
+        date: date,
+        readTime: readMin + ' min',
+        _ts: p.created_at ? Date.parse(p.created_at) : 0,
+      };
+    });
+    _dbArticlesLoaded = true;
+    // Re-render if the Blog tab is currently open.
+    if (document.getElementById('newsTab')?.classList.contains('tab-open')) renderNewsFeed();
+  } catch (e) { /* keep static NEWS_ARTICLES only */ }
+}
+
 function openNewsTab() {
   document.getElementById('newsTab').classList.add('tab-open');
   track('blog_tab_viewed', { city: state.city?.slug });
   renderNewsFeed();
+  loadDbArticles();
 }
 
 function closeNewsTab() {
@@ -8002,8 +8036,21 @@ function renderNewsFeed() {
   var container = document.getElementById('newsFeedContent');
   if (!container) return;
   var citySlug = state.city?.slug || 'san-diego';
-  var articles = NEWS_ARTICLES.filter(function(a) {
-    return a.city === citySlug || a.city === 'all';
+  // Merge hardcoded NEWS_ARTICLES with DB-backed posts, de-duped by slug stem
+  // (so a future static→DB backfill never double-lists), newest first.
+  function _newsStem(u) { return (u || '').replace(/^.*\/blog\//, '').replace(/\.html$/, '').replace(/[?#].*$/, ''); }
+  var _merged = NEWS_ARTICLES.concat(_dbArticles);
+  var _seen = {};
+  var articles = _merged.filter(function(a) {
+    if (a.city !== citySlug && a.city !== 'all') return false;
+    var s = _newsStem(a.url);
+    if (_seen[s]) return false;
+    _seen[s] = 1;
+    return true;
+  }).sort(function(a, b) {
+    var ta = a._ts != null ? a._ts : Date.parse(a.date) || 0;
+    var tb = b._ts != null ? b._ts : Date.parse(b.date) || 0;
+    return tb - ta;
   });
 
   if (!articles.length) {
