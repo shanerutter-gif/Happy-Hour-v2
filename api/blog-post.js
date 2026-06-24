@@ -115,6 +115,35 @@ function buildPage(post) {
     ]
   };
 
+  // Optional FAQ → FAQPage JSON-LD + a visible FAQ section (the schema Q&As
+  // MUST mirror the visible ones, per the blog SEO rule). post.faq is jsonb:
+  // an array of { q, a }. Tolerate a JSON string or null.
+  let faqItems = [];
+  try {
+    const raw = typeof post.faq === 'string' ? JSON.parse(post.faq) : post.faq;
+    if (Array.isArray(raw)) {
+      faqItems = raw
+        .map(f => ({ q: (f && (f.q || f.question) || '').trim(), a: (f && (f.a || f.answer) || '').trim() }))
+        .filter(f => f.q && f.a);
+    }
+  } catch { faqItems = []; }
+
+  const faqLd = faqItems.length ? {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: faqItems.map(f => ({
+      '@type': 'Question',
+      name: f.q,
+      acceptedAnswer: { '@type': 'Answer', text: f.a }
+    }))
+  } : null;
+
+  const faqHtml = faqItems.length ? `
+    <h2 id="faq">Frequently Asked Questions</h2>
+    <div class="blog-faq">
+      ${faqItems.map(f => `<div class="blog-faq-item"><div class="blog-faq-q">${esc(f.q)}</div><div class="blog-faq-a">${esc(f.a)}</div></div>`).join('')}
+    </div>` : '';
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -158,6 +187,7 @@ ${keywords ? `<meta name="keywords" content="${keywords}">` : ''}
 
 <script type="application/ld+json">${JSON.stringify(jsonLd)}</script>
 <script type="application/ld+json">${JSON.stringify(breadcrumbLd)}</script>
+${faqLd ? `<script type="application/ld+json">${JSON.stringify(faqLd)}</script>` : ''}
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@400;500;700;800;900&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
@@ -223,6 +253,7 @@ ${keywords ? `<meta name="keywords" content="${keywords}">` : ''}
 
   <div class="blog-article-body" id="blogBody">
     ${contentHtml}
+    ${faqHtml}
 
     <div class="blog-cta-inline">
       <a href="/" class="blog-cta-btn">Explore Spots on Spotd</a>

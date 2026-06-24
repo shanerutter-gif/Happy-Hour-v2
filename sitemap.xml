@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Sitemap index. robots.txt points here; this fans out to every URL set so
      Google's sitemap discovery reaches all venue pages.
-       - sitemap-pages.xml      static pages + blog posts (committed file)
+       - sitemap-pages.xml      static pages + static blog/*.html posts (committed file)
        - /api/sitemap-venues    every indexable /spots/<slug> venue page (dynamic)
        - /api/sitemap-cities    /spots + /happy-hour/<city>[/<hood>] hub pages (dynamic)
+       - /api/sitemap-blog      DB-backed /blog/<slug> posts (admin Blog Manager, dynamic)
      Canonical host is www (the apex redirects). -->
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <sitemap>
@@ -14,5 +15,8 @@
   </sitemap>
   <sitemap>
     <loc>https://www.spotd.biz/api/sitemap-cities</loc>
+  </sitemap>
+  <sitemap>
+    <loc>https://www.spotd.biz/api/sitemap-blog</loc>
   </sitemap>
 </sitemapindex>
