@@ -99,7 +99,7 @@
 <noscript><link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"></noscript>
 <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script defer src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
-<link rel="stylesheet" href="css/style.css?v=20260707c">
+<link rel="stylesheet" href="css/style.css?v=20260707d">
 <style>
 .card-claim { padding: 4px 16px 12px; }
 .claim-link { font-size: 12px; color: rgba(42,31,20,0.4); text-decoration: none; }
@@ -498,11 +498,6 @@
       <button class="clear-all-btn" id="clearAllBtn" onclick="clearAllVisible()">Clear</button>
     </div>
     <div class="controls-actions">
-      <button class="happening-toggle" id="happeningToggle" onclick="toggleHappeningNow()" aria-pressed="false">
-        <span class="happening-dot"></span>
-        <svg class="ht-ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg>
-        <span class="ht-label">Happening now</span>
-      </button>
       <button class="filter-toggle" id="filterToggle" onclick="toggleFilters()">
         <svg class="ft-ic" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="10" y1="18" x2="14" y2="18"/></svg>
         <span class="ft-label">Filters</span>
@@ -513,11 +508,6 @@
         <span id="viewIcon">Map</span>
       </button>
     </div>
-    <button class="plan-night-cta" id="planNightCta" onclick="openNightPlanner()">
-      <span class="pnc-emoji">🌙</span>
-      <span class="pnc-text"><span class="pnc-title">Plan my night out</span><span class="pnc-sub">Build a bar crawl in seconds</span></span>
-      <span class="pnc-go">›</span>
-    </button>
     <div class="chips-row" id="chipsRow"></div>
     <div class="filter-panel" id="filterPanel">
       <div class="fp-inner">
@@ -527,6 +517,18 @@
             <button class="fp-clear-all" onclick="clearAllFilters()">Reset</button>
             <button class="fp-done" onclick="toggleFilters()">Done</button>
           </div>
+        </div>
+        <div class="fp-row-quick">
+          <button class="happening-toggle" id="happeningToggle" onclick="toggleHappeningNow()" aria-pressed="false">
+            <span class="happening-dot"></span>
+            <svg class="ht-ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg>
+            <span class="ht-label">Happening now</span>
+          </button>
+          <button class="plan-night-cta" id="planNightCta" onclick="toggleFilters();openNightPlanner()">
+            <span class="pnc-emoji">🌙</span>
+            <span class="pnc-text"><span class="pnc-title">Plan my night out</span><span class="pnc-sub">Build a bar crawl in seconds</span></span>
+            <span class="pnc-go">›</span>
+          </button>
         </div>
         <div class="fp-row-sort">
           <div class="fg-label">Sort</div>
@@ -569,7 +571,7 @@
 
   <main>
     <div id="listView" class="list-view active">
-      <div class="results-bar"><span class="results-left"><button class="bubble-back-btn" id="bubbleBackBtn" onclick="showBubbleView()" style="display:none">🫧 Vibes</button><span id="resultsCount"></span></span><button class="request-venue-btn" onclick="openRequestVenue()">+ Request a Venue</button></div>
+      <div class="results-bar"><span id="resultsCount"></span><button class="request-venue-btn" onclick="openRequestVenue()">+ Request a Venue</button></div>
       <div class="cards-grid" id="cardsGrid"></div>
     </div>
     <div id="mapView" class="map-view">
@@ -836,7 +838,7 @@ function dismissAppDownload() {
 <script defer src="js/onboarding.js?v=20260707a"></script>
 <script defer src="js/push.js?v=20260408a"></script>
 <script defer src="js/icons.js?v=20260609a"></script>
-<script defer src="js/app.js?v=20260707c"></script>
+<script defer src="js/app.js?v=20260707d"></script>
 <script defer src="js/tooltips.js?v=20260408a"></script>
 <script>
 // Hide business/Pro links and App Store badge on native iOS

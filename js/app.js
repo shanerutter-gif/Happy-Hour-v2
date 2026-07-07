@@ -91,7 +91,6 @@ const state = {
   userLng: null,
   view: 'list',
   showFilter: 'all', // 'all' | 'happyhour' | 'events'
-  bubbleMode: true,  // Discover landing = floating category bubbles (mobile)
   filtersOpen: false, favFilterOn: false,
   happeningNow: false, // "Happening now" — only venues whose happy hour is live
   filters: { day: null, area: null, type: null, amenities: [], search: '' },
@@ -2192,7 +2191,6 @@ async function enterCity(slug, name, stateCode) {
   state.filters.amenity = null;
   state.filters = { day: null, area: null, type: null, search: '', amenities: [] };
   state.favFilterOn = false;
-  state.bubbleMode = true; // every city entry lands on the bubble canvas
   resetHappeningNow();
   state.filtered = [];
   document.getElementById('searchBox').value = '';
@@ -3351,144 +3349,6 @@ function toggleFilters() {
   document.getElementById('filterToggle').classList.toggle('active', state.filtersOpen || !!(state.filters.day || state.filters.area || state.filters.type));
 }
 
-// ═══════════════════════════════════════════════════════
-// BUBBLE DISCOVERY — floating category bubbles (Discover landing)
-// The Discover feed's landing view: categories float as big colorful gradient
-// bubbles (icon + name + live venue count), gently bobbing. Tapping a bubble
-// applies that category as a filter (amenity or smart-search concept) and
-// reveals the normal venue list; clearing the filter (chip ✕ / Clear) or the
-// "🫧 Vibes" button in the results bar returns to the bubbles. Bubbles only
-// show when the state is pristine (no search/filters/happening-now) and never
-// in the desktop two-pane view. Counts come straight from state.venues, so
-// they're always live for the current city. All animation is transform-only
-// (no backdrop-filter, ~12 small composited layers) per the perf rules.
-// ═══════════════════════════════════════════════════════
-
-const BUBBLE_CATS = [
-  { id: 'all',       label: 'All Spots',    emoji: '🍹', all: true,                  grad: ['#FF6B4A', '#E8943A'] },
-  { id: 'happyhour', label: 'Happy Hour',   emoji: '🍺', amenity: 'has_happy_hour',  grad: ['#FBBF24', '#F97316'] },
-  { id: 'livemusic', label: 'Live Music',   emoji: '🎵', amenity: 'has_live_music',  grad: ['#C084FC', '#7C3AED'] },
-  { id: 'trivia',    label: 'Trivia',       emoji: '🧠', amenity: 'has_trivia',      grad: ['#60A5FA', '#2563EB'] },
-  { id: 'karaoke',   label: 'Karaoke',      emoji: '🎤', amenity: 'has_karaoke',     grad: ['#F472B6', '#DB2777'] },
-  { id: 'sports',    label: 'Sports',       emoji: '📺', amenity: 'has_sports_tv',   grad: ['#34D399', '#059669'] },
-  { id: 'dog',       label: 'Dog Friendly', emoji: '🐕', amenity: 'is_dog_friendly', grad: ['#2DD4BF', '#0D9488'] },
-  { id: 'comedy',    label: 'Comedy',       emoji: '😂', amenity: 'has_comedy',      grad: ['#FB7185', '#E11D48'] },
-  { id: 'bingo',     label: 'Bingo',        emoji: '🎯', amenity: 'has_bingo',       grad: ['#A3E635', '#65A30D'] },
-  { id: 'cocktails', label: 'Cocktails',    emoji: '🍸', search: 'cocktails',        grad: ['#E879F9', '#A21CAF'] },
-  { id: 'dive',      label: 'Dive Bars',    emoji: '🍻', search: 'dive bar',         grad: ['#94A3B8', '#475569'] },
-  { id: 'rooftop',   label: 'Rooftop',      emoji: '🌅', search: 'rooftop',          grad: ['#FB923C', '#EA580C'] },
-];
-
-// Hand-tuned scatter slots (percent coords + px size), biggest first. Sorted
-// categories map onto these in count order, so the busiest category is always
-// the big center bubble. Edge slots intentionally clip off-canvas a little,
-// like the reference concept.
-const BUBBLE_SLOTS = [
-  { x: 50, y: 40, s: 150 },
-  { x: 23, y: 61, s: 130 },
-  { x: 79, y: 22, s: 118 },
-  { x: 20, y: 20, s: 112 },
-  { x: 80, y: 60, s: 110 },
-  { x: 56, y: 73, s: 104 },
-  { x: 6,  y: 40, s: 96  },
-  { x: 44, y: 11, s: 92  },
-  { x: 96, y: 42, s: 92  },
-  { x: 30, y: 88, s: 88  },
-  { x: 72, y: 91, s: 86  },
-  { x: 4,  y: 82, s: 80  },
-];
-
-function _bubbleCounts() {
-  const counts = {};
-  for (const c of BUBBLE_CATS) {
-    if (c.all) counts[c.id] = state.venues.length;
-    else if (c.amenity) counts[c.id] = state.venues.reduce((n, v) => n + (v[c.amenity] ? 1 : 0), 0);
-    else if (c.search) {
-      const ps = parseSearchQuery(c.search);
-      counts[c.id] = state.venues.reduce((n, v) => n + (scoreVenueForSearch(v, ps) > 0 ? 1 : 0), 0);
-    }
-  }
-  return counts;
-}
-
-// Bubbles show only when the discover state is pristine — any search, filter,
-// saved-only or happening-now view means the user is in "list land".
-function _bubblesEligible() {
-  if (!state.bubbleMode || isTwoPane() || !state.venues.length) return false;
-  const f = state.filters;
-  return !(f.search || f.day || f.area || f.type || (f.amenities && f.amenities.length) || state.favFilterOn || state.happeningNow);
-}
-
-function renderBubbleView(grid) {
-  const counts = _bubbleCounts();
-  const cats = BUBBLE_CATS.filter(c => counts[c.id] > 0)
-    .sort((a, b) => counts[b.id] - counts[a.id])
-    .slice(0, BUBBLE_SLOTS.length);
-
-  let html = `<div class="dsc-head">
-    <div class="dsc-head-title">What's the vibe tonight?</div>
-    <div class="dsc-head-sub">Tap a bubble to dive in</div>
-  </div>
-  <div class="dsc-canvas">`;
-  cats.forEach((c, i) => {
-    const s = BUBBLE_SLOTS[i];
-    const dur = (6.5 + (i % 5) * 1.2).toFixed(1);
-    const dl  = (-(i * 0.9)).toFixed(1);
-    html += `<div class="dsc-pos" style="left:${s.x}%;top:${s.y}%;--i:${i}">
-      <div class="dsc-drift dsc-drift--${i % 4}" style="animation-duration:${dur}s;animation-delay:${dl}s">
-        <button class="dsc-bubble" style="width:${s.s}px;height:${s.s}px;font-size:${Math.round(s.s * 0.095)}px;background:linear-gradient(140deg,${c.grad[0]},${c.grad[1]})"
-                onclick="bubbleTap('${c.id}')" aria-label="${c.label} — ${counts[c.id]} spots">
-          <span class="dsc-emoji">${c.emoji}</span>
-          <span class="dsc-name">${c.label}</span>
-          <span class="dsc-count">${counts[c.id]}</span>
-        </button>
-      </div>
-    </div>`;
-  });
-  html += `</div>`;
-  grid.innerHTML = html;
-
-  const rc = document.getElementById('resultsCount');
-  if (rc) rc.textContent = `${state.venues.length} spots in ${state.city?.name || 'your city'}`;
-}
-
-function bubbleTap(id) {
-  if (typeof haptic === 'function') haptic('medium');
-  const c = BUBBLE_CATS.find(x => x.id === id);
-  if (!c) return;
-  track('bubble_tap', { category: id });
-  if (c.all) {
-    // "All Spots" leaves bubble land for the full tiered feed.
-    state.bubbleMode = false;
-    applyFilters(); updateChips(); updateDot();
-    return;
-  }
-  if (c.amenity) {
-    state.filters.amenities = [c.amenity];
-    // Keep the filter-panel amenity cards in sync (same pattern as applySuggestion).
-    const def = AMENITY_MAP.get(c.amenity);
-    document.querySelectorAll('#amenityFilters .amenity-card').forEach(btn => {
-      btn.classList.toggle('active', !!def && btn.textContent.includes(def.label));
-    });
-  } else if (c.search) {
-    const sb = document.getElementById('searchBox');
-    if (sb) sb.value = c.search; // applyFilters reads the box directly
-  }
-  applyFilters(); updateChips(); updateDot();
-  document.getElementById('listView')?.scrollTo?.(0, 0);
-  window.scrollTo(0, 0);
-}
-
-// "🫧 Vibes" button in the results bar — back to the bubble canvas.
-function showBubbleView() {
-  if (typeof haptic === 'function') haptic('light');
-  state.bubbleMode = true;
-  track('bubble_view_opened', {});
-  clearAllVisible(); // resets every filter + applyFilters → bubble branch renders
-  document.getElementById('listView')?.scrollTo?.(0, 0);
-  window.scrollTo(0, 0);
-}
-
 // ── VENUE BUBBLES — the feed itself ──────────────────────
 // The whole mobile venue feed renders as photo bubbles: each venue is a
 // circular bubble (venue photo + name, fire badge, HH countdown in the
@@ -3503,9 +3363,13 @@ function showBubbleView() {
 // static & instant. No backdrop-filter anywhere.
 
 const VB_CLUSTER_H = 360;
+// Slot coords are constrained so every bubble stays fully INSIDE the cluster
+// box: content-visibility:auto applies paint containment, which hard-clips
+// anything that pokes past the cluster bounds (the "cut off bubbles" bug).
+// (+12px margin on top/bottom edges so the ±11px idle drift can't cross them)
 const VB_PATTERNS = [
-  [ { x: 27, y: 24, s: 152 }, { x: 75, y: 14, s: 108 }, { x: 78, y: 55, s: 134 }, { x: 22, y: 68, s: 118 }, { x: 52, y: 90, s: 92 } ],
-  [ { x: 73, y: 24, s: 152 }, { x: 25, y: 14, s: 108 }, { x: 22, y: 55, s: 134 }, { x: 78, y: 68, s: 118 }, { x: 48, y: 90, s: 92 } ],
+  [ { x: 27, y: 25, s: 150 }, { x: 75, y: 19, s: 106 }, { x: 77, y: 55, s: 132 }, { x: 23, y: 68, s: 118 }, { x: 52, y: 83, s: 92 } ],
+  [ { x: 73, y: 25, s: 150 }, { x: 25, y: 19, s: 106 }, { x: 23, y: 55, s: 132 }, { x: 77, y: 68, s: 118 }, { x: 48, y: 83, s: 92 } ],
 ];
 // Gradient fallbacks for photoless venues, cycled by index.
 const VB_GRADS = [
@@ -3543,7 +3407,7 @@ function venueBubbleHTML(v, slot, idx) {
     : '';
 
   return `<div class="vb-pos${anim ? '' : ' vb-pos--still'}" style="left:${slot.x}%;top:${slot.y}%;${anim ? `--i:${idx}` : ''}">
-    <div class="${anim ? `vb-drift dsc-drift--${idx % 4}` : 'vb-still'}"${driftStyle}>
+    <div class="${anim ? `vb-drift vb-drift--${idx % 4}` : 'vb-still'}"${driftStyle}>
       <div class="vb-bubble" data-id="${v.id}" role="button" tabindex="0"
            style="width:${slot.s}px;height:${slot.s}px;font-size:${fs}px;background:${grad}"
            aria-label="${esc(v.name || 'Venue')}">
@@ -3590,15 +3454,6 @@ function _renderCardsNow() {
   _renderCardsRaf = null;
   const grid = document.getElementById('cardsGrid');
   if (!grid) return;
-
-  // ── Bubble discovery landing ──
-  // Pristine mobile state renders the floating category bubbles instead of
-  // cards; any active filter/search falls through to the normal list. The
-  // "🫧 Vibes" back button only shows while the list view is active.
-  const bubblesOn = _bubblesEligible();
-  const bubbleBack = document.getElementById('bubbleBackBtn');
-  if (bubbleBack) bubbleBack.style.display = (bubblesOn || isTwoPane() || !state.venues.length) ? 'none' : '';
-  if (bubblesOn) { renderBubbleView(grid); return; }
 
   if (!state.filtered.length) {
     if (state.happeningNow) {
