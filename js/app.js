@@ -126,13 +126,13 @@ async function loadSiteCopy() {
 // has wrong counts). A city is only `active:true` here once its venues are
 // enriched (photos + deals). See the "Launching a new city" checklist in CLAUDE.md.
 const CITIES = [
-  { slug:'san-diego',    name:'San Diego',     state_code:'CA', venue_count:498, active:true  },
-  { slug:'orange-county',name:'Orange County', state_code:'CA', venue_count:225, active:true  },
-  { slug:'los-angeles',  name:'Los Angeles',   state_code:'CA', venue_count:0,  active:false },
-  { slug:'new-york',     name:'New York',      state_code:'NY', venue_count:0,  active:false },
-  { slug:'chicago',      name:'Chicago',       state_code:'IL', venue_count:0,  active:false },
-  { slug:'austin',       name:'Austin',        state_code:'TX', venue_count:0,  active:false },
-  { slug:'miami',        name:'Miami',         state_code:'FL', venue_count:0,  active:false },
+  { slug:'san-diego',    name:'San Diego',     state_code:'CA', venue_count:522, active:true  },
+  { slug:'orange-county',name:'Orange County', state_code:'CA', venue_count:331, active:true  },
+  { slug:'los-angeles',  name:'Los Angeles',   state_code:'CA', venue_count:393, active:true  },
+  { slug:'new-york',     name:'New York',      state_code:'NY', venue_count:76,  active:true  },
+  { slug:'chicago',      name:'Chicago',       state_code:'IL', venue_count:273, active:true  },
+  { slug:'austin',       name:'Austin',        state_code:'TX', venue_count:227, active:true  },
+  { slug:'miami',        name:'Miami',         state_code:'FL', venue_count:100, active:true  },
 ];
 
 document.addEventListener('DOMContentLoaded', () => {
