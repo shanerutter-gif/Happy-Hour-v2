@@ -14,16 +14,28 @@ on one market.
 
 ## 0. Context you must load first
 - Read `CLAUDE.md` (voice, vendors, hard rules, the Blog post SEO checklist).
-- Live cities only: **San Diego** and **Orange County**. Never write for a
-  non-launched city.
+- **Write only for LIVE cities.** The source of truth is the `active:true` rows
+  in the `CITIES` array in `js/app.js` — read it each run so the routine adapts
+  automatically as cities launch or pause. As of the last update the live cities
+  are: **San Diego, Orange County, Los Angeles, New York, Chicago, Austin,
+  Miami** (all 7). Never write for a city that isn't `active:true`.
 
-## 1. Pick the city (rotate)
-Query the most recent posts and alternate:
-```sql
-select city_slug, created_at from public.blog_posts order by created_at desc limit 3;
-```
-If the newest post was `san-diego`, write `orange-county` this run, and vice
-versa. If the table is empty/ambiguous, default to `san-diego`.
+## 1. Pick the city (rotate across ALL live cities — least-recently-covered wins)
+Goal: even coverage across every live city, not just one or two. Steps:
+1. Read the live-city slugs from `js/app.js` (`CITIES` where `active:true`).
+2. Find each live city's most-recent post date:
+   ```sql
+   select city_slug, max(created_at) as last_post
+   from public.blog_posts
+   group by city_slug;
+   ```
+3. Pick the live city that is **most overdue**: any live city with ZERO posts
+   comes first (rotate among them if several); otherwise the live city whose
+   `last_post` is oldest. This guarantees the rotation cycles through every city
+   before repeating. If the table is empty, default to `san-diego`.
+- Note: with 7 live cities and a twice-weekly cadence, each city gets a fresh
+  post roughly every 3–4 weeks. That's a healthy pace; do not batch multiple
+  cities in one run — **one post per run**.
 
 ## 2. Pick a timely, NON-DUPLICATE topic
 - Use web search to find what's genuinely current in that city right now
