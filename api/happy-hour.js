@@ -379,6 +379,7 @@ export default async function handler(req) {
       <a href="/spots">All Spots</a>
       <a href="/happy-hour/san-diego">San Diego</a>
       <a href="/happy-hour/orange-county">Orange County</a>
+      <a href="/happy-hour/austin">Austin</a>
       <a href="/blog.html">Blog</a>
       <a href="/about.html">About</a>
     </div>

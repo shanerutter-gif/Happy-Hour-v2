@@ -201,6 +201,8 @@ export default async function handler() {
       <a href="/">Home</a>
       <a href="/spots">All Spots</a>
       <a href="/happy-hour/san-diego">San Diego</a>
+      <a href="/happy-hour/orange-county">Orange County</a>
+      <a href="/happy-hour/austin">Austin</a>
       <a href="/blog.html">Blog</a>
       <a href="/about.html">About</a>
       <a href="/business-landing.html">For Business</a>
