@@ -480,9 +480,9 @@ const RIPPLE_SELECTOR = '.cp-post-cta, .cp-opt, .cp-idea, .cp-photo-pick, .cp-ic
   '.modal-action, .modal-checkin-cta, .card-hero-going-btn, .card-compact-checkin, .card-std-checkin, ' +
   '.photo-submit-btn, .photo-skip-btn, .photo-upload-area, ' +
   '.people-row, .feed-row, .dm-thread-main, .people-follow-btn, .sub-page-back, .dm-back-btn, .dm-new-btn, .dm-send-btn, ' +
-  '.card-hero, .card-compact, .card-std, .sf-hero, .sf-compact, .sf-wide';
+  '.card-hero, .card-compact, .card-std, .sf-hero, .sf-compact, .sf-wide, .vb-bubble';
 // Surfaces that also get the glass "sheen" light-sweep on press (big cards + CTAs).
-const SHEEN_SELECTOR = '.card-hero, .card-compact, .card-std, .sf-hero, .sf-compact, .sf-wide, .cp-post-cta, .modal-checkin-cta, .giveaway-tile__cta';
+const SHEEN_SELECTOR = '.card-hero, .card-compact, .card-std, .sf-hero, .sf-compact, .sf-wide, .cp-post-cta, .modal-checkin-cta, .giveaway-tile__cta, .vb-bubble';
 function initRipples() {
   // Only fire on a confirmed TAP — not when the gesture becomes a scroll.
   // (Spawning on pointerdown made cards flash the ripple/sheen the instant a
@@ -3489,6 +3489,91 @@ function showBubbleView() {
   window.scrollTo(0, 0);
 }
 
+// ── VENUE BUBBLES — the feed itself ──────────────────────
+// The whole mobile venue feed renders as photo bubbles: each venue is a
+// circular bubble (venue photo + name, fire badge, HH countdown in the
+// happening-now view) that opens the venue modal on tap. Venues flow into
+// repeating hand-tuned 5-slot clusters (pattern A / mirrored pattern B) so the
+// scatter looks organic while remaining an ordinary vertically-scrolling feed
+// — sort order is preserved (first venue = biggest slot of the first cluster).
+// Perf: clusters get content-visibility:auto (off-screen bubbles skip layout,
+// paint AND image decode — the .card-std/.sf-hero lesson), photos are lazy
+// <img> tags (first bubble eager+fetchpriority=high for LCP), only the first
+// VB_ANIM bubbles get the entrance pop + idle drift, everything below renders
+// static & instant. No backdrop-filter anywhere.
+
+const VB_CLUSTER_H = 360;
+const VB_PATTERNS = [
+  [ { x: 27, y: 24, s: 152 }, { x: 75, y: 14, s: 108 }, { x: 78, y: 55, s: 134 }, { x: 22, y: 68, s: 118 }, { x: 52, y: 90, s: 92 } ],
+  [ { x: 73, y: 24, s: 152 }, { x: 25, y: 14, s: 108 }, { x: 22, y: 55, s: 134 }, { x: 78, y: 68, s: 118 }, { x: 48, y: 90, s: 92 } ],
+];
+// Gradient fallbacks for photoless venues, cycled by index.
+const VB_GRADS = [
+  ['#FF6B4A', '#E8943A'], ['#C084FC', '#7C3AED'], ['#60A5FA', '#2563EB'],
+  ['#34D399', '#059669'], ['#F472B6', '#DB2777'], ['#FBBF24', '#F97316'],
+];
+const VB_ANIM = 10; // only this many bubbles animate (entrance pop + drift)
+
+function venueBubbleHTML(v, slot, idx) {
+  const photo = v.photo_url || (v.photo_urls && v.photo_urls[0]) || '';
+  const count = state.goingCounts[v.id] || 0;
+  const anim  = idx < VB_ANIM;
+  const fs    = Math.max(9, Math.round(slot.s * 0.085));
+
+  // Every bubble sits on a cycled gradient base — photoless venues (and photos
+  // still lazy-loading / failed) read as deliberate colorful bubbles instead of
+  // blank circles with unreadable white text. A loaded photo covers it fully.
+  const g = VB_GRADS[idx % VB_GRADS.length];
+  const grad = `linear-gradient(140deg,${g[0]},${g[1]})`;
+  let media;
+  if (photo) {
+    media = `<img class="vb-photo" src="${photo}" alt=""`
+      + (idx === 0 ? ` loading="eager" fetchpriority="high"` : ` loading="lazy"`)
+      + ` decoding="async"><span class="vb-scrim"></span>`;
+  } else {
+    media = `<span class="vb-nophoto">${esc((v.name || '?').trim().charAt(0).toUpperCase())}</span>`;
+  }
+
+  const badges =
+    (state.happeningNow ? hhBadgeHTML(v) : '') +
+    (count >= 2 ? `<span class="vb-fire">🔥 ${count}</span>` : '');
+
+  const driftStyle = anim
+    ? ` style="animation-duration:${(6.5 + (idx % 5) * 1.1).toFixed(1)}s;animation-delay:${(-(idx * 0.7)).toFixed(1)}s"`
+    : '';
+
+  return `<div class="vb-pos${anim ? '' : ' vb-pos--still'}" style="left:${slot.x}%;top:${slot.y}%;${anim ? `--i:${idx}` : ''}">
+    <div class="${anim ? `vb-drift dsc-drift--${idx % 4}` : 'vb-still'}"${driftStyle}>
+      <div class="vb-bubble" data-id="${v.id}" role="button" tabindex="0"
+           style="width:${slot.s}px;height:${slot.s}px;font-size:${fs}px;background:${grad}"
+           aria-label="${esc(v.name || 'Venue')}">
+        ${media}
+        ${badges}
+        <span class="vb-name">${esc(v.name || '')}</span>
+      </div>
+    </div>
+  </div>`;
+}
+
+// Render the ordered venue list as bubble clusters. Returns HTML.
+function venueBubblesHTML(venues) {
+  let html = '';
+  for (let c = 0; c * 5 < venues.length; c++) {
+    const pattern = VB_PATTERNS[c % 2];
+    const group = venues.slice(c * 5, c * 5 + 5);
+    // Partial last cluster: shrink the container to the lowest used slot so a
+    // 1–2 bubble tail doesn't leave a tall empty band at the end of the feed.
+    let h = VB_CLUSTER_H;
+    if (group.length < 5) {
+      h = Math.ceil(Math.max(...group.map((_, i) => pattern[i].y / 100 * VB_CLUSTER_H + pattern[i].s / 2))) + 12;
+    }
+    html += `<div class="vb-cluster" style="height:${h}px;contain-intrinsic-size:auto ${h}px">`;
+    group.forEach((v, i) => { html += venueBubbleHTML(v, pattern[i], c * 5 + i); });
+    html += `</div>`;
+  }
+  return html;
+}
+
 // ── CARDS ──────────────────────────────────────────────
 let _renderCardsRaf = null;
 function renderCards() {
@@ -3549,17 +3634,6 @@ function _renderCardsNow() {
   // through as a standalone card. Events surface on their venue card instead.
   const venues = items.filter(v => !v.event_type);
 
-  // Split into tiers
-  const heroes   = venues.filter(v => v.is_hero && (v.photo_url || (v.photo_urls && v.photo_urls.length)));
-  const nonHeroes = venues.filter(v => !v.is_hero || !(v.photo_url || (v.photo_urls && v.photo_urls.length)));
-
-  // Compact = next batch with photos (up to 6 venues = 3 rows of 2)
-  const withPhoto    = nonHeroes.filter(v => v.photo_url || (v.photo_urls && v.photo_urls.length));
-  const withoutPhoto = nonHeroes.filter(v => !(v.photo_url || (v.photo_urls && v.photo_urls.length)));
-
-  const compactVenues = withPhoto.slice(0, 6);
-  const standardVenues = withPhoto.slice(6).concat(withoutPhoto);
-
   let html = '';
   let delay = 0;
   // Bound the entrance stagger: only the first ~12 cards (initial viewport + a
@@ -3576,62 +3650,24 @@ function _renderCardsNow() {
   };
 
   const isSearchView = !!(state.filters.search && state.filters.search.trim());
-  if (isTwoPane() || state.happeningNow || isSearchView) {
-    // ── Uniform horizontal list ──
-    // Three cases share this layout:
-    //  • Desktop two-pane: a single scannable column beside the persistent map.
-    //  • "Happening now": the editorial hero/compact/standard tiers re-bucket
-    //    cards and would destroy the ending-soonest sort order, so we render one
-    //    flat list that preserves it.
-    //  • Active search: same reason — keep the relevance ranking intact.
+  if (isTwoPane()) {
+    // ── Desktop two-pane: uniform horizontal list beside the persistent map ──
     // `venues` is the full filtered set in sort order (heroes included).
-    if (state.happeningNow && !isTwoPane()) {
-      html += `<div class="feed-label feed-label--live"><span class="hh-live-dot"></span>Happy hour right now · ending soonest first</div>`;
-    } else if (isSearchView && !isTwoPane()) {
-      html += `<div class="feed-label">Best matches</div>`;
-    }
     venues.forEach((v, i) => {
       html += standardCardHTML(v, nextDelay(25), i === 0);
     });
   } else {
-    // ── Hero cards ──
-    // Wrapped in .card-hero-row so desktop can lay heroes out multi-column.
-    // On mobile the wrapper is display:contents (see style.css), so the cards
-    // behave exactly as direct children — rendering is identical to before.
-    if (heroes.length) {
-      html += `<div class="feed-label">🔥 Hot right now</div>`;
-      html += `<div class="card-hero-row">`;
-      heroes.forEach((v, i) => {
-        html += heroCardHTML(v, nextDelay(80), i);
-      });
-      html += `</div>`;
+    // ── Venue bubbles — the whole mobile feed ──
+    // Every venue is a circular photo bubble flowing through repeating scatter
+    // clusters (see venueBubblesHTML). Sort order is preserved cluster by
+    // cluster, so happening-now (ending soonest) and search relevance rankings
+    // read top-to-bottom exactly like the old list did.
+    if (state.happeningNow) {
+      html += `<div class="feed-label feed-label--live"><span class="hh-live-dot"></span>Happy hour right now · ending soonest first</div>`;
+    } else if (isSearchView) {
+      html += `<div class="feed-label">Best matches</div>`;
     }
-
-    // ── Compact grid ──
-    if (compactVenues.length) {
-      html += `<div class="feed-label">${heroes.length ? 'Near you' : 'Today\'s happy hours'}</div>`;
-      for (let i = 0; i < compactVenues.length; i += 2) {
-        html += `<div class="card-compact-row">`;
-        html += compactCardHTML(compactVenues[i], nextDelay(60));
-        if (compactVenues[i + 1]) {
-          html += compactCardHTML(compactVenues[i + 1], nextDelay(60));
-        }
-        html += `</div>`;
-      }
-    }
-
-    // ── Standard rows ──
-    // Wrapped in .card-std-row so desktop can lay these out multi-column.
-    // On mobile the wrapper is display:contents (see style.css), so rendering
-    // is identical to before.
-    if (standardVenues.length) {
-      html += `<div class="feed-label">More spots</div>`;
-      html += `<div class="card-std-row">`;
-      standardVenues.forEach(v => {
-        html += standardCardHTML(v, nextDelay(40));
-      });
-      html += `</div>`;
-    }
+    html += venueBubblesHTML(venues);
   }
 
   grid.innerHTML = html;
@@ -3640,6 +3676,8 @@ function _renderCardsNow() {
   if (!grid._cardDelegateAttached) {
     grid._cardDelegateAttached = true;
     grid.addEventListener('click', function(e) {
+      const vb = e.target.closest('.vb-bubble');
+      if (vb && vb.dataset.id) { openModal(vb.dataset.id, 'venue'); return; }
       if (e.target.closest('button')) return;
       const card = e.target.closest('.card-hero, .card-compact, .card-std, .card');
       if (!card) return;

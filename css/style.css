@@ -8816,3 +8816,81 @@ h1, h2, .sf-hero-venue, .sf-ed-title, .pf-name, .gw-hero__title,
   .dsc-pos { animation: none; }
   .dsc-drift, .dsc-drift--0, .dsc-drift--1, .dsc-drift--2, .dsc-drift--3 { animation: none; }
 }
+
+/* ── VENUE BUBBLES — the feed itself ─────────────────────
+   Each venue renders as a circular photo bubble inside repeating scatter
+   clusters. Clusters get content-visibility:auto so off-screen bubbles skip
+   layout/paint/decode (the long-list lesson); only the first VB_ANIM bubbles
+   animate. No backdrop-filter. */
+.vb-cluster {
+  position: relative;
+  content-visibility: auto; /* intrinsic-size set inline per cluster */
+}
+.vb-pos {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  animation: dscPop .5s cubic-bezier(.34,1.5,.5,1) both;
+  animation-delay: calc(var(--i) * 55ms);
+}
+.vb-pos--still { animation: none; }
+.vb-drift { animation: dscFloatA 7s ease-in-out infinite alternate; }
+.vb-still { animation: none; }
+
+.vb-bubble {
+  position: relative; overflow: hidden;
+  border-radius: 50%; cursor: pointer; color: #fff;
+  display: flex; align-items: flex-end; justify-content: center;
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg2);
+  box-shadow: 0 12px 28px rgba(20,12,6,0.20), inset 0 -8px 16px rgba(0,0,0,0.10);
+  -webkit-tap-highlight-color: transparent;
+  transition: transform .16s var(--ease-bounce, cubic-bezier(.34,1.5,.5,1));
+}
+.vb-bubble:active { transform: scale(.93); }
+/* glossy light catch, same as the category bubbles */
+.vb-bubble::before {
+  content: ''; position: absolute; top: 6%; left: 12%; width: 42%; height: 28%;
+  border-radius: 50%; pointer-events: none; z-index: 3;
+  background: radial-gradient(ellipse at center, rgba(255,255,255,0.42), rgba(255,255,255,0) 72%);
+}
+.vb-photo {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; border-radius: 50%;
+}
+.vb-scrim {
+  position: absolute; inset: 0; border-radius: 50%; pointer-events: none; z-index: 1;
+  background: radial-gradient(ellipse at 50% 20%, rgba(0,0,0,0) 40%, rgba(0,0,0,0.10) 62%, rgba(0,0,0,0.62) 100%);
+}
+.vb-nophoto {
+  position: absolute; inset: 0; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 2.6em; font-weight: 800; color: rgba(255,255,255,0.9);
+}
+.vb-name {
+  position: relative; z-index: 2;
+  font-size: 1em; font-weight: 800; line-height: 1.15;
+  text-align: center; letter-spacing: 0.01em;
+  max-width: 82%; padding-bottom: 14%;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.55);
+}
+.vb-fire {
+  position: absolute; top: 9%; right: 6%; z-index: 2;
+  background: rgba(15,10,5,0.55); color: #fff;
+  font-size: 0.8em; font-weight: 700; padding: 2px 0.7em; border-radius: 999px;
+}
+/* HH countdown pill inside a bubble (happening-now view) — solid dark pill
+   over the photo, scaled down so it fits the small bubbles too */
+.vb-bubble .hh-badge {
+  position: absolute; top: 8%; left: 50%; transform: translateX(-50%); z-index: 2;
+  margin: 0; white-space: nowrap;
+  font-size: 9.5px; padding: 2px 7px; gap: 4px;
+  color: #86efac; background: rgba(15,10,5,0.62); border-color: transparent;
+}
+.vb-bubble .hh-badge--soon { color: #fcd34d; }
+
+[data-theme="dark"] .vb-bubble { box-shadow: 0 12px 28px rgba(0,0,0,0.5), inset 0 -8px 16px rgba(0,0,0,0.18); }
+
+@media (prefers-reduced-motion: reduce) {
+  .vb-pos, .vb-drift { animation: none; }
+}
