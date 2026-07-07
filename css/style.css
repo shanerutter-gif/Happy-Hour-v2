@@ -8725,3 +8725,94 @@ h1, h2, .sf-hero-venue, .sf-ed-title, .pf-name, .gw-hero__title,
 
 [data-theme="dark"] .np-chip, [data-theme="dark"] .np-seg, [data-theme="dark"] .np-stop-card { background: var(--bg2); border-color: rgba(255,255,255,0.08); }
 [data-theme="dark"] .np-pill-btn { background: rgba(255,255,255,0.07); }
+
+/* ══════════════════════════════════════════════════════════
+   BUBBLE DISCOVERY — floating category bubbles (Discover landing)
+   Appended last per the append-last rule. Transform-only animation —
+   NO backdrop-filter (per the per-card blur rule), ~12 small composited
+   layers max. Structure: .dsc-pos (position + entrance pop) >
+   .dsc-drift (infinite float) > button.dsc-bubble (gradient + press scale),
+   so the press scale never fights the float animation's transform.
+   ══════════════════════════════════════════════════════════ */
+.dsc-head { text-align: center; padding: 10px 20px 0; }
+.dsc-head-title {
+  font-family: 'Cabinet Grotesk', 'DM Sans', sans-serif;
+  font-size: 22px; font-weight: 800; letter-spacing: -0.4px; color: var(--text);
+}
+.dsc-head-sub { font-size: 12.5px; color: var(--muted); margin-top: 2px; font-weight: 500; }
+
+.dsc-canvas {
+  position: relative;
+  height: min(620px, calc(100dvh - 340px));
+  min-height: 440px;
+  overflow: hidden; /* edge bubbles clip off-canvas, like the reference */
+}
+
+.dsc-pos {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  animation: dscPop .55s cubic-bezier(.34,1.5,.5,1) both;
+  animation-delay: calc(var(--i) * 60ms);
+}
+@keyframes dscPop {
+  from { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+  to   { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+}
+
+.dsc-drift { animation: dscFloatA 7s ease-in-out infinite alternate; will-change: transform; }
+.dsc-drift--0 { animation-name: dscFloatA; }
+.dsc-drift--1 { animation-name: dscFloatB; }
+.dsc-drift--2 { animation-name: dscFloatC; }
+.dsc-drift--3 { animation-name: dscFloatD; }
+@keyframes dscFloatA { from { transform: translate(0,0); }  to { transform: translate(7px,-11px); } }
+@keyframes dscFloatB { from { transform: translate(0,0); }  to { transform: translate(-9px,8px); } }
+@keyframes dscFloatC { from { transform: translate(0,0); }  to { transform: translate(8px,9px); } }
+@keyframes dscFloatD { from { transform: translate(0,0); }  to { transform: translate(-7px,-10px); } }
+
+.dsc-bubble {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  border: none; border-radius: 50%; cursor: pointer; color: #fff;
+  font-family: 'DM Sans', sans-serif;
+  box-shadow: 0 14px 32px rgba(20,12,6,0.18), inset 0 -10px 20px rgba(0,0,0,0.14);
+  -webkit-tap-highlight-color: transparent;
+  transition: transform .16s var(--ease-bounce, cubic-bezier(.34,1.5,.5,1));
+}
+/* glossy top-left light catch, like a real bubble */
+.dsc-bubble::before {
+  content: ''; position: absolute; top: 7%; left: 13%; width: 40%; height: 27%;
+  border-radius: 50%; pointer-events: none;
+  background: radial-gradient(ellipse at center, rgba(255,255,255,0.55), rgba(255,255,255,0) 72%);
+}
+.dsc-bubble:active { transform: scale(.9); }
+
+.dsc-emoji { font-size: 2.4em; line-height: 1; filter: drop-shadow(0 2px 3px rgba(0,0,0,0.18)); }
+.dsc-name {
+  font-size: 0.92em; font-weight: 800; text-transform: uppercase;
+  letter-spacing: 0.06em; text-align: center; line-height: 1.1;
+  max-width: 88%; text-shadow: 0 1px 2px rgba(0,0,0,0.22);
+}
+.dsc-count {
+  font-size: 0.85em; font-weight: 700; margin-top: 2px;
+  background: rgba(15,10,5,0.30); padding: 1px 0.75em; border-radius: 999px;
+}
+
+[data-theme="dark"] .dsc-bubble { box-shadow: 0 14px 32px rgba(0,0,0,0.45), inset 0 -10px 20px rgba(0,0,0,0.2); }
+
+/* "🫧 Vibes" back-to-bubbles pill in the results bar */
+.results-left { display: inline-flex; align-items: center; min-width: 0; }
+.bubble-back-btn {
+  display: inline-flex; align-items: center; gap: 4px; margin-right: 10px;
+  padding: 5px 12px; border: none; border-radius: 999px; cursor: pointer;
+  background: linear-gradient(135deg, var(--coral), var(--amber));
+  color: #fff; font-family: 'DM Sans', sans-serif; font-weight: 800;
+  font-size: 11px; letter-spacing: 0.4px; white-space: nowrap;
+  transition: transform .16s var(--ease-bounce, cubic-bezier(.34,1.5,.5,1));
+}
+.bubble-back-btn:active { transform: scale(.92); }
+@media (min-width: 1200px) { .bubble-back-btn { display: none !important; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .dsc-pos { animation: none; }
+  .dsc-drift, .dsc-drift--0, .dsc-drift--1, .dsc-drift--2, .dsc-drift--3 { animation: none; }
+}
