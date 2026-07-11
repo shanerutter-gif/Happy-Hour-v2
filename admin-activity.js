@@ -122,6 +122,31 @@
     if (bucket === 'hour') return d.toLocaleTimeString('en-US', { hour: 'numeric' });
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   }
+  function fmtDur(a, b) {
+    const s = Math.max(0, Math.round((new Date(b) - new Date(a)) / 1000));
+    if (s < 60) return s + 's';
+    const m = Math.floor(s / 60);
+    if (m < 60) return m + 'm ' + String(s % 60).padStart(2, '0') + 's';
+    return Math.floor(m / 60) + 'h ' + (m % 60) + 'm';
+  }
+  function fmtDelta(a, b) {
+    const s = Math.round((new Date(b) - new Date(a)) / 1000);
+    if (s < 1) return '';
+    if (s < 60) return '+' + s + 's';
+    const m = Math.floor(s / 60);
+    return '+' + m + 'm ' + String(s % 60).padStart(2, '0') + 's';
+  }
+  // AI answer engines get a robot badge — these referrals are the GEO signal.
+  const AI_SOURCES = ['chatgpt.com', 'perplexity.ai', 'claude.ai', 'openai.com', 'gemini.google.com', 'copilot.microsoft.com', 'bing.com/chat'];
+  function isAiSource(src) { return AI_SOURCES.some(a => (src || '').toLowerCase().includes(a)); }
+  function sourceBadge(src) {
+    const s = src || '(direct)';
+    const ai = isAiSource(s);
+    const search = /google|bing|duckduckgo|yahoo|baidu/.test(s);
+    const bg = ai ? 'rgba(139,92,246,.14)' : search ? 'rgba(59,130,246,.12)' : s === '(direct)' ? 'var(--bg2)' : 'rgba(255,107,74,.12)';
+    const fg = ai ? '#8B5CF6' : search ? '#3B82F6' : s === '(direct)' ? 'var(--muted)' : 'var(--coral)';
+    return `<span style="display:inline-block;background:${bg};color:${fg};border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700;white-space:nowrap">${ai ? '🤖 ' : ''}${esc(s)}</span>`;
+  }
 
   // Switchable breakdown dimensions (event + a prop key to group by).
   const BREAKDOWNS = [
@@ -147,11 +172,13 @@
     view: 'users',                 // 'users' | 'traffic'
     preset: '7d', customFrom: '', customTo: '', bucket: 'day',
     bdSel: 'venue', tdSel: 'source', surface: 'site', selUser: null,
+    selSession: null, jFilter: 'all',
   };
   const data = {
     kpis: {}, series: [], topEvents: [], activeUsers: [],
     breakdown: [], userResults: [], timeline: [],
     tKpis: {}, tSeries: [], topPages: [], tBreakdown: [],
+    journeys: [], journey: [],
   };
 
   function rangeBounds() {
@@ -207,6 +234,7 @@
       data.topPages = Array.isArray(tp) ? tp : [];
       renderTraffic();
       loadTrafficBreakdown();
+      loadJourneys();
     } catch (e) { showError(e); }
   }
 
@@ -217,6 +245,26 @@
       data.tBreakdown = Array.isArray(rows) ? rows : [];
     } catch (e) { data.tBreakdown = []; }
     renderTrafficBreakdown();
+  }
+
+  async function loadJourneys() {
+    const { from, to } = rangeBounds();
+    try {
+      const rows = await rpc('ae_recent_journeys', { p_from: from, p_to: to, p_surface: state.surface, p_limit: 60 });
+      data.journeys = Array.isArray(rows) ? rows : [];
+    } catch (e) { data.journeys = []; }
+    renderJourneys();
+  }
+
+  async function selectJourney(sid) {
+    state.selSession = sid;
+    renderJourneys(); // re-highlight the picked row
+    try {
+      const rows = await rpc('ae_journey', { p_session: sid, p_limit: 300 });
+      data.journey = Array.isArray(rows) ? rows : [];
+    } catch (e) { data.journey = []; }
+    renderJourneyPanel();
+    document.getElementById('ae-journey-panel')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
   async function loadBreakdown() {
@@ -654,10 +702,148 @@
           <div id="ae-tbreakdown-body" style="padding:8px 16px 14px"></div>
         </div>
       </div>
+
+      <!-- Visitor journeys: recent sessions → click one to replay it step by step -->
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-top:18px">
+        <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+          <div>
+            <div style="font-family:'Cabinet Grotesk',sans-serif;font-size:16px;font-weight:700">Visitor journeys</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:2px">Recent sessions — click one to replay it step by step (source → pages → outbound)</div>
+          </div>
+          <select id="ae-j-filter" style="padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:13px;font-weight:600;cursor:pointer"></select>
+        </div>
+        <div id="ae-journeys-body"></div>
+      </div>
+
+      <!-- Step-by-step replay of the selected session -->
+      <div id="ae-journey-panel" style="margin-top:18px"></div>
     `;
 
     renderTrafficBreakdown();
+    renderJourneys();
+    renderJourneyPanel();
     wireTraffic();
+  }
+
+  function renderJourneys() {
+    const body = document.getElementById('ae-journeys-body');
+    const filterSel = document.getElementById('ae-j-filter');
+    if (!body) return;
+    const all = data.journeys || [];
+
+    // Source filter options rebuilt from the loaded rows (AI sources pinned first).
+    if (filterSel) {
+      const srcs = [...new Set(all.map(j => j.source || '(direct)'))]
+        .sort((a, b) => (isAiSource(b) - isAiSource(a)) || a.localeCompare(b));
+      filterSel.innerHTML = `<option value="all">All sources (${all.length})</option>` +
+        srcs.map(s => `<option value="${esc(s)}"${state.jFilter === s ? ' selected' : ''}>${isAiSource(s) ? '🤖 ' : ''}${esc(s)}</option>`).join('');
+      if (state.jFilter !== 'all' && !srcs.includes(state.jFilter)) state.jFilter = 'all';
+      filterSel.value = state.jFilter;
+      filterSel.onchange = () => { state.jFilter = filterSel.value; renderJourneys(); };
+    }
+
+    const rows = state.jFilter === 'all' ? all : all.filter(j => (j.source || '(direct)') === state.jFilter);
+    if (rows.length === 0) {
+      body.innerHTML = `<div style="padding:24px;text-align:center;color:var(--muted)">No visits in this range yet.</div>`;
+      return;
+    }
+    body.innerHTML = `
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="background:var(--bg2);text-align:left">
+          <th style="padding:9px 12px;font-size:11px;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap">When</th>
+          <th style="padding:9px 12px;font-size:11px;text-transform:uppercase;letter-spacing:.5px">Source</th>
+          <th style="padding:9px 12px;font-size:11px;text-transform:uppercase;letter-spacing:.5px">Entry page</th>
+          <th style="padding:9px 12px;font-size:11px;text-transform:uppercase;letter-spacing:.5px;text-align:right">Pages</th>
+          <th style="padding:9px 12px;font-size:11px;text-transform:uppercase;letter-spacing:.5px;text-align:right">Time</th>
+          <th style="padding:9px 12px;font-size:11px;text-transform:uppercase;letter-spacing:.5px">Visitor</th>
+          <th style="padding:9px 12px;font-size:11px;text-transform:uppercase;letter-spacing:.5px"></th>
+        </tr></thead>
+        <tbody>
+          ${rows.map(j => {
+            const sel = state.selSession === j.session_id;
+            const dur = j.pageviews > 1 || j.events > 1 ? fmtDur(j.started_at, j.ended_at) : '—';
+            const who = j.display_name ? `<strong>${esc(j.display_name)}</strong>`
+              : `${esc(j.device || '?')} · ${esc(j.country || '?')}`;
+            const flags = [
+              +j.outbound_clicks > 0 ? `<span title="Clicked out to a venue site">↗ ${j.outbound_clicks}</span>` : '',
+              j.signed_up ? `<span title="This visitor signed up" style="color:var(--coral)">✨</span>` : '',
+            ].filter(Boolean).join(' ');
+            return `<tr class="ae-j-row" data-sid="${esc(j.session_id)}"
+              style="border-bottom:1px solid var(--border);cursor:pointer;${sel ? 'background:rgba(255,107,74,.07)' : ''}">
+              <td style="padding:9px 12px;white-space:nowrap;color:var(--muted)">${esc(relTime(j.started_at))}</td>
+              <td style="padding:9px 12px">${sourceBadge(j.source)}</td>
+              <td style="padding:9px 12px;font-family:'DM Mono',monospace;font-size:12px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(j.entry_path || '—')}</td>
+              <td style="padding:9px 12px;text-align:right;font-family:'DM Mono',monospace"><strong>${fmtNum(j.pageviews)}</strong></td>
+              <td style="padding:9px 12px;text-align:right;font-family:'DM Mono',monospace;color:var(--muted)">${esc(dur)}</td>
+              <td style="padding:9px 12px;font-size:12px;color:var(--muted);white-space:nowrap">${who}</td>
+              <td style="padding:9px 12px;font-size:12px;white-space:nowrap">${flags}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table></div>`;
+    body.querySelectorAll('.ae-j-row').forEach(r => {
+      r.addEventListener('click', () => selectJourney(r.dataset.sid));
+    });
+  }
+
+  // Icons + labels per event type in the replay.
+  function journeyStep(ev) {
+    const n = ev.event_name || '';
+    const p = ev.props || {};
+    if (n === 'page_view')      return { icon: '📄', label: ev.path || '/', sub: p.title || '' };
+    if (n === 'outbound_click') return { icon: '↗',  label: 'Outbound click', sub: p.href || '' };
+    if (n === 'cta_click')      return { icon: '👆', label: 'CTA: ' + (p.label || ''), sub: ev.path || '' };
+    if (/signup|login/.test(n)) return { icon: '✨', label: prettyEvent(n), sub: '' };
+    return { icon: '·', label: prettyEvent(n), sub: ev.path || '' };
+  }
+
+  function renderJourneyPanel() {
+    const panel = document.getElementById('ae-journey-panel');
+    if (!panel) return;
+    if (!state.selSession) { panel.innerHTML = ''; return; }
+    const meta = (data.journeys || []).find(j => j.session_id === state.selSession);
+    const tl = data.journey || [];
+    const src = meta ? (meta.source || '(direct)') : '';
+    const arrived = meta && meta.referrer
+      ? `Arrived from <strong>${esc(src)}</strong> <span style="color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;word-break:break-all">(${esc(meta.referrer)})</span>`
+      : `Arrived ${src === '(direct)' ? 'directly (no referrer)' : 'from <strong>' + esc(src) + '</strong>'}`;
+
+    panel.innerHTML = `
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+        <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">
+          <div>
+            <div style="font-family:'Cabinet Grotesk',sans-serif;font-size:16px;font-weight:700">Journey replay ${meta && isAiSource(src) ? '🤖' : ''}</div>
+            <div style="font-size:13px;margin-top:4px">${arrived}</div>
+            ${meta ? `<div style="font-size:12px;color:var(--muted);margin-top:3px">
+              ${esc(fmtDateTime(meta.started_at))} · ${esc(meta.device || '?')} · ${esc(meta.country || '?')}
+              · ${fmtNum(meta.pageviews)} pages in ${esc(fmtDur(meta.started_at, meta.ended_at))}
+              ${meta.display_name ? ` · became <strong style="color:var(--text)">${esc(meta.display_name)}</strong>` : meta.signed_up ? ' · ✨ later signed up' : ''}
+            </div>` : ''}
+          </div>
+          <button id="ae-j-close" style="padding:5px 12px;border-radius:999px;border:1px solid var(--border);background:var(--card);color:var(--muted);font-size:12px;cursor:pointer">✕ Close</button>
+        </div>
+        ${tl.length === 0 ? `<div style="padding:24px;text-align:center;color:var(--muted)">Loading journey…</div>` : `
+        <div style="padding:8px 0;max-height:480px;overflow-y:auto">
+          ${tl.map((ev, i) => {
+            const st = journeyStep(ev);
+            const delta = i > 0 ? fmtDelta(tl[i - 1].created_at, ev.created_at) : '';
+            return `<div style="display:flex;gap:12px;padding:9px 16px;${i < tl.length - 1 ? 'border-bottom:1px dashed var(--border);' : ''}">
+              <div style="width:84px;flex-shrink:0;text-align:right;font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);padding-top:2px">
+                ${i === 0 ? esc(new Date(ev.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit' })) : esc(delta)}
+              </div>
+              <div style="width:26px;flex-shrink:0;text-align:center;font-size:15px">${st.icon}</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-weight:600;font-size:13px;font-family:${ev.event_name === 'page_view' ? "'DM Mono',monospace" : 'inherit'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(st.label)}</div>
+                ${st.sub ? `<div style="font-size:11px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(st.sub)}</div>` : ''}
+              </div>
+            </div>`;
+          }).join('')}
+        </div>`}
+      </div>`;
+    document.getElementById('ae-j-close')?.addEventListener('click', () => {
+      state.selSession = null; data.journey = [];
+      renderJourneyPanel(); renderJourneys();
+    });
   }
 
   function renderTrafficBreakdown() {
