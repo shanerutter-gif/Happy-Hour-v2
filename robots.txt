@@ -11,5 +11,69 @@ Disallow: /api/
 Disallow: /admin.html
 Disallow: /business-portal.html
 
+# --- AI search & assistant crawlers (explicitly welcome) ---
+# These power citations in ChatGPT, Perplexity, Claude, Gemini etc.
+# Same rules as everyone else: public pages yes, admin/api no.
+
+User-agent: OAI-SearchBot
+Allow: /
+Disallow: /api/
+Disallow: /admin.html
+Disallow: /business-portal.html
+
+User-agent: ChatGPT-User
+Allow: /
+Disallow: /api/
+Disallow: /admin.html
+Disallow: /business-portal.html
+
+User-agent: GPTBot
+Allow: /
+Disallow: /api/
+Disallow: /admin.html
+Disallow: /business-portal.html
+
+User-agent: PerplexityBot
+Allow: /
+Disallow: /api/
+Disallow: /admin.html
+Disallow: /business-portal.html
+
+User-agent: Perplexity-User
+Allow: /
+Disallow: /api/
+Disallow: /admin.html
+Disallow: /business-portal.html
+
+User-agent: ClaudeBot
+Allow: /
+Disallow: /api/
+Disallow: /admin.html
+Disallow: /business-portal.html
+
+User-agent: Claude-SearchBot
+Allow: /
+Disallow: /api/
+Disallow: /admin.html
+Disallow: /business-portal.html
+
+User-agent: Claude-User
+Allow: /
+Disallow: /api/
+Disallow: /admin.html
+Disallow: /business-portal.html
+
+User-agent: Google-Extended
+Allow: /
+Disallow: /api/
+Disallow: /admin.html
+Disallow: /business-portal.html
+
+User-agent: Applebot-Extended
+Allow: /
+Disallow: /api/
+Disallow: /admin.html
+Disallow: /business-portal.html
+
 Sitemap: https://www.spotd.biz/sitemap.xml
 Sitemap: https://www.spotd.biz/api/sitemap-venues
