@@ -31,14 +31,32 @@ function teaser(deals) {
 
 /* ── Supabase fetch ──────────────────────────────── */
 
+// Fetch ALL rows, paging past PostgREST's 1,000-row cap via Range headers.
+// Without this, order=city_slug.asc exhausted the 1,000-row budget at
+// Austin→NY, so San Diego + Orange County (851 venues) were absent from /spots.
+async function fetchAllRows(url, headers) {
+  const out = [];
+  const pageSize = 1000;
+  for (let from = 0; ; from += pageSize) {
+    const res = await fetch(url, {
+      headers: { ...headers, Range: `${from}-${from + pageSize - 1}`, 'Range-Unit': 'items' },
+    });
+    if (!res.ok) break;
+    const rows = await res.json();
+    if (!Array.isArray(rows) || rows.length === 0) break;
+    out.push(...rows);
+    if (rows.length < pageSize) break;
+  }
+  return out;
+}
+
 async function fetchVenues(supabaseUrl, serviceKey) {
   // Mirror the sitemap: only venues with a real photo are indexable. Photoless
   // venues render as grey placeholders and stay out of Google's index.
-  const res = await fetch(
+  return fetchAllRows(
     `${supabaseUrl}/rest/v1/venues?active=eq.true&photo_url=not.is.null&select=name,neighborhood,city_slug,deals&order=city_slug.asc,name.asc`,
-    { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } }
+    { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` }
   );
-  return res.ok ? res.json() : [];
 }
 
 /* ── Handler ─────────────────────────────────────── */

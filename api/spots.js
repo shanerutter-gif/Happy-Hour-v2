@@ -39,12 +39,32 @@ function formatDays(days) {
 
 /* ── Supabase fetch helpers ──────────────────────── */
 
+// Fetch ALL rows for a PostgREST query, paging past the 1,000-row default cap
+// via Range headers. Since the 7-city launch pushed active venues past 1,000, an
+// un-paged fetch silently dropped ~900 venues — so /spots/<slug> 404'd for them
+// and the sitemap emitted URLs that 404. Any fetch that can exceed 1,000 rows
+// MUST page like this.
+async function fetchAllRows(url, headers) {
+  const out = [];
+  const pageSize = 1000;
+  for (let from = 0; ; from += pageSize) {
+    const res = await fetch(url, {
+      headers: { ...headers, Range: `${from}-${from + pageSize - 1}`, 'Range-Unit': 'items' },
+    });
+    if (!res.ok) break;
+    const rows = await res.json();
+    if (!Array.isArray(rows) || rows.length === 0) break;
+    out.push(...rows);
+    if (rows.length < pageSize) break;
+  }
+  return out;
+}
+
 async function fetchVenues(supabaseUrl, serviceKey) {
-  const res = await fetch(
+  return fetchAllRows(
     `${supabaseUrl}/rest/v1/venues?active=eq.true&select=*`,
-    { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } }
+    { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` }
   );
-  return res.ok ? res.json() : [];
 }
 
 async function fetchReviews(supabaseUrl, serviceKey, venueId) {
