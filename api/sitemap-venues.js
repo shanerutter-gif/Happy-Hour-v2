@@ -12,6 +12,25 @@ function slugify(name) {
     .replace(/^-+|-+$/g, '');
 }
 
+// Fetch ALL rows, paging past PostgREST's 1,000-row default cap via Range
+// headers. Active photo'd venues exceed 1,000 since the 7-city launch, so an
+// un-paged fetch dropped ~900 URLs from this sitemap.
+async function fetchAllRows(url, headers) {
+  const out = [];
+  const pageSize = 1000;
+  for (let from = 0; ; from += pageSize) {
+    const res = await fetch(url, {
+      headers: { ...headers, Range: `${from}-${from + pageSize - 1}`, 'Range-Unit': 'items' },
+    });
+    if (!res.ok) break;
+    const rows = await res.json();
+    if (!Array.isArray(rows) || rows.length === 0) break;
+    out.push(...rows);
+    if (rows.length < pageSize) break;
+  }
+  return out;
+}
+
 export default async function handler() {
   const supabaseUrl = process.env.SUPABASE_URL;
   const serviceKey  = process.env.SUPABASE_SERVICE_KEY;
@@ -24,22 +43,27 @@ export default async function handler() {
     // Only include venues with a real photo. Photoless venues render as grey
     // placeholder cards — keep them out of Google's index until the enrichment
     // pass populates photo_url. See api/admin-enrich-venues.js.
-    const res = await fetch(
+    const venues = await fetchAllRows(
       `${supabaseUrl}/rest/v1/venues?active=eq.true&photo_url=not.is.null&select=name,updated_at`,
-      { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } }
+      { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` }
     );
-    const venues = res.ok ? await res.json() : [];
 
-    const urls = venues.map(v => {
+    // Dedupe by slug: slugify(name) ignores city, so ~44 cross-city name
+    // collisions would otherwise emit duplicate <loc>s. Keep the first.
+    const seen = new Set();
+    const urls = [];
+    for (const v of venues) {
       const slug = slugify(v.name);
+      if (seen.has(slug)) continue;
+      seen.add(slug);
       const lastmod = v.updated_at ? new Date(v.updated_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
-      return `  <url>
+      urls.push(`  <url>
     <loc>${SITE_URL}/spots/${slug}</loc>
     <lastmod>${lastmod}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
-  </url>`;
-    });
+  </url>`);
+    }
 
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">

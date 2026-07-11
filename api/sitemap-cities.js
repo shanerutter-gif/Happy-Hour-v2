@@ -23,17 +23,35 @@ function urlEntry(loc, priority, changefreq) {
   </url>`;
 }
 
+// Fetch ALL rows, paging past PostgREST's 1,000-row cap via Range headers.
+// Without this, neighborhoods on venues beyond row 1,000 were missing from the
+// city/neighborhood sitemap after the 7-city launch.
+async function fetchAllRows(url, headers) {
+  const out = [];
+  const pageSize = 1000;
+  for (let from = 0; ; from += pageSize) {
+    const res = await fetch(url, {
+      headers: { ...headers, Range: `${from}-${from + pageSize - 1}`, 'Range-Unit': 'items' },
+    });
+    if (!res.ok) break;
+    const rows = await res.json();
+    if (!Array.isArray(rows) || rows.length === 0) break;
+    out.push(...rows);
+    if (rows.length < pageSize) break;
+  }
+  return out;
+}
+
 export default async function handler() {
   const supabaseUrl = process.env.SUPABASE_URL;
   const serviceKey  = process.env.SUPABASE_SERVICE_KEY;
   if (!supabaseUrl || !serviceKey) return new Response('Server error', { status: 500 });
 
   try {
-    const res = await fetch(
+    const venues = await fetchAllRows(
       `${supabaseUrl}/rest/v1/venues?active=eq.true&photo_url=not.is.null&select=city_slug,neighborhood`,
-      { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } }
+      { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` }
     );
-    const venues = res.ok ? await res.json() : [];
 
     // city -> Set of neighborhood slugs
     const cities = {};
