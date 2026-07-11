@@ -10,22 +10,26 @@
  *   - replaces renderPushHistory with a merged view (manual sends from
  *     localStorage + campaign/automation results from the DB)
  *
- * Data access uses the service-role key, same pragmatic pattern as the rest
- * of admin.html (svcHeaders) — the page is admin-gated. The push_* tables
- * have RLS enabled with no policies, so only the service role can read them.
+ * Data access uses the signed-in admin's JWT + RLS — the push_* tables have
+ * "Admins manage …" policies gated on is_giveaway_admin()
+ * (sql/admin-rls-20260711.sql). No service key in the browser (audit S1).
  */
 (function () {
   'use strict';
 
   var SUPABASE_URL = 'https://opcskuzbdfrlnyhraysk.supabase.co';
-  var SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9wY3NrdXpiZGZybG55aHJheXNrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3Mjc0NDcxNywiZXhwIjoyMDg4MzIwNzE3fQ.r8QJQARvCOG16ayEYN7BDTGuFOTKLLPZ4gBgoNXBfX4';
+  var SUPABASE_ANON = 'sb_publishable_M97B-GmwsRF6xPVahp_ytw_49nI9igs';
   var LS_KEY = 'spotd-admin-session';
 
   function svc(extra) {
+    // Token read per-call: admin.html + sibling extension scripts refresh the
+    // shared localStorage session, so this always rides the freshest JWT.
+    var t = '';
+    try { t = (JSON.parse(localStorage.getItem(LS_KEY) || '{}').token) || ''; } catch (e) {}
     var h = {
       'Content-Type': 'application/json',
-      'apikey': SERVICE_ROLE_KEY,
-      'Authorization': 'Bearer ' + SERVICE_ROLE_KEY,
+      'apikey': SUPABASE_ANON,
+      'Authorization': 'Bearer ' + (t || SUPABASE_ANON),
     };
     if (extra) for (var k in extra) h[k] = extra[k];
     return h;
