@@ -197,8 +197,24 @@ select.field-input{cursor:pointer;-webkit-appearance:none;appearance:none;backgr
 
 <script>
 const SB_URL='https://opcskuzbdfrlnyhraysk.supabase.co';
-const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9wY3NrdXpiZGZybG55aHJheXNrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3Mjc0NDcxNywiZXhwIjoyMDg4MzIwNzE3fQ.r8QJQARvCOG16ayEYN7BDTGuFOTKLLPZ4gBgoNXBfX4';
+// Publishable (anon) key only — board access is enforced server-side by the
+// "Admins manage board_cards" RLS policy (is_giveaway_admin()). The page rides
+// on the admin session that admin.html stores in localStorage (same origin,
+// whether iframed at nav-board or opened directly).
+const SB_KEY='sb_publishable_M97B-GmwsRF6xPVahp_ytw_49nI9igs';
 const sb=supabase.createClient(SB_URL,SB_KEY);
+async function initSession(){
+  try{
+    const s=JSON.parse(localStorage.getItem('spotd-admin-session')||'{}');
+    if(s.token&&s.refresh_token){
+      // supabase-js takes over token refresh from here for this page's lifetime.
+      await sb.auth.setSession({access_token:s.token,refresh_token:s.refresh_token});
+      return true;
+    }
+  }catch(e){console.error('board session init failed',e);}
+  document.body.innerHTML='<div style="font-family:sans-serif;padding:40px;text-align:center">Not signed in. Open the Project Board from the <a href="/admin.html">admin portal</a>.</div>';
+  return false;
+}
 
 const COLS=[
   {id:'backlog',name:'Backlog',icon:'📋'},
@@ -224,6 +240,7 @@ const HOLD_MS=150;
 
 // ── INIT ──
 async function init(){
+  if(!await initSession())return;
   renderBoardTabs();
   buildColumns();
   await loadCards();

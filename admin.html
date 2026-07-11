@@ -2928,6 +2928,14 @@ in San Diego</textarea>
       err.textContent = data.error_description || data.error || 'Sign in failed.';
       err.classList.add('show'); return;
     }
+    // Allow-list check, evaluated SERVER-SIDE by the is_giveaway_admin() RPC.
+    // Any Supabase user can authenticate, but only admins may enter. (Even if
+    // this client check were bypassed, RLS blocks all admin data access.)
+    const isAdmin = await verifyAdmin(data.access_token);
+    if (isAdmin !== true) {
+      err.textContent = 'This account does not have admin access.';
+      err.classList.add('show'); return;
+    }
     _token = data.access_token;
     _adminUser = data.user;
     localStorage.setItem(LS_KEY, JSON.stringify({
@@ -2937,6 +2945,42 @@ in San Diego</textarea>
       expires_at:    data.expires_at    || null,
     }));
     enterApp();
+  }
+
+  async function verifyAdmin(token) {
+    try {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/is_giveaway_admin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON, 'Authorization': `Bearer ${token}` },
+        body: '{}',
+      });
+      return r.ok ? await r.json() : false;
+    } catch (e) { return false; }
+  }
+
+  // Data access rides on the user JWT now (no service key in the browser), so
+  // the token must stay fresh. Mirrors tryRefreshSession in admin-giveaway.js.
+  async function refreshAdminSession() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
+      if (!saved.refresh_token) return false;
+      const r = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON },
+        body: JSON.stringify({ refresh_token: saved.refresh_token }),
+      });
+      const data = await r.json();
+      if (!r.ok || !data.access_token) return false;
+      _token = data.access_token;
+      _adminUser = data.user || saved.user;
+      localStorage.setItem(LS_KEY, JSON.stringify({
+        token:         _token,
+        user:          _adminUser,
+        refresh_token: data.refresh_token || saved.refresh_token,
+        expires_at:    data.expires_at    || null,
+      }));
+      return true;
+    } catch (e) { return false; }
   }
 
   // Allow Enter key to submit login
@@ -4076,12 +4120,20 @@ in San Diego</textarea>
 
   // ── DEMO DATA ─────────────────────────────────────────
   const DEMO_TAG = 'DEMO_GENERATED';
-  const SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9wY3NrdXpiZGZybG55aHJheXNrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3Mjc0NDcxNywiZXhwIjoyMDg4MzIwNzE3fQ.r8QJQARvCOG16ayEYN7BDTGuFOTKLLPZ4gBgoNXBfX4';
-  const svcHeaders = () => ({
-    'Content-Type': 'application/json',
-    'apikey': SERVICE_ROLE_KEY,
-    'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
-  });
+  // Admin data access uses the signed-in admin's JWT + RLS ("Admins manage …"
+  // policies gated on is_giveaway_admin(), sql/admin-rls-20260711.sql). The
+  // service_role key must NEVER ship to the browser (docs/audit-2026-07.md S1).
+  const svcHeaders = () => {
+    // Read from localStorage each call so a token refreshed by any extension
+    // script (admin-giveaway.js etc. share the same LS entry) is picked up.
+    let t = _token;
+    try { t = JSON.parse(localStorage.getItem(LS_KEY) || '{}').token || _token; } catch (e) {}
+    return {
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_ANON,
+      'Authorization': `Bearer ${t || SUPABASE_ANON}`,
+    };
+  };
   const FIRST_NAMES = ['Alex','Jordan','Taylor','Morgan','Casey','Riley','Jamie','Avery','Quinn','Blake','Drew','Skyler','Peyton','Reese','Logan','Parker','Cameron','Hayden','Finley','Rowan','Sage','River','Charlie','Dakota','Harley','Emery','Kendall','Remy','Shea','Nico','Zara','Miles','Sloane','Cole','Piper','Dani','Hunter','Lane','Marlowe','Cruz','Bex'];
   const LAST_NAMES  = ['Smith','Johnson','Williams','Brown','Jones','Garcia','Martinez','Davis','Wilson','Taylor','Anderson','Thomas','Jackson','White','Harris','Martin','Thompson','Young','Allen','King','Wright','Scott','Torres','Nguyen','Hill','Flores','Green','Adams','Nelson','Baker','Hall','Rivera','Campbell','Mitchell','Carter','Roberts','Murphy','Cook','Rogers','Morgan'];
   const EMOJIS = ['🍺','🍹','🎉','🌮','🎸','🏄','🌊','🦋','🌺','⭐','🦊','🐬','🌙','🔥','🎨','🏋️','🧗','🚴','🍕','🎯','🦅','🌴','🎲','🏖️','🍸'];
@@ -4282,10 +4334,10 @@ in San Diego</textarea>
       const bio          = _pick(SOCIAL_BIOS);
 
       try {
-        const r = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
+        const r = await fetch('/api/admin-users', {
           method: 'POST',
           headers: svcHeaders(),
-          body: JSON.stringify({ email, password, email_confirm: true, user_metadata: { demo: true } }),
+          body: JSON.stringify({ action: 'create', email, password, email_confirm: true, user_metadata: { demo: true } }),
         });
         if (!r.ok) { console.warn('demo user create failed', r.status, await r.text().catch(()=>'')); continue; }
         const u = await r.json();
@@ -4409,7 +4461,11 @@ in San Diego</textarea>
       const demoIdSet = new Set();
       let page = 1;
       while (page <= 50) {
-        const r = await fetch(`${SUPABASE_URL}/auth/v1/admin/users?page=${page}&per_page=200`, { headers: svcHeaders() });
+        const r = await fetch('/api/admin-users', {
+          method: 'POST',
+          headers: svcHeaders(),
+          body: JSON.stringify({ action: 'list', page }),
+        });
         if (!r.ok) break;
         const data = await r.json();
         const users = data.users || [];
@@ -4437,7 +4493,7 @@ in San Diego</textarea>
         await fetch(`${SUPABASE_URL}/rest/v1/check_ins?user_id=in.(${idList})`, { method: 'DELETE', headers: svcHeaders() });
         // Delete auth users one-by-one (admin API has no bulk endpoint); profiles cascade.
         for (const id of demoIds) {
-          try { await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${id}`, { method: 'DELETE', headers: svcHeaders() }); }
+          try { await fetch('/api/admin-users', { method: 'POST', headers: svcHeaders(), body: JSON.stringify({ action: 'delete', user_id: id }) }); }
           catch(e) { console.warn('auth delete fail', id, e); }
         }
       }
@@ -4450,13 +4506,20 @@ in San Diego</textarea>
   }
 
   // ── INIT ─────────────────────────────────────────────
-  window.addEventListener('DOMContentLoaded', () => {
+  window.addEventListener('DOMContentLoaded', async () => {
     try {
       const saved = JSON.parse(localStorage.getItem(LS_KEY));
       if (saved?.token && saved?.user) {
-        _token = saved.token; _adminUser = saved.user; enterApp();
+        _token = saved.token; _adminUser = saved.user;
+        // Data access rides on the user JWT — refresh if expired or near expiry.
+        if (!saved.expires_at || saved.expires_at * 1000 < Date.now() + 2 * 60000) {
+          await refreshAdminSession();
+        }
+        enterApp();
       }
     } catch(e) {}
+    // Supabase access tokens last ~1h; keep it fresh while the tab is open.
+    setInterval(refreshAdminSession, 45 * 60 * 1000);
   });
 
   // ── CMS ─────────────────────────────────────────────────────
@@ -5083,60 +5146,11 @@ in San Diego</textarea>
       if (r.ok) { _crmTablesReady = true; return true; }
     } catch(e) {}
 
-    // Tables don't exist — try the migration endpoint
-    try {
-      const migSql = `
-        CREATE TABLE IF NOT EXISTS public.crm_contacts (
-          id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-          contact_name text NOT NULL, business_name text, email text, phone text,
-          city_slug text, stage text DEFAULT 'lead' CHECK (stage IN ('lead','contacted','demo','proposal','won','lost')),
-          venue_id uuid REFERENCES public.venues(id), source text DEFAULT 'manual',
-          created_at timestamptz DEFAULT now(), updated_at timestamptz DEFAULT now()
-        );
-        CREATE TABLE IF NOT EXISTS public.crm_notes (
-          id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-          contact_id uuid NOT NULL REFERENCES public.crm_contacts(id) ON DELETE CASCADE,
-          note text NOT NULL, author text, created_at timestamptz DEFAULT now()
-        );
-        CREATE TABLE IF NOT EXISTS public.crm_activities (
-          id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-          contact_id uuid REFERENCES public.crm_contacts(id) ON DELETE CASCADE,
-          activity_type text NOT NULL, description text NOT NULL, meta jsonb DEFAULT '{}',
-          created_at timestamptz DEFAULT now()
-        );
-        CREATE INDEX IF NOT EXISTS idx_crm_contacts_stage ON public.crm_contacts(stage);
-        CREATE INDEX IF NOT EXISTS idx_crm_notes_contact ON public.crm_notes(contact_id);
-        CREATE INDEX IF NOT EXISTS idx_crm_activities_contact ON public.crm_activities(contact_id);
-        ALTER TABLE public.crm_contacts ENABLE ROW LEVEL SECURITY;
-        ALTER TABLE public.crm_notes ENABLE ROW LEVEL SECURITY;
-        ALTER TABLE public.crm_activities ENABLE ROW LEVEL SECURITY;
-        DO $$ BEGIN
-          CREATE POLICY "Service role full access on crm_contacts" ON public.crm_contacts FOR ALL USING (true) WITH CHECK (true);
-        EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-        DO $$ BEGIN
-          CREATE POLICY "Service role full access on crm_notes" ON public.crm_notes FOR ALL USING (true) WITH CHECK (true);
-        EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-        DO $$ BEGIN
-          CREATE POLICY "Service role full access on crm_activities" ON public.crm_activities FOR ALL USING (true) WITH CHECK (true);
-        EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-      `;
-      const mr = await fetch('/api/run-migration', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SERVICE_ROLE_KEY}` },
-        body: JSON.stringify({ sql: migSql })
-      });
-      const mj = await mr.json();
-      if (mj.success) {
-        _crmTablesReady = true;
-        showToast('CRM tables created successfully');
-        return true;
-      }
-      console.warn('Migration endpoint response:', mj);
-    } catch(e) {
-      console.warn('Migration endpoint failed:', e);
-    }
-
-    // Show setup instructions if auto-create failed
+    // Tables missing or unreachable. The old auto-create path went through
+    // /api/run-migration, which was removed in the 2026-07-11 security
+    // remediation (raw SQL executor authed by the leaked service key). The
+    // CRM tables exist in production (sql/crm-tables.sql); if this ever fires
+    // again, run that migration via the Supabase SQL editor.
     showCrmSetupInstructions();
     return false;
   }
@@ -5733,8 +5747,7 @@ in San Diego</textarea>
       const r = await fetch(`${SUPABASE_URL}/storage/v1/object/spotd-content/${name}`, {
         method: 'POST',
         headers: {
-          'apikey': SERVICE_ROLE_KEY,
-          'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
+          ...svcHeaders(),
           'Content-Type': file.type,
           'x-upsert': 'true'
         },

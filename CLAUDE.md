@@ -96,10 +96,12 @@ tab exports MJML zips formatted for Loops upload.
 2. **Use Loops for all email.** Client side: fire-and-forget via `POST /api/loops-event`.
    Server side: `POST https://app.loops.so/api/v1/events/send`.
 3. **New API routes use Vercel Edge runtime.** First line:
-   `export const config = { runtime: 'edge' };`. Exceptions: `api/run-migration.js`
-   (Node, needs `pg`) and `api/send-push.js` + `api/push-runner.js` (Node —
-   APNs is HTTP/2-only and Edge fetch can't negotiate it; every Edge APNs send
-   failed with an opaque "Network connection lost").
+   `export const config = { runtime: 'edge' };`. Exceptions: `api/send-push.js` +
+   `api/push-runner.js` (Node — APNs is HTTP/2-only and Edge fetch can't
+   negotiate it; every Edge APNs send failed with an opaque "Network connection
+   lost"). (`api/run-migration.js` was the third exception until it was removed
+   in the 2026-07-11 security remediation — run migrations via the Supabase SQL
+   editor / MCP instead.)
 4. **Use raw `fetch()` + Web Crypto** for everything (Supabase REST, Stripe API,
    Stripe webhook signature, APNs JWT, VAPID). No SDKs in edge functions.
 5. **For cron routes, accept BOTH auth methods:** `Authorization: Bearer ${CRON_SECRET}`
@@ -188,6 +190,16 @@ scripts before `</body>`** at serve time. To add a new admin tool:
 - Session in `localStorage['spotd-admin-session']` as `{ token, refresh_token, expires_at, user }`.
 - All scripts use `session()` helper + `Authorization: Bearer <token>` against `${SUPABASE_URL}/rest/v1/...`.
 - JWT refresh-on-expiry hits `${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`. Mirror this pattern.
+- **No service key in the browser — EVER** (2026-07-11 remediation of audit S1).
+  ALL admin data access (admin.html `svcHeaders()`, `admin/board.html`,
+  `admin-push-center.js`, the other extension scripts) rides the signed-in
+  admin's user JWT + anon key; server-side enforcement is the `"Admins manage
+  <table>"` RLS policies gated on `is_giveaway_admin()`
+  (`sql/admin-rls-20260711.sql`). Ops that genuinely need the service key
+  (Supabase auth admin API) go through the admin-JWT-gated `/api/admin-users`
+  edge function. `handleLogin()` verifies admin via the `is_giveaway_admin` RPC
+  before entering (non-admins are rejected; RLS blocks them regardless).
+  admin.html refreshes the shared session on boot + every 45 min.
 
 ---
 
@@ -213,12 +225,14 @@ Cards filter by tab; legacy rows with `board IS NULL` fall back to `product`.
 - `board` (product/marketing/sales/operations/analytics)
 
 **Backing table: `public.board_cards`** — DDL not committed to `sql/` (applied
-directly via SQL editor or `api/run-migration.js`). If you need to extend the
-schema, write the migration to `sql/` and apply via the admin SQL runner.
+directly via SQL editor). If you need to extend the schema, write the migration
+to `sql/` and apply via the Supabase SQL editor / MCP.
 
-**Data access:** uses `@supabase/supabase-js@2` with **service role key hardcoded
-in client JS** (`admin/board.html:200`) — pragmatically fine because the page is
-admin-gated, but be aware.
+**Data access:** uses `@supabase/supabase-js@2` with the **anon key + the admin
+session from `localStorage['spotd-admin-session']`** (set via
+`sb.auth.setSession` in `initSession()`); server-side access is enforced by the
+`"Admins manage board_cards"` RLS policy (`is_giveaway_admin()`). The service
+key that used to be hardcoded here was removed 2026-07-11 (audit S1).
 
 **Dashboard widget at `admin.html:7088`** queries the same table for due-soon
 non-done tasks ("Due / Upcoming Tasks" card on the admin landing page).
@@ -244,6 +258,7 @@ All edge runtime unless noted. Routes wired in `vercel.json`'s `routes` array.
 ### Admin
 - `GET /admin.html` → `api/admin-page.js` — fetches `admin.html` from GitHub Contents API + injects `SCRIPT_TAGS`.
 - `GET|POST /api/admin-enrich-venues` — Google Places enrichment. Actions: `preview`, `batch` (5/call), `venue`. Auth: Bearer JWT → `/auth/v1/user` → `ADMIN_EMAILS` allow-list.
+- `POST /api/admin-users` — admin-JWT-gated proxy for the Supabase auth admin API (Demo Data generator). Actions: `list` (paged), `create`, `delete`. Same auth pattern as admin-enrich-venues.
 
 ### Email (Loops)
 - `POST /api/loops-event` — generic event passthrough. Client fire-and-forget `sendLoopsEvent()` in `js/db.js`.
@@ -264,9 +279,6 @@ All edge runtime unless noted. Routes wired in `vercel.json`'s `routes` array.
 - `POST /api/send-push` — instant sends. APNs ES256 JWT via `node:crypto` (cached ~40 min at module level), delivery via one `node:http2` session per batch. `diagnose: true` in the body returns env/JWT info (+ `runtime`/`node_version`) without sending. Response `{sent, total, errors}` (admin.html depends on this shape) + `hint` when ALL tokens get production `BadDeviceToken` (= sandbox-issued tokens; check `ios/App/App/App.entitlements` aps-environment). Auto-deletes tokens APNs rejects with 410 Unregistered / 400 BadDeviceToken. Web push inert (web rows pre-filtered out of the token query). Auth: `Authorization: Bearer ${PUSH_API_KEY}` (also used by Postgres `pg_net` triggers). **Always call via `https://www.spotd.biz`** — the apex redirect strips the Authorization header.
 - `GET|POST /api/push-runner` (cron, every 15 min) — Push Center engine. Mode A processes due `push_campaigns` (status=scheduled, send_at<=now; recurring campaigns get `send_at` advanced via an inline 5-field UTC cron parser instead of completing). Mode B evaluates enabled `push_automations` (`inactive_days`, `first_favorite`, `going_tonight_threshold`, `new_venue_in_city`) with `{{venue_name}}/{{city}}/{{count}}` templates, per-automation cooldowns enforced via `push_automation_log` (only successful deliveries are logged), 500 sends/automation/run cap. Audience jsonb: `{type:'all'|'user_ids'|'city_slug'|'platform', ...}`. Auth: `Bearer ${PUSH_API_KEY}` OR `Bearer ${CRON_SECRET}` (Vercel Cron) OR `?key=<service_role>`. `?mode=campaigns|automations` runs one mode.
 - `POST /api/clear-badge` — resets the caller's iOS icon badge by sending a **silent badge-only APNs push** (`{"aps":{"badge":0}}`, priority 5, no banner/sound) to their own devices. Auth: the **user's own Supabase JWT** (validated via `/auth/v1/user`); only ever targets that user's `push_tokens`. Called fire-and-forget by `clearPushBadge()` (`js/db.js`, iOS UA only) when the notifications panel opens. No native code needed.
-
-### Admin-only (not routed by name)
-- `POST /api/run-migration` — **Node runtime**, uses `pg`. Auth: `Bearer ${SUPABASE_SERVICE_KEY}`. Raw SQL executor.
 
 ### Crons (`vercel.json` `crons`)
 - `/api/loops-inactive` daily `0 14 * * *` UTC
@@ -414,7 +426,7 @@ Copying from a mainline file? Use the bare convention.
 - `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRO_PRICE_ID`
 - `NEXT_PUBLIC_SITE_URL` (default `https://spotd.biz`)
 - `GOOGLE_PLACES_API_KEY`
-- `DATABASE_URL` / `SUPABASE_DB_URL` (run-migration only)
+- `DATABASE_URL` / `SUPABASE_DB_URL` (were only used by the removed `api/run-migration.js`; safe to delete from Vercel)
 
 ---
 
@@ -626,6 +638,8 @@ ships, move it to "Recent decisions" with the PR or commit.
 ## Recent decisions
 
 Append-only architectural / vendor decisions. One line per entry.
+
+- 2026-07-11 · **Audit S1/S2 remediated: the service_role key is OUT of the browser; `api/run-migration.js` is DELETED.** The whole admin (admin.html `svcHeaders()`, `admin/board.html`, `admin-push-center.js`) now authenticates with the signed-in admin's user JWT + anon key; server-side enforcement is the new `"Admins manage <table>"` RLS policies gated on `is_giveaway_admin()` across 22 admin/social tables + `"Admins read push_tokens"` + a `spotd-content` storage policy (`sql/admin-rls-20260711.sql`, applied to prod via Supabase MCP the same day — the migration also DROPPED the over-broad policies it found: board_cards "any authenticated", content_posts `USING(true)`, and the crm_* "Service role full access" policies that actually gave the ANON key full CRM access). Auth-admin API ops (Demo Data create/list/delete users) go through the new admin-JWT-gated `POST /api/admin-users` edge fn. `handleLogin()` now rejects non-admins via the `is_giveaway_admin` RPC; admin.html refreshes the shared session on boot + every 45 min (data rides the JWT now, so it must stay fresh); board.html rides the same localStorage session via `sb.auth.setSession`. `api/run-migration.js` (raw SQL executor authed by the leaked key) is deleted — `pg` dropped from package.json; run migrations via the Supabase SQL editor / MCP. The CRM auto-create path in admin.html that depended on it now just shows setup instructions. **⚠️ Rotation still required after this merges:** reset service_role in Supabase → update `SUPABASE_SERVICE_KEY` + `SUPABASE_SERVICE_ROLE_KEY` in Vercel → redeploy → verify crons + push (`DATABASE_URL`/`SUPABASE_DB_URL` can be deleted). Until rotation, the old key remains valid and public in git history.
 
 - 2026-07-11 · **GEO (AI-answer-engine optimization): explicit AI-crawler allows in `robots.txt` + new `/llms.txt`.** Trigger: the in-house analytics logged our first **ChatGPT citation referral** — a visitor clicked a ChatGPT answer citing `/happy-hour/orange-county` (ChatGPT appends `utm_source=chatgpt.com` to cited links; that's how the Site Traffic breakdown shows `chatgpt.com`), then browsed hub → neighborhood → venue → outbound. Shane: "I want more of that." Changes: (1) `robots.txt` gained explicit per-bot sections welcoming the AI search/assistant crawlers — `OAI-SearchBot`/`ChatGPT-User`/`GPTBot` (OpenAI), `PerplexityBot`/`Perplexity-User`, `ClaudeBot`/`Claude-SearchBot`/`Claude-User` (Anthropic), `Google-Extended` (Gemini), `Applebot-Extended` — same rules as `*` (public pages allowed; `/api/`, `admin.html`, `business-portal.html` disallowed). They were implicitly allowed before (that's why the referral happened); the explicit sections make the policy deliberate and survive future `robots.txt` edits. (2) New static **`llms.txt` at repo root** (served as `https://www.spotd.biz/llms.txt` via vercel.json's filesystem fallthrough — no route needed): markdown site overview per the llms.txt convention — what Spotd is, all 7 `/happy-hour/<city>` hub links with rounded venue counts, the `/spots` directory, blog, business page, sitemap. **Keep it fresh: when launching a city or making a major content change, update `llms.txt` too** (rounded counts, so venue drift doesn't matter). No JS/CSS touched — no cache bump needed. The SSR hub pages (data-driven counts, real deals, FAQs, JSON-LD) are already the citation-friendly format LLMs prefer; this change just makes crawl policy explicit + gives assistants a curated map.
 
