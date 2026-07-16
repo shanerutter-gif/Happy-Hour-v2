@@ -8725,3 +8725,159 @@ h1, h2, .sf-hero-venue, .sf-ed-title, .pf-name, .gw-hero__title,
 
 [data-theme="dark"] .np-chip, [data-theme="dark"] .np-seg, [data-theme="dark"] .np-stop-card { background: var(--bg2); border-color: rgba(255,255,255,0.08); }
 [data-theme="dark"] .np-pill-btn { background: rgba(255,255,255,0.07); }
+
+/* ═══════════════════════════════════════════════════════════════
+   COMPOSER v2 — liquid-glass redesign (2026-07-16)
+   Glass cards, SVG icons (no emoji), IG/FB-style "Add to your post"
+   rows, iOS-style Story switch, custom-venue "Add" row in the picker.
+   Appended last so it overrides the earlier .cp-* rules.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Glass cards — the composer is a single static screen (not a long list),
+   so a couple of real backdrop-filter surfaces are safe here. */
+.cp-card {
+  background: var(--cp-glass);
+  -webkit-backdrop-filter: blur(22px) saturate(1.5);
+  backdrop-filter: blur(22px) saturate(1.5);
+  border: 1px solid var(--cp-glass-brd);
+  border-radius: 22px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.45), 0 8px 28px rgba(42,31,20,0.06);
+  margin: 0 0 14px;
+  overflow: hidden;
+}
+@supports not (backdrop-filter: blur(1px)) {
+  .cp-card { background: var(--card); }
+}
+[data-theme="dark"] .cp-card {
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.07), 0 8px 28px rgba(0,0,0,0.35);
+}
+
+/* Write card: author row + caption + idea chips live on one surface */
+.cp-card--write { padding: 16px 16px 12px; }
+.cp-card--write .cp-postingas { margin: 0 0 6px; padding: 0; background: none; border: none; }
+.cp-card--write .cp-body,
+.cp-card--write .cp-body--big {
+  background: transparent; border: none; box-shadow: none; padding: 10px 2px 4px;
+  min-height: 128px; font-size: 17px; line-height: 1.45; border-radius: 0;
+}
+.cp-card--write .cp-body:focus { outline: none; }
+
+/* Avatar gets the coral→amber gradient ring (same trick as the profile) */
+.cp-postingas-avatar {
+  background:
+    linear-gradient(var(--card), var(--card)) content-box,
+    linear-gradient(135deg, var(--coral), var(--amber)) border-box;
+  padding: 2px; border: 2px solid transparent !important; border-radius: 50%;
+}
+
+/* Idea chips: glass pills with SVG icons */
+.cp-ideas { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding: 4px 0 6px; margin: 0; }
+.cp-ideas::-webkit-scrollbar { display: none; }
+.cp-idea {
+  display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto;
+  background: var(--cp-glass); border: 1px solid var(--cp-glass-brd);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.35);
+  border-radius: 999px; padding: 8px 13px;
+  font-size: 13px; font-weight: 600; color: var(--text);
+  position: relative; overflow: hidden;
+  transition: transform .16s var(--ease-bounce, ease);
+}
+.cp-idea:active { transform: scale(.94); }
+.cp-idea .icn { color: var(--coral); flex: 0 0 auto; }
+[data-theme="dark"] .cp-idea { box-shadow: inset 0 1px 0 rgba(255,255,255,0.06); }
+
+/* Photo tile: glass card + gradient icon disc (replaces the dashed box + emoji) */
+.cp-photo-pick {
+  background: var(--cp-glass);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  backdrop-filter: blur(18px) saturate(1.4);
+  border: 1px dashed var(--cp-glass-brd);
+  border-radius: 20px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.35);
+}
+.cp-photo-pick-icon {
+  display: flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px; flex: 0 0 auto; border-radius: 14px;
+  background: linear-gradient(135deg, var(--coral), var(--amber));
+  color: #fff; font-size: 0;
+  box-shadow: 0 4px 12px rgba(255,107,74,0.35), inset 0 1px 0 rgba(255,255,255,0.35);
+}
+.cp-photo-pick-icon .icn { display: block; }
+
+/* "Add to your post" — full-width list rows inside one glass card */
+.cp-rows { padding: 4px 6px; }
+.cp-row {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  background: none; border: none; text-align: left;
+  padding: 12px 10px; position: relative; overflow: hidden;
+  color: var(--text); border-radius: 14px;
+  transition: transform .16s var(--ease-bounce, ease);
+}
+.cp-row:active { transform: scale(.98); }
+.cp-row + .cp-row::before {
+  content: ''; position: absolute; left: 56px; right: 10px; top: 0; height: 1px;
+  background: var(--cp-glass-brd);
+}
+.cp-row-ic {
+  display: flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; flex: 0 0 auto; border-radius: 12px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.4);
+}
+[data-theme="dark"] .cp-row-ic { box-shadow: inset 0 1px 0 rgba(255,255,255,0.08); }
+.cp-row-ic--pin    { background: rgba(255,107,74,0.14); color: var(--coral); }
+.cp-row-ic--people { background: rgba(59,130,246,0.13); color: #3B82F6; }
+.cp-row-ic--globe  { background: rgba(16,150,90,0.12);  color: #10965A; }
+.cp-row-ic--story  { background: rgba(147,80,220,0.12); color: #9350DC; }
+[data-theme="dark"] .cp-row-ic--pin    { background: rgba(255,107,74,0.20); }
+[data-theme="dark"] .cp-row-ic--people { background: rgba(59,130,246,0.22); color: #7EB0FA; }
+[data-theme="dark"] .cp-row-ic--globe  { background: rgba(16,150,90,0.22);  color: #4ADE97; }
+[data-theme="dark"] .cp-row-ic--story  { background: rgba(147,80,220,0.24); color: #C08BF5; }
+.cp-row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.cp-row-label { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
+.cp-row-value {
+  font-size: 12.5px; font-weight: 600; color: var(--muted);
+  display: flex; align-items: center; gap: 6px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cp-row--set .cp-row-value { color: var(--coral); }
+.cp-row-end { color: var(--muted); flex: 0 0 auto; display: flex; opacity: .7; }
+.cp-row-badge {
+  flex: 0 0 auto; font-size: 10px; font-weight: 800; letter-spacing: .06em;
+  text-transform: uppercase; color: #fff; padding: 2px 7px; border-radius: 999px;
+  background: linear-gradient(135deg, var(--coral), var(--amber));
+}
+
+/* iOS-style switch for Story */
+.cp-switch {
+  flex: 0 0 auto; width: 46px; height: 28px; border-radius: 999px;
+  background: var(--cp-glass-brd); position: relative;
+  transition: background .22s ease;
+  box-shadow: inset 0 1px 3px rgba(42,31,20,0.12);
+}
+.cp-switch-knob {
+  position: absolute; top: 3px; left: 3px; width: 22px; height: 22px;
+  border-radius: 50%; background: #fff;
+  box-shadow: 0 2px 6px rgba(42,31,20,0.25);
+  transition: transform .22s var(--ease-bounce, ease);
+}
+.cp-switch.on { background: linear-gradient(135deg, var(--coral), var(--amber)); }
+.cp-switch.on .cp-switch-knob { transform: translateX(18px); }
+[data-theme="dark"] .cp-switch { background: rgba(255,255,255,0.14); }
+[data-theme="dark"] .cp-switch.on { background: linear-gradient(135deg, var(--coral), var(--amber)); }
+
+/* Venue picker: SVG pin tint + gradient "Add" row for places not on Spotd yet */
+.cp-pick-row-icon { color: var(--coral); }
+.cp-pick-row-icon--add {
+  background: linear-gradient(135deg, var(--coral), var(--amber));
+  color: #fff;
+  box-shadow: 0 3px 10px rgba(255,107,74,0.35);
+}
+.cp-pick-row--add .cp-pick-row-name { color: var(--coral); }
+
+/* Frosted header/post bar get a touch more glass depth */
+.cp-header--full, .cp-post-bar {
+  -webkit-backdrop-filter: blur(26px) saturate(1.6);
+  backdrop-filter: blur(26px) saturate(1.6);
+}
+.cp-iconbtn { display: flex; align-items: center; justify-content: center; }
+.cp-pick-search-icon { display: flex; align-items: center; }

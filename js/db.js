@@ -1393,7 +1393,7 @@ async function deleteActivityPost(postId, postType, meta) {
   return true;
 }
 
-async function saveCheckinPhoto({ userId, venueId, citySlug, photoUrl, storagePath, caption, mediaUrls, mediaCaptions, postType, title, body, pinnedUntil, visibility, expiresAt }) {
+async function saveCheckinPhoto({ userId, venueId, citySlug, photoUrl, storagePath, caption, mediaUrls, mediaCaptions, postType, title, body, pinnedUntil, visibility, expiresAt, customVenue }) {
   try {
     const session = getSession();
     const client  = session?.access_token
@@ -1416,6 +1416,9 @@ async function saveCheckinPhoto({ userId, venueId, citySlug, photoUrl, storagePa
       pinned_until: pinnedUntil || null,
       visibility: visibility || 'public',
       expires_at: expiresAt || null,
+      // Free-text venue tag (venue not on Spotd yet) — rendered as the venue
+      // headline in the feed; the composer also files a venue_requests row.
+      custom_venue: (!venueId && customVenue) ? customVenue : null,
     };
     const { data, error } = await client.from('checkin_photos').insert(payload).select().single();
     if (error) throw error;
@@ -1430,7 +1433,7 @@ async function saveCheckinPhoto({ userId, venueId, citySlug, photoUrl, storagePa
 }
 
 // Quick text-only status post. Optional venue tag.
-async function saveTextPost({ text, venueId, citySlug, visibility }) {
+async function saveTextPost({ text, venueId, citySlug, visibility, customVenue }) {
   if (!currentUser) return null;
   if (!text || !text.trim()) return null;
   return saveCheckinPhoto({
@@ -1440,6 +1443,7 @@ async function saveTextPost({ text, venueId, citySlug, visibility }) {
     caption:   text.trim(),
     postType:  'text',
     visibility: visibility || 'public',
+    customVenue: customVenue || null,
   });
 }
 
@@ -1723,13 +1727,13 @@ async function fetchPostById(composedId, postType) {
 
     if (prefix === 'photo') {
       const { data: r } = await db.from('checkin_photos')
-        .select('id, user_id, venue_id, photo_url, media_urls, media_captions, caption, title, body, post_type, edited, created_at')
+        .select('id, user_id, venue_id, custom_venue, photo_url, media_urls, media_captions, caption, title, body, post_type, edited, created_at')
         .eq('id', rawId).maybeSingle();
       if (!r) return null;
       const item = {
         id: `photo-${r.id}`, post_id_raw: r.id,
         type: r.post_type === 'editorial' ? 'editorial' : r.post_type === 'text' ? 'text' : 'photo',
-        user_id: r.user_id, venue_id: r.venue_id, photo_url: r.photo_url,
+        user_id: r.user_id, venue_id: r.venue_id, venue_name: r.custom_venue || null, photo_url: r.photo_url,
         media_urls: Array.isArray(r.media_urls) ? r.media_urls : (r.photo_url ? [r.photo_url] : []),
         media_captions: Array.isArray(r.media_captions) ? r.media_captions : null,
         caption: r.caption || '', title: r.title || null, body: r.body || null,
@@ -1816,7 +1820,7 @@ async function fetchMySavedPosts(limit = 60) {
     let photos = [];
     if (photoIds.length) {
       const { data } = await db.from('checkin_photos')
-        .select('id, user_id, venue_id, photo_url, media_urls, caption, title, body, post_type, city_slug, created_at, edited')
+        .select('id, user_id, venue_id, custom_venue, photo_url, media_urls, caption, title, body, post_type, city_slug, created_at, edited')
         .in('id', photoIds);
       photos = data || [];
     }
@@ -1856,7 +1860,7 @@ async function fetchMySavedPosts(limit = 60) {
         title:        r.title || null,
         body:         r.body || null,
         edited:       !!r.edited,
-        venue_name:   vMap[r.venue_id]?.name || null,
+        venue_name:   vMap[r.venue_id]?.name || r.custom_venue || null,
         neighborhood: vMap[r.venue_id]?.neighborhood || null,
         created_at:   r.created_at,
         profile:      pMap[r.user_id] || null,
@@ -2014,7 +2018,7 @@ async function fetchSocialFeed(citySlug, followingIds = [], limit = 60) {
       // 1. Posts (city-wide, last 30 days). post_type covers photo / text / editorial.
       //    Friends-only posts get filtered client-side (followingIds drives it).
       db.from('checkin_photos')
-        .select('id, user_id, venue_id, photo_url, media_urls, media_captions, caption, title, body, post_type, city_slug, pinned_until, edited, visibility, created_at')
+        .select('id, user_id, venue_id, custom_venue, photo_url, media_urls, media_captions, caption, title, body, post_type, city_slug, pinned_until, edited, visibility, created_at')
         .eq('city_slug', citySlug)
         .gte('created_at', thirtyDaysAgo)
         .order('created_at', { ascending: false })
@@ -2112,7 +2116,7 @@ async function fetchSocialFeed(citySlug, followingIds = [], limit = 60) {
         pinned_until:   r.pinned_until || null,
         edited:         !!r.edited,
         visibility:     r.visibility || 'public',
-        venue_name:     vMap[r.venue_id]?.name || null,
+        venue_name:     vMap[r.venue_id]?.name || r.custom_venue || null,
         neighborhood:   vMap[r.venue_id]?.neighborhood || null,
         created_at:     r.created_at,
         profile:        pMap[r.user_id] || null,

@@ -475,7 +475,7 @@ function initSegSliders() {
 // nav "+" button; the matching CSS gives those selectors overflow:hidden so
 // the ink is clipped. Opt-in by selector, so it never touches the rest of
 // the app until we extend it.
-const RIPPLE_SELECTOR = '.cp-post-cta, .cp-opt, .cp-idea, .cp-photo-pick, .cp-iconbtn, .bottom-nav-post, .cp-pick-row, .cp-tag-row, ' +
+const RIPPLE_SELECTOR = '.cp-post-cta, .cp-opt, .cp-idea, .cp-photo-pick, .cp-iconbtn, .bottom-nav-post, .cp-pick-row, .cp-tag-row, .cp-row, ' +
   '.modal-action, .modal-checkin-cta, .card-hero-going-btn, .card-compact-checkin, .card-std-checkin, ' +
   '.photo-submit-btn, .photo-skip-btn, .photo-upload-area, ' +
   '.people-row, .feed-row, .dm-thread-main, .people-follow-btn, .sub-page-back, .dm-back-btn, .dm-new-btn, .dm-send-btn, ' +
@@ -4767,20 +4767,21 @@ let _composerPlaceholder = '';      // rotating inviting caption prompt (picked 
 // people to post about being out. One is picked at random each time the
 // composer opens.
 const COMPOSER_PLACEHOLDERS = [
-  "What's the move tonight? 🍻",
-  "What are you sipping? 🍸",
-  "Show this spot off ✨",
-  "Worth the hype? Tell us 👀",
-  "Who's out with you? 🎉",
-  "Set the scene… 🌆",
-  "Best bite or pour right now? 😋",
+  "What's the move tonight?",
+  "What are you sipping?",
+  "Show this spot off",
+  "Worth the hype? Tell us",
+  "Who's out with you?",
+  "Set the scene…",
+  "Best bite or pour right now?",
 ];
-// One-tap idea starters (shown only on the blank state) that prefill the caption.
+// One-tap idea starters (shown only on the blank state) that prefill the
+// caption. Icons are ICN names (js/icons.js) — no emoji.
 const COMPOSER_IDEAS = [
-  '🍸 What I’m drinking',
-  '🌆 The vibe right now',
-  '🎶 Live music here',
-  '👀 Come through',
+  { icon: 'martini', text: "What I'm drinking" },
+  { icon: 'zap',     text: 'The vibe right now' },
+  { icon: 'music',   text: 'Live music here' },
+  { icon: 'party',   text: 'Come through' },
 ];
 
 const COMPOSER_FILTERS = [
@@ -4870,7 +4871,7 @@ function _renderComposerCompose() {
     <div class="cp-photo-block">
       ${photosLeft > 0 ? `<label class="cp-photo-pick${_composerPhotos.length ? ' cp-photo-pick--compact' : ''}">
         <input type="file" accept="image/*" multiple onchange="_composerAddFiles(this.files)" style="display:none">
-        <span class="cp-photo-pick-icon">📷</span>
+        <span class="cp-photo-pick-icon">${icn('image', 22)}</span>
         <span class="cp-photo-pick-text">
           <span class="cp-photo-pick-title">${_composerPhotos.length ? `Add more · ${photosLeft} left` : 'Add photos'}</span>
           ${_composerPhotos.length ? '' : '<span class="cp-photo-pick-sub">Up to 5 — they post as a swipeable gallery</span>'}
@@ -4892,21 +4893,50 @@ function _renderComposerCompose() {
         </div>`).join('')}
     </div>` : '';
 
-  // Options row: venue / tag friends / visibility / story
-  const venueBtn = _composerVenue
-    ? `<button class="cp-opt cp-opt--set" onclick="_composerClearVenue()">📍 ${esc(_composerVenue.name)}</button>`
-    : `<button class="cp-opt" onclick="_composerPickVenue()">📍 Tag a venue</button>`;
+  // "Add to your post" — IG/FB-style full-width rows (icon tile · label ·
+  // value + chevron / switch) instead of a pill soup. All SVG, no emoji.
   const tagCount = _composerTags.size;
-  const tagBtn = `<button class="cp-opt${tagCount ? ' cp-opt--set' : ''}" onclick="_composerOpenTagSheet()">👥 ${tagCount ? `${tagCount} tagged` : 'Tag friends'}</button>`;
-  const visBtn = `
-    <button class="cp-opt${_composerVisibility === 'friends' ? ' cp-opt--set' : ''}" onclick="_composerToggleVisibility()">
-      ${_composerVisibility === 'friends' ? '👥 Friends only' : '🌍 Public'}
+  const venueValue = _composerVenue
+    ? `${esc(_composerVenue.name)}${_composerVenue.custom ? '<span class="cp-row-badge">New</span>' : ''}`
+    : '';
+  const venueRow = `
+    <button type="button" class="cp-row${_composerVenue ? ' cp-row--set' : ''}" onclick="${_composerVenue ? '_composerClearVenue()' : '_composerPickVenue()'}">
+      <span class="cp-row-ic cp-row-ic--pin">${icn('pin', 17)}</span>
+      <span class="cp-row-main">
+        <span class="cp-row-label">${_composerVenue ? 'Venue' : 'Tag a venue'}</span>
+        ${venueValue ? `<span class="cp-row-value">${venueValue}</span>` : ''}
+      </span>
+      <span class="cp-row-end">${_composerVenue ? icn('close', 15) : icn('chevron', 15)}</span>
     </button>`;
-  // Story is always selectable now (so you can choose to post just a Story);
+  const tagRow = `
+    <button type="button" class="cp-row${tagCount ? ' cp-row--set' : ''}" onclick="_composerOpenTagSheet()">
+      <span class="cp-row-ic cp-row-ic--people">${icn('users', 17)}</span>
+      <span class="cp-row-main">
+        <span class="cp-row-label">Tag friends</span>
+        ${tagCount ? `<span class="cp-row-value">${tagCount} tagged</span>` : ''}
+      </span>
+      <span class="cp-row-end">${icn('chevron', 15)}</span>
+    </button>`;
+  const isFriends = _composerVisibility === 'friends';
+  const visRow = `
+    <button type="button" class="cp-row" onclick="_composerToggleVisibility()">
+      <span class="cp-row-ic cp-row-ic--globe">${icn(isFriends ? 'users' : 'globe', 17)}</span>
+      <span class="cp-row-main">
+        <span class="cp-row-label">Audience</span>
+        <span class="cp-row-value">${isFriends ? 'Friends only' : 'Public'}</span>
+      </span>
+      <span class="cp-row-end">${icn('chevron', 15)}</span>
+    </button>`;
+  // Story is always selectable (so you can choose to post just a Story);
   // it needs a photo, which submit enforces with a friendly nudge.
-  const storyBtn = `
-    <button class="cp-opt${_composerStory ? ' cp-opt--set' : ''}" onclick="_composerToggleStory()">
-      ${_composerStory ? '✨ Story · 24h' : '✨ Story'}
+  const storyRow = `
+    <button type="button" class="cp-row" onclick="_composerToggleStory()" role="switch" aria-checked="${_composerStory}">
+      <span class="cp-row-ic cp-row-ic--story">${icn('clock', 17)}</span>
+      <span class="cp-row-main">
+        <span class="cp-row-label">Story</span>
+        <span class="cp-row-value">Disappears after 24h</span>
+      </span>
+      <span class="cp-switch${_composerStory ? ' on' : ''}" aria-hidden="true"><span class="cp-switch-knob"></span></span>
     </button>`;
 
   // Inviting header: who's posting + where. Idea chips on the blank state.
@@ -4914,7 +4944,7 @@ function _renderComposerCompose() {
   const cityName = state.city?.name || '';
   const ideasHtml = (!_composerPhotos.length) ? `
     <div class="cp-ideas">
-      ${COMPOSER_IDEAS.map(t => `<button type="button" class="cp-idea" onclick="_composerPrompt('${esc(t.replace(/^[^ ]+ /, ''))}')">${t}</button>`).join('')}
+      ${COMPOSER_IDEAS.map(t => `<button type="button" class="cp-idea" data-text="${esc(t.text)}" onclick="_composerPrompt(this.dataset.text)">${icn(t.icon, 14)}<span>${esc(t.text)}</span></button>`).join('')}
     </div>` : '';
 
   const postLabel = _composerStory ? 'Share Story' : (_composerPhotos.length ? 'Share' : 'Post');
@@ -4922,33 +4952,35 @@ function _renderComposerCompose() {
   document.getElementById('composerContent').innerHTML = `
     <div class="cp cp--full">
       <header class="cp-header cp-header--full cp-header--noPost">
-        <button class="cp-iconbtn" onclick="closeComposer()" aria-label="Close">✕</button>
+        <button class="cp-iconbtn" onclick="closeComposer()" aria-label="Close">${icn('close', 17)}</button>
         <div class="cp-edit-title">New post</div>
         <span></span>
       </header>
 
       <div class="cp-scroll">
-        <div class="cp-postingas">
-          <div class="cp-postingas-avatar">${initialsAvatar(prof.display_name || 'You', '', prof.avatar_emoji, prof.avatar_url)}</div>
-          <div class="cp-postingas-text">
-            <div class="cp-postingas-name">${esc(prof.display_name || 'You')}</div>
-            <div class="cp-postingas-sub">${cityName ? `Posting to ${esc(cityName)}` : 'Sharing to your feed'}</div>
+        <div class="cp-card cp-card--write">
+          <div class="cp-postingas">
+            <div class="cp-postingas-avatar">${initialsAvatar(prof.display_name || 'You', '', prof.avatar_emoji, prof.avatar_url)}</div>
+            <div class="cp-postingas-text">
+              <div class="cp-postingas-name">${esc(prof.display_name || 'You')}</div>
+              <div class="cp-postingas-sub">${cityName ? `Posting to ${esc(cityName)}` : 'Sharing to your feed'}</div>
+            </div>
           </div>
+          <textarea class="cp-body cp-body--big" id="cpBody" placeholder="${esc(_composerPlaceholder)}" maxlength="500"
+                    oninput="_composerHandleBodyInput(this)"></textarea>
+          <div id="cpMentions" class="cp-mentions" style="display:none"></div>
+          ${ideasHtml}
         </div>
 
-        <textarea class="cp-body cp-body--big" id="cpBody" placeholder="${esc(_composerPlaceholder)}" maxlength="500"
-                  oninput="_composerHandleBodyInput(this)"></textarea>
-        <div id="cpMentions" class="cp-mentions" style="display:none"></div>
-        ${ideasHtml}
         ${photoSection}
         ${perPhotoCaptions}
 
         <div class="cp-section-label cp-section-label--top">Add to your post</div>
-        <div class="cp-options-row">
-          ${venueBtn}
-          ${tagBtn}
-          ${visBtn}
-          ${storyBtn}
+        <div class="cp-card cp-rows">
+          ${venueRow}
+          ${tagRow}
+          ${visRow}
+          ${storyRow}
         </div>
       </div>
 
@@ -5149,8 +5181,9 @@ function _composerToggleStory() {
   renderComposer();
 }
 function _composerPickVenue() {
+  // No early bail when venues haven't loaded — you can always type a place
+  // that isn't on Spotd yet and tag it as a custom venue.
   const list = (state.venues || []).slice(0, 200);
-  if (!list.length) { showToast('Venues still loading — try again in a sec'); return; }
   const overlay = document.createElement('div');
   overlay.className = 'overlay';
   overlay.style.zIndex = 10000;
@@ -5162,8 +5195,8 @@ function _composerPickVenue() {
       <div class="cp-pick-head">
         <div class="cp-pick-title">Tag a venue</div>
         <div class="cp-pick-search">
-          <span class="cp-pick-search-icon">🔍</span>
-          <input class="cp-pick-search-input" id="cpVenueSearch" placeholder="Search venues…">
+          <span class="cp-pick-search-icon">${icn('search', 15)}</span>
+          <input class="cp-pick-search-input" id="cpVenueSearch" placeholder="Search or type any place…">
         </div>
       </div>
       <div id="cpVenueList" class="cp-pick-list"></div>
@@ -5176,13 +5209,28 @@ function _composerPickVenue() {
     const filtered = ql ? list.filter(v => (v.name||'').toLowerCase().includes(ql) || (v.neighborhood||'').toLowerCase().includes(ql)) : list;
     const rows = filtered.slice(0, 80).map(v => `
       <button class="cp-pick-row" onclick='_composerSelectVenue(${JSON.stringify(v.id)}, ${JSON.stringify(v.name)}, ${JSON.stringify(v.neighborhood || "")});this.closest(".overlay").classList.remove("open");setTimeout(()=>this.closest(".overlay")?.remove(),260);'>
-        <span class="cp-pick-row-icon">📍</span>
+        <span class="cp-pick-row-icon">${icn('pin', 16)}</span>
         <span class="cp-pick-row-text">
           <span class="cp-pick-row-name">${esc(v.name)}</span>
           ${v.neighborhood ? `<span class="cp-pick-row-sub">${esc(v.neighborhood)}</span>` : ''}
         </span>
       </button>`).join('');
-    document.getElementById('cpVenueList').innerHTML = rows || `<div class="cp-pick-empty">No venues match that search.</div>`;
+    // Free-text entry: any typed place that isn't an exact match can be added
+    // as a custom venue. Posting with it auto-files a venue_request for review.
+    // data-name + dataset (not an inline string arg) — user text breaks inline
+    // onclick args once the HTML parser decodes esc()'d quotes.
+    const qTrim = (q || '').trim();
+    const exact = qTrim && filtered.some(v => (v.name || '').toLowerCase() === ql);
+    const addRow = (qTrim.length >= 2 && !exact) ? `
+      <button class="cp-pick-row cp-pick-row--add" data-name="${esc(qTrim)}" onclick="_composerUseCustomVenue(this.dataset.name);this.closest('.overlay').classList.remove('open');setTimeout(()=>this.closest('.overlay')?.remove(),260);">
+        <span class="cp-pick-row-icon cp-pick-row-icon--add">${icn('plus', 16)}</span>
+        <span class="cp-pick-row-text">
+          <span class="cp-pick-row-name">Add “${esc(qTrim)}”</span>
+          <span class="cp-pick-row-sub">Not on Spotd yet — we'll review it and add it</span>
+        </span>
+      </button>` : '';
+    document.getElementById('cpVenueList').innerHTML =
+      (addRow + rows) || `<div class="cp-pick-empty">Type a venue name — even one we don't have yet.</div>`;
   };
   renderList('');
   setTimeout(() => {
@@ -5193,6 +5241,17 @@ function _composerPickVenue() {
 }
 function _composerSelectVenue(id, name, neighborhood) {
   _composerVenue = { id, name, neighborhood };
+  renderComposer();
+}
+// Tag a place that isn't in our venues table yet. The post carries the name
+// as checkin_photos.custom_venue, and submit auto-files a venue_requests row
+// (which pushes a notification to the admin via trg_notify_admin_venue_request).
+function _composerUseCustomVenue(name) {
+  const clean = String(name || '').trim().slice(0, 120);
+  if (!clean) return;
+  _composerVenue = { id: null, name: clean, neighborhood: '', custom: true };
+  if (typeof haptic === 'function') haptic('light');
+  track('composer_custom_venue_added', { name: clean });
   renderComposer();
 }
 
@@ -5311,6 +5370,8 @@ async function submitComposer() {
   if (_composerStory && !hasPhotos) { bail('Add a photo to post a story'); return; }
   if (!hasPhotos && !body)          { bail('Write something or add a photo'); return; }
 
+  const customVenue = (_composerVenue?.custom && _composerVenue.name) ? _composerVenue.name : null;
+
   try {
     if (hasPhotos) {
       // Bake edits → upload → save as a photo post (caption optional = body)
@@ -5337,6 +5398,7 @@ async function submitComposer() {
         postType:      'photo',
         visibility:    _composerVisibility,
         expiresAt:     _composerStory ? new Date(Date.now() + 24*3600*1000).toISOString() : null,
+        customVenue,
       });
       if (!saved) throw new Error('save failed');
       if (saved.id && _composerTags.size) await saveTagsForPost(saved.id, [..._composerTags]);
@@ -5346,13 +5408,28 @@ async function submitComposer() {
         venueId:    _composerVenue?.id,
         citySlug:   state.city?.slug,
         visibility: _composerVisibility,
+        customVenue,
       });
       if (!saved) throw new Error('save failed');
       if (saved.id && _composerTags.size) await saveTagsForPost(saved.id, [..._composerTags]);
     }
+    // A custom-tagged venue auto-files a venue request so it gets reviewed and
+    // added — the DB trigger pushes a notification to the admin. Fire-and-forget:
+    // the post is already live, a request hiccup shouldn't surface as a failure.
+    if (customVenue) {
+      submitVenueRequestToDB({
+        venue_name: customVenue,
+        city_slug:  state.city?.slug || null,
+        user_id:    currentUser.id,
+        user_email: currentUser.email || null,
+        reason:     'Tagged in a post (auto-submitted from the composer)',
+      }).catch(() => {});
+    }
     closeComposer();
     if (typeof loadSocialFeed === 'function') loadSocialFeed({ force: true });
-    const sub = hasPhotos
+    const sub = customVenue
+      ? `We'll review ${customVenue} and add it to Spotd`
+      : hasPhotos
       ? (_composerStory ? 'Your story is live for 24h'
                         : (_composerVisibility === 'friends' ? 'Shared with friends' : 'Shared to your city'))
       : (_composerVisibility === 'friends' ? 'Shared with friends' : 'Posted to your feed');
