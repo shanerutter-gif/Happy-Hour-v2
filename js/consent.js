@@ -35,15 +35,30 @@
       return /bot|crawl|spider|slurp|mediapartners|googlebot|bingpreview|adsbot|headless|lighthouse|pagespeed|gtmetrix|pingdom|uptime|facebookexternalhit|embedly|quora|whatsapp|telegram|slackbot|discordbot|preview|scrapy|python-requests|axios|curl|wget|phantomjs/i.test(navigator.userAgent || '');
     } catch (e) { return false; }
   }
+  function deviceOf() {
+    try {
+      var ua = navigator.userAgent || '';
+      if (/iPad|Tablet|PlayBook|Silk/.test(ua) || (/Android/.test(ua) && !/Mobile/.test(ua))) return 'tablet';
+      if (/Mobi|iPhone|iPod|Android.*Mobile|Windows Phone|IEMobile/.test(ua)) return 'mobile';
+      return 'desktop';
+    } catch (e) { return 'unknown'; }
+  }
+  function anonSend(events) {
+    try {
+      fetch('/api/vibe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ anon: true, platform: 'web', device: deviceOf(), events: events }),
+        keepalive: true,
+      }).catch(function () {});
+    } catch (e) {}
+  }
   var pinged = false;
   function sendPing() {
     if (pinged || isBot()) return;
     pinged = true;
     window.__spotdAnonPinged = true; // trackers drop their held page_view on a later Accept
     try {
-      var ua = navigator.userAgent || '';
-      var dev = /iPad|Tablet|PlayBook|Silk/.test(ua) || (/Android/.test(ua) && !/Mobile/.test(ua)) ? 'tablet'
-        : /Mobi|iPhone|iPod|Android.*Mobile|Windows Phone|IEMobile/.test(ua) ? 'mobile' : 'desktop';
       var props = { title: (document.title || '').slice(0, 120) };
       try { if (document.referrer) props.referrer = document.referrer.slice(0, 300); } catch (e) {}
       try {
@@ -52,15 +67,59 @@
           var v = p.get(k); if (v) props[k] = String(v).slice(0, 80);
         });
       } catch (e) {}
-      fetch('/api/vibe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          anon: true, platform: 'web', device: dev,
-          events: [{ n: 'page_view', p: props, path: location.pathname, t: Date.now() }],
-        }),
-        keepalive: true,
-      }).catch(function () {});
+      anonSend([{ n: 'page_view', p: props, path: location.pathname, t: Date.now() }]);
+    } catch (e) {}
+  }
+
+  // ── anonymous click capture (outbound / CTA / app-store) ──
+  // Mirrors the tracker's click listener so anonymous journeys get click steps
+  // too. Double-count safety: while consent is PENDING the full tracker buffers
+  // the same clicks (it sends them if the visitor later accepts), so anonymous
+  // clicks are only sent when the tracker definitively won't send its copies —
+  // consent denied, tracker script blocked, or the page ends still-pending.
+  var clickBuf = [];
+  function flushClicks(atExit) {
+    if (!clickBuf.length) return;
+    var st = window.__spotdConsent;
+    if (st === 'granted') {
+      if (window.__spotdPV) { clickBuf = []; return; } // alive tracker owns the clicks
+      // tracker blocked → fall through and send anonymously
+    } else if (st === 'pending' && !atExit) {
+      if (clickBuf.length > 30) clickBuf = clickBuf.slice(-30);
+      return; // visitor may still Accept — hold until the page ends unresolved
+    }
+    var batch = clickBuf.slice(0, 10); clickBuf = [];
+    anonSend(batch);
+  }
+  function armClickCapture() {
+    if (isBot()) return;
+    try {
+      document.addEventListener('click', function (e) {
+        try {
+          var el = e.target && e.target.closest && e.target.closest('a[href], [data-track]');
+          if (!el) return;
+          var dt = el.getAttribute && el.getAttribute('data-track');
+          var href = el.getAttribute && el.getAttribute('href');
+          var ev = null;
+          if (dt) ev = { n: 'cta_click', p: { label: String(dt).slice(0, 60) } };
+          else if (href && href.charAt(0) !== '#' && !/^(javascript|mailto|tel):/i.test(href)) {
+            if (/apps\.apple\.com|play\.google\.com/i.test(href)) ev = { n: 'app_store_click', p: { href: href.slice(0, 200) } };
+            else if (/^https?:\/\//i.test(href) && href.indexOf(location.host) === -1) ev = { n: 'outbound_click', p: { href: href.slice(0, 200) } };
+          }
+          if (!ev) return;
+          ev.path = location.pathname; ev.t = Date.now();
+          clickBuf.push(ev);
+          flushClicks(false); // sends promptly when denied / tracker-blocked; holds while pending
+        } catch (err) {}
+      }, true);
+      document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'hidden') flushClicks(true);
+      });
+      window.addEventListener('pagehide', function () { flushClicks(true); });
+      document.addEventListener('spotd:consent', function () {
+        if (window.__spotdConsent === 'granted' && window.__spotdPV) clickBuf = []; // tracker takes over
+        else if (window.__spotdConsent === 'denied') flushClicks(true); // tracker just dropped its copies
+      });
     } catch (e) {}
   }
   // For granted visitors the full tracker records the view — unless a content
@@ -90,6 +149,10 @@
       location.protocol === 'capacitor:');
   } catch (e) {}
   if (native) { window.__spotdConsent = 'granted'; return; }
+
+  // Every web path gets the anonymous click listener; flushClicks() decides
+  // per-state whether its events are actually sent (see comment above).
+  armClickCapture();
 
   // Do-Not-Track → treat as a decline, no banner. Still counted in the
   // anonymous aggregate (no identifiers, nothing stored — not tracking).
