@@ -8637,6 +8637,9 @@ h1, h2, .sf-hero-venue, .sf-ed-title, .pf-name, .gw-hero__title,
 .plan-night-cta .pnc-title { font-weight: 800; font-size: 15px; letter-spacing: -0.2px; }
 .plan-night-cta .pnc-sub { font-weight: 500; font-size: 12px; opacity: 0.92; }
 .plan-night-cta .pnc-go { font-size: 24px; font-weight: 700; opacity: 0.85; flex: 0 0 auto; }
+/* Inside the Filters panel (moved off the Discover header 2026-07-25) the
+   .fp-inner gap provides the spacing, so drop the standalone margins. */
+.filter-panel .plan-night-cta { margin: 0; }
 
 /* Stack below the venue modal (z-index 700) so tapping a stop opens it on top. */
 #nightPlannerOverlay { z-index: 690; }
