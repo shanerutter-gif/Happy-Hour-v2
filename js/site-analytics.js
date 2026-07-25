@@ -18,7 +18,9 @@
   // Shared id keys — MUST match js/db.js so the journey is one identity.
   var VID_KEY = 'spotd_vid';      // persistent visitor id (localStorage)
   var SID_KEY = 'spotd_ae_sid';   // per-tab session id (sessionStorage)
-  var ENDPOINT = '/api/track-event';
+  // Innocuous alias of /api/track-event — the literal name matched EasyPrivacy-
+  // style "track" filter patterns, so content blockers were killing the request.
+  var ENDPOINT = '/api/vibe';
 
   function isBot() {
     try {
@@ -85,6 +87,17 @@
     var cs = consentState();
     if (cs === 'denied') { buffer = []; return; }
     if (cs === 'pending') { if (buffer.length > 60) buffer = buffer.slice(-60); return; }
+    // If consent.js already counted this page anonymously (visitor accepted the
+    // banner mid-page), drop the held landing page_view so it isn't double-counted.
+    if (window.__spotdAnonPinged) {
+      var dropped = false;
+      buffer = buffer.filter(function (e) {
+        if (!dropped && e.n === 'page_view') { dropped = true; return false; }
+        return true;
+      });
+      try { window.__spotdAnonPinged = false; } catch (e) {}
+      if (!buffer.length) return;
+    }
     var batch = buffer; buffer = [];
     var payload;
     try {
@@ -117,6 +130,9 @@
   var u = utm();
   for (var k in u) pvProps[k] = u[k];
   cap('page_view', pvProps);
+  // Tell consent.js the tracker is alive and captured the landing view — it
+  // skips its blocked-tracker anonymous fallback ping when this flag is set.
+  try { window.__spotdPV = true; } catch (e) {}
 
   // ── click capture (outbound + CTAs) ──
   document.addEventListener('click', function (e) {
