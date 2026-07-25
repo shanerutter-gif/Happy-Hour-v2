@@ -66,7 +66,9 @@ function track(eventName, params) {
 // bearer) so events are attributed without trusting client-supplied ids; guests
 // are captured against an anonymous per-tab session id only. Fire-and-forget:
 // every path is swallowed so analytics can never disrupt the UI.
-const _AE_ENDPOINT   = '/api/track-event';
+// Innocuous alias of /api/track-event — the literal name matched EasyPrivacy-
+// style "track" filter patterns, so content blockers were killing the request.
+const _AE_ENDPOINT   = '/api/vibe';
 const _AE_FLUSH_MS   = 8000;
 const _AE_MAX_BUFFER = 25;
 let   _aeBuffer  = [];
@@ -141,6 +143,17 @@ function _aeFlush() {
   const _cs = _aeConsentState();
   if (_cs === 'denied') { _aeBuffer = []; return; }
   if (_cs === 'pending') { if (_aeBuffer.length > 60) _aeBuffer = _aeBuffer.slice(-60); return; }
+  // If consent.js already counted this page load anonymously (visitor accepted
+  // the banner mid-session), drop the held page_view so it isn't double-counted.
+  if (window.__spotdAnonPinged) {
+    let _dropped = false;
+    _aeBuffer = _aeBuffer.filter(e => {
+      if (!_dropped && e.n === 'page_view') { _dropped = true; return false; }
+      return true;
+    });
+    try { window.__spotdAnonPinged = false; } catch (e) {}
+    if (!_aeBuffer.length) return;
+  }
   const batch = _aeBuffer;
   _aeBuffer = [];
   let payload;
@@ -176,6 +189,9 @@ function analyticsPageView() {
     });
   } catch (e) {}
   captureEvent('page_view', props);
+  // Tell consent.js the tracker is alive and captured the landing view — it
+  // skips its blocked-tracker anonymous fallback ping when this flag is set.
+  try { window.__spotdPV = true; } catch (e) {}
 }
 
 // Fired once per session right after the user authenticates. The server uses

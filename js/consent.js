@@ -12,11 +12,70 @@
  *  - Do-Not-Track on   → 'denied'  (respect the signal, no banner).
  *  - Prior choice       → reuse it, no banner.
  *  - Otherwise          → 'pending' + show the banner; nothing is sent until a choice.
+ *
+ * ANONYMOUS PAGE-VIEW PING: identity-stitched tracking stays behind the Accept
+ * button, but raw traffic counts were losing every visitor who bounced without
+ * touching the banner (most SEO traffic — the GSC-vs-dashboard gap). So this
+ * file also sends ONE cookieless, identifier-free page_view ping (no
+ * localStorage, no cookies, nothing persistent — the server derives a
+ * daily-rotating irreversible hash for aggregate counts, Plausible-style)
+ * whenever the full tracker won't record the view: consent pending/denied, or
+ * the tracker script was killed by a content blocker. Sent to /api/vibe (an
+ * innocuous alias of /api/track-event that filter lists don't match).
  */
 (function () {
   'use strict';
 
   function get() { try { return localStorage.getItem('spotd_consent'); } catch (e) { return null; } }
+
+  // ── anonymous cookieless page-view ping ──
+  function isBot() {
+    try {
+      if (navigator.webdriver) return true;
+      return /bot|crawl|spider|slurp|mediapartners|googlebot|bingpreview|adsbot|headless|lighthouse|pagespeed|gtmetrix|pingdom|uptime|facebookexternalhit|embedly|quora|whatsapp|telegram|slackbot|discordbot|preview|scrapy|python-requests|axios|curl|wget|phantomjs/i.test(navigator.userAgent || '');
+    } catch (e) { return false; }
+  }
+  var pinged = false;
+  function sendPing() {
+    if (pinged || isBot()) return;
+    pinged = true;
+    window.__spotdAnonPinged = true; // trackers drop their held page_view on a later Accept
+    try {
+      var ua = navigator.userAgent || '';
+      var dev = /iPad|Tablet|PlayBook|Silk/.test(ua) || (/Android/.test(ua) && !/Mobile/.test(ua)) ? 'tablet'
+        : /Mobi|iPhone|iPod|Android.*Mobile|Windows Phone|IEMobile/.test(ua) ? 'mobile' : 'desktop';
+      var props = { title: (document.title || '').slice(0, 120) };
+      try { if (document.referrer) props.referrer = document.referrer.slice(0, 300); } catch (e) {}
+      try {
+        var p = new URLSearchParams(location.search);
+        ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'].forEach(function (k) {
+          var v = p.get(k); if (v) props[k] = String(v).slice(0, 80);
+        });
+      } catch (e) {}
+      fetch('/api/vibe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          anon: true, platform: 'web', device: dev,
+          events: [{ n: 'page_view', p: props, path: location.pathname, t: Date.now() }],
+        }),
+        keepalive: true,
+      }).catch(function () {});
+    } catch (e) {}
+  }
+  // For granted visitors the full tracker records the view — unless a content
+  // blocker killed the tracker script. Trackers set window.__spotdPV when they
+  // capture their landing page_view; if that never happens, ping anonymously.
+  function pingIfTrackerBlocked() { if (!window.__spotdPV) sendPing(); }
+  function armBlockedTrackerFallback() {
+    try {
+      setTimeout(pingIfTrackerBlocked, 3000);
+      document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'hidden') pingIfTrackerBlocked();
+      });
+      window.addEventListener('pagehide', pingIfTrackerBlocked);
+    } catch (e) {}
+  }
   function setState(v) {
     window.__spotdConsent = v;
     try { if (v === 'granted' || v === 'denied') localStorage.setItem('spotd_consent', v); } catch (e) {}
@@ -32,18 +91,23 @@
   } catch (e) {}
   if (native) { window.__spotdConsent = 'granted'; return; }
 
-  // Do-Not-Track → treat as a decline, no banner.
+  // Do-Not-Track → treat as a decline, no banner. Still counted in the
+  // anonymous aggregate (no identifiers, nothing stored — not tracking).
   try {
     if (navigator.doNotTrack === '1' || window.doNotTrack === '1' || navigator.msDoNotTrack === '1') {
-      window.__spotdConsent = 'denied'; return;
+      window.__spotdConsent = 'denied'; sendPing(); return;
     }
   } catch (e) {}
 
   var prior = get();
-  if (prior === 'granted' || prior === 'denied') { window.__spotdConsent = prior; return; }
+  if (prior === 'granted') { window.__spotdConsent = 'granted'; armBlockedTrackerFallback(); return; }
+  if (prior === 'denied')  { window.__spotdConsent = 'denied';  sendPing(); return; }
 
-  // Undecided — hold sending and show the banner.
+  // Undecided — hold identified sending, show the banner, and count the view
+  // anonymously right away (bouncing visitors never touch the banner; this is
+  // the view GSC counts but the consent-gated tracker was silently losing).
   window.__spotdConsent = 'pending';
+  sendPing();
 
   function render() {
     if (document.getElementById('spotd-consent')) return;

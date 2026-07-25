@@ -362,8 +362,8 @@ function blogNewsletterSubmit(e){
 }
 </script>
 
-<script defer src="/js/consent.js?v=20260617a"></script>
-<script defer src="/js/site-analytics.js?v=20260617a"></script>
+<script defer src="/js/consent.js?v=20260725a"></script>
+<script defer src="/js/site-analytics.js?v=20260725a"></script>
 </body>
 </html>`;
 }

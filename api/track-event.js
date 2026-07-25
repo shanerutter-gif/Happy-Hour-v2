@@ -7,6 +7,14 @@
 // present) — we never trust a client-supplied user_id, so events can't be
 // spoofed onto another account. Guests (no token) are stored with a session_id
 // only. Analytics must never disrupt the app: every failure path is swallowed.
+//
+// ANONYMOUS PINGS (body.anon === true, sent by js/consent.js): a cookieless,
+// consent-exempt page_view count for visitors who haven't accepted the consent
+// banner (or whose tracker script an ad blocker killed). The client sends NO
+// ids and stores nothing; we derive a Plausible-style visitor id server-side —
+// sha256(salt | UTC date | IP | UA) — so unique-visitor/session counts still
+// work while the id is irreversible and rotates daily. The raw IP is never
+// stored. These rows carry props.anon = true and are never identity-stitched.
 
 export const config = { runtime: 'edge' };
 
@@ -44,6 +52,9 @@ export default async function handler(req) {
 
   const events = Array.isArray(body.events) ? body.events : [];
   if (!events.length) return json({ ok: true, inserted: 0 });
+
+  // ── Anonymous cookieless ping (consent-exempt aggregate counting) ──
+  if (body.anon === true) return handleAnonPing(req, body, events, ua);
 
   // Trusted user id from the bearer token (if any). Never from the body.
   let userId = null, userEmail = null;
@@ -135,6 +146,78 @@ export default async function handler(req) {
     return json({ ok: true, inserted: rows.length });
   } catch (e) {
     console.error('[track-event] error', e && e.message);
+    return json({ error: e && e.message }, 500);
+  }
+}
+
+// Anonymous ping insert: no client ids, no auth, no stitching. Visitor identity
+// is a daily-rotating salted hash of IP+UA (computed here, raw IP discarded) —
+// enough for distinct-visitor/session KPIs, useless for tracking an individual.
+const ANON_MAX_EVENTS = 10;
+const ANON_ALLOWED = new Set(['page_view', 'outbound_click', 'cta_click', 'app_store_click']);
+
+async function handleAnonPing(req, body, events, ua) {
+  const ip =
+    req.headers.get('x-real-ip') ||
+    (req.headers.get('x-forwarded-for') || '').split(',')[0].trim() ||
+    '0.0.0.0';
+  const salt = process.env.CRON_SECRET || process.env.PUSH_API_KEY || 'spotd-anon-salt';
+  const day = new Date().toISOString().slice(0, 10); // UTC date → hash rotates daily
+  let anonId = null;
+  try {
+    const digest = await crypto.subtle.digest(
+      'SHA-256',
+      new TextEncoder().encode(`${salt}|${day}|${ip}|${ua}`)
+    );
+    anonId = 'anon_' + [...new Uint8Array(digest)].slice(0, 12)
+      .map(b => b.toString(16).padStart(2, '0')).join('');
+  } catch { anonId = 'anon_unhashed'; }
+
+  const dev = typeof body.device === 'string' ? body.device.slice(0, 16) : null;
+  const plat = typeof body.platform === 'string' ? body.platform.slice(0, 16) : 'web';
+  const country = req.headers.get('x-vercel-ip-country') || null;
+  const now = Date.now();
+
+  const rows = events.slice(0, ANON_MAX_EVENTS).map(e => {
+    const name = String((e && (e.n || e.event_name)) || '').slice(0, 60);
+    const path = (e && typeof e.path === 'string') ? e.path.slice(0, 200) : null;
+    return {
+      user_id:    null,
+      session_id: anonId,
+      visitor_id: anonId,
+      event_name: name,
+      props:      { ...((e && e.p && typeof e.p === 'object') ? e.p : {}), anon: true },
+      path,
+      platform:   plat,
+      device:     dev,
+      // Mirror _ae_surface(): the SPA shell at '/' is the app; real paths are the site.
+      surface:    (plat === 'ios_app' || path === '/' || !path) ? 'app' : 'site',
+      country,
+      created_at: new Date((e && typeof e.t === 'number') ? e.t : now).toISOString(),
+    };
+  }).filter(r => r.event_name && ANON_ALLOWED.has(r.event_name));
+
+  if (!rows.length) return json({ ok: true, inserted: 0 });
+
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/analytics_events`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: SERVICE_KEY,
+        Authorization: `Bearer ${SERVICE_KEY}`,
+        Prefer: 'return=minimal',
+      },
+      body: JSON.stringify(rows),
+    });
+    if (!r.ok) {
+      const t = await r.text();
+      console.error('[track-event] anon insert failed', r.status, t.slice(0, 300));
+      return json({ error: 'insert failed' }, r.status);
+    }
+    return json({ ok: true, inserted: rows.length, anon: true });
+  } catch (e) {
+    console.error('[track-event] anon error', e && e.message);
     return json({ error: e && e.message }, 500);
   }
 }

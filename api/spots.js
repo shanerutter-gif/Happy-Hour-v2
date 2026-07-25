@@ -424,8 +424,8 @@ ${venue.lat && venue.lng ? `<meta property="place:location:latitude" content="${
 
 </main>
 
-<script defer src="/js/consent.js?v=20260617a"></script>
-<script defer src="/js/site-analytics.js?v=20260617a"></script>
+<script defer src="/js/consent.js?v=20260725a"></script>
+<script defer src="/js/site-analytics.js?v=20260725a"></script>
 </body>
 </html>`;
 }
