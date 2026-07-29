@@ -230,6 +230,7 @@ export default async function handler() {
 
 <script defer src="/js/consent.js?v=20260725a"></script>
 <script defer src="/js/site-analytics.js?v=20260725a"></script>
+<script defer src="/js/organic-cta.js?v=20260729a"></script>
 </body>
 </html>`;
 
