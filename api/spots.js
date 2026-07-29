@@ -426,6 +426,8 @@ ${venue.lat && venue.lng ? `<meta property="place:location:latitude" content="${
 
 <script defer src="/js/consent.js?v=20260725a"></script>
 <script defer src="/js/site-analytics.js?v=20260725a"></script>
+<script>window.__spotdOrganicCity='${String(venue.city_slug || '').replace(/[^a-z0-9-]/gi, '')}';</script>
+<script defer src="/js/organic-cta.js?v=20260729a"></script>
 </body>
 </html>`;
 }

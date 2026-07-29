@@ -181,6 +181,22 @@ document.addEventListener('DOMContentLoaded', () => {
   renderNav(currentUser);
   // Capture ?ref=CODE from URL into sessionStorage for the signup step
   if (typeof captureReferralFromURL === 'function') captureReferralFromURL();
+  // Organic-visitor deep link: the SEO pages' timed signup prompt
+  // (js/organic-cta.js) sends "/?signup=1&city=<slug>". Adopt the landing
+  // page's city as the default (so signup flags it via _persistSignupCity)
+  // and mark onboarding complete BEFORE obInit runs, so the walkthrough
+  // never shows — this funnel goes straight to the auth sheet instead.
+  window._organicSignup = false;
+  try {
+    const orgParams = new URLSearchParams(window.location.search);
+    if (orgParams.get('signup') === '1' && !currentUser) {
+      window._organicSignup = true;
+      const orgCity = CITIES.find(c => c.slug === orgParams.get('city') && c.active);
+      if (orgCity) localStorage.setItem('spotd-last-city', orgCity.slug);
+      localStorage.setItem(typeof OB_KEY !== 'undefined' ? OB_KEY : 'spotd-ob-complete', '1');
+      track('organic_signup_landing', { city_slug: orgCity ? orgCity.slug : '' });
+    }
+  } catch (e) {}
   if (typeof obInit === 'function') obInit();
   const ffg = document.getElementById('favFilterGroup');
   if (ffg) ffg.style.display = currentUser ? '' : 'none';
@@ -242,6 +258,15 @@ document.addEventListener('DOMContentLoaded', () => {
         window.history.replaceState({}, document.title, window.location.pathname);
         openModal(spotId, 'venue');
       });
+    } else if (window._organicSignup) {
+      // Organic signup funnel: land in the SEO page's city (set into
+      // 'spotd-last-city' above) with the signup sheet open on top. If they
+      // dismiss the sheet they're a guest browsing that city — no onboarding.
+      window.history.replaceState({}, document.title, '/');
+      const orgSlug = localStorage.getItem('spotd-last-city');
+      const orgCity = CITIES.find(c => c.slug === orgSlug && c.active) || CITIES[0];
+      enterCity(orgCity.slug, orgCity.name, orgCity.state_code);
+      openAuth('signup', 'organic');
     } else if (window.matchMedia('(min-width: 1024px)').matches && localStorage.getItem('spotd-last-city')) {
       // Desktop returning guests skip the city-selector landing and go straight
       // into their last city — the city pill in the app bar handles switching.
@@ -257,6 +282,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function onAuthChange(user) {
   if (user && typeof obComplete === 'function') obComplete();
+  // Organic signup funnel ends once they're signed in — restore normal behavior.
+  if (user) window._organicSignup = false;
   // Guard: DOM may not be ready if called during session restore
   if (!document.body) return;
   renderNav(user);
@@ -2331,8 +2358,11 @@ async function enterCity(slug, name, stateCode) {
   syncTwoPaneMap();
 
   // ── Push notification prompt (after location dialog settles) ──
-  // Show soft push prompt ~3s after entering city for the first time
-  if (!localStorage.getItem('spotd-push-prompted')) {
+  // Show soft push prompt ~3s after entering city for the first time.
+  // Skipped (flag NOT consumed) during the organic signup funnel — the auth
+  // sheet is open on top and the push modal would cover the signup form; the
+  // one-time prompt fires on their next visit instead.
+  if (!window._organicSignup && !localStorage.getItem('spotd-push-prompted')) {
     localStorage.setItem('spotd-push-prompted', '1');
     setTimeout(() => {
       if (typeof promptPushIfAppropriate === 'function') {
