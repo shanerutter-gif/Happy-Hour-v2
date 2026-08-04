@@ -2027,16 +2027,14 @@ async function fetchMyPostActivity(userId) {
 // is applied client-side after the parallel fetches.
 async function fetchSocialFeed(citySlug, followingIds = [], limit = 60) {
   try {
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-
     // Parallel fetch all four sources
     const [photosRes, activityRes, goingRes] = await Promise.allSettled([
-      // 1. Posts (city-wide, last 30 days). post_type covers photo / text / editorial.
-      //    Friends-only posts get filtered client-side (followingIds drives it).
+      // 1. Posts (city-wide, all time — newest first up to `limit`). post_type
+      //    covers photo / text / editorial. Friends-only posts get filtered
+      //    client-side (followingIds drives it).
       db.from('checkin_photos')
         .select('id, user_id, venue_id, custom_venue, photo_url, media_urls, media_captions, caption, title, body, post_type, city_slug, pinned_until, edited, visibility, created_at')
         .eq('city_slug', citySlug)
-        .gte('created_at', thirtyDaysAgo)
         .order('created_at', { ascending: false })
         .limit(limit),
 
@@ -2044,7 +2042,6 @@ async function fetchSocialFeed(citySlug, followingIds = [], limit = 60) {
       db.from('activity_feed')
         .select('id, user_id, activity_type, venue_id, venue_name, neighborhood, meta, created_at')
         .in('activity_type', ['check_in', 'review', 'favorite', 'tagged_at'])
-        .gte('created_at', thirtyDaysAgo)
         .order('created_at', { ascending: false })
         .limit(limit),
 
