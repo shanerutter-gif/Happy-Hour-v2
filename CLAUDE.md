@@ -632,6 +632,35 @@ ships, move it to "Recent decisions" with the PR or commit.
 - 2026-06-03 · ~~Two-pane desktop list+map view~~ — **SHIPPED same day** (see
   Recent decisions). Built as a `@media (min-width:1200px)` block that renders
   the feed + Leaflet map side by side instead of toggling.
+- 2026-08-22 · Signup-funnel findings (analysis only — NOTHING shipped). Audited the
+  last 12 signups (`auth.users` + `profiles` + `signup_attributions` + `analytics_events`).
+  Facts: 133 users total; 23 in the last 90d (Mar 50 / Apr 56 / May 4 / Jun 14 / Jul 4 /
+  Aug 5 — volume collapsed ~90% after April). Of the last 12 signups: 0 surviving
+  check-ins, 0 posts, 0 reviews, 0 follows, and favorites only from ONE user. The 3 most
+  recent (Aug 15/21/22) fired **zero `venue_modal_opened` events** — they complete
+  onboarding, land on Discover, flip tabs for 2–4 min, and leave. Savannah (Aug 21)
+  checked in once on day 2 and **removed it 5 seconds later** (`checkin_added` →
+  `checkin_removed`). The one activated user in the batch (Emma Kelly, Aug 4, attribution
+  `friend`) did 57 venue opens / 23 searches / 5 favorites / 6 directions over 7 days —
+  so the product works when someone arrives with intent; IG/TikTok arrivals don't.
+  Ideas surfaced, none implemented:
+  (1) **Delay / gate the referral modal.** `referral_modal_shown` fires ~2s after
+      `city_entered` for 10/10 recent signups — it's the first thing a new user sees,
+      before a single venue. Candidate: don't show it until after the first
+      `venue_modal_opened` (or first check-in), i.e. ask for a share only after value.
+  (2) **First-run "here's a spot" moment.** New users never tap a card. Candidate:
+      auto-open a hero venue, or default the fresh session into "Happening now" so the
+      feed answers "where do I go tonight" without a tap.
+  (3) **Push coverage is nearly zero** — 20 `push_tokens` rows across 133 users; only 2
+      of the last 12 signups have one. Push Center automations can't re-engage this
+      cohort. Candidate: re-prompt for push after first check-in instead of on first
+      city entry (the organic-CTA change already skips the first-entry prompt).
+  (4) **Possible Apple sign-in hiccup** (single data point): Savannah fired
+      `login_attempt{method:apple}` at 22:35:54, then `login_attempt{method:google}` at
+      22:36:00 which succeeded. Worth watching for a pattern before acting.
+  (5) **Web→app funnel not converting**: 763 distinct `surface='site'` visitors in 30d vs
+      7 signups (~0.9%), and all 3 recent signups arrived on `platform:'ios_app'`, not
+      through the July organic-CTA path. The SEO traffic is real; the handoff isn't.
 
 ---
 
