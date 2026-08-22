@@ -99,7 +99,7 @@
 <noscript><link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"></noscript>
 <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script defer src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
-<link rel="stylesheet" href="css/style.css?v=20260725b">
+<link rel="stylesheet" href="css/style.css?v=20260822a">
 <style>
 .card-claim { padding: 4px 16px 12px; }
 .claim-link { font-size: 12px; color: rgba(42,31,20,0.4); text-decoration: none; }
@@ -443,6 +443,11 @@
       </button>
       <div class="city-dropdown" id="cityDropdown"></div>
     </div>
+    <!-- A3: the tooltip walkthrough is opt-in now (it used to auto-fire over the
+         feed 2s after city entry). This is its only entry point. -->
+    <button class="tour-toggle" id="tourToggle" onclick="ttStartManual()" aria-label="How Spotd works" title="How Spotd works">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.2a2.5 2.5 0 0 1 4.85.83c0 1.67-2.45 2.5-2.45 2.5"/><line x1="12" y1="16.8" x2="12.01" y2="16.8"/></svg>
+    </button>
     <!-- Desktop-only primary nav. Hidden on mobile (CSS); the floating bottom
          pill nav handles mobile. Buttons reuse the same handlers as that nav. -->
     <nav class="desktop-nav" id="desktopNav" aria-label="Primary">
@@ -834,12 +839,12 @@ function dismissAppDownload() {
 
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script defer src="js/consent.js?v=20260725a"></script>
-<script defer src="js/db.js?v=20260804a"></script>
+<script defer src="js/db.js?v=20260822a"></script>
 <script defer src="js/onboarding.js?v=20260707a"></script>
-<script defer src="js/push.js?v=20260408a"></script>
+<script defer src="js/push.js?v=20260822a"></script>
 <script defer src="js/icons.js?v=20260716a"></script>
-<script defer src="js/app.js?v=20260729a"></script>
-<script defer src="js/tooltips.js?v=20260408a"></script>
+<script defer src="js/app.js?v=20260822a"></script>
+<script defer src="js/tooltips.js?v=20260822a"></script>
 <script>
 // Hide business/Pro links and App Store badge on native iOS
 if (window.spotdNative) {

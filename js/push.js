@@ -106,7 +106,7 @@ async function haptic(style = 'light') {
 // Called in two contexts:
 //   1. Right after signup (via enterCity) — immediate soft prompt
 //   2. After first check-in, save, or review — re-prompt if they declined at signup
-async function promptPushIfAppropriate(isPostSignup) {
+async function promptPushIfAppropriate(isPrimaryMoment) {
   if (typeof window === 'undefined') return;
 
   // Already have permission — nothing to do
@@ -118,17 +118,21 @@ async function promptPushIfAppropriate(isPostSignup) {
     if (Notification.permission === 'denied') return;
   }
 
-  // Post-signup prompt: show immediately (short delay for location dialog to settle)
-  if (isPostSignup) {
-    // Don't show if user already saw the banner this session
-    if (localStorage.getItem('pushBannerDismissed')) return;
+  const dismissed = localStorage.getItem('pushBannerDismissed');
+
+  // C1 (2026-08-22): `isPrimaryMoment` used to mean "just signed up", fired 3s
+  // after city entry. It now means "just did something worth being notified
+  // about" — the first check-in. A dismissal only holds it back for 7 days
+  // rather than forever, because the old forever-rule plus the removal of the
+  // signup-time banner would have meant the ask never happened again.
+  if (isPrimaryMoment) {
+    if (dismissed && Date.now() - Number(dismissed) < 7 * 24 * 60 * 60 * 1000) return;
     showPushPromptBanner();
     return;
   }
 
-  // Re-prompt after action: only if they previously dismissed
-  const dismissed = localStorage.getItem('pushBannerDismissed');
-  if (!dismissed) return; // never dismissed = never shown yet (signup prompt will handle)
+  // Secondary nudge (after a save/post): only once a previous dismissal aged out.
+  if (!dismissed) return;
 
   // On native: don't re-ask if iOS already asked (system-level)
   if (isNative() && localStorage.getItem('nativePushAsked')) return;
@@ -180,10 +184,11 @@ function showPushPromptBanner() {
         </svg>
       </div>
       <div style="font-weight:800; font-size:20px; margin-bottom:8px;">
-        Never miss happy hour
+        Want a heads up when this spot runs its deal?
       </div>
       <div style="font-size:15px; opacity:.65; margin-bottom:24px; line-height:1.4;">
-        Get a heads-up at 4pm when spots near you kick off their deals.
+        We&#8217;ll ping you once a day, around 4pm, with the happy hours starting
+        near you. Nothing else.
       </div>
       <button onclick="acceptPushBanner()" style="
         background:#FF6B4A; color:#fff; border:none; border-radius:12px;

@@ -496,17 +496,24 @@ function markLoopsActivated() {
 }
 
 // ── AUTH ───────────────────────────────────────────────
-async function authSignIn(email, password) {
+// opts.silent — set by authSignUp's recovery fallback so a SIGNUP doesn't also
+// report an email login_attempt and skew the login funnel.
+async function authSignIn(email, password, opts) {
   try {
+    if (!(opts && opts.silent)) track('login_attempt', { method: 'email' });
     const res = await fetch('/api/auth', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ mode: 'signin', email, password })
     });
     const data = await res.json();
-    if (data.error_description) return { error: { message: data.error_description } };
-    if (data.error)             return { error: { message: data.error } };
-    if (!data.access_token)     return { error: { message: 'No token received' } };
+    // F2 — there was `login_attempt` and `signup_completed` but nothing in
+    // between, so a failed sign-in was indistinguishable from someone changing
+    // their mind. That is exactly the gap that made the Aug 21 Apple attempt
+    // unreadable: an attempt, then silence, then a different method.
+    if (data.error_description) { track('login_failed', { method: 'email', reason: String(data.error_description).slice(0, 120) }); return { error: { message: data.error_description } }; }
+    if (data.error)             { track('login_failed', { method: 'email', reason: String(data.error).slice(0, 120) }); return { error: { message: data.error } }; }
+    if (!data.access_token)     { track('login_failed', { method: 'email', reason: 'no_token' }); return { error: { message: 'No token received' } }; }
 
     // Persist session
     localStorage.setItem(_storageKey, JSON.stringify({
@@ -549,7 +556,7 @@ async function authSignUp(email, password, displayName) {
     // Trigger onboarding email sequence (fire-and-forget)
     triggerLoopsOnboarding(email, displayName, data.user?.id, 'email-signup');
     if (data.access_token) {
-      const res = await authSignIn(email, password);
+      const res = await authSignIn(email, password, { silent: true });
       // Now that we hold a session, persist the chosen city to the profile.
       _persistSignupCity();
       return res;
@@ -562,7 +569,7 @@ async function authSignUp(email, password, displayName) {
     // session. Instead, try to sign them in with the same credentials (recovers
     // a returning user who hit "sign up" by mistake); if that fails, surface a
     // clear, actionable error.
-    const signin = await authSignIn(email, password);
+    const signin = await authSignIn(email, password, { silent: true });
     if (!signin.error) {
       _persistSignupCity();
       return signin;
@@ -609,6 +616,7 @@ async function authSignInWithGoogle() {
     if (error) throw error;
     return { data, error: null };
   } catch(e) {
+    track('login_failed', { method: 'google', reason: String(e && e.message || e).slice(0, 120) });
     return { error: { message: e.message } };
   }
 }
@@ -617,6 +625,25 @@ async function authSignInWithGoogle() {
 async function handleOAuthCallback() {
   const hash = window.location.hash;
   const search = window.location.search;
+
+  // F2 — a failed/cancelled OAuth round trip comes back as error params, and
+  // this function used to just `return false`, leaving no trace anywhere. An
+  // Apple attempt that quietly failed looked identical to a user who changed
+  // their mind. Report it before bailing.
+  try {
+    const errParams = new URLSearchParams(
+      (hash || '').replace('#', '') + '&' + (search || '').replace('?', '')
+    );
+    const oauthErr = errParams.get('error') || errParams.get('error_code');
+    if (oauthErr) {
+      track('oauth_failed', {
+        error: String(oauthErr).slice(0, 60),
+        reason: String(errParams.get('error_description') || '').slice(0, 160),
+      });
+      window.history.replaceState({}, document.title, window.location.pathname);
+      return false;
+    }
+  } catch (e) {}
 
   // Supabase returns tokens in the URL hash after OAuth redirect
   if (!hash || !hash.includes('access_token')) return false;
@@ -676,14 +703,9 @@ async function handleOAuthCallback() {
     try { await applyPendingReferral(user.id); } catch(e) {}
     // Persist any onboarding attribution that was stashed pre-redirect.
     try { await applyPendingAttribution(user.id); } catch(e) {}
-    // Prompt for referral code post-signup if they didn't supply one.
-    setTimeout(() => {
-      try {
-        if (typeof window.maybeShowPostSignupReferralModal === 'function') {
-          window.maybeShowPostSignupReferralModal();
-        }
-      } catch (e) {}
-    }, 1500);
+    // A1 (2026-08-22): the post-signup referral-code prompt used to fire here.
+    // Removed — see the note at its old app.js call site. Referral code entry
+    // still lives on the giveaway tile for anyone who actually has a code.
 
     // Clean URL
     window.history.replaceState({}, document.title, window.location.pathname);
@@ -2489,6 +2511,30 @@ const PENDING_ATTRIBUTION_KEY = 'spotd_pending_attribution';
 
 function getPendingAttribution() {
   try { return sessionStorage.getItem(PENDING_ATTRIBUTION_KEY) || null; } catch(e) { return null; }
+}
+
+// ── D3 · day-2 attribution re-ask helpers ─────────────────
+// ~40% of signups skip the onboarding "how did you find us?" question and the
+// answer is then lost forever — it is most of why 106 of the Mar/Apr signups
+// have no recorded source at all. These let the app ask once more later.
+async function hasSignupAttribution(userId) {
+  if (!userId) return true;
+  try {
+    const { data, error } = await db.from('signup_attributions')
+      .select('user_id').eq('user_id', userId).limit(1);
+    if (error) return true;          // fail closed: never nag on a DB error
+    return !!(data && data.length);
+  } catch (e) { return true; }
+}
+
+async function saveSignupAttribution(userId, source, other) {
+  if (!userId || !source) return false;
+  try {
+    const row = { user_id: userId, source: source };
+    if (other) row.source_other = other;
+    const { error } = await db.from('signup_attributions').insert(row);
+    return !error || error.code === '23505';   // 23505 = already recorded
+  } catch (e) { return false; }
 }
 
 // Write the stashed attribution (selected during onboarding) to the DB.

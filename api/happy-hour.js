@@ -267,6 +267,9 @@ export default async function handler(req) {
 <title>${esc(title)}</title>
 <meta name="description" content="${esc(metaDesc)}">
 <link rel="canonical" href="${canonical}">
+<!-- E4: iOS Smart App Banner. Native affordance, converts better on iPhone
+     Safari than a custom card, and costs one meta tag. -->
+<meta name="apple-itunes-app" content="app-id=6760452388, app-argument=${SITE_URL}/?guest=1&amp;city=${encodeURIComponent(city)}">
 <meta property="og:type" content="website">
 <meta property="og:url" content="${canonical}">
 <meta property="og:title" content="${esc(h1)}">
@@ -389,7 +392,7 @@ export default async function handler(req) {
 <script defer src="/js/consent.js?v=20260725a"></script>
 <script defer src="/js/site-analytics.js?v=20260725a"></script>
 <script>window.__spotdOrganicCity='${String(city || '').replace(/[^a-z0-9-]/gi, '')}';</script>
-<script defer src="/js/organic-cta.js?v=20260729a"></script>
+<script defer src="/js/organic-cta.js?v=20260822a"></script>
 </body>
 </html>`;
 

@@ -23,6 +23,46 @@
 
   var DELAY_MS = 6000;                 // let them read the page first
   var SEEN_KEY = 'spotd_organic_cta';  // sessionStorage: prompt shown already
+  var VAR_KEY  = 'spotd_organic_variant';
+
+  // E1 (2026-08-22) — 763 distinct site visitors in 30 days produced 7 signups
+  // (~0.9%), and none of the recent signups came through this path at all. The
+  // timing was already tuned; the OFFER never was. "Sign up free" is a big ask
+  // of someone halfway through a happy-hour list, so test two smaller ones
+  // against it. Variant is sticky per session and rides every cta_click as
+  // `organic-signup-cta--<variant>`, so the Site Traffic breakdown splits by it
+  // with no dashboard change.
+  var VARIANTS = {
+    // control — what shipped 2026-07-29
+    signup: {
+      title: function (c) { return c ? 'Loving ' + c + '\u2019s happy hours?' : 'Loving the happy hour intel?'; },
+      sub:   function (c) { return 'Join Spotd free to see what\u2019s live right now' + (c ? ' in ' + c : '') + ', save your favorite spots, and never miss a deal.'; },
+      cta:   'Sign up free'
+    },
+    // smallest possible ask — one spot, one tap
+    save: {
+      title: function () { return 'Want to keep this one?'; },
+      sub:   function (c) { return 'Save it to your list and Spotd will tell you when their happy hour is on' + (c ? ', plus what else is running in ' + c : '') + '.'; },
+      cta:   'Save this spot'
+    },
+    // answers tonight's question rather than asking for a commitment
+    tonight: {
+      title: function (c) { return c ? 'What\u2019s on in ' + c + ' tonight?' : 'What\u2019s on tonight?'; },
+      sub:   function () { return 'Spotd shows the happy hours running right now near you \u2014 live times, real deals, updated all evening.'; },
+      cta:   'See tonight\u2019s list'
+    }
+  };
+  var VARIANT_IDS = ['signup', 'save', 'tonight'];
+
+  function variantId() {
+    try {
+      var v = sessionStorage.getItem(VAR_KEY);
+      if (v && VARIANTS[v]) return v;
+      v = VARIANT_IDS[Math.floor(Math.random() * VARIANT_IDS.length)];
+      sessionStorage.setItem(VAR_KEY, v);
+      return v;
+    } catch (e) { return 'signup'; }
+  }
 
   // Active markets (mirrors the CITIES array in js/app.js). Only these slugs
   // are ever passed along; js/app.js re-validates against CITIES anyway.
@@ -108,6 +148,8 @@
     ':root[data-theme="dark"] .soc-close{background:rgba(255,255,255,0.09);color:#B6AA8F}',
     ':root[data-theme="dark"] .soc-sub{color:#C4B49E}',
     ':root[data-theme="dark"] .soc-later{color:#A79680}',
+    '.soc-browse{font:inherit;font-size:13.5px;font-weight:700;color:#FF6B4A;text-decoration:none;padding:11px 4px;white-space:nowrap}',
+    ':root[data-theme="dark"] .soc-browse{color:#FF8B6E}',
     '@media (min-width:720px){.soc-wrap{justify-content:flex-end;padding-right:22px;padding-bottom:22px}}',
     '@media (prefers-reduced-motion:reduce){.soc-card{transition:none;transform:none;opacity:1}}'
   ].join('\n');
@@ -117,7 +159,25 @@
 
     var slug = citySlug();
     var cityName = CITY_NAMES[slug] || '';
-    var href = '/?signup=1' + (slug ? '&city=' + encodeURIComponent(slug) : '');
+    var vid = variantId();
+    var V = VARIANTS[vid] || VARIANTS.signup;
+
+    // E3 — carry the venue they were actually reading about, so the app opens
+    // on THAT spot instead of a generic Discover feed. api/spots.js sets the
+    // global; every other page leaves it undefined and this is a no-op.
+    var spotId = '';
+    try {
+      var g = window.__spotdOrganicVenue;
+      if (g && /^[0-9a-f-]{16,40}$/i.test(String(g))) spotId = String(g);
+    } catch (e) {}
+
+    var qs = (slug ? '&city=' + encodeURIComponent(slug) : '') +
+             (spotId ? '&spot=' + encodeURIComponent(spotId) : '');
+    var href      = '/?signup=1' + qs;
+    // E2 — the same destination without the signup sheet. Someone who just
+    // wants to look should be able to, and an install after browsing converts
+    // better than one demanded at the door.
+    var guestHref = '/?guest=1' + qs;
 
     var style = document.createElement('style');
     style.textContent = CSS;
@@ -130,12 +190,13 @@
         '<button class="soc-close" data-track="organic-signup-dismiss" aria-label="Dismiss">&#10005;</button>' +
         '<div class="soc-head">' +
           '<img class="soc-logo" src="/icons/icon-180.png" alt="" loading="lazy" decoding="async">' +
-          '<p class="soc-title">' + (cityName ? 'Loving ' + cityName + '&#8217;s happy hours?' : 'Loving the happy hour intel?') + '</p>' +
+          '<p class="soc-title">' + V.title(cityName) + '</p>' +
         '</div>' +
-        '<p class="soc-sub">Join Spotd free to see what&#8217;s live right now' + (cityName ? ' in ' + cityName : '') + ', save your favorite spots, and never miss a deal.</p>' +
+        '<p class="soc-sub">' + V.sub(cityName) + '</p>' +
         '<div class="soc-actions">' +
-          '<a class="soc-cta" data-track="organic-signup-cta" href="' + href + '">Sign up free</a>' +
-          '<button class="soc-later" data-track="organic-signup-later">Keep reading</button>' +
+          '<a class="soc-cta" data-track="organic-signup-cta--' + vid + '" href="' + href + '">' + V.cta + '</a>' +
+          '<a class="soc-browse" data-track="organic-browse--' + vid + '" href="' + guestHref + '">Just browsing</a>' +
+          '<button class="soc-later" data-track="organic-signup-later--' + vid + '">Keep reading</button>' +
         '</div>' +
       '</div>';
     document.body.appendChild(wrap);

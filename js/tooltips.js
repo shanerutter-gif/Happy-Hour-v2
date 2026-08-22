@@ -46,21 +46,40 @@ const TT_STEPS = [
 let _ttStep = 0;
 let _ttOverlay = null;
 
+// A3 (2026-08-22): the tour no longer auto-starts on city entry. It was an
+// un-instrumented 5-step overlay that covered the feed at exactly the moment a
+// new user needed to tap a card, and nobody could tell whether it helped —
+// there were zero tooltip events in analytics. It is now reachable from the
+// header "?" button, and every step reports.
+function _ttTrack(name, props) {
+  try { if (typeof track === 'function') track(name, props || {}); } catch (e) {}
+}
+
 function ttShouldShow() {
   if (localStorage.getItem(TT_KEY)) return false;
   if (typeof currentUser === 'undefined' || !currentUser) return false;
   return true;
 }
 
-function ttStart() {
-  if (!ttShouldShow()) return;
+// opts.manual = launched from the "?" button; replays even once completed.
+function ttStart(opts) {
+  var manual = !!(opts && opts.manual);
+  if (!manual && !ttShouldShow()) return;
+  if (document.querySelector('.tt-overlay')) return;
   setTimeout(function() {
     var firstTarget = document.querySelector(TT_STEPS[0].target);
-    if (!firstTarget) return;
+    if (!firstTarget) { _ttTrack('tt_unavailable', { reason: 'no_target' }); return; }
     _ttStep = 0;
+    _ttTrack('tt_started', { manual: manual, steps: TT_STEPS.length });
     _ttBuild();
     _ttShow(_ttStep);
-  }, 1000);
+  }, manual ? 60 : 1000);
+}
+
+// Header "?" — replays the tour on demand.
+function ttStartManual() {
+  if (typeof haptic === 'function') haptic('light');
+  ttStart({ manual: true });
 }
 
 function _ttBuild() {
@@ -74,7 +93,8 @@ function _ttBuild() {
 function _ttShow(idx) {
   var step = TT_STEPS[idx];
   var el = document.querySelector(step.target);
-  if (!el) { _ttNext(); return; }
+  if (!el) { _ttTrack('tt_step_skipped', { step: idx }); _ttNext(); return; }
+  _ttTrack('tt_step_viewed', { step: idx, target: step.target });
 
   var rect = el.getBoundingClientRect();
   var pad = 8;
@@ -169,6 +189,7 @@ function _ttNext() {
 }
 
 function _ttFinish() {
+  _ttTrack('tt_completed', { last_step: _ttStep });
   localStorage.setItem(TT_KEY, '1');
   if (_ttOverlay) {
     _ttOverlay.classList.add('tt-overlay--out');

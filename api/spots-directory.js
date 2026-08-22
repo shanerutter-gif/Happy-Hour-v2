@@ -141,6 +141,9 @@ export default async function handler() {
 <title>${title}</title>
 <meta name="description" content="${esc(metaDesc)}">
 <link rel="canonical" href="${SITE_URL}/spots">
+<!-- E4: iOS Smart App Banner. Native affordance, converts better on iPhone
+     Safari than a custom card, and costs one meta tag. -->
+<meta name="apple-itunes-app" content="app-id=6760452388, app-argument=${SITE_URL}/">
 <meta property="og:type" content="website">
 <meta property="og:url" content="${SITE_URL}/spots">
 <meta property="og:title" content="${title}">
@@ -230,7 +233,7 @@ export default async function handler() {
 
 <script defer src="/js/consent.js?v=20260725a"></script>
 <script defer src="/js/site-analytics.js?v=20260725a"></script>
-<script defer src="/js/organic-cta.js?v=20260729a"></script>
+<script defer src="/js/organic-cta.js?v=20260822a"></script>
 </body>
 </html>`;
 

@@ -179,6 +179,28 @@ document.addEventListener('DOMContentLoaded', () => {
   loadSiteCopy();
   renderCityGrid();
   renderNav(currentUser);
+  // D2 — the App Store hands us no referrer, so the only arrival signal that
+  // exists is the shape of the first open. `prior_web_visitor` is the one that
+  // matters most: it says whether this install was preceded by SEO browsing,
+  // which is the web-to-app handoff we currently cannot see at all.
+  try {
+    if (!localStorage.getItem('spotd-first-open-at')) {
+      localStorage.setItem('spotd-first-open-at', String(Date.now()));
+      const _fp = new URLSearchParams(window.location.search);
+      let _refHost = '';
+      try { _refHost = document.referrer ? new URL(document.referrer).hostname : ''; } catch (e) {}
+      track('app_first_open', {
+        native: !!(window.spotdNative || (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform())),
+        standalone: !!(window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches),
+        referrer_host: _refHost,
+        utm_source: _fp.get('utm_source') || '',
+        landing: window.location.pathname || '/',
+        deep_link: _fp.get('signup') === '1' ? 'organic_cta'
+                 : (_fp.get('spot') ? 'venue' : (_fp.get('list') ? 'list' : '')),
+        prior_web_visitor: !!localStorage.getItem('spotd_vid'),
+      });
+    }
+  } catch (e) {}
   // Capture ?ref=CODE from URL into sessionStorage for the signup step
   if (typeof captureReferralFromURL === 'function') captureReferralFromURL();
   // Organic-visitor deep link: the SEO pages' timed signup prompt
@@ -187,14 +209,24 @@ document.addEventListener('DOMContentLoaded', () => {
   // and mark onboarding complete BEFORE obInit runs, so the walkthrough
   // never shows — this funnel goes straight to the auth sheet instead.
   window._organicSignup = false;
+  window._organicGuest  = false;
   try {
     const orgParams = new URLSearchParams(window.location.search);
-    if (orgParams.get('signup') === '1' && !currentUser) {
-      window._organicSignup = true;
+    // E2 — "?guest=1" is the same landing WITHOUT the auth sheet: the organic
+    // card's "Just browsing" link. Someone who only wants to look should be
+    // able to; an install after browsing beats one demanded at the door.
+    const orgSignup = orgParams.get('signup') === '1';
+    const orgGuest  = orgParams.get('guest') === '1';
+    if ((orgSignup || orgGuest) && !currentUser) {
+      window._organicSignup = orgSignup;
+      window._organicGuest  = orgGuest;
       const orgCity = CITIES.find(c => c.slug === orgParams.get('city') && c.active);
       if (orgCity) localStorage.setItem('spotd-last-city', orgCity.slug);
       localStorage.setItem(typeof OB_KEY !== 'undefined' ? OB_KEY : 'spotd-ob-complete', '1');
-      track('organic_signup_landing', { city_slug: orgCity ? orgCity.slug : '' });
+      track(orgGuest ? 'organic_guest_landing' : 'organic_signup_landing', {
+        city_slug: orgCity ? orgCity.slug : '',
+        spot: orgParams.get('spot') ? '1' : '',
+      });
     }
   } catch (e) {}
   if (typeof obInit === 'function') obInit();
@@ -252,21 +284,42 @@ document.addEventListener('DOMContentLoaded', () => {
         window.history.replaceState({}, document.title, '/');
         openListDetail(listId);
       });
+    } else if (window._organicSignup || window._organicGuest) {
+      // Organic funnel: land in the SEO page's city (set into 'spotd-last-city'
+      // above). E3 — when the card carried a venue, open THAT spot: they were
+      // reading about it thirty seconds ago, and a generic Discover feed throws
+      // that context away. The auth sheet then rides the first-run queue rather
+      // than opening on top of the venue (A2), so the thing they came for is
+      // what they actually see.
+      const wasGuest = window._organicGuest;
+      window.history.replaceState({}, document.title, '/');
+      const orgSlug = localStorage.getItem('spotd-last-city');
+      const orgCity = CITIES.find(c => c.slug === orgSlug && c.active) || CITIES[0];
+      enterCity(orgCity.slug, orgCity.name, orgCity.state_code).then(() => {
+        if (spotId) { track('organic_venue_deeplink', { venue_id: spotId }); openModal(spotId, 'venue'); }
+      });
+      if (!wasGuest) {
+        if (spotId) {
+          frEnqueue({
+            id: 'organic_auth',
+            priority: 20,
+            delay: 9000,
+            gate: () => !currentUser,
+            show: (done) => { openAuth('signup', 'organic'); done(); },
+          });
+        } else {
+          openAuth('signup', 'organic');
+        }
+      }
     } else if (spotId) {
-      // Guest deep-link: enter default city then open modal
+      // Plain guest deep-link (an SEO venue page's "open in app" link with no
+      // organic-card context): enter the default city, then open the modal.
+      // Ordered AFTER the organic branch on purpose — an organic arrival also
+      // carries ?spot=, and it must land in the city it came from, not CITIES[0].
       enterCity(city.slug, city.name, city.state_code).then(() => {
         window.history.replaceState({}, document.title, window.location.pathname);
         openModal(spotId, 'venue');
       });
-    } else if (window._organicSignup) {
-      // Organic signup funnel: land in the SEO page's city (set into
-      // 'spotd-last-city' above) with the signup sheet open on top. If they
-      // dismiss the sheet they're a guest browsing that city — no onboarding.
-      window.history.replaceState({}, document.title, '/');
-      const orgSlug = localStorage.getItem('spotd-last-city');
-      const orgCity = CITIES.find(c => c.slug === orgSlug && c.active) || CITIES[0];
-      enterCity(orgCity.slug, orgCity.name, orgCity.state_code);
-      openAuth('signup', 'organic');
     } else if (window.matchMedia('(min-width: 1024px)').matches && localStorage.getItem('spotd-last-city')) {
       // Desktop returning guests skip the city-selector landing and go straight
       // into their last city — the city pill in the app bar handles switching.
@@ -1154,6 +1207,11 @@ function showFeedTooltip() {
 let _socialLoading = false;
 let _socialItems = [];
 let _socialActiveTab = 'following';
+// F3 — "Following" is the default tab and a brand-new user follows nobody, so
+// their very first visit to Share is a guaranteed empty screen. A tab that is
+// empty on first open teaches people the app is empty. Until they pick a tab
+// themselves we fall back to Public, which has content.
+let _socialTabPinned = false;
 let _socialPinnedIds = new Set();
 let _socialStories = [];
 let _socialFeedLoadedAt = 0;          // unix ms of last successful load
@@ -1313,6 +1371,7 @@ function initSocialPullToRefresh() {
 }
 
 function switchSocialTab(tab) {
+  _socialTabPinned = true;   // an explicit choice — stop auto-switching
   _socialActiveTab = tab;
   document.getElementById('socialSubFollowing').classList.toggle('active', tab === 'following');
   document.getElementById('socialSubPublic').classList.toggle('active', tab === 'public');
@@ -1430,8 +1489,22 @@ function renderSocialTab(tab) {
   // Don't show the pinned post twice if it would also appear in the tab.
   const filtered = tabFiltered.filter(i => !pinned.some(p => p.id === i.id));
 
+  if (tab === 'following' && !filtered.length && !pinned.length && !_socialTabPinned) {
+    // Nothing to follow yet → show Public instead of an empty screen.
+    const anyPublic = _socialItems.some(i => !i.isFollowing);
+    if (anyPublic) {
+      track('social_tab_autoswitched', { from: 'following', to: 'public' });
+      _socialActiveTab = 'public';
+      document.getElementById('socialSubFollowing')?.classList.remove('active');
+      document.getElementById('socialSubPublic')?.classList.add('active');
+      renderSocialTab('public');
+      return;
+    }
+  }
+
   if (tab === 'following' && !filtered.length && !pinned.length) {
     const hasAnyFollowing = _socialItems.some(i => i.isFollowing);
+    track('social_empty_shown', { tab: 'following', city: state.city?.slug || '' });
     container.innerHTML = `
       <div class="social-empty">
         <div class="social-empty-icon">${icn('users',32)}</div>
@@ -1450,12 +1523,20 @@ function renderSocialTab(tab) {
     // history yet, so name the city and nudge the first post rather than
     // showing a flat generic message.
     const cityName = state.city?.name || 'your city';
+    track('social_empty_shown', { tab: tab, city: state.city?.slug || '' });
+    // Point at a REAL spot rather than "go find one" — the same venue the
+    // first-run Start here card picks, so the empty state is a way forward
+    // instead of a dead end.
+    const seed = (typeof frStartHereVenue === 'function') ? frStartHereVenue() : null;
+    const cta = seed
+      ? `<button class="social-share-cta" onclick="openModal('${esc(String(seed.id))}','venue')">Check in at ${esc(seed.name || 'a spot')}</button>`
+      : `<button class="social-share-cta" onclick="bottomNavFeed()">Find a spot to check in</button>`;
     container.innerHTML = `
       <div class="social-empty">
         <div class="social-empty-icon">${icn('camera',32)}</div>
         <div class="social-empty-title">Be the first in ${esc(cityName)}</div>
         <div class="social-empty-sub">No posts here yet. Check in at a spot, share a photo, or leave a review — it'll show up right here for everyone in ${esc(cityName)}.</div>
-        <button class="social-share-cta" onclick="bottomNavFeed()">Find a spot to check in</button>
+        ${cta}
       </div>`;
     _feedEnter(container);
     return;
@@ -2357,22 +2438,14 @@ async function enterCity(slug, name, stateCode) {
   // than waiting for a (non-existent) map toggle.
   syncTwoPaneMap();
 
-  // ── Push notification prompt (after location dialog settles) ──
-  // Show soft push prompt ~3s after entering city for the first time.
-  // Skipped (flag NOT consumed) during the organic signup funnel — the auth
-  // sheet is open on top and the push modal would cover the signup form; the
-  // one-time prompt fires on their next visit instead.
-  if (!window._organicSignup && !localStorage.getItem('spotd-push-prompted')) {
-    localStorage.setItem('spotd-push-prompted', '1');
-    setTimeout(() => {
-      if (typeof promptPushIfAppropriate === 'function') {
-        promptPushIfAppropriate(true);
-      }
-    }, 3000);
-  }
-
-  // Tooltip walkthrough for first-time users (after cards render)
-  if (typeof ttStart === 'function') setTimeout(ttStart, 2000);
+  // ── First-run experience (A2/A3/A4/C1/C4) ────────────────
+  // This used to be a prompt STACK: push banner at t+3s and the 5-step tooltip
+  // tour at t+2s, on top of the referral modal at t+1.2s and the OS location
+  // dialog. Now: the push ask happens after the first check-in (C1), the tour
+  // is manual via the header "?" button (A3), and everything modal is
+  // serialised through the first-run queue (A2/C4) so two prompts can never
+  // share the screen.
+  frFirstRunEntry();
 }
 
 // ── SHOW FILTER ────────────────────────────────────────
@@ -2793,6 +2866,399 @@ function resetHappeningNow() {
   state.happeningNow = false;
   stopHHTicker();
   document.getElementById('happeningToggle')?.classList.remove('active');
+}
+
+// ══════════════════════════════════════════════════════════
+// FIRST-RUN EXPERIENCE — prompt queue + "Start here" card
+// ──────────────────────────────────────────────────────────
+// Before this existed a brand-new signup got FOUR interruptions inside the
+// first ~3s of `city_entered`: the iOS location dialog, the referral-code
+// modal (t+1.2s), the 5-step tooltip tour (t+2s) and the push permission
+// banner (t+3s) — all stacked on the Discover feed. Aug 2026 analytics: the
+// three most recent signups fired ZERO `venue_modal_opened` events. They were
+// dismissing prompts, not browsing.
+//
+// Everything modal now registers through frEnqueue(): ONE prompt at a time,
+// each gated on an earned moment, never while another overlay is open.
+// ══════════════════════════════════════════════════════════
+
+const FR_DONE_KEY      = 'spotd-firstrun-done';
+const FR_STARTCARD_KEY = 'spotd-fr-startcard-dismissed';
+
+function frIsFirstRun() {
+  try { return !localStorage.getItem(FR_DONE_KEY); } catch (e) { return false; }
+}
+
+// Called the moment the user does the thing the first-run experience exists to
+// produce — opening a venue or checking in. Idempotent.
+function frMarkDone(reason) {
+  try {
+    if (localStorage.getItem(FR_DONE_KEY)) return;
+    localStorage.setItem(FR_DONE_KEY, '1');
+    track('first_run_completed', { reason: reason || 'unknown' });
+  } catch (e) {}
+}
+
+// ── The queue ────────────────────────────────────────────
+const _frQueue = [];
+let _frBusy  = false;
+let _frTimer = null;
+
+// True when anything modal is already on screen. The queue waits rather than
+// stacking — this is the ordering bug that let the push banner open behind the
+// tooltip backdrop and get dismissed by a tap meant for the tour.
+function frOverlayOpen() {
+  if (document.querySelector('.overlay.open'))   return true;
+  if (document.getElementById('pushBanner'))     return true;
+  if (document.getElementById('referralCodeModal')) return true;
+  if (document.querySelector('.tt-overlay'))     return true;
+  if (document.getElementById('ageGateOverlay')) return true;
+  if (document.querySelector('.imv--open'))      return true;
+  const ob = document.getElementById('onboardingOverlay');
+  if (ob && ob.style.display !== 'none')         return true;
+  return false;
+}
+
+function frEnqueue(opts) {
+  if (!opts || typeof opts.show !== 'function') return;
+  if (_frQueue.some(p => p.id === opts.id)) return;
+  _frQueue.push({
+    id:       opts.id,
+    priority: typeof opts.priority === 'number' ? opts.priority : 50,
+    gate:     typeof opts.gate === 'function' ? opts.gate : function () { return true; },
+    show:     opts.show,
+  });
+  frDrain(opts.delay);
+}
+
+function frDrain(delay) {
+  clearTimeout(_frTimer);
+  _frTimer = setTimeout(function () {
+    if (_frBusy || !_frQueue.length) return;
+    if (frOverlayOpen()) { frDrain(1200); return; }        // wait it out, don't stack
+
+    _frQueue.sort(function (a, b) { return a.priority - b.priority; });
+    let next = null;
+    for (let i = 0; i < _frQueue.length; i++) {
+      let ok;
+      try { ok = _frQueue[i].gate(); } catch (e) { ok = false; }
+      if (ok) { next = _frQueue.splice(i, 1)[0]; break; }
+      _frQueue.splice(i, 1); i--;                          // gate closed → drop it
+    }
+    if (!next) return;
+
+    _frBusy = true;
+    track('first_run_prompt_shown', { prompt: next.id });
+    let settled = false;
+    const done = function () {
+      if (settled) return;
+      settled = true;
+      _frBusy = false;
+      frDrain(900);                                        // breathing room between prompts
+    };
+    try { next.show(done); } catch (e) { done(); }
+    // Safety valve: a prompt that forgets to call done() must not wedge the queue.
+    setTimeout(done, 45000);
+  }, typeof delay === 'number' ? delay : 400);
+}
+
+// ── A6 · "Start here" card ───────────────────────────────
+// A first-timer's feed opens on 500+ undifferentiated cards. This puts ONE
+// spot at the top — real photo, live deal, a Check In button — so the first
+// tap is obvious. Pristine first-run feed only; gone once they open a venue.
+function frStartHereEligible() {
+  if (!frIsFirstRun()) return false;
+  try { if (localStorage.getItem(FR_STARTCARD_KEY)) return false; } catch (e) {}
+  if (typeof isTwoPane === 'function' && isTwoPane()) return false;
+  const f = state.filters;
+  if (f.search || f.day || f.area || f.type) return false;
+  if ((f.amenities && f.amenities.length) || state.favFilterOn) return false;
+  return true;
+}
+
+function frStartHereVenue(pool) {
+  const list = (pool && pool.length ? pool : state.filtered) || [];
+  // Prefer a spot whose happy hour is live right now — "where do I go tonight"
+  // is the question the app exists to answer.
+  const live = list.find(v => v.photo_url && hhActive(v));
+  if (live) return live;
+  const featured = list.find(v => v.photo_url && (v.featured || v.is_hero));
+  if (featured) return featured;
+  return list.find(v => v.photo_url) || list[0] || null;
+}
+
+function frStartHereHTML(v) {
+  if (!v) return '';
+  const hh   = hhActive(v);
+  const deal = (v.deals && v.deals.length) ? String(v.deals[0]) : '';
+  const meta = hh
+    ? `<span class="fr-sh-live"><span class="hh-badge-dot"></span>Happy hour on now · ends in ${fmtHHRemaining(hh.remaining)}</span>`
+    : `<span class="fr-sh-meta">${esc(v.neighborhood || v.cuisine || 'Tonight’s pick')}</span>`;
+  const count  = state.goingCounts[v.id] || 0;
+  const inNow  = state.goingByMe.has(v.id);
+  return `
+    <div class="fr-starthere" data-vid="${esc(String(v.id))}">
+      <div class="fr-sh-kicker">
+        <span>Start here</span>
+        <button class="fr-sh-x" onclick="frDismissStartHere(event)" aria-label="Dismiss">&times;</button>
+      </div>
+      <div class="fr-sh-card" onclick="frStartHereOpen('${esc(String(v.id))}')">
+        <img class="fr-sh-img" src="${esc(v.photo_url || '')}" alt="" loading="eager" fetchpriority="high" decoding="async">
+        <div class="fr-sh-scrim"></div>
+        <div class="fr-sh-body">
+          ${meta}
+          <div class="fr-sh-name">${esc(v.name || '')}</div>
+          ${deal ? `<div class="fr-sh-deal">${esc(deal)}</div>` : ''}
+          <div class="fr-sh-actions">
+            <span class="fr-sh-open">See the deal</span>
+            <button class="fr-sh-checkin${inNow ? ' going-active' : ''}"
+                    onclick="event.stopPropagation();doGoingTonight('${esc(String(v.id))}',this)">
+              ${checkInBtnLabel(count, inNow)}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function frStartHereOpen(id) {
+  track('first_run_starthere_opened', { venue_id: id });
+  openModal(id, 'venue');
+}
+
+function frDismissStartHere(e) {
+  if (e) e.stopPropagation();
+  try { localStorage.setItem(FR_STARTCARD_KEY, '1'); } catch (err) {}
+  track('first_run_starthere_dismissed');
+  document.querySelector('.fr-starthere')?.remove();
+}
+
+// ── First-run entry point, called at the end of enterCity ──
+function frFirstRunEntry() {
+  // A4 — drop a first-time visitor straight into "Happening now" when there is
+  // genuinely something live. The default feed opens on 500+ undifferentiated
+  // spots; this makes the first screen answer "where do I go tonight". Never
+  // when the result would be thin — an empty first screen is worse than a long
+  // one — hence the >= 3 floor.
+  if (frIsFirstRun() && !state.happeningNow) {
+    try {
+      const live = (state.venues || []).filter(v => hhActive(v));
+      if (live.length >= 3) {
+        state.happeningNow = true;
+        document.getElementById('happeningToggle')?.classList.add('active');
+        _hhNowAt = 0;
+        startHHTicker();
+        track('first_run_happening_now', { live: live.length });
+        applyFilters(); updateChips(); updateClearBtn();
+      }
+    } catch (e) {}
+  }
+  frMaybeAutoOpenHero();   // A5 (flag-gated, off by default)
+  frQueuePushReask();      // C2
+  frQueueAttributionReask();// D3
+}
+
+// ── B · check-in helpers ─────────────────────────────────
+function frBumpCheckinCount() {
+  let n = 1;
+  try {
+    n = Number(localStorage.getItem('spotd-checkin-count') || 0) + 1;
+    localStorage.setItem('spotd-checkin-count', String(n));
+  } catch (e) {}
+  return n;
+}
+
+// B4 — a toast you can act on. Plain showToast() has no affordance, so undoing
+// a mis-tapped check-in meant hunting for the button again; that is how a first
+// check-in turned into a checkin_removed.
+function showActionToast(msg, actions, ms) {
+  document.querySelectorAll('.toast').forEach(t => t.remove());
+  const t = document.createElement('div');
+  t.className = 'toast toast--action';
+  const label = document.createElement('span');
+  label.className = 'toast-msg';
+  label.textContent = msg;
+  t.appendChild(label);
+  (actions || []).forEach(a => {
+    if (!a || !a.label) return;
+    const b = document.createElement('button');
+    b.className = 'toast-btn';
+    b.type = 'button';
+    b.textContent = a.label;
+    b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      t.remove();
+      try { a.fn && a.fn(); } catch (err) {}
+    });
+    t.appendChild(b);
+  });
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), ms || 5400);
+  return t;
+}
+
+function showCheckinToast(venueId, n) {
+  const acts = [{
+    label: 'Undo',
+    fn: () => {
+      track('checkin_undo_toast', { venue_id: venueId });
+      Promise.resolve(doGoingTonight(venueId, null)).then(() => renderCards());
+    },
+  }];
+  // Only offer the photo path on the first check-in; from the second the sheet
+  // opens by itself.
+  if (n < 2) {
+    acts.push({
+      label: 'Add photo',
+      fn: () => {
+        track('checkin_addphoto_toast', { venue_id: venueId });
+        maybeOpenPhotoCheckin(venueId);
+      },
+    });
+  }
+  showActionToast(n === 1 ? "Checked in! \u{1F389}" : 'Checked in!', acts);
+}
+
+// ── C1 · the push ask, moved to the moment it means something ──
+// At city entry the ask was "let a stranger notify you". After a check-in it is
+// "we will tell you when this place runs its deal". Same code path, different
+// moment — and it now goes through the queue so it cannot open underneath the
+// check-in toast or anything else.
+function frQueuePushAfterCheckin() {
+  if (!currentUser) return;
+  frEnqueue({
+    id: 'push_after_checkin',
+    priority: 10,
+    delay: 3200,
+    gate: () => !!currentUser,
+    show: (done) => {
+      try { localStorage.setItem('spotd-push-reask-at', String(Date.now())); } catch (e) {}
+      if (typeof promptPushIfAppropriate === 'function') promptPushIfAppropriate(true);
+      setTimeout(done, 600);
+    },
+  });
+}
+
+// ── C2 · re-ask for push if this device never granted it ──
+// 20 push_tokens rows across 133 users (Aug 2026) — the Push Center engine has
+// nobody to talk to. promptPushIfAppropriate() self-skips when permission is
+// already granted or was dismissed inside 7 days, so this is a slow nudge, not
+// a nag: at most once a fortnight, and never during first run.
+function frQueuePushReask() {
+  if (!currentUser) return;
+  let last = 0;
+  try { last = Number(localStorage.getItem('spotd-push-reask-at') || 0); } catch (e) {}
+  if (last && Date.now() - last < 14 * 24 * 3600 * 1000) return;
+  frEnqueue({
+    id: 'push_reask',
+    priority: 60,
+    delay: 6000,
+    gate: () => !!currentUser && !frIsFirstRun(),
+    show: (done) => {
+      try { localStorage.setItem('spotd-push-reask-at', String(Date.now())); } catch (e) {}
+      if (typeof promptPushIfAppropriate === 'function') promptPushIfAppropriate(true);
+      setTimeout(done, 600);
+    },
+  });
+}
+
+// ── D3 · "how did you find us?", asked once more later ────
+// The onboarding question is skippable and ~40% skip it; the answer is then
+// gone for good. This asks a single time, from the second day onward, only if
+// the DB genuinely has no row for them.
+const FR_ATTR_OPTS = [
+  { id: 'instagram', label: 'Instagram',      icon: '\u{1F4F8}' },
+  { id: 'tiktok',    label: 'TikTok',         icon: '\u{1F3B5}' },
+  { id: 'app_store', label: 'App Store',      icon: '\u{1F34E}' },
+  { id: 'google',    label: 'Google',         icon: '\u{1F50D}' },
+  { id: 'friend',    label: 'A friend',       icon: '\u{1F44B}' },
+  { id: 'other',     label: 'Somewhere else', icon: '\u{2728}' },
+];
+
+function frQueueAttributionReask() {
+  if (!currentUser) return;
+  let firstSeen = 0, asked = 0;
+  try {
+    firstSeen = Number(localStorage.getItem('spotd-first-open-at') || 0);
+    asked     = Number(localStorage.getItem('spotd-attr-reasked-at') || 0);
+  } catch (e) {}
+  if (asked) return;                                        // once, ever
+  if (!firstSeen || Date.now() - firstSeen < 20 * 3600 * 1000) return;  // day 2+
+  frEnqueue({
+    id: 'attribution_reask',
+    priority: 40,
+    delay: 5000,
+    gate: () => !!currentUser && !frIsFirstRun(),
+    show: (done) => {
+      try { localStorage.setItem('spotd-attr-reasked-at', String(Date.now())); } catch (e) {}
+      Promise.resolve(
+        typeof hasSignupAttribution === 'function' ? hasSignupAttribution(currentUser.id) : true
+      ).then((has) => {
+        if (has) return done();
+        openAttributionReask(done);
+      }).catch(() => done());
+    },
+  });
+}
+
+function openAttributionReask(done) {
+  track('attribution_reask_shown');
+  const overlay = document.createElement('div');
+  overlay.className = 'overlay';
+  const finish = (src) => {
+    if (src) {
+      track('attribution_reask_answered', { source: src });
+      // currentUser can go away while the sheet is open (sign-out, token loss).
+      if (currentUser && typeof saveSignupAttribution === 'function') {
+        saveSignupAttribution(currentUser.id, src);
+      }
+    } else {
+      track('attribution_reask_skipped');
+    }
+    dismissOverlay(overlay);
+    if (typeof done === 'function') done();
+  };
+  overlay.innerHTML = `
+    <div class="sheet fr-attr-sheet">
+      <div class="sheet-handle"></div>
+      <div class="fr-attr-title">Quick one \u2014 how did you find Spotd?</div>
+      <div class="fr-attr-sub">One tap. It tells us where to keep showing up.</div>
+      <div class="fr-attr-grid">
+        ${FR_ATTR_OPTS.map(o => `<button class="fr-attr-opt" type="button" data-src="${o.id}"><span class="fr-attr-ic">${o.icon}</span>${esc(o.label)}</button>`).join('')}
+      </div>
+      <button class="fr-attr-skip" type="button">Skip</button>
+    </div>`;
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) finish(null); });
+  overlay.querySelectorAll('.fr-attr-opt').forEach(b => {
+    b.addEventListener('click', () => finish(b.getAttribute('data-src')));
+  });
+  overlay.querySelector('.fr-attr-skip').addEventListener('click', () => finish(null));
+  document.body.appendChild(overlay);
+  requestAnimationFrame(() => overlay.classList.add('open'));
+}
+
+// ── A5 · auto-open the hero venue (flag-gated, OFF by default) ──
+// Deliberately opt-in: auto-opening a modal is the exact behaviour the rest of
+// this section removes, so it ships as an experiment you can switch on rather
+// than a default. Enable in the console with:
+//   localStorage.setItem('spotd-fr-autoopen','1')
+function frMaybeAutoOpenHero() {
+  let on = false;
+  try { on = localStorage.getItem('spotd-fr-autoopen') === '1'; } catch (e) {}
+  if (!on || !frIsFirstRun()) return;
+  frEnqueue({
+    id: 'autoopen_hero',
+    priority: 30,
+    delay: 2500,
+    gate: () => frIsFirstRun() && !!frStartHereVenue(),
+    show: (done) => {
+      const v = frStartHereVenue();
+      if (!v) return done();
+      track('first_run_autoopen', { venue_id: v.id });
+      openModal(v.id, 'venue');
+      done();
+    },
+  });
 }
 
 // ══════════════════════════════════════════════════════════
@@ -3456,6 +3922,14 @@ function _renderCardsNow() {
     return d;
   };
 
+  // A6 — one unmissable spot at the top of a first-timer's feed. Sits above
+  // whichever layout branch runs below, so it works in the "Happening now"
+  // uniform list (where A4 lands new users) and the tiered feed alike.
+  if (frStartHereEligible()) {
+    const _shv = frStartHereVenue(venues);
+    if (_shv) html += frStartHereHTML(_shv);
+  }
+
   const isSearchView = !!(state.filters.search && state.filters.search.trim());
   if (isTwoPane() || state.happeningNow || isSearchView) {
     // ── Uniform horizontal list ──
@@ -3758,6 +4232,8 @@ function toggleFavFilter() {
 // ── MODAL ──────────────────────────────────────────────
 async function openModal(id, type = 'venue') {
   if(typeof haptic==='function')haptic('light');
+  // Opening a venue is the tap the whole first-run experience exists to earn.
+  if (type === 'venue' && typeof frMarkDone === 'function') frMarkDone('venue_opened');
   state.activeItemId   = id;
   state.activeItemType = type;
   const items = type === 'venue' ? state.venues : state.events;
@@ -4185,9 +4661,12 @@ async function doAuth(mode) {
         try { await applyPendingAttribution(currentUser.id); } catch(e) {}
       }
       // If they didn't already supply a referral code, ask politely.
-      if (typeof maybeShowPostSignupReferralModal === 'function') {
-        setTimeout(() => maybeShowPostSignupReferralModal(), 1200);
-      }
+      // A1 (2026-08-22): the post-signup referral-code modal used to fire here
+      // 1.2s after signup. It asks "did someone refer you? enter their code" —
+      // and it self-skips anyone who already HAS a referrer, so the only people
+      // who ever saw it were the ones who definitionally can't answer it (every
+      // IG/TikTok/App Store arrival). It was the first thing a new user saw,
+      // before a single venue. Entry point kept on the giveaway tile.
     }
     closeOverlay('authOverlay');
     showToast(mode === 'signup' ? 'Account created!' : 'Welcome back!');
@@ -6888,7 +7367,6 @@ async function doGoingTonight(venueId, btn) {
     state.todayCheckInCount++;
     state.goingCounts[venueId] = (state.goingCounts[venueId] || 0) + 1;
     if(typeof haptic==='function')haptic('medium');
-    showToast('Checked in!');
     // Fire DB write and streak check in background
     addCheckIn({ userId: currentUser.id, venueId, citySlug: state.city.slug, date: today })
       .then(() => {
@@ -6899,7 +7377,18 @@ async function doGoingTonight(venueId, btn) {
         }
       })
       .catch(() => {});
-    setTimeout(() => maybeOpenPhotoCheckin(venueId), 600);
+    // B1/B2/B4/C1 — the check-in IS the action. This used to auto-open the
+    // photo/caption/tag-friends sheet 600ms later; a brand-new user read that
+    // as a social commitment and backed out by REMOVING the check-in entirely
+    // (observed 2026-08-21: checkin_added → checkin_removed, 5 seconds apart).
+    // Now: a toast with Undo + an optional "Add photo". The sheet comes back on
+    // the 2nd check-in, once they've opted into the habit — and the push ask
+    // rides this moment instead of city entry, where it meant nothing.
+    const _ciN = frBumpCheckinCount();
+    showCheckinToast(venueId, _ciN);
+    if (_ciN >= 2) setTimeout(() => maybeOpenPhotoCheckin(venueId), 700);
+    frMarkDone('checkin');
+    frQueuePushAfterCheckin();
   }
   const count = state.goingCounts[venueId] || 0;
   const nowIn = state.goingByMe.has(venueId);
@@ -7775,10 +8264,17 @@ function _fallbackToFileInput() {
 function openPhotoCheckinPrompt(venueId, venueName) {
   // Close modal first to avoid stacking overlays
   closeOverlay('modalOverlay');
+  // B5 — this sheet was invisible in analytics; its role in the Aug 21
+  // check-in-then-undo had to be inferred from a 5-second timestamp gap.
+  track('checkin_sheet_shown', { venue_id: venueId });
 
   const overlay = document.createElement('div');
   overlay.className = 'overlay';
-  const bail = () => { window._pendingCheckinPhoto = null; window._stagedTagIds = new Set(); dismissOverlay(overlay); _tryPushPromptAfterCheckin(); };
+  const bail = () => {
+    track('checkin_sheet_dismissed', { venue_id: venueId, had_photo: !!window._pendingCheckinPhoto });
+    window._pendingCheckinPhoto = null; window._stagedTagIds = new Set();
+    dismissOverlay(overlay); _tryPushPromptAfterCheckin();
+  };
   overlay.onclick = e => { if (e.target === overlay) bail(); };
 
   // Store for use after camera returns. Reset any leftover state.
@@ -7821,9 +8317,9 @@ function openPhotoCheckinPrompt(venueId, venueName) {
       <textarea class="photo-caption-field" id="photoCaptionField"
         placeholder="Say something… (optional)" rows="2" oninput="_updateCheckinShareLabel()"></textarea>
 
-      <div class="cp-section-label cp-section-label--top">Who's with you?</div>
-      <div class="cp-tag-list" id="tagFriendsGridInline">
-        <div class="cp-pick-empty">Loading friends…</div>
+      <div id="checkinTagSection" style="display:none">
+        <div class="cp-section-label cp-section-label--top">Who's with you?</div>
+        <div class="cp-tag-list" id="tagFriendsGridInline"></div>
       </div>
 
       <div class="checkin-foot">
@@ -7894,20 +8390,18 @@ async function _loadTagFriendsInline(venueId, venueName) {
     if (!grid) return;
     // Defense in depth: exclude self in case self-follow somehow exists
     const ids = (followingIds || []).filter(id => id && id !== currentUser.id);
-    if (!ids.length) {
-      grid.innerHTML = `<div class="cp-pick-empty">Follow people to tag them here.</div>`;
-      return;
-    }
+    // B3 — a first-timer follows nobody, so this section could only ever say
+    // "you have no friends". Hide it entirely rather than showing a dead end.
+    if (!ids.length) return;
     const { data: profiles } = await db.from('profiles')
       .select('id, display_name, avatar_emoji, avatar_url, username')
       .in('id', ids)
       .not('display_name', 'is', null)
       .limit(12);
     const list = (profiles || []).filter(p => p.id !== currentUser.id);
-    if (!list.length) {
-      grid.innerHTML = `<div class="cp-pick-empty">No friends to tag yet — follow people first.</div>`;
-      return;
-    }
+    if (!list.length) return;
+    const _sec = document.getElementById('checkinTagSection');
+    if (_sec) _sec.style.display = '';
     grid.innerHTML = list.map(p => `
       <button class="cp-tag-row" id="tag-chip-${p.id}" type="button"
         onclick="toggleStagedTag('${p.id}','${esc(p.display_name || '')}',this)">
@@ -7916,8 +8410,8 @@ async function _loadTagFriendsInline(venueId, venueName) {
         <span class="cp-tag-row-check" aria-hidden="true"></span>
       </button>`).join('');
   } catch(e) {
-    const grid = document.getElementById('tagFriendsGridInline');
-    if (grid) grid.innerHTML = `<div class="cp-pick-empty">Couldn't load friends right now.</div>`;
+    // Silent — the section stays hidden rather than showing an error where an
+    // optional nicety should be.
   }
 }
 
@@ -7976,6 +8470,9 @@ async function submitCheckin(venueId, venueName) {
   const tagIds  = window._stagedTagIds ? [...window._stagedTagIds] : [];
   const btn     = document.getElementById('checkinShareBtn');
   const overlay = btn?.closest('.overlay');
+  track('checkin_sheet_submitted', {
+    venue_id: venueId, has_photo: !!file, has_caption: !!caption, tags: tagIds.length,
+  });
 
   // Nothing added — close gracefully, no DB write.
   if (!file && !caption && !tagIds.length) {
@@ -9734,6 +10231,9 @@ async function doAppleSignIn() {
     if (error) throw error;
     return { data, error: null };
   } catch(e) {
+    // F2 — Apple is the most-used method in the recent cohort (6 of the last
+    // 12 signups), so a partial failure here is expensive and was invisible.
+    track('login_failed', { method: 'apple', reason: String(e && e.message || e).slice(0, 120) });
     showToast('Error: ' + e.message);
     return { error: { message: e.message } };
   }

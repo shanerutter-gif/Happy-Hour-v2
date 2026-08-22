@@ -166,6 +166,9 @@ function buildPage(post) {
 <title>${title} — Spotd</title>
 <meta name="description" content="${metaDesc}">
 <link rel="canonical" href="${canonicalUrl}">
+<!-- E4: iOS Smart App Banner. Native affordance, converts better on iPhone
+     Safari than a custom card, and costs one meta tag. -->
+<meta name="apple-itunes-app" content="app-id=6760452388, app-argument=${SITE_URL}/">
 
 <meta property="og:type" content="article">
 <meta property="og:url" content="${canonicalUrl}">
@@ -365,7 +368,7 @@ function blogNewsletterSubmit(e){
 <script defer src="/js/consent.js?v=20260725a"></script>
 <script defer src="/js/site-analytics.js?v=20260725a"></script>
 <script>window.__spotdOrganicCity='${String(post.city_slug || '').replace(/[^a-z0-9-]/gi, '')}';</script>
-<script defer src="/js/organic-cta.js?v=20260729a"></script>
+<script defer src="/js/organic-cta.js?v=20260822a"></script>
 </body>
 </html>`;
 }

@@ -8884,3 +8884,138 @@ h1, h2, .sf-hero-venue, .sf-ed-title, .pf-name, .gw-hero__title,
 }
 .cp-iconbtn { display: flex; align-items: center; justify-content: center; }
 .cp-pick-search-icon { display: flex; align-items: center; }
+
+/* ══════════════════════════════════════════════════════════
+   FIRST-RUN EXPERIENCE (2026-08-22)
+   "Start here" card + the header tour button. Appended last per the
+   project rule so these override anything earlier in the cascade.
+   No backdrop-filter anywhere below: the Start here card renders inside
+   the venue list, and per-card blur is what crashed the Public feed.
+   ══════════════════════════════════════════════════════════ */
+
+/* A3 — icon-only "how it works" button. Lives in the city bar, not the actions
+   row: that row already holds three flex-shrink:0 pills and a fourth overflows
+   at 393px. On mobile it sits hard right (the desktop nav is hidden there); on
+   desktop it just follows the city pill. */
+.tour-toggle {
+  display: flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; flex: 0 0 auto; margin-left: auto;
+  border: none; border-radius: 50%;
+  background: var(--card); color: var(--muted);
+  cursor: pointer; padding: 0;
+  box-shadow: var(--clay-sm);
+  transition: transform .16s var(--ease-bounce), color .16s ease;
+}
+.tour-toggle:active { transform: scale(.92); color: var(--coral); }
+@media (min-width: 1024px) { .tour-toggle { margin-left: 4px; margin-right: 4px; } }
+
+/* A6 — the one unmissable spot at the top of a first-timer's feed */
+.fr-starthere { grid-column: 1 / -1; margin: 2px 0 14px; }
+.fr-sh-kicker {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 11px; font-weight: 800; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--coral);
+  margin: 0 2px 8px;
+}
+.fr-sh-x {
+  background: none; border: none; color: var(--muted);
+  font-size: 19px; line-height: 1; padding: 2px 6px; cursor: pointer;
+}
+.fr-sh-card {
+  position: relative; overflow: hidden; cursor: pointer;
+  border-radius: 22px; min-height: 236px;
+  background: var(--bg2);
+  box-shadow: 0 10px 30px rgba(42,31,20,0.16);
+  transition: transform .16s var(--ease-bounce);
+}
+.fr-sh-card:active { transform: scale(.975); }
+.fr-sh-img {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%; object-fit: cover; display: block;
+}
+.fr-sh-scrim {
+  position: absolute; inset: 0;
+  background: linear-gradient(to top, rgba(20,14,8,.92) 0%, rgba(20,14,8,.55) 42%, rgba(20,14,8,.06) 100%);
+}
+.fr-sh-body {
+  position: relative; z-index: 1;
+  display: flex; flex-direction: column; gap: 5px;
+  padding: 96px 16px 15px; color: #fff;
+}
+.fr-sh-live {
+  display: inline-flex; align-items: center; gap: 6px; align-self: flex-start;
+  font-size: 11.5px; font-weight: 700;
+  background: rgba(46,204,113,.22); color: #C8F5DC;
+  border: 1px solid rgba(200,245,220,.34);
+  border-radius: 999px; padding: 4px 10px 4px 8px;
+}
+.fr-sh-meta { font-size: 12px; font-weight: 600; opacity: .8; }
+.fr-sh-name { font-size: 23px; font-weight: 800; line-height: 1.15; letter-spacing: -.02em; }
+.fr-sh-deal {
+  font-size: 13.5px; opacity: .9; line-height: 1.35;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.fr-sh-actions { display: flex; align-items: center; gap: 10px; margin-top: 9px; }
+.fr-sh-open {
+  flex: 1; font-size: 13.5px; font-weight: 700;
+  color: #fff; opacity: .92;
+}
+.fr-sh-checkin {
+  flex: 0 0 auto; border: none; cursor: pointer;
+  font-family: inherit; font-size: 13.5px; font-weight: 800;
+  color: #fff; border-radius: 999px; padding: 10px 16px;
+  background: linear-gradient(135deg, var(--coral), var(--amber));
+  box-shadow: 0 4px 14px rgba(255,107,74,.36);
+  transition: transform .16s var(--ease-bounce);
+}
+.fr-sh-checkin:active { transform: scale(.94); }
+.fr-sh-checkin.going-active { background: rgba(255,255,255,.2); box-shadow: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .fr-sh-card, .fr-sh-checkin, .tour-toggle { transition: none; }
+}
+
+/* B4 — actionable toast (Undo / Add photo). The base .toast is
+   pointer-events:none + nowrap, so both are overridden here. */
+.toast--action {
+  display: flex; align-items: center; flex-wrap: nowrap; gap: 6px;
+  pointer-events: auto;                 /* base .toast is pointer-events:none */
+  padding: 8px 8px 8px 16px;
+  max-width: min(94vw, 420px);
+  box-sizing: border-box;
+}
+/* Stay on one line — these messages are short, and letting the label wrap
+   squeezed the action pills into an unreadable stack. */
+.toast--action .toast-msg { flex: 0 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.toast--action .toast-btn {
+  flex: 0 0 auto; cursor: pointer;
+  font-family: inherit; font-size: 12.5px; font-weight: 800;
+  color: #fff; letter-spacing: -0.2px;
+  background: rgba(255,255,255,0.16);
+  border: 1px solid rgba(255,255,255,0.16);
+  border-radius: 999px; padding: 8px 12px; white-space: nowrap;
+  transition: transform .14s var(--ease-bounce), background .14s ease;
+}
+.toast--action .toast-btn:active { transform: scale(.93); background: rgba(255,255,255,0.26); }
+
+/* D3 — one-question attribution re-ask sheet */
+.fr-attr-sheet { padding-bottom: calc(18px + env(safe-area-inset-bottom)); }
+.fr-attr-title { font-size: 19px; font-weight: 800; letter-spacing: -.02em; margin: 4px 0 4px; color: var(--text); }
+.fr-attr-sub { font-size: 13.5px; color: var(--muted); margin-bottom: 16px; }
+.fr-attr-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.fr-attr-opt {
+  display: flex; align-items: center; gap: 9px;
+  font-family: inherit; font-size: 14px; font-weight: 700; color: var(--text);
+  background: var(--card); border: 1px solid var(--border2);
+  border-radius: 14px; padding: 13px 14px; cursor: pointer; text-align: left;
+  transition: transform .16s var(--ease-bounce);
+}
+.fr-attr-opt:active { transform: scale(.95); }
+.fr-attr-ic { font-size: 17px; line-height: 1; }
+.fr-attr-skip {
+  display: block; width: 100%; margin-top: 14px;
+  background: none; border: none; cursor: pointer;
+  font-family: inherit; font-size: 13.5px; font-weight: 600; color: var(--muted);
+  padding: 10px;
+}
+@media (prefers-reduced-motion: reduce) { .fr-attr-opt { transition: none; } }

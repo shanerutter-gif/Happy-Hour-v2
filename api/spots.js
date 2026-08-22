@@ -173,6 +173,9 @@ function buildPage(venue, reviews, allVenues) {
 <title>${name}${hood ? ` — ${esc(venue.neighborhood)}` : ''} | Happy Hour & Deals — Spotd</title>
 <meta name="description" content="${esc(metaDesc)}">
 <link rel="canonical" href="${SITE_URL}/spots/${venueSlug}">
+<!-- E4: iOS Smart App Banner. Native affordance, converts better on iPhone
+     Safari than a custom card, and costs one meta tag. -->
+<meta name="apple-itunes-app" content="app-id=6760452388, app-argument=${SITE_URL}/?spot=${encodeURIComponent(venue.id)}">
 
 <!-- Open Graph -->
 <meta property="og:type" content="place">
@@ -426,8 +429,8 @@ ${venue.lat && venue.lng ? `<meta property="place:location:latitude" content="${
 
 <script defer src="/js/consent.js?v=20260725a"></script>
 <script defer src="/js/site-analytics.js?v=20260725a"></script>
-<script>window.__spotdOrganicCity='${String(venue.city_slug || '').replace(/[^a-z0-9-]/gi, '')}';</script>
-<script defer src="/js/organic-cta.js?v=20260729a"></script>
+<script>window.__spotdOrganicCity='${String(venue.city_slug || '').replace(/[^a-z0-9-]/gi, '')}';window.__spotdOrganicVenue='${String(venue.id || '').replace(/[^0-9a-f-]/gi, '')}';</script>
+<script defer src="/js/organic-cta.js?v=20260822a"></script>
 </body>
 </html>`;
 }
