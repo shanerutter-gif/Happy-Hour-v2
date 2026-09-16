@@ -4,7 +4,18 @@
    ═══════════════════════════════════════════════════════ */
 
 const DAYS    = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-const TODAY   = DAYS[new Date().getDay()];
+let   TODAY   = DAYS[new Date().getDay()];
+// A nightlife app is routinely left open past midnight — recompute "today"
+// whenever the app comes back to the foreground so day chips / happy-hour
+// windows don't stay stuck on yesterday until relaunch.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') return;
+  const t = DAYS[new Date().getDay()];
+  if (t === TODAY) return;
+  TODAY = t;
+  try { _hhNowAt = 0; } catch (e) {}
+  try { if (typeof state !== 'undefined' && state.city && typeof applyFilters === 'function') applyFilters(); } catch (e) {}
+});
 
 // Parse just today's hours from the full hours string
 // Handles both "Mon–Thu 5–9pm" and "11am – 10pm Mon–Thu" formats
@@ -230,6 +241,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const deepParams = new URLSearchParams(window.location.search);
   const listId = deepParams.get('list');
   const spotId = deepParams.get('spot');
+  // /?happening=1 — the daily push's deep link: open Discover with the
+  // "Happening now" filter on.
+  const wantHappening = deepParams.get('happening') === '1';
+  const _applyHappeningDeepLink = () => {
+    if (!wantHappening) return;
+    window.history.replaceState({}, document.title, window.location.pathname);
+    if (!state.happeningNow) toggleHappeningNow();
+  };
 
   // Auto-enter last city (or default San Diego) if user is signed in
   if (currentUser) {
@@ -243,6 +262,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Deep-link: /?spot=<uuid> opens venue modal directly (used by SEO venue pages)
         window.history.replaceState({}, document.title, window.location.pathname);
         openModal(spotId, 'venue');
+      } else {
+        _applyHappeningDeepLink();
       }
     });
   } else {
@@ -258,6 +279,9 @@ document.addEventListener('DOMContentLoaded', () => {
         window.history.replaceState({}, document.title, window.location.pathname);
         openModal(spotId, 'venue');
       });
+    } else if (wantHappening) {
+      const last = CITIES.find(c => c.slug === localStorage.getItem('spotd-last-city') && c.active) || city;
+      enterCity(last.slug, last.name, last.state_code).then(_applyHappeningDeepLink);
     } else if (window._organicSignup) {
       // Organic signup funnel: land in the SEO page's city (set into
       // 'spotd-last-city' above) with the signup sheet open on top. If they
@@ -652,27 +676,24 @@ function openSocialTab() {
   checkSocialNotifications();
 }
 
+// First-time nudge on the Share tab — an inline, dismissible banner at the
+// top of the feed (was a centered "Got it" modal with a "1 reminder left"
+// counter). Never shown to anyone who has already checked in or posted.
 function maybeShowSocialNudge() {
   const KEY = 'spotd_social_nudge';
-  const seen = parseInt(localStorage.getItem(KEY) || '0', 10);
-  if (seen >= 3) return;
-  localStorage.setItem(KEY, String(seen + 1));
-  // Small delay so the feed loads behind the modal
-  setTimeout(() => {
-    const overlay = document.createElement('div');
-    overlay.id = 'socialNudgeOverlay';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:600;background:rgba(42,31,20,0.55);display:flex;align-items:center;justify-content:center;padding:24px;backdrop-filter:blur(3px);animation:fadeInOverlay .2s ease';
-    overlay.innerHTML = `
-      <div style="background:var(--card);border-radius:20px;padding:28px 24px;max-width:320px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(42,31,20,0.18);animation:scaleInModal .22s ease">
-        <div style="font-size:32px;margin-bottom:10px">${icn('camera',32)}</div>
-        <div style="font-family:'Cabinet Grotesk',sans-serif;font-size:19px;font-weight:900;margin-bottom:8px;color:var(--text)">Share your night out</div>
-        <div style="font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:20px">Check in at a spot and add a photo — it shows up in this feed for everyone in the city.</div>
-        <button onclick="document.getElementById('socialNudgeOverlay').remove()" style="width:100%;padding:13px;background:var(--coral);color:#fff;border:none;border-radius:12px;font-family:'Cabinet Grotesk',sans-serif;font-size:15px;font-weight:700;cursor:pointer">Got it</button>
-        ${seen < 2 ? `<div style="font-size:11px;color:var(--muted);margin-top:8px">${2 - seen} reminder${2 - seen !== 1 ? 's' : ''} left</div>` : ''}
-      </div>`;
-    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
-    presentOverlay(overlay);
-  }, 400);
+  if (localStorage.getItem(KEY) === 'done') return;
+  if (localStorage.getItem('spotd-loops-activated') || (state.todayCheckInCount || 0) > 0) { localStorage.setItem(KEY, 'done'); return; }
+  if (currentUser && _socialItems.some(i => i.user_id === currentUser.id)) { localStorage.setItem(KEY, 'done'); return; }
+  const feed = document.getElementById('socialFeedContent');
+  if (!feed || document.getElementById('socialNudgeBanner')) return;
+  const b = document.createElement('div');
+  b.id = 'socialNudgeBanner';
+  b.className = 'sf-nudge';
+  b.innerHTML = `
+    <span class="sf-nudge-ic">${icn('camera',18)}</span>
+    <div class="sf-nudge-txt"><b>Share your night out</b><span>Check in at a spot and add a photo — it shows up here for everyone in ${esc(state.city?.name || 'your city')}.</span></div>
+    <button class="sf-nudge-x" aria-label="Dismiss" onclick="localStorage.setItem('spotd_social_nudge','done');this.closest('.sf-nudge').remove()">✕</button>`;
+  feed.parentNode.insertBefore(b, feed);
 }
 function closeSocialTab() {
   document.getElementById('socialTab').classList.remove('tab-open');
@@ -1091,7 +1112,7 @@ async function submitSpotExperience() {
 
     // If linked to a real venue, also create a check-in and review
     if (linkedVenueId) {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = localDateKey();
       // Add check-in (ignore if duplicate)
       await db.from('check_ins').upsert({
         user_id: currentUser.id,
@@ -1327,8 +1348,16 @@ async function renderTrendingTab() {
   container.innerHTML = _socialFeedSkeletonHTML();
   try {
     const citySlug = state.city?.slug || 'san-diego';
-    const trending = await db.rpc('trending_posts', { p_city_slug: citySlug, p_days: 7, p_limit: 30 });
-    const rows = (trending && trending.data) || [];
+    let trending = await db.rpc('trending_posts', { p_city_slug: citySlug, p_days: 7, p_limit: 30 });
+    let rows = (trending && trending.data) || [];
+    let trendingLabel = 'Top posts in the last 7 days';
+    if (!rows.length) {
+      // Nothing qualified this week → fall back to the month so the tab never
+      // sits empty for weeks at a time.
+      trending = await db.rpc('trending_posts', { p_city_slug: citySlug, p_days: 30, p_limit: 30 });
+      rows = (trending && trending.data) || [];
+      trendingLabel = 'Most liked this month';
+    }
     if (!rows.length) {
       container.innerHTML = `<div class="social-empty"><div class="social-empty-icon">🔥</div><div class="social-empty-title">Nothing trending yet</div><div class="social-empty-sub">Once posts pick up likes and comments, they'll surface here.</div></div>`;
       _feedEnter(container);
@@ -1388,7 +1417,7 @@ async function renderTrendingTab() {
       i.tagged_friends = (i.post_id_raw && tagsByPost[i.post_id_raw]) || [];
     });
 
-    let html = `<div style="padding:10px 16px 4px;font-size:12px;color:var(--muted);font-weight:600">Top posts in the last 7 days</div>`;
+    let html = `<div class="sf-feed-divider">${trendingLabel}</div>`;
     items.forEach(item => {
       if (item.type === 'editorial') { html += renderSocialItem(item, 'editorial'); return; }
       const hasMedia = item.type === 'photo' || (item.media_urls && item.media_urls.length) || item.photo_url;
@@ -1469,11 +1498,26 @@ function renderSocialTab(tab) {
   // Pinned editorial(s) at the top
   pinned.forEach(item => { html += renderSocialItem(item, 'editorial'); });
 
-  filtered.forEach(item => {
+  const renderOne = item => {
     if (item.type === 'editorial') { html += renderSocialItem(item, 'editorial'); return; }
     const hasMedia = item.type === 'photo' || (item.type === 'check_in' && (item.meta?.photo_url || item.meta?.video_url)) || (item.media_urls && item.media_urls.length);
     html += renderSocialItem(item, hasMedia ? 'hero' : 'wide');
-  });
+  };
+  filtered.forEach(renderOne);
+
+  // A thin Following feed (fewer than 5 recent posts) gets topped up with the
+  // city's public posts under a divider, so it never looks dead.
+  if (tab === 'following') {
+    const fortnight = Date.now() - 14 * 86400000;
+    const recent = filtered.filter(i => Date.parse(i.created_at || 0) >= fortnight).length;
+    if (recent < 5) {
+      const extra = _socialItems.filter(i => !i.isFollowing && !pinned.some(p => p.id === i.id) && !filtered.some(f => f.id === i.id)).slice(0, 20);
+      if (extra.length) {
+        html += `<div class="sf-feed-divider">From around ${esc(state.city?.name || 'the city')}</div>`;
+        extra.forEach(renderOne);
+      }
+    }
+  }
 
   container.innerHTML = html;
   _feedEnter(container);
@@ -2148,16 +2192,25 @@ function toggleCityDropdown() {
   }).join('');
   dd.classList.add('open');
   pill.classList.add('open');
-  // Close on outside click
-  setTimeout(() => {
-    document.addEventListener('click', function _close(e) {
-      if (!e.target.closest('.city-selector-wrap')) {
-        dd.classList.remove('open');
-        pill.classList.remove('open');
-        document.removeEventListener('click', _close);
-      }
-    });
-  }, 0);
+  _bindOutsideClose('.city-selector-wrap', () => {
+    dd.classList.remove('open');
+    pill.classList.remove('open');
+  });
+}
+
+// Outside-tap closer for popovers. Registered on POINTERDOWN (capture), not
+// click: on iOS a tap can yield both a touch-driven and a synthesized click,
+// so a {once:true} click closer would fire on the trigger's own second click
+// and eat the next tap (the city pill needed up to five taps). Taps inside
+// `keepSel` are ignored so the trigger/menu handle themselves.
+let _outsideCloseUnbind = null;
+function _bindOutsideClose(keepSel, onClose) {
+  if (_outsideCloseUnbind) _outsideCloseUnbind();
+  const h = (e) => { if (e.target.closest && e.target.closest(keepSel)) return; unbind(); onClose(); };
+  const unbind = () => { document.removeEventListener('pointerdown', h, true); if (_outsideCloseUnbind === unbind) _outsideCloseUnbind = null; };
+  _outsideCloseUnbind = unbind;
+  setTimeout(() => document.addEventListener('pointerdown', h, true), 0);
+  return unbind;
 }
 
 // Desktop top-nav "More" dropdown (Blog / For Business / legal pages etc.)
@@ -2292,16 +2345,16 @@ async function enterCity(slug, name, stateCode) {
   }
 
   function _requestLocation() {
-    if (!navigator.geolocation) { _defaultToAZ(); return; }
+    if (!navigator.geolocation && !_isCapacitorNative()) { _defaultToAZ(); return; }
     _activateNearest();
     if (nearBtn) { nearBtn.innerHTML = `${ICN.pin} Locating…`; nearBtn.disabled = true; }
-    navigator.geolocation.getCurrentPosition(
+    _getCurrentPosition(
       pos => {
         state.userLat = pos.coords.latitude;
         state.userLng = pos.coords.longitude;
         localStorage.setItem('spotd-location-granted', 'yes');
         localStorage.removeItem('spotd-location-deny-count');
-        try { localStorage.setItem('spotd-user-location', JSON.stringify({ lat: state.userLat, lng: state.userLng })); } catch(e) {}
+        try { localStorage.setItem('spotd-user-location', JSON.stringify({ lat: state.userLat, lng: state.userLng, at: Date.now() })); } catch(e) {}
         if (nearBtn) { nearBtn.innerHTML = `${ICN.pin} Nearest`; nearBtn.disabled = false; }
         applyFilters();
       },
@@ -2318,11 +2371,13 @@ async function enterCity(slug, name, stateCode) {
     // Permission already granted — render cards immediately with cached/AZ sort,
     // then silently get fresh coords and re-sort when ready
     const cached = localStorage.getItem('spotd-user-location');
+    let cachedAt = 0;
     if (cached) {
       try {
         const loc = JSON.parse(cached);
         state.userLat = loc.lat;
         state.userLng = loc.lng;
+        cachedAt = loc.at || 0;
       } catch(e) {}
     }
     // Render cards NOW (with cached location or A-Z if no cache)
@@ -2330,8 +2385,10 @@ async function enterCity(slug, name, stateCode) {
       _activateNearest();
     }
     applyFilters();
-    // Then fetch fresh GPS in background and re-sort
-    _requestLocation();
+    // Then fetch fresh GPS in background and re-sort — but not on every city
+    // switch: a fix from the last 20 minutes is plenty for "nearest", and each
+    // request can surface a permission dialog. Nearest/Locate-me always refresh.
+    if (Date.now() - cachedAt > 20 * 60 * 1000) _requestLocation();
   } else {
     // Not yet granted — check if we should ask on this open
     const denyCount = parseInt(localStorage.getItem('spotd-location-deny-count'), 10);
@@ -2725,7 +2782,15 @@ function hhActive(v) {
     if (!isOpen) return null; // doors are shut → not "happening"
   }
   let best = null;
+  // A "happy hour" that spans (almost) the whole day at a venue open 8h+ is
+  // the operating hours mis-filed as a deal, not an all-day special — treat
+  // it as no HH data rather than lighting the venue up all day.
+  const openLen = open ? open.end - open.start : 0;
   for (const w of windows) {
+    if (open && openLen >= 8 * 60) {
+      const overlap = Math.min(w.end, open.end) - Math.max(w.start, open.start);
+      if (overlap >= 0.9 * openLen) continue;
+    }
     // Same-day portion. Skip windows starting before the venue opens — that's
     // bogus data, not a real happy hour.
     if (!(open && w.start < open.start)) {
@@ -2838,7 +2903,17 @@ function closeNightPlanner() { closeOverlay('nightPlannerOverlay'); }
 function _npHoods() {
   const counts = {};
   for (const v of state.venues) { if (v.neighborhood) counts[v.neighborhood] = (counts[v.neighborhood] || 0) + 1; }
-  return Object.keys(counts).sort().map(name => ({ name, count: counts[name] }));
+  // Busiest neighborhoods first (not alphabetical) — the top of a ~65-chip list
+  // should be where the venues actually are. Ties break by name.
+  return Object.keys(counts)
+    .map(name => ({ name, count: counts[name] }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+}
+const NP_HOODS_VISIBLE = 12;
+function npShowAllHoods(btn) {
+  if (typeof haptic === 'function') haptic('light');
+  btn.closest('.np-chips')?.classList.add('np-chips--all');
+  btn.remove();
 }
 
 function _npRenderForm() {
@@ -2847,9 +2922,13 @@ function _npRenderForm() {
   // contain apostrophes/quotes that esc() turns into entities the HTML parser
   // decodes back, which would break an inline string arg.
   npState._hoodNames = hoods.map(h => h.name);
+  // Top N by venue count up front; the long tail collapses behind "Show all"
+  // (selected chips always stay visible).
   const hoodChips = hoods.map((h, i) =>
-    `<button class="np-chip ${npState.hoods.has(h.name) ? 'active' : ''}" onclick="npToggleHood(${i},this)">${esc(h.name)} <span class="np-chip-n">${h.count}</span></button>`
-  ).join('');
+    `<button class="np-chip ${npState.hoods.has(h.name) ? 'active' : ''}${i >= NP_HOODS_VISIBLE && !npState.hoods.has(h.name) ? ' np-chip--more' : ''}" onclick="npToggleHood(${i},this)">${esc(h.name)} <span class="np-chip-n">${h.count}</span></button>`
+  ).join('') + (hoods.length > NP_HOODS_VISIBLE
+    ? `<button class="np-chip np-chip--showall" onclick="npShowAllHoods(this)">Show all ${hoods.length} ›</button>` : '');
+  const late = hhNow().min >= 21 * 60;
   const vibeChips = NIGHT_VIBES.map(v =>
     `<button class="np-chip ${npState.vibes.has(v.id) ? 'active' : ''}" onclick="npToggleVibe('${v.id}',this)"><span class="np-chip-emoji">${v.emoji}</span> ${v.label}</button>`
   ).join('');
@@ -2866,7 +2945,7 @@ function _npRenderForm() {
   document.getElementById('nightPlannerBody').innerHTML = `
     <div class="np-head">
       <div class="np-title">🌙 Plan my night out</div>
-      <div class="np-sub">Tell us the vibe in ${esc(state.city?.name || 'your city')} — we'll build the route.</div>
+      <div class="np-sub">Tell us the vibe in ${esc(state.city?.name || 'your city')} — we'll build the route.${late ? '<br><span class="np-late">🌃 Late-night mode — we\'ll favor spots that are open right now.</span>' : ''}</div>
     </div>
     <div class="np-scroll">
       <div class="np-section">
@@ -2914,9 +2993,25 @@ function _npVibeSignal() {
   return { qCompact: '', tokens: [], kw: [...kw], amen: [...amen] };
 }
 
+// Time-of-day awareness: a 10:30 PM plan shouldn't be built from 4–6pm happy
+// hours at places that are already closed.
+function _npTimeScore(v) {
+  let s = 0;
+  const open = venueOpenWindow(v);
+  const { day, min } = hhNow();
+  if (open === 'closed') return -30;
+  if (open) {
+    const isOpen = (min >= open.start && min < open.end) || (min + 1440 >= open.start && min + 1440 < open.end);
+    s += isOpen ? 20 : -15;
+  }
+  if (hhActive(v)) s += 30;
+  else if (parseHHWindows(v).some(w => w.days.has(day) && w.end <= 1440 && w.end <= min)) s -= 10; // HH already over today
+  return s;
+}
 function _npScore(v, signal) {
   let score = 10; // base so a no-vibe plan still ranks by quality
   if (signal.kw.length || signal.amen.length) score += scoreVenueForSearch(v, signal);
+  score += _npTimeScore(v);
   // Price feel — soft: reward a match, lightly nudge a mismatch, keep unknowns.
   if (npState.price && v.price_level != null) {
     if (v.price_level === npState.price) score += 14;
@@ -3006,7 +3101,10 @@ function _npLeg(a, b) {
 }
 
 function _npMatchTag(v) {
-  // Surface why this venue was picked (the strongest matching vibe).
+  // Label the stop by what the place IS (its category) — a steakhouse tagged
+  // "Cocktails" because that vibe was selected reads wrong. The vibe is the
+  // fallback when the venue has no category.
+  if (v.cuisine) return esc(v.cuisine);
   for (const vibe of NIGHT_VIBES) {
     if (!npState.vibes.has(vibe.id)) continue;
     const c = CONCEPT_MAP[vibe.id];
@@ -3268,7 +3366,20 @@ function applyFilters() {
   // Smart search ranks the hard-filtered survivors by relevance (concept-aware
   // + typo tolerant) and drops zero-score venues. When active, it owns the order
   // (relevance, then featured/rating tiebreak) — the normal sort block is skipped.
-  if (parsedSearch) {
+  // A query with no usable tokens (a single letter, or only stopwords) used to
+  // score every venue 0 and empty the list on the first keystroke. Single
+  // letters now do a plain name/word-prefix match; stopword-only queries are
+  // treated as no query at all.
+  const bareSearch = !!parsedSearch && !parsedSearch.tokens.length && !parsedSearch.kw.length && !parsedSearch.amen.length;
+  const searchRanked = !!parsedSearch && !bareSearch;
+  if (bareSearch && parsedSearch.qCompact.length === 1) {
+    const c = parsedSearch.qCompact;
+    state.filtered = state.filtered.filter(v => {
+      const n = (v.name || '').toLowerCase();
+      return n.startsWith(c) || n.split(/\s+/).some(w => w.startsWith(c));
+    });
+  }
+  if (searchRanked) {
     const scored = [];
     for (const v of state.filtered) {
       const s = scoreVenueForSearch(v, parsedSearch);
@@ -3286,7 +3397,7 @@ function applyFilters() {
   }
 
   // Sort
-  if (parsedSearch) {
+  if (searchRanked) {
     // Already ranked by relevance above — leave the order intact.
   } else if (state.happeningNow) {
     // Most urgent first — whose happy hour ends soonest.
@@ -3316,11 +3427,39 @@ function applyFilters() {
   // toggled map view (mobile) or the always-on desktop two-pane right pane.
   if (state.map && (state.view === 'map' || isTwoPane())) updateMapMarkers();
   const rc = document.getElementById('resultsCount');
-  if (rc) rc.textContent = state.happeningNow
-    ? `${state.filtered.length} happy hour${state.filtered.length === 1 ? '' : 's'} on right now`
-    : `${state.filtered.length} of ${pool.length} venues`;
+  if (rc) {
+    rc.textContent = state.happeningNow
+      ? `${state.filtered.length} happy hour${state.filtered.length === 1 ? '' : 's'} on right now`
+      : `${state.filtered.length} of ${pool.length} venues`;
+    // Nearest is the default sort but nothing said so (and cards reorder once
+    // location resolves) — caption it.
+    if (!state.happeningNow && !searchRanked && state.sort === 'distance' && state.userLat != null) {
+      rc.insertAdjacentHTML('beforeend', '<span class="results-sort"> · nearest first</span>');
+    }
+  }
 }
 // ── SORT & GEO ────────────────────────────────────────
+// Native-first geolocation. Inside the Capacitor shell, navigator.geolocation
+// makes WKWebView show a SECOND browser-style "www.spotd.biz would like to use
+// your current location" dialog on top of the native permission the app
+// already holds (and "Don't Allow" there is remembered per-origin). The
+// Capacitor Geolocation plugin routes through CLLocationManager instead.
+// Falls back to the web API on the website or in an app build that doesn't
+// ship @capacitor/geolocation.
+function _getCurrentPosition(onOk, onErr, opts) {
+  const plugin = _isCapacitorNative() && window.Capacitor?.Plugins?.Geolocation;
+  if (plugin && typeof plugin.getCurrentPosition === 'function') {
+    plugin.getCurrentPosition({ enableHighAccuracy: false, timeout: opts?.timeout || 6000, maximumAge: opts?.maximumAge || 60000 })
+      .then(pos => onOk(pos))
+      .catch(err => { if (onErr) onErr(err); });
+    return;
+  }
+  if (!navigator.geolocation) { if (onErr) onErr(new Error('Geolocation unsupported')); return; }
+  navigator.geolocation.getCurrentPosition(onOk, onErr, opts);
+}
+function _isIOSDevice() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
 function haversine(lat1, lng1, lat2, lng2) {
   if (lat2 == null || lng2 == null) return Infinity;
   const R = 3958.8; // miles
@@ -3330,6 +3469,12 @@ function haversine(lat1, lng1, lat2, lng2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
+// "0.4 mi" for the card meta line — only when the feed is actually sorted by
+// distance and we have a fix, so the default sort isn't silently implied.
+function cardDistance(v) {
+  if (state.sort !== 'distance' || state.userLat == null || v.lat == null) return '';
+  return fmtDistance(haversine(state.userLat, state.userLng, v.lat, v.lng));
+}
 function fmtDistance(miles) {
   if (miles === Infinity || miles == null) return '';
   if (miles < 0.1) return 'Here';
@@ -3346,13 +3491,13 @@ function setSort(val, btn) {
   if (val === 'distance') {
     btn.innerHTML = `${ICN.pin} Locating…`;
     btn.disabled = true;
-    navigator.geolocation.getCurrentPosition(
+    _getCurrentPosition(
       pos => {
         state.userLat = pos.coords.latitude;
         state.userLng = pos.coords.longitude;
         localStorage.setItem('spotd-location-granted', 'yes');
         localStorage.removeItem('spotd-location-deny-count');
-        try { localStorage.setItem('spotd-user-location', JSON.stringify({ lat: state.userLat, lng: state.userLng })); } catch(e) {}
+        try { localStorage.setItem('spotd-user-location', JSON.stringify({ lat: state.userLat, lng: state.userLng, at: Date.now() })); } catch(e) {}
         btn.innerHTML = `${ICN.pin} Nearest`;
         btn.disabled = false;
         applyFilters();
@@ -3515,6 +3660,10 @@ function _renderCardsNow() {
     }
   }
 
+  // "+ Request a Venue" lives at the END of the feed (and in the empty-search
+  // state), not in the header — it was the fourth row of chrome above the
+  // first card.
+  html += `<div class="feed-footer"><div class="feed-footer-txt">Know a spot we're missing?</div><button class="request-venue-btn request-venue-btn--empty" onclick="openRequestVenue()">+ Request a Venue</button></div>`;
   grid.innerHTML = html;
 
   // Attach delegated click handler once for reliable iOS taps
@@ -3568,8 +3717,8 @@ function heroCardHTML(v, delay, idx = 0) {
   if (v.has_sports_tv)  badges.push(`<span class="badge badge-sports">📺</span>`);
   if (v.owner_verified) badges.push(`<span class="badge badge-verified">✓</span>`);
 
-  // Deals as glass pills (max 3)
-  const deals = (v.deals || []).slice(0, 3).map(d =>
+  // Deals as glass pills (max 2 — name → meta → deals → CTA, one hierarchy)
+  const deals = (v.deals || []).slice(0, 2).map(d =>
     `<span class="card-hero-deal">${esc(d)}</span>`
   ).join('');
 
@@ -3599,13 +3748,10 @@ function heroCardHTML(v, delay, idx = 0) {
     <div class="card-hero-badges">${badges.join('')}</div>
     <div class="card-hero-info">
       <div class="card-hero-name">${esc(v.name)}</div>
-      <div class="card-hero-meta">
-        <span>${esc(v.neighborhood || '')}</span>
-        <span class="dot"></span>
-        <span>${esc(v.cuisine || '')}</span>
-        ${todayH ? `<span class="dot"></span><span>${esc(todayH)}</span>` : ''}
-        ${v.yelp_rating ? `<span class="dot"></span><span>★ ${v.yelp_rating}</span>` : avg > 0 ? `<span class="dot"></span><span>★ ${avg.toFixed(1)}</span>` : ''}
-      </div>
+      <div class="card-hero-meta">${[
+          v.neighborhood, v.cuisine, cardDistance(v), todayH,
+          v.yelp_rating ? `★ ${v.yelp_rating}` : (avg > 0 ? `★ ${avg.toFixed(1)}` : ''),
+        ].filter(Boolean).map(x => `<span>${esc(x)}</span>`).join('<span class="dot"></span>')}</div>
       ${hhBadgeHTML(v)}
       <div class="card-hero-deals">${deals}</div>
       ${eventChipsHTML(v)}
@@ -3645,7 +3791,7 @@ function compactCardHTML(v, delay) {
     ${badge}
     <div class="card-compact-info">
       <div class="card-compact-name">${esc(v.name)}</div>
-      <div class="card-compact-sub">${esc(v.cuisine || '')}${v.yelp_rating ? ` · ★ ${v.yelp_rating}` : avg > 0 ? ` · ★ ${avg.toFixed(1)}` : ''}${count > 0 ? ` · 🔥 ${count}` : ''}</div>
+      <div class="card-compact-sub">${[v.cuisine, cardDistance(v), v.yelp_rating ? `★ ${v.yelp_rating}` : (avg > 0 ? `★ ${avg.toFixed(1)}` : ''), count > 0 ? `🔥 ${count}` : ''].filter(Boolean).map(esc).join(' · ')}</div>
       ${hhBadgeHTML(v)}
       ${dealsHtml}
       ${eventChipsHTML(v)}
@@ -3687,7 +3833,7 @@ function standardCardHTML(v, delay, first = false) {
     ${photoEl}
     <div class="card-std-body">
       <div class="card-std-name">${esc(v.name)}</div>
-      <div class="card-std-meta">${esc(v.neighborhood || '')} · ${esc(v.cuisine || '')}${todayH ? ' · ' + esc(todayH) : ''}</div>
+      <div class="card-std-meta">${[v.neighborhood, v.cuisine, todayH, cardDistance(v)].filter(Boolean).map(esc).join(' · ')}</div>
       ${hhBadgeHTML(v)}
       ${deals.length ? deals.map(d => `<div class="card-std-deal">${esc(d)}</div>`).join('') : ''}
       ${eventChipsHTML(v)}
@@ -3855,27 +4001,27 @@ function renderModal(v, type, reviews) {
     </div>`}
 
     <div class="modal-actions-grid">
-      <div class="modal-action primary" onclick="openVenueWebsite('${v.id}')">
+      <div class="modal-action primary" onclick="getDirections(${v.lat || 'null'}, ${v.lng || 'null'}, '${esc((v.name || '').replace(/'/g, "\\'"))}')">
+        <span class="modal-action-icon">${icn('map',20)}</span>
+        <span class="modal-action-label">Directions</span>
+      </div>
+      <div class="modal-action" onclick="openVenueWebsite('${v.id}')">
         <span class="modal-action-icon">${icn('globe',20)}</span>
         <span class="modal-action-label">Website</span>
       </div>
-      <div class="modal-action" onclick="getDirections(${v.lat || 'null'}, ${v.lng || 'null'}, '${esc((v.name || '').replace(/'/g, "\\'"))}')">
-        <span class="modal-action-icon" style="background:var(--bg2);border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center">${icn('map',20)}</span>
-        <span class="modal-action-label">Directions</span>
-      </div>
-      <div class="modal-action share" onclick="shareItem('${v.id}','${type}')">
+      <div class="modal-action" onclick="shareItem('${v.id}','${type}')">
         <span class="modal-action-icon">${icn('share',20)}</span>
         <span class="modal-action-label">Share</span>
       </div>
       ${currentUser ? `<div class="modal-action" onclick="dmOpenVenueSharePicker('${v.id}')">
-        <span class="modal-action-icon" style="background:var(--bg2);border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center">${icn('comment',20)}</span>
+        <span class="modal-action-icon">${icn('comment',20)}</span>
         <span class="modal-action-label">Send</span>
       </div>` : `<div class="modal-action" onclick="openAuth('signin','venue')">
-        <span class="modal-action-icon" style="background:var(--bg2);border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center">${icn('bell',20)}</span>
+        <span class="modal-action-icon">${icn('bell',20)}</span>
         <span class="modal-action-label">Alerts</span>
       </div>`}
       ${isVenue ? `<div class="modal-action" onclick="openAddToList('${v.id}')">
-        <span class="modal-action-icon" style="background:var(--bg2);border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center">${icn('bookmark',20)}</span>
+        <span class="modal-action-icon">${icn('bookmark',20)}</span>
         <span class="modal-action-label">Add to List</span>
       </div>` : ''}
     </div>
@@ -3892,8 +4038,8 @@ function renderModal(v, type, reviews) {
 
     <div class="modal-body-inner">
       <div class="modal-loc-row">
-        <span class="modal-hood">${esc(v.neighborhood || '')}</span>
-        ${v.neighborhood && v.address ? '<span class="modal-sep">·</span>' : ''}
+        <span class="modal-hood">${[v.neighborhood, isVenue ? v.cuisine : ''].filter(Boolean).map(esc).join(' · ')}</span>
+        ${(v.neighborhood || v.cuisine) && v.address ? '<span class="modal-sep">·</span>' : ''}
         <span class="modal-addr">${ICN.pin} ${esc(v.address || '')}</span>
       </div>
 
@@ -3918,7 +4064,6 @@ function renderModal(v, type, reviews) {
             <span class="modal-promo-copy">${icn('copy',14)} Copy</span>
           </div>
         </div>` : ''}
-        <div style="margin-top:4px;font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)">${esc(v.cuisine || '')}</div>
         ${(() => {
           const evs = state.events.filter(e => e.venue_name && v.name && e.venue_name.trim().toLowerCase() === v.name.trim().toLowerCase());
           if (!evs.length) return '';
@@ -3948,19 +4093,8 @@ function renderModal(v, type, reviews) {
       ${isVenue ? `<div id="venue-posts-${v.id}"></div>` : ''}
       <div class="s-div"></div>
       <div class="modal-section-label">Reviews</div>
-      ${v.yelp_rating ? `<div class="modal-rating-summary">
-        <div class="modal-rating-big">${v.yelp_rating}</div>
-        <div class="modal-rating-detail">
-          <div class="modal-rating-stars">${starHTML(v.yelp_rating, 5, 14)}</div>
-          <div class="modal-rating-count">${v.yelp_review_count ? `${v.yelp_review_count.toLocaleString()} review${v.yelp_review_count !== 1 ? 's' : ''}` : ''}</div>
-        </div>
-      </div>` : cached.length ? `<div class="modal-rating-summary">
-        <div class="modal-rating-big">${avg.toFixed(1)}</div>
-        <div class="modal-rating-detail">
-          <div class="modal-rating-stars">${starHTML(avg, 5, 14)}</div>
-          <div class="modal-rating-count">${cached.length} review${cached.length !== 1 ? 's' : ''}</div>
-        </div>
-      </div>` : ''}
+      ${v.yelp_rating ? `<div class="modal-ext-rating">${starHTML(v.yelp_rating, 5, 12)} <span>${v.yelp_rating} on Yelp${v.yelp_review_count ? ` · ${v.yelp_review_count.toLocaleString()} review${v.yelp_review_count !== 1 ? 's' : ''}` : ''}</span></div>` : ''}
+      <div class="modal-sub-label">Spotd reviews${cached.length ? ` · ${avg.toFixed(1)} ★ (${cached.length})` : ''}</div>
       <span id="ravg-${v.id}"></span>
       <div class="review-form">
         <div class="star-picker" id="sp-${v.id}" data-val="0">${[1,2,3,4,5].map(n => `<button class="sp" onclick="pickStar('${v.id}',${n})">★</button>`).join('')}</div>
@@ -3975,7 +4109,7 @@ function renderModal(v, type, reviews) {
 }
 
 function renderReviewList(reviews, itemId, type) {
-  if (!reviews.length) return `<div class="no-reviews">No reviews yet — be the first</div>`;
+  if (!reviews.length) return `<div class="no-reviews">No Spotd reviews yet — be the first</div>`;
   return reviews.map(r => {
     const isOwn = currentUser && r.user_id === currentUser.id;
     const name  = r.profiles?.display_name || r.name || 'Anonymous';
@@ -4331,14 +4465,13 @@ function toggleProfileMenu(e) {
   const isOpen = dd.classList.contains('pf-dropdown--open');
   if (isOpen) { closeProfileMenu(); return; }
   dd.classList.add('pf-dropdown--open');
-  // Close on any outside click
-  setTimeout(() => document.addEventListener('click', _closeMenuOnClick, { once: true }), 0);
+  _pfMenuUnbind = _bindOutsideClose('#pfDropdown, #pfMenuBtn', closeProfileMenu);
 }
+let _pfMenuUnbind = null;
 function closeProfileMenu() {
   document.getElementById('pfDropdown')?.classList.remove('pf-dropdown--open');
-  document.removeEventListener('click', _closeMenuOnClick);
+  if (_pfMenuUnbind) { _pfMenuUnbind(); _pfMenuUnbind = null; }
 }
-function _closeMenuOnClick() { closeProfileMenu(); }
 
 function openSubPage(id) {
   const page = document.getElementById(id);
@@ -4360,6 +4493,9 @@ async function renderProfile(user) {
     getFollowedNeighborhoods(user.id), fetchAllCheckIns(user.id),
     getUserBadges(user.id), getFollowing(user.id), getFollowers(user.id),
   ]);
+  // Cached for the Settings sheet so it opens prefilled (name / bio / privacy)
+  // instead of scraping the DOM (which broke silently when .my-name → .pf-name).
+  window._myProfile = profile || {};
 
   let venueList = state.venues;
   if (!venueList.length && checkIns.length) {
@@ -4628,13 +4764,13 @@ async function renderFriendLeaderboard(metric) {
     wrap.innerHTML = '<div class="pf-empty"><div class="pf-empty-icon">🏆</div>Follow friends to see who’s most active</div>';
     return;
   }
-  const labelFor = (m) => m === 'checkins' ? 'check-ins' : m === 'posts' ? 'posts' : 'referrals';
+  const labelFor = (m, n) => (m === 'checkins' ? 'check-in' : m === 'posts' ? 'post' : 'referral') + (n === 1 ? '' : 's');
   wrap.innerHTML = rows.map((r, i) => `
     <div class="pf-lb-row" onclick="openPublicProfile('${r.user_id}')">
       <div class="pf-lb-rank">${i + 1}</div>
       <div class="pf-lb-avatar">${initialsAvatar(r.display_name || 'User', '', r.avatar_emoji, r.avatar_url)}</div>
       <div class="pf-lb-name">${esc(r.display_name || 'User')}${r.is_official ? officialBadge(r) : ''}</div>
-      <div class="pf-lb-score">${r.score} ${labelFor(metric)}</div>
+      <div class="pf-lb-score">${r.score} ${labelFor(metric, Number(r.score))}</div>
     </div>`).join('');
 }
 
@@ -5051,6 +5187,7 @@ async function _composerOpenTagSheet() {
       <div class="cp-pick-foot"><button class="cp-post-cta" id="cpTagDone">Done</button></div>
     </div>`;
   document.body.appendChild(overlay);
+  _ensureSheetClose(overlay.querySelector('.sheet'), close);
   requestAnimationFrame(() => requestAnimationFrame(() => overlay.classList.add('open')));
   overlay.querySelector('#cpTagDone').addEventListener('click', close);
   try {
@@ -5213,7 +5350,17 @@ function _composerToggleStory() {
 function _composerPickVenue() {
   // No early bail when venues haven't loaded — you can always type a place
   // that isn't on Spotd yet and tag it as a custom venue.
-  const list = (state.venues || []).slice(0, 200);
+  // Open on what's likely (nearest when we have a fix, else busiest /
+  // featured), not "1st Street Bar / 207 / 264 Fresco" alphabetical.
+  const all = (state.venues || []).filter(v => !v.event_type);
+  const nearby = state.userLat != null;
+  const ranked = all.slice().sort((a, b) => nearby
+    ? haversine(state.userLat, state.userLng, a.lat, a.lng) - haversine(state.userLat, state.userLng, b.lat, b.lng)
+    : ((state.goingCounts[b.id] || 0) - (state.goingCounts[a.id] || 0)) || ((b.featured ? 1 : 0) - (a.featured ? 1 : 0)) || ((b.google_rating || 0) - (a.google_rating || 0)));
+  const topList = ranked.slice(0, 8);
+  const topIds = new Set(topList.map(v => v.id));
+  const restList = all.slice().sort((a, b) => (a.name || '').localeCompare(b.name || '')).filter(v => !topIds.has(v.id));
+  const list = ranked;
   const overlay = document.createElement('div');
   overlay.className = 'overlay';
   overlay.style.zIndex = 10000;
@@ -5232,19 +5379,24 @@ function _composerPickVenue() {
       <div id="cpVenueList" class="cp-pick-list"></div>
     </div>`;
   document.body.appendChild(overlay);
+  _ensureSheetClose(overlay.querySelector('.sheet'), close);
   // Trigger CSS transition: must be in the next frame after .open is added
   requestAnimationFrame(() => requestAnimationFrame(() => overlay.classList.add('open')));
-  const renderList = (q) => {
-    const ql = (q || '').toLowerCase().trim();
-    const filtered = ql ? list.filter(v => (v.name||'').toLowerCase().includes(ql) || (v.neighborhood||'').toLowerCase().includes(ql)) : list;
-    const rows = filtered.slice(0, 80).map(v => `
+  const rowHTML = v => `
       <button class="cp-pick-row" onclick='_composerSelectVenue(${JSON.stringify(v.id)}, ${JSON.stringify(v.name)}, ${JSON.stringify(v.neighborhood || "")});this.closest(".overlay").classList.remove("open");setTimeout(()=>this.closest(".overlay")?.remove(),260);'>
         <span class="cp-pick-row-icon">${icn('pin', 16)}</span>
         <span class="cp-pick-row-text">
           <span class="cp-pick-row-name">${esc(v.name)}</span>
-          ${v.neighborhood ? `<span class="cp-pick-row-sub">${esc(v.neighborhood)}</span>` : ''}
+          ${[v.neighborhood, nearby && v.lat != null ? fmtDistance(haversine(state.userLat, state.userLng, v.lat, v.lng)) : ''].filter(Boolean).length ? `<span class="cp-pick-row-sub">${[v.neighborhood, nearby && v.lat != null ? fmtDistance(haversine(state.userLat, state.userLng, v.lat, v.lng)) : ''].filter(Boolean).map(esc).join(' · ')}</span>` : ''}
         </span>
-      </button>`).join('');
+      </button>`;
+  const renderList = (q) => {
+    const ql = (q || '').toLowerCase().trim();
+    const filtered = ql ? list.filter(v => (v.name||'').toLowerCase().includes(ql) || (v.neighborhood||'').toLowerCase().includes(ql)) : list;
+    const rows = ql
+      ? filtered.slice(0, 80).map(rowHTML).join('')
+      : (topList.length ? `<div class="cp-pick-group">${nearby ? 'Nearby' : 'Popular'}</div>` + topList.map(rowHTML).join('') : '')
+        + (restList.length ? `<div class="cp-pick-group">All spots</div>` + restList.slice(0, 120).map(rowHTML).join('') : '');
     // Free-text entry: any typed place that isn't an exact match can be added
     // as a custom venue. Posting with it auto-files a venue_request for review.
     // data-name + dataset (not an inline string arg) — user text breaks inline
@@ -5695,54 +5847,59 @@ function openProfileSettings() {
   overlay.onclick = e => { if (e.target === overlay) dismissOverlay(overlay); };
 
   const currentColor = document.getElementById('myBanner')?.style.getPropertyValue('--banner-color') || '#FF6B4A';
+  // Prefill from the cached profile (renderProfile stores it) — the DOM scrape
+  // this used to do read a class that no longer exists, so every field opened
+  // blank and a stray Save could wipe the bio. The async fetch below refreshes.
+  const p0 = window._myProfile || {};
+  const nameNow = p0.display_name || document.querySelector('.pf-name')?.childNodes?.[0]?.textContent?.trim() || currentUser?.user_metadata?.full_name || '';
 
   overlay.innerHTML = `
     <div class="sheet">
       <div class="sheet-handle"></div>
-      <div style="font-weight:800;font-size:17px;margin-bottom:20px;">Settings</div>
+      <div class="sheet-title">Settings</div>
 
       <div class="p-section">
-        <div class="p-section-title">Display Name</div>
+        <div class="p-section-title">Your name</div>
         <div style="display:flex;gap:8px">
-          <input class="field" id="pName" type="text" value="${esc(document.querySelector('.my-name')?.textContent || '')}" placeholder="Your name" style="flex:1">
+          <input class="field" id="pName" type="text" value="${esc(nameNow)}" placeholder="What should we call you?" style="flex:1">
           <button class="btn-save-sm" onclick="saveName()">Save</button>
         </div>
       </div>
 
       <div class="p-section">
-        <div class="p-section-title">Bio <span style="font-weight:400;color:var(--muted)">Visible on your public profile</span></div>
+        <div class="p-section-title">Bio <span class="p-section-hint">shows on your profile</span></div>
         <div style="display:flex;gap:8px;align-items:flex-start">
-          <textarea class="field" id="pBio" placeholder="What's your vibe?" style="flex:1;min-height:70px;resize:none"></textarea>
+          <textarea class="field" id="pBio" placeholder="What's your vibe?" style="flex:1;min-height:70px;resize:none">${esc(p0.bio || '')}</textarea>
           <button class="btn-save-sm" onclick="saveBio()">Save</button>
         </div>
       </div>
 
       <div class="p-section">
-        <div class="p-section-title">Privacy</div>
+        <div class="p-section-title">Who can see you</div>
         <label class="toggle-row">
-          <input type="checkbox" id="publicCb" checked onchange="savePrivacy(this.checked)">
+          <input type="checkbox" id="publicCb" ${p0.is_public === false ? '' : 'checked'} onchange="savePrivacy(this.checked)">
           <span class="t-track"><span class="t-thumb"></span></span>
-          <span class="t-text">Public profile — others can view your activity</span>
+          <span class="t-text">Show my check-ins and posts to everyone on Spotd</span>
         </label>
       </div>
 
       <div class="p-section">
-        <div class="p-section-title">Feedback & Data Issues</div>
+        <div class="p-section-title">Something off? Tell us</div>
         <div style="display:flex;flex-direction:column;gap:8px">
           <select class="field" id="pFeedbackType" style="font-size:14px">
-            <option value="">Select a reason…</option>
-            <option value="wrong_data">Restaurant/venue data is wrong</option>
-            <option value="missing_venue">Missing a venue</option>
-            <option value="hours_wrong">Happy hour hours are incorrect</option>
-            <option value="bug">App bug or issue</option>
-            <option value="suggestion">Feature suggestion</option>
-            <option value="other">Other</option>
+            <option value="">What's it about?</option>
+            <option value="wrong_data">A spot's details are wrong</option>
+            <option value="missing_venue">A spot is missing</option>
+            <option value="hours_wrong">Happy hour times are off</option>
+            <option value="bug">Something's broken</option>
+            <option value="suggestion">An idea for Spotd</option>
+            <option value="other">Something else</option>
           </select>
-          <textarea class="field" id="pFeedbackText" placeholder="Tell us what's wrong or what you'd like to see…" style="min-height:80px;resize:none;font-size:14px"></textarea>
-          <button class="btn-save-sm" style="width:100%;padding:12px" onclick="submitFeedback()">Send Feedback</button>
+          <textarea class="field" id="pFeedbackText" placeholder="What happened, or what would make Spotd better?" style="min-height:80px;resize:none;font-size:14px"></textarea>
+          <button class="btn-save-sm" style="width:100%;padding:12px" onclick="submitFeedback()">Send it</button>
         </div>
         <div style="margin-top:10px;font-size:13px;color:var(--muted);text-align:center">
-          Or email us directly at <a href="mailto:support@spotd.biz" style="color:var(--coral);font-weight:600;text-decoration:none">support@spotd.biz</a>
+          Or just email <a href="mailto:support@spotd.biz" style="color:var(--coral);font-weight:600;text-decoration:none">support@spotd.biz</a>
         </div>
       </div>
 
@@ -5752,7 +5909,7 @@ function openProfileSettings() {
       </button>
 
       <div class="p-section" style="margin-top:24px;border-top:1px solid var(--border);padding-top:16px">
-        <button onclick="doDeleteAccount().then(()=>dismissOverlay(this.closest('.overlay')))"
+        <button onclick="dismissOverlay(this.closest('.overlay'));doDeleteAccount()"
           style="width:100%;padding:13px;border-radius:12px;border:none;background:none;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;text-decoration:underline;">
           Delete Account
         </button>
@@ -5773,7 +5930,8 @@ function openProfileSettings() {
       const bioEl = overlay.querySelector('#pBio');
       const digestEl = overlay.querySelector('#digestCb');
       const publicEl = overlay.querySelector('#publicCb');
-      if (bioEl && p?.bio) bioEl.value = p.bio;
+      if (p) window._myProfile = p;
+      if (bioEl && p && bioEl.value.trim() === (p0.bio || '').trim()) bioEl.value = p.bio || '';
       if (digestEl) digestEl.checked = p?.digest_enabled || false;
       if (publicEl) publicEl.checked = p?.is_public !== false;
       // Mark current banner color
@@ -5915,23 +6073,47 @@ async function showFollowersList() {
 }
 function toggleAvatarPicker() {}
 async function pickAvatar() {}
+// Profile + header photos ride the same native Capacitor camera/library path
+// as check-in photos (was the WKWebView file sheet) — falls back to the
+// hidden file inputs on the web.
 function pickProfilePhoto() {
+  if (_isCapacitorNative() && window.Capacitor?.Plugins?.Camera) { _capacitorPickProfileImage('avatar'); return; }
   document.getElementById('profilePhotoInput')?.click();
 }
 function pickHeaderPhoto() {
+  if (_isCapacitorNative() && window.Capacitor?.Plugins?.Camera) { _capacitorPickProfileImage('header'); return; }
   document.getElementById('headerPhotoInput')?.click();
+}
+async function _capacitorPickProfileImage(kind) {
+  try {
+    const { Camera, CameraResultType, CameraSource } = window.Capacitor.Plugins;
+    const image = await Camera.getPhoto({ quality: 90, allowEditing: kind === 'avatar', resultType: CameraResultType.Base64, source: CameraSource.Prompt });
+    const file = _base64ToFile(image.base64String, 'image/jpeg', `${kind}-${Date.now()}.jpg`);
+    await _uploadProfileImage(file, kind);
+  } catch (e) {
+    if (/cancel/i.test(e?.message || '')) return;
+    console.error('[Profile photo] native picker failed, falling back:', e);
+    document.getElementById(kind === 'avatar' ? 'profilePhotoInput' : 'headerPhotoInput')?.click();
+  }
+}
+async function _uploadProfileImage(file, kind) {
+  if (!file || !currentUser) return;
+  showToast(kind === 'avatar' ? 'Uploading photo...' : 'Uploading header...');
+  const url = await uploadProfilePhoto(file, currentUser.id, kind);
+  if (!url) { showToast('Upload failed — try again'); return; }
+  if (kind === 'avatar') {
+    document.getElementById('myAvatar').innerHTML = `<img src="${url}" alt="Profile" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`;
+    showToast('Profile photo updated!');
+  } else {
+    const hero = document.getElementById('myBannerHero');
+    if (hero) hero.style.background = `url('${url}') center/cover no-repeat`;
+    showToast('Header photo updated!');
+  }
 }
 async function handleProfilePhoto(input) {
   const file = input.files?.[0];
   if (!file || !currentUser) return;
-  showToast('Uploading photo...');
-  const url = await uploadProfilePhoto(file, currentUser.id, 'avatar');
-  if (url) {
-    document.getElementById('myAvatar').innerHTML = `<img src="${url}" alt="Profile" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`;
-    showToast('Profile photo updated!');
-  } else {
-    showToast('Upload failed — try again');
-  }
+  await _uploadProfileImage(file, 'avatar');
   input.value = '';
 }
 async function handleHeaderPhoto(input) {
@@ -5948,10 +6130,36 @@ async function handleHeaderPhoto(input) {
   }
   input.value = '';
 }
-async function saveName() { const n = document.getElementById('pName').value.trim(); if (!n) return; if(typeof haptic==='function')haptic('medium'); await updateProfile(currentUser.id, { display_name: n }); showToast('Name saved'); }
-async function saveBio() { const b = document.getElementById('pBio').value.trim(); if(typeof haptic==='function')haptic('medium'); await updateProfile(currentUser.id, { bio: b }); showToast('Bio saved'); }
+async function saveName() {
+  const n = document.getElementById('pName').value.trim();
+  if (!n) { showToast('Add a name first'); return; }
+  if(typeof haptic==='function')haptic('medium');
+  await updateProfile(currentUser.id, { display_name: n });
+  if (window._myProfile) window._myProfile.display_name = n;
+  showToast('Name saved');
+}
+async function saveBio() {
+  const b = document.getElementById('pBio').value.trim();
+  const prev = (window._myProfile?.bio || '').trim();
+  // Empty + nothing stored → nothing to save. Empty + a stored bio → confirm
+  // before wiping it (an accidental Save used to blank the bio silently).
+  if (!b && !prev) { showToast('Write a little something first'); return; }
+  if (!b && prev) {
+    confirmAction({
+      title: 'Remove your bio?', message: 'Your profile will show no bio.',
+      confirmText: 'Remove', cancelText: 'Keep it', danger: true,
+      onConfirm: async () => { await updateProfile(currentUser.id, { bio: '' }); if (window._myProfile) window._myProfile.bio = ''; showToast('Bio removed'); },
+    });
+    return;
+  }
+  if (b === prev) { showToast('Bio is up to date'); return; }
+  if(typeof haptic==='function')haptic('medium');
+  await updateProfile(currentUser.id, { bio: b });
+  if (window._myProfile) window._myProfile.bio = b;
+  showToast('Bio saved');
+}
 async function saveDigest(v) { await setDigestPreference(currentUser.id, v); showToast(v ? 'Digest enabled' : 'Digest off'); }
-async function savePrivacy(isPublic) { await savePrivacySetting(currentUser.id, isPublic); showToast(isPublic ? 'Profile is now public' : 'Profile is now private'); }
+async function savePrivacy(isPublic) { await savePrivacySetting(currentUser.id, isPublic); if (window._myProfile) window._myProfile.is_public = isPublic; showToast(isPublic ? 'Everyone can see your activity' : 'Only you can see your activity'); }
 async function renderHoodFollowBar() {
   const bar = document.getElementById('hoodFollowBar');
   if (!bar) return;
@@ -6026,11 +6234,19 @@ async function openSocialNotifications() {
     return `void(0)`;
   };
 
+  // Collapse back-to-back copies of the same push (the daily happy-hour blast
+  // was seven identical rows) into the latest one with a ×N count.
+  const collapsed = [];
+  for (const n of items) {
+    const last = collapsed[collapsed.length - 1];
+    if (n.type === 'push' && last && last.type === 'push' && (last.title || '') === (n.title || '')) { last._dupes = (last._dupes || 1) + 1; continue; }
+    collapsed.push(n);
+  }
   container.innerHTML = `<div class="notif-header">
       <div class="notif-header-title">Activity</div>
       <button class="notif-back" onclick="loadSocialFeed()">Back</button>
     </div>` +
-    items.map(n => {
+    collapsed.map(n => {
       const isPush = n.type === 'push';
       const actor = n.actor || {};
       // Push rows have no actor — lead with the push title as the bold name
@@ -6042,7 +6258,7 @@ async function openSocialNotifications() {
         ${avatar}
         <div class="notif-body">
           <span class="notif-name">${esc(name)}${officialBadge(actor)}</span> ${labelFor(n)}
-          <span class="notif-time">${time}</span>
+          <span class="notif-time">${time}${n._dupes ? ` · ×${n._dupes}` : ''}</span>
         </div>
         <span class="notif-icon">${iconFor(n.type)}</span>
       </div>`;
@@ -6089,6 +6305,9 @@ async function checkSocialNotifications() {
 function openPushNotification(url) {
   if (typeof haptic === 'function') haptic('light');
   bottomNavFeed(document.getElementById('bnFeed'));
+  // The daily "Happy hour is starting" push links to /?happening=1 — land ON
+  // the live happy hours, not the plain feed.
+  if (/[?&]happening=1/.test(url || '') && !state.happeningNow) toggleHappeningNow();
 }
 
 // Open the actual POST a notification refers to (like / comment / tagged /
@@ -6269,7 +6488,8 @@ function toggleView() {
   track('view_toggled', { view: state.view });
   document.getElementById('listView').classList.toggle('active', state.view === 'list');
   document.getElementById('mapView').classList.toggle('active',  state.view === 'map');
-  document.getElementById('viewIcon').textContent = state.view === 'map' ? 'List' : 'Map';
+  const vi = document.getElementById('viewIcon');
+  if (vi) vi.textContent = state.view === 'map' ? 'List' : 'Map';
   const vt = document.getElementById('viewToggle');
   vt.classList.toggle('map-active', state.view === 'map');
   // Spring "pop" on the toggle each press.
@@ -6286,6 +6506,12 @@ function toggleView() {
       }
     }, 100);
   }
+}
+// List | Map segmented control (top-right of the search row) — one control
+// that shows state, instead of a third look-alike pill in the actions row.
+function setView(v) {
+  if (state.view === v) return;
+  toggleView();
 }
 function goToMap(id) {
   closeOverlay('modalOverlay');
@@ -6343,6 +6569,7 @@ window.addEventListener('resize', () => {
 function initMap() {
   if (state.map) { state.map.remove(); state.map = null; }
   state._markerLayer = null;
+  state._meMarker = null;
   state._mapReady = false;
   const cityCenter = getCityCenter(state.city?.slug);
   try {
@@ -6354,6 +6581,7 @@ function initMap() {
     const map = L.map('map', {
       center: cityCenter,
       zoom: 12,
+      zoomControl: false, // touch map: pinch to zoom; the +/- buttons are desktop furniture
       preferCanvas: true,
       zoomSnap: 0.5,
       zoomDelta: 0.5,
@@ -6366,14 +6594,24 @@ function initMap() {
       zoomAnimation: true,
       markerZoomAnimation: true,
     });
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-      attribution: '© OpenStreetMap © CARTO',
-      subdomains: 'abcd',
+    // Keyless OpenStreetMap tiles. CARTO's free raster basemaps started
+    // watermarking every tile "API KEY REQUIRED" (Sep 2026) — the map looked
+    // broken to every user. OSM standard tiles need no key at our traffic;
+    // attribution is required.
+    const tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
       maxZoom: 19,
       updateWhenZooming: false,
       updateWhenIdle: true,
       keepBuffer: 4,
     }).addTo(map);
+    // Find out the NEXT time a tile provider changes its terms — one event per
+    // session, not per tile.
+    tiles.on('tileerror', () => {
+      if (window._mapTileErrorTracked) return;
+      window._mapTileErrorTracked = true;
+      track('map_tile_error', { provider: 'osm' });
+    });
     state.map = map;
     state._mapReady = true;
   } catch(e) {
@@ -6381,6 +6619,30 @@ function initMap() {
     state.map = null;
     state._mapReady = false;
   }
+}
+// "Locate me" FAB on the map (replaces Leaflet's +/- zoom buttons). Same
+// native-first geolocation path as the Nearest sort.
+function mapLocateMe(btn) {
+  if (typeof haptic === 'function') haptic('light');
+  if (btn) btn.classList.add('locating');
+  _getCurrentPosition(pos => {
+    state.userLat = pos.coords.latitude;
+    state.userLng = pos.coords.longitude;
+    localStorage.setItem('spotd-location-granted', 'yes');
+    try { localStorage.setItem('spotd-user-location', JSON.stringify({ lat: state.userLat, lng: state.userLng, at: Date.now() })); } catch (e) {}
+    if (btn) btn.classList.remove('locating');
+    if (state.map) {
+      state.map.flyTo([state.userLat, state.userLng], Math.max(state.map.getZoom(), 14), { duration: .6 });
+      if (!state._meMarker) {
+        state._meMarker = L.circleMarker([state.userLat, state.userLng], { radius: 7, color: '#fff', weight: 2, fillColor: '#FF6B4A', fillOpacity: 1 }).addTo(state.map);
+      } else state._meMarker.setLatLng([state.userLat, state.userLng]);
+    }
+    track('map_locate_me', { ok: true });
+  }, () => {
+    if (btn) btn.classList.remove('locating');
+    showToast('Couldn\'t get your location');
+    track('map_locate_me', { ok: false });
+  }, { timeout: 8000 });
 }
 function getCityCenter(slug) {
   const centers = {
@@ -6514,9 +6776,17 @@ function getDirections(lat, lng, name) {
   // change, so opening Directions from a non-Discover modal can't leave you
   // stranded in the Discover map view). Falls back to the venue name when a
   // venue has no coords.
-  const dest = (lat != null && lng != null) ? `${lat},${lng}` : encodeURIComponent(name || '');
+  const hasCoords = lat != null && lng != null;
+  const dest = hasCoords ? `${lat},${lng}` : encodeURIComponent(name || '');
   if (!dest) return;
-  const url = `https://www.google.com/maps/dir/?api=1&destination=${dest}`;
+  // iOS: Apple Maps opens natively — no Google web view, no "start your route
+  // on the app" interstitial, and the venue NAME shows instead of raw coords.
+  // Web/Android: Google Maps directions URL.
+  const url = _isIOSDevice()
+    ? (hasCoords
+        ? `https://maps.apple.com/?daddr=${dest}&q=${encodeURIComponent(name || '')}`
+        : `https://maps.apple.com/?q=${encodeURIComponent(name || '')}`)
+    : `https://www.google.com/maps/dir/?api=1&destination=${dest}`;
   window.open(url, '_blank');
 }
 function flyTo(id) {
@@ -6545,6 +6815,20 @@ function buildMapSidebar() {
 
 // ── OVERLAY HELPERS ────────────────────────────────────
 // Animate a dynamically created overlay into view (prevents flicker)
+// Every .sheet gets the drag handle AND a 32px ✕ top-right (plus tap-outside
+// and swipe-down). Injected here once, not per sheet. Opt out with
+// .sheet--no-x (e.g. a sheet that renders its own close).
+function _ensureSheetClose(sheet, onClose) {
+  if (!sheet || sheet.classList.contains('sheet--no-x')) return;
+  if (sheet.querySelector(':scope > .sheet-close')) return;
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'sheet-close sheet-close--auto';
+  b.setAttribute('aria-label', 'Close');
+  b.innerHTML = '✕';
+  b.addEventListener('click', e => { e.stopPropagation(); if (typeof haptic === 'function') haptic('light'); onClose(); });
+  sheet.insertBefore(b, sheet.firstChild);
+}
 function presentOverlay(overlay) {
   overlay.classList.remove('open');
   document.body.appendChild(overlay);
@@ -6553,7 +6837,7 @@ function presentOverlay(overlay) {
     overlay.classList.add('open');
     document.body.style.overflow = 'hidden';
     const sheet = overlay.querySelector('.sheet');
-    if (sheet) attachSwipeDismiss(sheet, overlay);
+    if (sheet) { attachSwipeDismiss(sheet, overlay); _ensureSheetClose(sheet, () => dismissOverlay(overlay)); }
   });
 }
 function openOverlay(id)  {
@@ -6575,11 +6859,15 @@ function openOverlay(id)  {
     el.classList.add('open');
     const profileOpen = document.getElementById('profilePage')?.classList.contains('profile-page--open');
     if (!profileOpen) document.body.style.overflow = 'hidden';
-    if (sheet) attachSwipeDismiss(sheet, id);
+    if (sheet) { attachSwipeDismiss(sheet, id); _ensureSheetClose(sheet, () => closeOverlay(id)); }
   });
 }
+// Sheets close with an input still focused → iOS keeps the keyboard/autofill
+// bar up. Drop focus whenever an overlay goes away.
+function _blurActive() { try { if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur(); } catch (e) {} }
 function closeOverlay(id) {
   const el = document.getElementById(id); if (!el) return;
+  _blurActive();
   el.classList.remove('open');
   // Delay body overflow restore until after the animation completes
   setTimeout(() => {
@@ -6588,6 +6876,7 @@ function closeOverlay(id) {
 }
 function dismissOverlay(el) {
   if (!el) return;
+  _blurActive();
   el.classList.remove('open');
   if (!document.querySelector('.overlay.open')) document.body.style.overflow = '';
   el.addEventListener('transitionend', () => el.remove(), { once: true });
@@ -6799,13 +7088,16 @@ function shareSpotd() {
     });
   }
 }
-function openPhotoLightbox(url, name) {
+function openPhotoLightbox(url, name, caption) {
   const lb = document.createElement('div');
   lb.id = 'photo-lightbox';
   lb.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;cursor:zoom-out;padding:20px;';
+  // Keep the author + caption the "From the crowd" strip shows.
+  const cap = [name, caption].filter(Boolean).map(esc).join(' · ');
   lb.innerHTML = `
     <button onclick="this.parentElement.remove()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:22px;width:40px;height:40px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
-    <img src="${url}" alt="${name}" style="max-width:100%;max-height:90vh;object-fit:contain;border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,0.5);">
+    <img src="${esc(url)}" alt="${esc(name || '')}" style="max-width:100%;max-height:84vh;object-fit:contain;border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,0.5);">
+    ${cap ? `<div class="lightbox-cap">${cap}</div>` : ''}
   `;
   lb.addEventListener('click', e => { if (e.target === lb) lb.remove(); });
   document.body.appendChild(lb);
@@ -6850,7 +7142,7 @@ async function loadReviewAverages(citySlug) {
 
 async function loadGoingTonight(citySlug) {
   try {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = localDateKey();
     // Fire both queries in parallel — city counts and user's own check-ins are
     // independent. For logged-out users the second resolves immediately.
     const [counts, mine] = await Promise.all([
@@ -6870,7 +7162,7 @@ const CHECK_IN_DAILY_LIMIT = 5;
 async function doGoingTonight(venueId, btn) {
   if (!currentUser) { openAuth('signin', 'checkin'); showToast('Sign in to check in'); return; }
   const isCheckedIn = state.goingByMe.has(venueId);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDateKey();
   if (isCheckedIn) {
     await removeCheckIn(currentUser.id, venueId, today);
     state.goingByMe.delete(venueId);
@@ -7656,7 +7948,7 @@ function renderCheckinPhotos(photos, venueId) {
       <div class="ugc-photos-label">${ICN.camera} From the crowd <span style="font-weight:400;font-size:10px">${photos.length} photo${photos.length !== 1 ? 's' : ''}</span></div>
       <div class="ugc-photos-strip">
         ${photos.map(p => `
-          <div class="ugc-photo-thumb" onclick="openPhotoLightbox('${esc(p.photo_url)}','${esc(p.profile?.display_name || 'Photo')}')">
+          <div class="ugc-photo-thumb" data-url="${esc(p.photo_url)}" data-by="${esc(p.profile?.display_name || 'Photo')}" data-cap="${esc(p.caption || '')}" onclick="openPhotoLightbox(this.dataset.url,this.dataset.by,this.dataset.cap)">
             <img src="${esc(p.photo_url)}" alt="Check-in photo" loading="lazy" decoding="async" onerror="this.closest('.ugc-photo-thumb').remove()">
             <div class="ugc-photo-meta">${esc(p.profile?.display_name || 'Someone')}${p.caption ? ' · ' + esc(p.caption) : ''}</div>
             ${isOwn(p.user_id) ? `<button class="ugc-photo-delete" onclick="event.stopPropagation();doDeleteCheckinPhoto('${p.id}','${esc(p.storage_path)}','${venueId}',this)" title="Delete">✕</button>` : ''}
@@ -8098,7 +8390,19 @@ const NEWS_ARTICLES = [
 // Additive: NEWS_ARTICLES (hardcoded) is the baseline; these are appended.
 let _dbArticles = [];
 let _dbArticlesLoaded = false;
-const NEWS_IMG_FALLBACK = 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=800&q=80';
+// Rotating fallbacks (picked by slug hash) so two adjacent DB posts without a
+// featured image don't show the same stock photo.
+const NEWS_IMG_FALLBACKS = [
+  'https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=800&q=80',
+  'https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=800&q=80',
+  'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800&q=80',
+  'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&q=80',
+];
+const NEWS_IMG_FALLBACK = NEWS_IMG_FALLBACKS[0];
+function newsFallbackImg(key) {
+  let h = 0; for (const ch of String(key || '')) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return NEWS_IMG_FALLBACKS[h % NEWS_IMG_FALLBACKS.length];
+}
 
 async function loadDbArticles() {
   if (_dbArticlesLoaded) return;
@@ -8110,7 +8414,7 @@ async function loadDbArticles() {
       const date = p.created_at ? new Date(p.created_at).toLocaleDateString('en-US', { month:'long', day:'numeric', year:'numeric' }) : '';
       return {
         city: p.city_slug || 'all',
-        img: p.featured_image_url || NEWS_IMG_FALLBACK,
+        img: p.featured_image_url || newsFallbackImg(p.slug || p.title),
         tag: p.tag || 'City Guide',
         author: p.author || 'Spotd',
         title: p.title || 'Untitled',
@@ -8239,7 +8543,7 @@ function dmShowScreen(name) {
   const newBtn  = document.getElementById('dmNewBtn');
   const title   = document.getElementById('dmTitle');
   if (name === 'inbox') {
-    backBtn.style.display    = 'none';
+    backBtn.style.display    = ''; // ‹ leaves Messages (was: only the bottom tab could)
     newBtn.style.display     = '';
     title.textContent        = 'Messages';
     title.style.textAlign    = 'left';
@@ -8251,11 +8555,14 @@ function dmShowScreen(name) {
 }
 
 function dmNavBack() {
+  if (typeof haptic === 'function') haptic('light');
   if (dmState.screen === 'convo' || dmState.screen === 'picker') {
     if (dmState.subscription) { dmState.subscription.unsubscribe(); dmState.subscription = null; }
     dmState.activeConvoId = null;
     dmShowScreen('inbox');
     dmLoadInbox();
+  } else {
+    closeDmTab(); // inbox ‹ → back to wherever Messages was opened from
   }
 }
 
@@ -8627,15 +8934,11 @@ async function dmCreateConvo(isGroup) {
 
   if (!isGroup && sel.size === 1) {
     const otherId = [...sel][0];
-    const { data: myParts } = await db.from('conversation_participants').select('conversation_id').eq('user_id', currentUser.id);
-    if (myParts?.length) {
-      const myIds = myParts.map(r => r.conversation_id);
-      const { data: otherParts } = await db.from('conversation_participants').select('conversation_id').eq('user_id', otherId).in('conversation_id', myIds);
-      if (otherParts?.length) {
-        const { data: c } = await db.from('conversations').select('is_group').eq('id', otherParts[0].conversation_id).single();
-        if (c && !c.is_group) { const name = window._dmPickerUsers?.find(u => u.id === otherId)?.display_name || 'Chat'; await dmOpenConvo(otherParts[0].conversation_id, name, false); return; }
-      }
-    }
+    const convoId = await findOrCreateDm(otherId);
+    if (!convoId) { showToast('Failed to start conversation'); return; }
+    const name = window._dmPickerUsers?.find(u => u.id === otherId)?.display_name || 'Chat';
+    await dmOpenConvo(convoId, name, false);
+    return;
   }
 
   const { data: convo, error: cErr } = await db.from('conversations').insert({ is_group: isGroup, name: groupName, created_by: currentUser.id }).select().single();
@@ -8654,24 +8957,25 @@ async function dmCreateConvo(isGroup) {
   await dmOpenConvo(convo.id, displayName, isGroup, knownMembers);
 }
 
+// The ONE way to get a 1:1 thread with someone. Server-side RPC
+// (get_or_create_dm, SECURITY DEFINER) looks up the existing pair thread or
+// creates it in a single transaction. The old client-side lookup could never
+// work: cp_select RLS only exposes YOUR participant rows, so "which
+// conversations does the other person share with me?" always came back empty
+// and every open/send inserted a fresh thread (Sexilexi7 ×4 in the inbox).
+async function findOrCreateDm(otherId) {
+  if (!currentUser || !otherId) return null;
+  const { data, error } = await db.rpc('get_or_create_dm', { p_other: otherId });
+  if (error) { console.warn('get_or_create_dm failed', error); return null; }
+  return data || null;
+}
+
 async function dmOpenFromProfile(userId, displayName) {
   if (!currentUser) { openAuth('signin', 'messages'); return; }
   closeSubPage('pubProfilePage');
-  const { data: myParts } = await db.from('conversation_participants').select('conversation_id').eq('user_id', currentUser.id);
-  if (myParts?.length) {
-    const myIds = myParts.map(r => r.conversation_id);
-    const { data: otherParts } = await db.from('conversation_participants').select('conversation_id').eq('user_id', userId).in('conversation_id', myIds);
-    if (otherParts?.length) {
-      for (const p of otherParts) {
-        const { data: c } = await db.from('conversations').select('is_group').eq('id', p.conversation_id).single();
-        if (c && !c.is_group) { await dmOpenConvo(p.conversation_id, displayName, false); return; }
-      }
-    }
-  }
-  const { data: convo, error } = await db.from('conversations').insert({ is_group: false, created_by: currentUser.id }).select().single();
-  if (error) { showToast('Failed to start conversation'); return; }
-  await db.from('conversation_participants').insert([{ conversation_id: convo.id, user_id: currentUser.id }, { conversation_id: convo.id, user_id: userId }]);
-  await dmOpenConvo(convo.id, displayName, false);
+  const convoId = await findOrCreateDm(userId);
+  if (!convoId) { showToast('Failed to start conversation'); return; }
+  await dmOpenConvo(convoId, displayName, false);
 }
 
 async function dmOpenVenueSharePicker(venueId) {
@@ -8693,7 +8997,15 @@ async function dmOpenVenueSharePicker(venueId) {
   const pMap = {}; profiles.forEach(p => { pMap[p.id] = p; });
   const convoPartsMap = {}; allParts.forEach(p => { if (!convoPartsMap[p.conversation_id]) convoPartsMap[p.conversation_id] = []; if (p.user_id !== currentUser.id) convoPartsMap[p.conversation_id].push(p.user_id); });
   const seen = new Set();
-  const uniqueConvos = convos.filter(c => { if (seen.has(c.id)) return false; seen.add(c.id); return true; });
+  // Dedupe by id AND by participant set — one row per person / per group.
+  // (convos are ordered by updated_at desc, so the most recent thread wins.)
+  const uniqueConvos = convos.filter(c => {
+    if (seen.has(c.id)) return false;
+    const key = c.is_group ? 'c:' + c.id : 'u:' + (convoPartsMap[c.id] || []).slice().sort().join(',');
+    if (seen.has(key)) return false;
+    seen.add(c.id); seen.add(key);
+    return true;
+  });
 
   // Build conversation rows HTML
   const convoRowsHTML = uniqueConvos.map(c => {
@@ -8702,7 +9014,7 @@ async function dmOpenVenueSharePicker(venueId) {
     const name   = c.is_group ? (c.name || [myFirst,...others.map(id=>(pMap[id]?.display_name||'User').split(' ')[0])].join(', ')) : (pMap[others[0]]?.display_name || 'Spotd User');
     const avatar = c.is_group ? icn('users',20) : initialsAvatar(name, '', pMap[others[0]]?.avatar_emoji, pMap[others[0]]?.avatar_url);
     return `<div class="dm-thread-row dm-share-row" data-name="${esc(name.toLowerCase())}" onclick="dmSendVenue('${venueId}','${c.id}');document.getElementById('dmSharePickerOverlay').remove()">
-      <div class="dm-thread-main"><div class="dm-thread-avatar">${avatar}</div><div class="dm-thread-info"><div class="dm-thread-name">${esc(name)}</div></div></div>
+      <div class="dm-thread-main"><div class="dm-thread-avatar">${avatar}</div><div class="dm-thread-info"><div class="dm-thread-name">${esc(name)}${c.is_group ? ' <span class="dm-group-pill">Group · ' + (others.length + 1) + '</span>' : ''}</div></div></div>
       <div class="dm-share-send-btn">Send</div>
     </div>`;
   }).join('');
@@ -8713,7 +9025,7 @@ async function dmOpenVenueSharePicker(venueId) {
   overlay.onclick = e => { if (e.target === overlay) dismissOverlay(overlay); };
   overlay.innerHTML = `<div class="sheet" style="max-height:60vh;overflow-y:auto;">
     <div class="sheet-handle"></div>
-    <div style="font-weight:800;font-size:17px;margin-bottom:12px;padding-right:32px;">Send to…</div>
+    <div class="sheet-title">Send to…</div>
     <input type="text" id="dmShareSearch" class="search-box" placeholder="Search by name…"
       style="margin-bottom:12px;width:100%;box-sizing:border-box;" autocomplete="off" autocorrect="off"
       oninput="dmFilterSharePicker(this.value)">
@@ -8771,24 +9083,11 @@ async function dmSendVenueToUser(userId, displayName) {
   if (!venueId) return;
   document.getElementById('dmSharePickerOverlay')?.remove();
   showToast('Sending…');
-  // Find or create conversation
-  const { data: myConvos } = await db.from('conversation_participants').select('conversation_id').eq('user_id', currentUser.id);
-  const { data: theirConvos } = await db.from('conversation_participants').select('conversation_id').eq('user_id', userId);
-  const mySet = new Set((myConvos||[]).map(r=>r.conversation_id));
-  const shared = (theirConvos||[]).find(r => mySet.has(r.conversation_id));
-
-  let convoId;
-  if (shared) {
-    convoId = shared.conversation_id;
-  } else {
-    const { data: convo, error } = await db.from('conversations').insert({ is_group: false, created_by: currentUser.id }).select().single();
-    if (error) { showToast('Failed to start conversation'); return; }
-    await db.from('conversation_participants').insert([
-      { conversation_id: convo.id, user_id: currentUser.id },
-      { conversation_id: convo.id, user_id: userId }
-    ]);
-    convoId = convo.id;
-  }
+  // Always the 1:1 thread with this person — never a group chat you both
+  // happen to be in (the old "first shared conversation of any kind" lookup
+  // could drop a venue into "Test" or "Hi").
+  const convoId = await findOrCreateDm(userId);
+  if (!convoId) { showToast('Failed to start conversation'); return; }
   await dmSendVenue(venueId, convoId);
   showToast(`Sent to ${displayName}`);
 }
@@ -9234,8 +9533,10 @@ function checkAgeGate() {
   overlay.className = 'overlay';
   overlay.id = 'ageGateOverlay';
   overlay.style.zIndex = '99999';
+  // sheet--no-x: the legally required gate must NOT get the auto-injected ✕
+  // (dismissing it would bypass the age check).
   overlay.innerHTML = `
-    <div class="sheet" style="text-align:center">
+    <div class="sheet sheet--no-x" style="text-align:center">
       <div style="font-size:40px;margin-bottom:8px">🍸</div>
       <div style="font-weight:800;font-size:20px;margin-bottom:8px">Are you 21 or older?</div>
       <p style="color:var(--muted);font-size:14px;margin-bottom:20px;line-height:1.4">

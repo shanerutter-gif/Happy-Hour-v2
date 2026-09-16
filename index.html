@@ -99,7 +99,7 @@
 <noscript><link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"></noscript>
 <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script defer src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
-<link rel="stylesheet" href="css/style.css?v=20260725b">
+<link rel="stylesheet" href="css/style.css?v=20260916a">
 <style>
 .card-claim { padding: 4px 16px 12px; }
 .claim-link { font-size: 12px; color: rgba(42,31,20,0.4); text-decoration: none; }
@@ -496,21 +496,21 @@
         <input class="search-box" id="searchBox" type="text" placeholder="Search venues, neighborhoods…" oninput="debounceSearch()" autocomplete="off" autocorrect="off">
       </div>
       <button class="clear-all-btn" id="clearAllBtn" onclick="clearAllVisible()">Clear</button>
+      <!-- List | Map segmented control (view switch lives with the search, not
+           as a third look-alike pill in the actions row). id kept: toggleView()
+           toggles .map-active on it. -->
+      <div class="view-seg" id="viewToggle" role="tablist" aria-label="List or map">
+        <button class="vs-btn vs-list" type="button" onclick="setView('list')">List</button>
+        <button class="vs-btn vs-map" type="button" onclick="setView('map')">
+          <svg class="vt-ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 8 3 16 6 23 3 23 18 16 21 8 18 1 21"/><line x1="8" y1="3" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="21"/></svg>Map
+        </button>
+      </div>
     </div>
     <div class="controls-actions">
-      <button class="happening-toggle" id="happeningToggle" onclick="toggleHappeningNow()" aria-pressed="false">
-        <span class="happening-dot"></span>
-        <svg class="ht-ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg>
-        <span class="ht-label">Happening now</span>
-      </button>
       <button class="filter-toggle" id="filterToggle" onclick="toggleFilters()">
         <svg class="ft-ic" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="10" y1="18" x2="14" y2="18"/></svg>
         <span class="ft-label">Filters</span>
         <span class="filter-dot" id="filterDot"></span>
-      </button>
-      <button class="view-toggle" id="viewToggle" onclick="toggleView()">
-        <svg class="vt-ic" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 8 3 16 6 23 3 23 18 16 21 8 18 1 21"/><line x1="8" y1="3" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="21"/></svg>
-        <span id="viewIcon">Map</span>
       </button>
     </div>
     <div class="chips-row" id="chipsRow"></div>
@@ -524,6 +524,13 @@
           </div>
         </div>
         <div class="fp-row-planner">
+          <!-- "Happening now" is a filter, so it lives with the filters (the
+               active-chip row still shows a clearable 🟢 chip while it's on). -->
+          <button class="happening-toggle" id="happeningToggle" onclick="toggleHappeningNow()" aria-pressed="false">
+            <span class="happening-dot"></span>
+            <svg class="ht-ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg>
+            <span class="ht-label">Happening now</span>
+          </button>
           <button class="plan-night-cta" id="planNightCta" onclick="toggleFilters();openNightPlanner()">
             <span class="pnc-emoji">🌙</span>
             <span class="pnc-text"><span class="pnc-title">Plan my night out</span><span class="pnc-sub">Build a bar crawl in seconds</span></span>
@@ -571,11 +578,14 @@
 
   <main>
     <div id="listView" class="list-view active">
-      <div class="results-bar"><span id="resultsCount"></span><button class="request-venue-btn" onclick="openRequestVenue()">+ Request a Venue</button></div>
+      <div class="results-bar"><span id="resultsCount"></span></div>
       <div class="cards-grid" id="cardsGrid"></div>
     </div>
     <div id="mapView" class="map-view">
       <div id="map"></div>
+      <button class="map-locate-fab" type="button" aria-label="Show my location" onclick="mapLocateMe(this)">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8"/></svg>
+      </button>
       <div class="map-sidebar" id="mapSidebar">
         <div class="map-sidebar-title">Tap a pin to explore</div>
         <div class="map-cards" id="mapCards"></div>
@@ -834,11 +844,11 @@ function dismissAppDownload() {
 
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script defer src="js/consent.js?v=20260725a"></script>
-<script defer src="js/db.js?v=20260804a"></script>
+<script defer src="js/db.js?v=20260916a"></script>
 <script defer src="js/onboarding.js?v=20260707a"></script>
 <script defer src="js/push.js?v=20260408a"></script>
 <script defer src="js/icons.js?v=20260716a"></script>
-<script defer src="js/app.js?v=20260729a"></script>
+<script defer src="js/app.js?v=20260916a"></script>
 <script defer src="js/tooltips.js?v=20260408a"></script>
 <script>
 // Hide business/Pro links and App Store badge on native iOS

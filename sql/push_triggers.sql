@@ -86,9 +86,9 @@ select cron.schedule(
       'Content-Type',  'application/json'
     ),
     body    := jsonb_build_object(
-      'title', 'Happy hour is starting!',
-      'body',  'Check out tonight''s best deals and events near you',
-      'url',   '/',
+      'title', 'Happy hour is starting 🍻',
+      'body',  'Tonight''s deals are live near you — tap to see what''s happening now',
+      'url',   '/?happening=1',   -- app opens Discover with "Happening now" ON (js/app.js boot + openPushNotification)
       'tag',   'happy-hour-daily'
     )
   );

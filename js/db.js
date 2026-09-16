@@ -895,6 +895,13 @@ async function submitVenueRequestToDB(payload) {
 }
 
 // ── CHECK-INS (renamed from going_tonight) ─────────────
+// Calendar-day key in the USER'S LOCAL time. `toISOString().slice(0,10)` is
+// UTC, so during PDT the check-in "day" rolled over at 5 PM local — a 4:30 PM
+// check-in vanished at 5:30, the 5/day limit reset mid-happy-hour, and every
+// night's counts split across two dates. Used by every check_ins.date read/write.
+function localDateKey(d = new Date()) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 async function fetchCheckInCounts(citySlug, date) {
   try {
     const { data, error } = await db.from('check_ins')
@@ -2051,7 +2058,7 @@ async function fetchSocialFeed(citySlug, followingIds = [], limit = 60) {
       db.from('check_ins')
         .select('id, user_id, venue_id, city_slug, created_at')
         .eq('city_slug', citySlug)
-        .eq('date', new Date().toISOString().slice(0, 10))
+        .eq('date', localDateKey())
         .not('user_id', 'is', null)
         .order('created_at', { ascending: false })
         .limit(40),
@@ -2324,7 +2331,7 @@ async function deleteList(listId) {
 
 // ── CHECK-IN MAP DATA ─────────────────────────────────
 async function fetchTodayCheckInsWithProfiles(citySlug) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDateKey();
   try {
     const { data } = await db.from('check_ins')
       .select('venue_id, user_id, profiles(display_name, avatar_url, avatar_emoji)')

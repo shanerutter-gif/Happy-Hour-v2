@@ -89,6 +89,10 @@
 /* iOS standalone fallback via JS class */
 .standalone .blog-nav-links { display: none !important; }
 .standalone .blog-nav-back { display: flex !important; }
+/* In-app the header ‹ Back is the one back affordance — hide the article's
+   "← Back to Blog" link so there aren't two. */
+@media (display-mode: standalone) { .blog-back { display: none !important; } }
+.standalone .blog-back { display: none !important; }
 
 /* ── BLOG HERO ── */
 .blog-hero {
