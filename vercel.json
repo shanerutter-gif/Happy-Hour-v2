@@ -1,5 +1,11 @@
 {
   "version": 2,
+  "images": {
+    "sizes": [240, 320, 640, 960, 1080, 1280],
+    "remotePatterns": [{ "protocol": "https", "hostname": "**" }],
+    "minimumCacheTTL": 2592000,
+    "formats": ["image/avif", "image/webp"]
+  },
   "crons": [
     { "path": "/api/loops-inactive", "schedule": "0 14 * * *" },
     { "path": "/api/daily-deals", "schedule": "0 14 * * *" },

@@ -596,6 +596,7 @@ function toggleTheme() {
 }
 
 function _navHideAll(keep) {
+  if (typeof ttAbort === 'function') ttAbort(); // the first-use tour only belongs on Discover
   if (keep !== 'dm')     closeDmTab();
   if (keep !== 'social') closeSocialTab();
   if (keep !== 'news')   closeNewsTab();
@@ -2843,7 +2844,19 @@ function _hhTick() {
       el.classList.toggle('hh-badge--soon', r.remaining <= 15);
     }
   });
-  if (anyEnded && state.happeningNow) applyFilters();
+  if (anyEnded && state.happeningNow) {
+    // Drop the just-ended venues IN PLACE after the "Just ended" beat — a full
+    // applyFilters() here rebuilt the whole grid (innerHTML) every 30s, often
+    // mid-scroll.
+    setTimeout(() => {
+      if (!state.happeningNow) return;
+      document.querySelectorAll('#cardsGrid .hh-badge--ended').forEach(b => { const card = b.closest('[data-id]'); if (card) card.remove(); });
+      state.filtered = state.filtered.filter(v => hhActive(v));
+      const rc = document.getElementById('resultsCount');
+      if (rc) rc.textContent = `${state.filtered.length} happy hour${state.filtered.length === 1 ? '' : 's'} on right now`;
+      if (!state.filtered.length) applyFilters(); // nothing left → render the empty state
+    }, 1500);
+  }
 }
 function toggleHappeningNow() {
   if (typeof haptic === 'function') haptic('light');
@@ -3130,7 +3143,7 @@ function _npRenderResults() {
       <div class="np-stop" onclick="npOpenStop('${v.id}')">
         <div class="np-stop-num">${i + 1}</div>
         <div class="np-stop-card">
-          ${photo ? `<div class="np-stop-photo" style="background-image:url('${esc(photo)}')"></div>` : `<div class="np-stop-photo np-stop-photo--none">🍸</div>`}
+          ${photo ? `<img class="np-stop-photo" src="${esc(optImg(photo, 240))}" data-raw="${esc(photo)}" alt="" loading="lazy" decoding="async" onerror="${IMG_FALLBACK}this.outerHTML='<div class=\\'np-stop-photo np-stop-photo--none\\'>🍸</div>'">` : `<div class="np-stop-photo np-stop-photo--none">🍸</div>`}
           <div class="np-stop-body">
             <div class="np-stop-name">${esc(v.name)}</div>
             <div class="np-stop-meta">${_npMatchTag(v)}${v.neighborhood ? ` · ${esc(v.neighborhood)}` : ''}</div>
@@ -3469,6 +3482,20 @@ function haversine(lat1, lng1, lat2, lng2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
+// Venue photos are hotlinked from ~600 third-party hosts at whatever size the
+// venue uploaded (25MB originals exist). On iOS the decoded bitmap costs RAM
+// proportional to the SOURCE pixels, not the 110px box it's drawn in — the
+// memory class behind the WKWebView crashes. Route them through Vercel Image
+// Optimization (resized, AVIF/WebP, edge-cached; `images` in vercel.json).
+// IMG_FALLBACK: if the optimizer can't serve one (unsupported source, plan
+// limit, local dev) the <img> falls back to the raw URL before giving up.
+const IMG_OPT_ENABLED = /(^|\.)spotd\.biz$/.test(location.hostname);
+function optImg(url, w) {
+  if (!url || !IMG_OPT_ENABLED || !/^https?:\/\//i.test(url)) return url;
+  return `/_vercel/image?url=${encodeURIComponent(url)}&w=${w}&q=72`;
+}
+const IMG_FALLBACK = "if(this.dataset.raw&&this.src!==this.dataset.raw){this.src=this.dataset.raw;return;}";
+
 // "0.4 mi" for the card meta line — only when the feed is actually sorted by
 // distance and we have a fix, so the default sort isn't silently implied.
 function cardDistance(v) {
@@ -3740,8 +3767,8 @@ function heroCardHTML(v, delay, idx = 0) {
 
   return `<div class="card-hero" data-id="${v.id}"
     onclick="openModal('${v.id}','venue')" style="${delay === false ? 'animation:none' : `animation-delay:${delay}ms`}">
-    <img class="card-hero-img" src="${photoUrl}" alt="${esc(v.name)}" loading="${idx === 0 ? 'eager' : 'lazy'}" decoding="async"${idx === 0 ? ' fetchpriority="high"' : ''}
-      onerror="this.closest('.card-hero').style.background='linear-gradient(135deg,#2A1F14,#1A1208)';this.remove()">
+    <img class="card-hero-img" src="${esc(optImg(photoUrl, 960))}" data-raw="${esc(photoUrl)}" alt="${esc(v.name)}" loading="${idx === 0 ? 'eager' : 'lazy'}" decoding="async"${idx === 0 ? ' fetchpriority="high"' : ''}
+      onerror="${IMG_FALLBACK}this.closest('.card-hero').style.background='linear-gradient(135deg,#2A1F14,#1A1208)';this.remove()">
     <div class="card-hero-overlay"></div>
     <button class="card-hero-fav${faved ? ' faved' : ''}"
       onclick="event.stopPropagation();doFavorite('${v.id}','venue',this);this.classList.toggle('faved');this.textContent=this.classList.contains('faved')?'★':'☆'">${faved ? '★' : '☆'}</button>
@@ -3749,7 +3776,7 @@ function heroCardHTML(v, delay, idx = 0) {
     <div class="card-hero-info">
       <div class="card-hero-name">${esc(v.name)}</div>
       <div class="card-hero-meta">${[
-          v.neighborhood, v.cuisine, cardDistance(v), todayH,
+          cardDistance(v), v.neighborhood, v.cuisine, todayH,
           v.yelp_rating ? `★ ${v.yelp_rating}` : (avg > 0 ? `★ ${avg.toFixed(1)}` : ''),
         ].filter(Boolean).map(x => `<span>${esc(x)}</span>`).join('<span class="dot"></span>')}</div>
       ${hhBadgeHTML(v)}
@@ -3783,15 +3810,15 @@ function compactCardHTML(v, delay) {
 
   return `<div class="card-compact" data-id="${v.id}"
     onclick="openModal('${v.id}','venue')" style="${delay === false ? 'animation:none' : `animation-delay:${delay}ms`}">
-    <img class="card-compact-img" src="${photoUrl}" alt="${esc(v.name)}" loading="lazy" decoding="async"
-      onerror="this.closest('.card-compact').style.background='linear-gradient(135deg,#2A1F14,#1A1208)';this.remove()">
+    <img class="card-compact-img" src="${esc(optImg(photoUrl, 640))}" data-raw="${esc(photoUrl)}" alt="${esc(v.name)}" loading="lazy" decoding="async"
+      onerror="${IMG_FALLBACK}this.closest('.card-compact').style.background='linear-gradient(135deg,#2A1F14,#1A1208)';this.remove()">
     <div class="card-compact-overlay"></div>
     <button class="card-compact-fav${faved ? ' faved' : ''}"
       onclick="event.stopPropagation();doFavorite('${v.id}','venue',this);this.classList.toggle('faved');this.textContent=this.classList.contains('faved')?'★':'☆'">${faved ? '★' : '☆'}</button>
     ${badge}
     <div class="card-compact-info">
       <div class="card-compact-name">${esc(v.name)}</div>
-      <div class="card-compact-sub">${[v.cuisine, cardDistance(v), v.yelp_rating ? `★ ${v.yelp_rating}` : (avg > 0 ? `★ ${avg.toFixed(1)}` : ''), count > 0 ? `🔥 ${count}` : ''].filter(Boolean).map(esc).join(' · ')}</div>
+      <div class="card-compact-sub">${[cardDistance(v), v.cuisine, v.yelp_rating ? `★ ${v.yelp_rating}` : (avg > 0 ? `★ ${avg.toFixed(1)}` : ''), count > 0 ? `🔥 ${count}` : ''].filter(Boolean).map(esc).join(' · ')}</div>
       ${hhBadgeHTML(v)}
       ${dealsHtml}
       ${eventChipsHTML(v)}
@@ -3805,6 +3832,13 @@ function compactCardHTML(v, delay) {
 // ═══════════════════════════════════════
 // STANDARD CARD (horizontal row)
 // ═══════════════════════════════════════
+// Spotd-review stars for a standard card. Nothing (not a row of grey stars and
+// "(—)") when the venue has no reviews yet.
+function _spotdStarsHTML(cached) {
+  if (!cached || !cached.length) return '';
+  const avg = avgFromList(cached);
+  return `<div class="card-std-stars">${Array.from({length:5},(_,i) => `<span class="${i < Math.round(avg) ? 's-lit' : 's-unlit'}">★</span>`).join('')}<span class="s-count">(${cached.length})</span></div>`;
+}
 function standardCardHTML(v, delay, first = false) {
   const hasPhoto = !!(v.photo_url || (v.photo_urls && v.photo_urls.length));
   const photoUrl = v.photo_url || (v.photo_urls && v.photo_urls[0]) || '';
@@ -3816,15 +3850,12 @@ function standardCardHTML(v, delay, first = false) {
   const deals    = (v.deals || []).slice(0, 3);
 
   const photoEl = hasPhoto
-    ? `<img class="card-std-img" src="${photoUrl}" alt="${esc(v.name)}" loading="${first ? 'eager' : 'lazy'}" decoding="async"${first ? ' fetchpriority="high"' : ''}
-        onerror="this.outerHTML='<div class=\\'card-std-nophoto\\'>🍺</div>'">`
+    ? `<img class="card-std-img" src="${esc(optImg(photoUrl, 320))}" data-raw="${esc(photoUrl)}" alt="${esc(v.name)}" loading="${first ? 'eager' : 'lazy'}" decoding="async"${first ? ' fetchpriority="high"' : ''}
+        onerror="${IMG_FALLBACK}this.outerHTML='<div class=\\'card-std-nophoto\\'>🍺</div>'">`
     : `<div class="card-std-nophoto">🍺</div>`;
 
   const yelpEl = v.yelp_rating ? `<div class="card-std-stars"><span class="s-lit">★</span> ${v.yelp_rating}${v.yelp_review_count ? `<span class="s-count">(${v.yelp_review_count})</span>` : ''}</div>` : '';
-  const starsEl = yelpEl || `<div class="card-std-stars">${
-    Array.from({length:5},(_,i) =>
-      `<span class="${i < Math.round(avg) ? 's-lit' : 's-unlit'}">★</span>`
-    ).join('')}<span class="s-count">(${cached.length || '—'})</span></div>`;
+  const starsEl = yelpEl || _spotdStarsHTML(cached);
 
   const isMeIn = state.goingByMe.has(v.id);
 
@@ -3833,9 +3864,9 @@ function standardCardHTML(v, delay, first = false) {
     ${photoEl}
     <div class="card-std-body">
       <div class="card-std-name">${esc(v.name)}</div>
-      <div class="card-std-meta">${[v.neighborhood, v.cuisine, todayH, cardDistance(v)].filter(Boolean).map(esc).join(' · ')}</div>
+      <div class="card-std-meta">${[cardDistance(v), v.neighborhood, v.cuisine, todayH].filter(Boolean).map(esc).join(' · ')}</div>
       ${hhBadgeHTML(v)}
-      ${deals.length ? deals.map(d => `<div class="card-std-deal">${esc(d)}</div>`).join('') : ''}
+      ${deals.length ? deals.map(d => `<div class="card-std-deal"><span class="card-std-deal-txt">${esc(d)}</span></div>`).join('') : ''}
       ${eventChipsHTML(v)}
       ${count > 0 ? `<div class="card-std-going">🔥 ${count} checked in tonight</div>` : starsEl}
       <button class="card-std-checkin${isMeIn ? ' joined' : ''}" data-vid="${v.id}"
@@ -3959,7 +3990,19 @@ async function refreshReviews(id, type) {
   const ae = document.getElementById(`ravg-${id}`);
   if (le) le.innerHTML = renderReviewList(r, id, type);
   if (ae) ae.innerHTML = avgHTML(r);
-  renderCards();
+  // Patch just this venue's card rating instead of rebuilding the whole grid.
+  state.reviewCache[id] = r;
+  _patchCardRating(id);
+}
+function _patchCardRating(id) {
+  const card = document.querySelector(`#cardsGrid .card-std[data-id="${id}"]`);
+  if (!card) return;
+  const v = state.venues.find(x => String(x.id) === String(id));
+  if (!v || v.yelp_rating) return; // Yelp line shown — unaffected by Spotd reviews
+  const html = _spotdStarsHTML(state.reviewCache[id] || []);
+  const el = card.querySelector('.card-std-stars');
+  if (el) { if (html) el.outerHTML = html; else el.remove(); }
+  else if (html) card.querySelector('.card-std-checkin')?.insertAdjacentHTML('beforebegin', html);
 }
 
 function avgHTML(reviews) {
@@ -3983,9 +4026,9 @@ function renderModal(v, type, reviews) {
     <div class="modal-hero-wrap${photos.length > 1 ? ' modal-hero-carousel' : ''}"${photos.length > 1 ? '' : ` onclick="openPhotoLightbox('${esc(photo)}','${esc(v.name)}')"`}>
       ${photos.length > 1
         ? `<div class="modal-hero-track" onscroll="_syncModalDots(this)">
-            ${photos.map((p, i) => `<div class="modal-hero-slide" onclick="openPhotoLightbox('${esc(p)}','${esc(v.name)}')"><img src="${esc(p)}" alt="${esc(v.name)}" ${i === 0 ? 'loading="eager" fetchpriority="high"' : 'loading="lazy"'} decoding="async" onerror="this.style.display='none'"></div>`).join('')}
+            ${photos.map((p, i) => `<div class="modal-hero-slide" onclick="openPhotoLightbox('${esc(p)}','${esc(v.name)}')"><img src="${esc(optImg(p, 1080))}" data-raw="${esc(p)}" alt="${esc(v.name)}" ${i === 0 ? 'loading="eager" fetchpriority="high"' : 'loading="lazy"'} decoding="async" onerror="${IMG_FALLBACK}this.style.display='none'"></div>`).join('')}
           </div>`
-        : `<img src="${esc(photo)}" alt="${esc(v.name)}" loading="eager" fetchpriority="high" decoding="async" onerror="this.closest('.modal-hero-wrap').style.background='linear-gradient(135deg,#2A1F14,#1A1208)';this.remove()">`}
+        : `<img src="${esc(optImg(photo, 1080))}" data-raw="${esc(photo)}" alt="${esc(v.name)}" loading="eager" fetchpriority="high" decoding="async" onerror="${IMG_FALLBACK}this.closest('.modal-hero-wrap').style.background='linear-gradient(135deg,#2A1F14,#1A1208)';this.remove()">`}
       <div class="modal-hero-grad"></div>
       ${!isVenue ? `<div class="modal-hero-tag">${esc(v.event_type || 'Event')}</div>` : ''}
       <div class="modal-hero-name">${esc(v.name)}${v.owner_verified ? ' ✓' : ''}</div>
@@ -4038,9 +4081,8 @@ function renderModal(v, type, reviews) {
 
     <div class="modal-body-inner">
       <div class="modal-loc-row">
-        <span class="modal-hood">${[v.neighborhood, isVenue ? v.cuisine : ''].filter(Boolean).map(esc).join(' · ')}</span>
-        ${(v.neighborhood || v.cuisine) && v.address ? '<span class="modal-sep">·</span>' : ''}
-        <span class="modal-addr">${ICN.pin} ${esc(v.address || '')}</span>
+        ${(v.neighborhood || (isVenue && v.cuisine)) ? `<span class="modal-hood">${[v.neighborhood, isVenue ? v.cuisine : ''].filter(Boolean).map(esc).join(' · ')}</span>` : ''}
+        ${v.address ? `<span class="modal-addr">${ICN.pin} ${esc(v.address)}</span>` : ''}
       </div>
 
       <div class="s-div"></div>
@@ -4211,7 +4253,7 @@ function doDeleteReview(reviewId, itemId, type) {
       delete state.reviewCache[`${type}-${itemId}`];
       showToast('Review deleted');
       if (state.activeItemId === itemId) refreshReviews(itemId, type);
-      renderCards();
+      else { delete state.reviewCache[itemId]; _patchCardRating(itemId); }
     },
   });
 }
@@ -4377,7 +4419,7 @@ function openResetPassword() {
     </div>
     <button class="btn-submit" id="resetBtn" onclick="doResetPassword()" style="width:100%;margin-top:4px">Update Password</button>`;
   openOverlay('authOverlay');
-  setTimeout(() => document.getElementById('rPass1')?.focus(), 100);
+  setTimeout(() => document.getElementById('rPass1')?.focus(), 700);
 }
 
 async function doResetPassword() {
@@ -4988,7 +5030,7 @@ async function openComposer(opts = {}) {
   const cpRoot = document.querySelector('#composerContent .cp--full');
   if (cpRoot) { cpRoot.classList.add('cp--intro'); setTimeout(() => cpRoot.classList.remove('cp--intro'), 1000); }
   openOverlay('composerOverlay');
-  setTimeout(() => document.getElementById('cpBody')?.focus(), 480); // after the slide-up settles
+  setTimeout(() => document.getElementById('cpBody')?.focus(), 700); // after the .66s slide-up lands (focusing mid-slide raised the keyboard against the animation)
 }
 
 function closeComposer() {
@@ -5172,7 +5214,7 @@ async function _composerOpenTagSheet() {
   const overlay = document.createElement('div');
   overlay.className = 'overlay';
   overlay.style.zIndex = 10000;
-  const close = () => { overlay.classList.remove('open'); setTimeout(() => overlay.remove(), 200); renderComposer(); };
+  const close = () => { overlay.classList.remove('open'); setTimeout(() => overlay.remove(), 600); renderComposer(); };
   overlay.onclick = e => { if (e.target === overlay) close(); };
   overlay.innerHTML = `
     <div class="sheet cp-pick" style="max-height:74vh">
@@ -5364,7 +5406,7 @@ function _composerPickVenue() {
   const overlay = document.createElement('div');
   overlay.className = 'overlay';
   overlay.style.zIndex = 10000;
-  const close = () => { overlay.classList.remove('open'); setTimeout(() => overlay.remove(), 260); };
+  const close = () => { overlay.classList.remove('open'); setTimeout(() => overlay.remove(), 600); };
   overlay.onclick = e => { if (e.target === overlay) close(); };
   overlay.innerHTML = `
     <div class="sheet sheet--tall cp-pick" style="max-height:82vh">
@@ -5383,7 +5425,7 @@ function _composerPickVenue() {
   // Trigger CSS transition: must be in the next frame after .open is added
   requestAnimationFrame(() => requestAnimationFrame(() => overlay.classList.add('open')));
   const rowHTML = v => `
-      <button class="cp-pick-row" onclick='_composerSelectVenue(${JSON.stringify(v.id)}, ${JSON.stringify(v.name)}, ${JSON.stringify(v.neighborhood || "")});this.closest(".overlay").classList.remove("open");setTimeout(()=>this.closest(".overlay")?.remove(),260);'>
+      <button class="cp-pick-row" onclick='_composerSelectVenue(${JSON.stringify(v.id)}, ${JSON.stringify(v.name)}, ${JSON.stringify(v.neighborhood || "")});this.closest(".overlay").classList.remove("open");setTimeout(()=>this.closest(".overlay")?.remove(),600);'>
         <span class="cp-pick-row-icon">${icn('pin', 16)}</span>
         <span class="cp-pick-row-text">
           <span class="cp-pick-row-name">${esc(v.name)}</span>
@@ -5404,7 +5446,7 @@ function _composerPickVenue() {
     const qTrim = (q || '').trim();
     const exact = qTrim && filtered.some(v => (v.name || '').toLowerCase() === ql);
     const addRow = (qTrim.length >= 2 && !exact) ? `
-      <button class="cp-pick-row cp-pick-row--add" data-name="${esc(qTrim)}" onclick="_composerUseCustomVenue(this.dataset.name);this.closest('.overlay').classList.remove('open');setTimeout(()=>this.closest('.overlay')?.remove(),260);">
+      <button class="cp-pick-row cp-pick-row--add" data-name="${esc(qTrim)}" onclick="_composerUseCustomVenue(this.dataset.name);this.closest('.overlay').classList.remove('open');setTimeout(()=>this.closest('.overlay')?.remove(),600);">
         <span class="cp-pick-row-icon cp-pick-row-icon--add">${icn('plus', 16)}</span>
         <span class="cp-pick-row-text">
           <span class="cp-pick-row-name">Add “${esc(qTrim)}”</span>
@@ -5926,7 +5968,7 @@ function openProfileSettings() {
   presentOverlay(overlay);
   // Load current profile values
   if (currentUser) {
-    fetchProfile(currentUser.id).then(p => {
+    getProfile(currentUser.id).then(p => {
       const bioEl = overlay.querySelector('#pBio');
       const digestEl = overlay.querySelector('#digestCb');
       const publicEl = overlay.querySelector('#publicCb');
@@ -6904,6 +6946,10 @@ function attachSwipeDismiss(sheet, overlayId) {
     currentY = startY;
     dragging = true;
     sheet.style.transition = 'none';
+    // The non-passive (preventDefault-capable) move listener is attached ONLY
+    // for the duration of a drag from the top. Keeping it registered all the
+    // time forced every scroll inside the sheet off iOS's fast path.
+    sheet.addEventListener('touchmove', sheet._swipeMoveHandler, { passive: false });
   };
 
   sheet._swipeMoveHandler = (e) => {
@@ -6916,6 +6962,7 @@ function attachSwipeDismiss(sheet, overlayId) {
   };
 
   sheet._swipeEndHandler = () => {
+    sheet.removeEventListener('touchmove', sheet._swipeMoveHandler);
     if (!dragging) return;
     dragging = false;
     const dy = currentY - startY;
@@ -6937,8 +6984,8 @@ function attachSwipeDismiss(sheet, overlayId) {
   };
 
   sheet.addEventListener('touchstart', sheet._swipeHandler,     { passive: true });
-  sheet.addEventListener('touchmove',  sheet._swipeMoveHandler, { passive: false });
   sheet.addEventListener('touchend',   sheet._swipeEndHandler,  { passive: true });
+  sheet.addEventListener('touchcancel', sheet._swipeEndHandler, { passive: true });
 }
 
 // ── UTILS ──────────────────────────────────────────────
@@ -8381,7 +8428,7 @@ const NEWS_ARTICLES = [
   { city: 'san-diego', img: 'https://images.unsplash.com/photo-1471295253337-3ceaaedca402?w=800&q=80', tag: 'Events',      author: 'Marcus',  title: 'San Diego Weekend Events: March 27\u201329, 2026', excerpt: 'Happy Opening Day. Padres vs. Tigers, Crew Classic, IRONMAN 70.3, Wave FC, live music, markets, and 30+ things to do this weekend.', url: '/blog/sd-weekend-events-march-27-29-2026.html', date: 'March 27, 2026', readTime: '12 min' },
   { city: 'san-diego', img: 'https://images.unsplash.com/photo-1436076863939-06870fe779c2?w=800&q=80', tag: 'City Guide',  author: 'Alexis', title: 'The 15 Best Happy Hours in San Diego (2026)', excerpt: 'From $5 margs in the Gaslamp to ocean-view pints in Pacific Beach \u2014 our definitive guide to San Diego\u2019s best happy hour deals.', url: '/blog/best-happy-hours-san-diego.html', date: 'March 25, 2026', readTime: '8 min' },
   { city: 'san-diego', img: 'https://images.unsplash.com/photo-1543007631-283050bb3e8c?w=800&q=80', tag: 'Events',      author: 'Ryan',   title: 'Best Trivia Nights in San Diego \u2014 Every Day of the Week', excerpt: 'Whether you\u2019re a Tuesday regular or a weekend warrior, here\u2019s where to flex your brain and score free drinks.', url: '/blog/best-trivia-nights-san-diego.html', date: 'March 24, 2026', readTime: '7 min' },
-  { city: 'san-diego', img: 'https://images.unsplash.com/photo-1470337458703-46ad1756a187?w=800&q=80', tag: 'Niche Guide', author: 'John',   title: 'San Diego Rooftop Happy Hours You Can\u2019t Miss', excerpt: 'Sunset views + drink specials = peak San Diego. These rooftop bars deliver both, without the tourist-trap prices.', url: '/blog/rooftop-happy-hours-san-diego.html', date: 'March 22, 2026', readTime: '6 min' },
+  { city: 'san-diego', img: 'https://images.unsplash.com/photo-1466978913421-dad2ebd01d17?w=800&q=80', tag: 'Niche Guide', author: 'John',   title: 'San Diego Rooftop Happy Hours You Can\u2019t Miss', excerpt: 'Sunset views + drink specials = peak San Diego. These rooftop bars deliver both, without the tourist-trap prices.', url: '/blog/rooftop-happy-hours-san-diego.html', date: 'March 22, 2026', readTime: '6 min' },
   { city: 'all',       img: 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=800&q=80', tag: 'Tips',        author: 'Olivia',  title: 'How to Find the Best Happy Hour Deals Near You', excerpt: 'Stop guessing, start saving. Here\u2019s the playbook for finding killer drink and food specials wherever you are.', url: '/blog/how-to-find-best-happy-hour-deals.html', date: 'March 20, 2026', readTime: '5 min' },
   { city: 'san-diego', img: 'https://images.unsplash.com/photo-1501612780327-45045538702b?w=800&q=80', tag: 'Events',      author: 'Alexis', title: 'Live Music + Happy Hour: San Diego\u2019s Best Combos', excerpt: 'Why choose between cheap drinks and great music? These San Diego spots serve both \u2014 and they\u2019re all on Spotd.', url: '/blog/live-music-happy-hours-san-diego.html', date: 'March 18, 2026', readTime: '6 min' },
 ];
@@ -9034,7 +9081,7 @@ async function dmOpenVenueSharePicker(venueId) {
   </div>`;
   presentOverlay(overlay);
   // Auto-focus the search input
-  setTimeout(() => document.getElementById('dmShareSearch')?.focus(), 100);
+  setTimeout(() => document.getElementById('dmShareSearch')?.focus(), 700);
 
   // Store venueId for search result sends
   window._dmShareVenueId = venueId;
@@ -9420,18 +9467,22 @@ function shareList(listId, title) {
 async function openAddToList(venueId) {
   if (!currentUser) { openAuth('signin'); return; }
   var lists = await fetchListsContainingVenue(venueId);
-  var html = '<div class="list-form-overlay" id="addToListOverlay" onclick="if(event.target===this)this.remove()">' +
-    '<div class="list-form-sheet">' +
-    '<div class="list-form-header"><span>Add to list</span><button onclick="document.getElementById(\'addToListOverlay\').remove()">&times;</button></div>' +
+  document.getElementById('addToListOverlay')?.remove();
+  var html = '<div class="sheet"><div class="sheet-handle"></div>' +
+    '<div class="sheet-title">Add to list</div>' +
     (lists.length ? lists.map(function(l) {
       return '<button class="add-list-row' + (l.hasVenue ? ' in-list' : '') + '" onclick="doAddToList(\'' + l.id + '\',\'' + venueId + '\',this)">' +
         '<span>' + (l.cover_emoji || '\uD83C\uDF78') + ' ' + esc(l.title) + '</span>' +
         '<span class="add-list-check">' + (l.hasVenue ? '\u2713' : '+') + '</span>' +
         '</button>';
     }).join('') : '<div style="padding:16px;color:var(--muted);text-align:center;font-size:13px">No lists yet</div>') +
-    '<button class="add-list-new" onclick="document.getElementById(\'addToListOverlay\').remove();openCreateListForm()">+ Create new list</button>' +
-    '</div></div>';
-  document.body.insertAdjacentHTML('beforeend', html);
+    '<button class="add-list-new" onclick="dismissOverlay(document.getElementById(\'addToListOverlay\'));openCreateListForm()">+ Create new list</button>' +
+    '</div>';
+  var overlay = document.createElement('div');
+  overlay.className = 'overlay'; overlay.id = 'addToListOverlay';
+  overlay.onclick = function(e) { if (e.target === overlay) dismissOverlay(overlay); };
+  overlay.innerHTML = html;
+  presentOverlay(overlay);
 }
 
 async function doAddToList(listId, venueId, btn) {
@@ -9791,7 +9842,7 @@ function closeStoryViewer() {
   if (overlay) {
     overlay.classList.remove('stryv--open');
     document.body.style.overflow = '';
-    setTimeout(() => overlay.remove(), 200);
+    setTimeout(() => overlay.remove(), 600);
   }
   _storyViewerItems = [];
   _storyViewerIdx = 0;
@@ -9862,7 +9913,7 @@ function closeImmersiveViewer() {
   if (!overlay) return;
   overlay.classList.remove('imv--open');
   document.body.style.overflow = '';
-  setTimeout(() => overlay.remove(), 200);
+  setTimeout(() => overlay.remove(), 600);
 }
 
 function _immersiveSlideHTML(item) {
@@ -9955,7 +10006,7 @@ async function openEditPost(postId) {
       </div>
     </div>`;
   document.body.appendChild(overlay);
-  setTimeout(() => document.getElementById('cpEditBody')?.focus(), 100);
+  setTimeout(() => document.getElementById('cpEditBody')?.focus(), 700);
 
   document.getElementById('cpEditSave').addEventListener('click', async () => {
     const btn = document.getElementById('cpEditSave');
@@ -10227,7 +10278,7 @@ async function adminSaveVenue(id) {
     if (typeof haptic === 'function') haptic('success');
   } catch (e) {
     if (btn) { btn.disabled = false; btn.textContent = 'Save Changes'; }
-    alert('Save failed: ' + e.message);
+    showToast('Save failed: ' + e.message);
   }
 }
 
