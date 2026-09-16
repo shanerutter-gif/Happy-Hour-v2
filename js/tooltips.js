@@ -46,6 +46,12 @@ const TT_STEPS = [
 let _ttStep = 0;
 let _ttOverlay = null;
 
+// The tour anchors to Discover elements, so it only makes sense while
+// Discover is the visible screen (no tab / sub-page / sheet on top).
+function _ttDiscoverVisible() {
+  return !document.querySelector('.social-tab.tab-open, .news-tab.tab-open, .dm-tab.tab-open, .profile-page--open, .sub-page--open, .overlay.open');
+}
+
 function ttShouldShow() {
   if (localStorage.getItem(TT_KEY)) return false;
   if (typeof currentUser === 'undefined' || !currentUser) return false;
@@ -55,6 +61,7 @@ function ttShouldShow() {
 function ttStart() {
   if (!ttShouldShow()) return;
   setTimeout(function() {
+    if (_ttOverlay || !_ttDiscoverVisible()) return; // try again on the next city entry
     var firstTarget = document.querySelector(TT_STEPS[0].target);
     if (!firstTarget) return;
     _ttStep = 0;
@@ -63,12 +70,32 @@ function ttStart() {
   }, 1000);
 }
 
+// Called whenever the user navigates away from Discover (tab switch, sub-page,
+// sheet). The tour used to stay pinned over every other screen, dimming the
+// whole app until "Next" was tapped five times; leaving Discover now ends it.
+function ttAbort() {
+  if (_ttOverlay) _ttFinish();
+}
+
+var _ttMoveRaf = null;
+function _ttOnMove() {
+  if (_ttMoveRaf) return;
+  _ttMoveRaf = requestAnimationFrame(function() {
+    _ttMoveRaf = null;
+    if (_ttOverlay) _ttLayout(_ttStep);
+  });
+}
+
 function _ttBuild() {
   _ttOverlay = document.createElement('div');
   _ttOverlay.className = 'tt-overlay';
   _ttOverlay.innerHTML = '<div class="tt-backdrop"></div><div class="tt-highlight"></div><div class="tt-bubble"></div>';
   _ttOverlay.querySelector('.tt-backdrop').onclick = function() { _ttNext(); };
   document.body.appendChild(_ttOverlay);
+  // Keep the spotlight + bubble glued to their target while the feed scrolls
+  // or the viewport resizes (they used to drift off the element).
+  window.addEventListener('scroll', _ttOnMove, { passive: true });
+  window.addEventListener('resize', _ttOnMove);
 }
 
 function _ttShow(idx) {
@@ -92,16 +119,7 @@ function _ttPosition(idx) {
   var step = TT_STEPS[idx];
   var el = document.querySelector(step.target);
   if (!el) return;
-  var rect = el.getBoundingClientRect();
-  var pad = 8;
-  var hl = _ttOverlay.querySelector('.tt-highlight');
   var bubble = _ttOverlay.querySelector('.tt-bubble');
-
-  // Highlight
-  hl.style.top = (rect.top - pad) + 'px';
-  hl.style.left = (rect.left - pad) + 'px';
-  hl.style.width = (rect.width + pad * 2) + 'px';
-  hl.style.height = (rect.height + pad * 2) + 'px';
 
   // Build bubble content
   var isLast = idx === TT_STEPS.length - 1;
@@ -116,33 +134,12 @@ function _ttPosition(idx) {
     '<div class="tt-text">' + step.text + '</div>' +
     '<div class="tt-footer">' +
       '<div class="tt-dots">' + dots + '</div>' +
-      (idx > 0 ? '<button class="tt-skip" onclick="event.stopPropagation();_ttFinish()">Skip</button>' : '') +
+      '<button class="tt-skip" onclick="event.stopPropagation();_ttFinish()">Skip</button>' +
       '<button class="tt-btn" onclick="event.stopPropagation();_ttNext()">' + (isLast ? 'Let\u2019s go!' : 'Next \u2192') + '</button>' +
     '</div>';
 
-  // Position — keep bubble fully on screen
-  var bw = Math.min(300, window.innerWidth - 32);
-  var left = Math.max(16, Math.min(rect.left + rect.width / 2 - bw / 2, window.innerWidth - bw - 16));
-
-  bubble.style.width = bw + 'px';
-  bubble.style.left = left + 'px';
-
-  if (step.pos === 'above') {
-    bubble.style.top = 'auto';
-    bubble.style.bottom = (window.innerHeight - rect.top + pad + 16) + 'px';
-    bubble.className = 'tt-bubble tt-bubble--above tt-bubble--enter';
-  } else {
-    bubble.style.bottom = 'auto';
-    // Clamp so it doesn't go off screen bottom
-    var topPos = rect.bottom + pad + 16;
-    var maxTop = window.innerHeight - 200;
-    bubble.style.top = Math.min(topPos, maxTop) + 'px';
-    bubble.className = 'tt-bubble tt-bubble--below tt-bubble--enter';
-  }
-
-  // Arrow position
-  var arrowLeft = Math.max(24, Math.min(rect.left + rect.width / 2 - left, bw - 24));
-  bubble.style.setProperty('--arrow-left', arrowLeft + 'px');
+  bubble.className = 'tt-bubble ' + (step.pos === 'above' ? 'tt-bubble--above' : 'tt-bubble--below') + ' tt-bubble--enter';
+  _ttLayout(idx);
 
   // Trigger animation
   requestAnimationFrame(function() {
@@ -150,6 +147,39 @@ function _ttPosition(idx) {
       bubble.classList.remove('tt-bubble--enter');
     });
   });
+}
+
+// Geometry only (highlight box + bubble placement) — safe to call on every
+// scroll/resize frame without rebuilding the bubble or replaying its entrance.
+function _ttLayout(idx) {
+  var step = TT_STEPS[idx];
+  var el = document.querySelector(step.target);
+  if (!el || !_ttOverlay) return;
+  var rect = el.getBoundingClientRect();
+  var pad = 8;
+  var hl = _ttOverlay.querySelector('.tt-highlight');
+  var bubble = _ttOverlay.querySelector('.tt-bubble');
+
+  hl.style.top = (rect.top - pad) + 'px';
+  hl.style.left = (rect.left - pad) + 'px';
+  hl.style.width = (rect.width + pad * 2) + 'px';
+  hl.style.height = (rect.height + pad * 2) + 'px';
+
+  var bw = Math.min(300, window.innerWidth - 32);
+  var left = Math.max(16, Math.min(rect.left + rect.width / 2 - bw / 2, window.innerWidth - bw - 16));
+  bubble.style.width = bw + 'px';
+  bubble.style.left = left + 'px';
+  if (step.pos === 'above') {
+    bubble.style.top = 'auto';
+    bubble.style.bottom = (window.innerHeight - rect.top + pad + 16) + 'px';
+  } else {
+    bubble.style.bottom = 'auto';
+    var topPos = rect.bottom + pad + 16;
+    var maxTop = window.innerHeight - 200;
+    bubble.style.top = Math.min(topPos, maxTop) + 'px';
+  }
+  var arrowLeft = Math.max(24, Math.min(rect.left + rect.width / 2 - left, bw - 24));
+  bubble.style.setProperty('--arrow-left', arrowLeft + 'px');
 }
 
 function _ttNext() {
@@ -170,6 +200,8 @@ function _ttNext() {
 
 function _ttFinish() {
   localStorage.setItem(TT_KEY, '1');
+  window.removeEventListener('scroll', _ttOnMove);
+  window.removeEventListener('resize', _ttOnMove);
   if (_ttOverlay) {
     _ttOverlay.classList.add('tt-overlay--out');
     setTimeout(function() {
