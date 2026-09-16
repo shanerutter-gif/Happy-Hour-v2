@@ -422,16 +422,25 @@ function renderTemplate(tpl, props) {
 }
 
 // ── Minimal cron parser ─────────────────────────────────────────
-// 5-field UTC cron (min hour dom mon dow) supporting *, numbers, ranges,
-// lists, and steps. Note: dom/dow are ANDed (vanilla cron ORs them when both
-// are restricted) — the admin UI only ever restricts one of the two.
+// 5-field cron (min hour dom mon dow) supporting *, numbers, ranges, lists,
+// and steps. Note: dom/dow are ANDed (vanilla cron ORs them when both are
+// restricted) — the admin UI only ever restricts one of the two.
+//
+// Fields are UTC unless the expression carries a trailing `TZ=<IANA zone>`
+// token, e.g. `0 16 * * * TZ=America/Los_Angeles` = 4 PM Pacific year-round.
+// Without it a "4 PM PT" daily push drifts to 3 PM every winter (the fixed
+// 23:00 UTC of the old happy-hour reminder).
 export function nextCronOccurrence(expr, fromDate) {
   const parts = String(expr || '').trim().split(/\s+/);
+  let tz = null;
+  if (parts.length === 6 && /^TZ=/i.test(parts[5])) { tz = parts.pop().slice(3); }
   if (parts.length !== 5) return null;
   const ranges = [[0, 59], [0, 23], [1, 31], [1, 12], [0, 6]];
   const fields = parts.map((p, i) => parseCronField(p, ranges[i][0], ranges[i][1]));
   if (fields.some(f => !f)) return null;
   const [min, hour, dom, mon, dow] = fields;
+
+  if (tz) return nextZonedCronOccurrence({ min, hour, dom, mon, dow }, tz, fromDate);
 
   const d = new Date(fromDate.getTime());
   d.setUTCSeconds(0, 0);
@@ -442,6 +451,52 @@ export function nextCronOccurrence(expr, fromDate) {
       return d;
     }
     d.setUTCMinutes(d.getUTCMinutes() + 1);
+  }
+  return null;
+}
+
+// Timezone-aware variant: walk the next 366 wall-clock days in `tz`, and for
+// each matching day try every (hour, minute) in the field sets, converting the
+// zoned wall-clock back to a UTC instant. Returns the first instant > fromDate.
+function nextZonedCronOccurrence(f, tz, fromDate) {
+  let fmt;
+  try {
+    fmt = new Intl.DateTimeFormat('en-US', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', weekday: 'short' });
+  } catch { return null; } // unknown zone
+  const partsOf = (date) => {
+    const o = {};
+    for (const p of fmt.formatToParts(date)) o[p.type] = p.value;
+    return { y: +o.year, mo: +o.month, d: +o.day, h: +o.hour % 24, mi: +o.minute, dow: ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].indexOf(o.weekday) };
+  };
+  // UTC instant for a wall-clock time in tz (two-pass offset fix handles DST edges).
+  const zonedToUtc = (y, mo, d, h, mi) => {
+    let guess = Date.UTC(y, mo - 1, d, h, mi);
+    for (let i = 0; i < 2; i++) {
+      const p = partsOf(new Date(guess));
+      const asUtc = Date.UTC(p.y, p.mo - 1, p.d, p.h, p.mi);
+      const diff = asUtc - guess; // (wall-clock as if UTC) − instant = offset
+      guess = Date.UTC(y, mo - 1, d, h, mi) - diff;
+    }
+    return guess;
+  };
+  const hours = [...f.hour].sort((a, b) => a - b);
+  const mins = [...f.min].sort((a, b) => a - b);
+  const from = fromDate.getTime();
+  const start = partsOf(fromDate);
+  let dayUtc = Date.UTC(start.y, start.mo - 1, start.d); // walk by wall-clock day
+  for (let i = 0; i < 367; i++) {
+    const day = new Date(dayUtc + i * 86400000);
+    const y = day.getUTCFullYear(), mo = day.getUTCMonth() + 1, d = day.getUTCDate();
+    const dow = new Date(Date.UTC(y, mo - 1, d)).getUTCDay();
+    if (f.mon.has(mo) && f.dom.has(d) && f.dow.has(dow)) {
+      for (const h of hours) for (const mi of mins) {
+        const t = zonedToUtc(y, mo, d, h, mi);
+        if (t > from) {
+          const check = partsOf(new Date(t));
+          if (check.h === h && check.mi === mi) return new Date(t); // skips non-existent DST wall-clock times
+        }
+      }
+    }
   }
   return null;
 }

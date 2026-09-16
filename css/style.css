@@ -8884,3 +8884,137 @@ h1, h2, .sf-hero-venue, .sf-ed-title, .pf-name, .gw-hero__title,
 }
 .cp-iconbtn { display: flex; align-items: center; justify-content: center; }
 .cp-pick-search-icon { display: flex; align-items: center; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   iOS AUDIT PASS — 2026-09-16 (docs: spotd-ios-audit-2026-09-15)
+   Appended last on purpose so these win over the earlier rules.
+
+   DESIGN TOKENS (locked — future sessions: reuse, don't drift)
+   • Section label ..... DM Mono 10px · uppercase · .08em tracking · var(--muted)  → .modal-section-label
+   • Sheet header ...... Cabinet Grotesk 17px/800 + 32px ✕ top-right             → .sheet-title / .sheet-close
+   • Primary CTA ....... full-width coral→amber gradient pill · 13px v-pad · 12px radius
+   • Secondary action .. 44px outlined-glass circle                              → .modal-action-icon
+   • Card meta ......... DM Sans 12px var(--muted) · "·" separators via filter(Boolean).join(' · ')
+   • Hero scrim ........ rgba(20,15,8,0) 0% → .35 40% → .85 100%
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── #6 / #27 / D3 hero card legibility + hierarchy ── */
+.card-hero-overlay {
+  background: linear-gradient(180deg, rgba(20,15,8,0) 0%, rgba(20,15,8,.35) 40%, rgba(20,15,8,.85) 100%);
+}
+.card-hero-name { text-shadow: 0 1px 8px rgba(0,0,0,.6); }
+.card-hero-meta { color: rgba(255,255,255,.92); text-shadow: 0 1px 6px rgba(0,0,0,.6); flex-wrap: wrap; row-gap: 2px; }
+.card-hero-meta .dot { background: rgba(255,255,255,.55); }
+.card-hero-deal { opacity: .6; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* D12: deal text never truncates mid-word without an ellipsis */
+.card-compact-deal, .np-stop-deal, .modal-deal-item { overflow: hidden; text-overflow: ellipsis; }
+.card-compact-deal { white-space: nowrap; }
+
+/* ── #26 sheets scroll, they don't select ── */
+.sheet { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.sheet input, .sheet textarea, .sheet [contenteditable="true"], .sheet .review-item, .sheet .modal-deal-item, .sheet .dm-bubble {
+  -webkit-user-select: text; user-select: text;
+}
+
+/* ── D1 one dismissal model: handle + ✕ on every sheet ── */
+.sheet-title { font-family: 'Cabinet Grotesk', 'DM Sans', sans-serif; font-weight: 800; font-size: 17px; margin: 0 40px 16px 0; color: var(--text); }
+.sheet-close--auto {
+  position: absolute; top: 14px; right: 14px; float: none; margin: 0;
+  width: 32px; height: 32px; z-index: 40; font-size: 13px; font-weight: 700;
+  background: var(--cp-glass, var(--bg2)); border: 1px solid var(--cp-glass-brd, transparent);
+  color: var(--muted); box-shadow: none; line-height: 1;
+}
+.sheet-close--auto:active { transform: scale(.9); }
+/* Venue sheet: ✕ floats over the hero photo (top-right); the ★ shifts left. */
+#venueSheet .sheet-close--auto { background: rgba(255,255,255,.9); color: #2A1F14; border: none; box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+#venueSheet .modal-hero-fav { right: 60px; }
+[data-theme="dark"] .sheet-close--auto { color: var(--text); }
+
+/* ── D2 venue sheet action row: Directions is the primary, rest outlined glass ── */
+.modal-action-icon,
+.modal-action-icon:not(.modal-action.primary .modal-action-icon):not(.modal-action.share .modal-action-icon) {
+  width: 44px; height: 44px;
+  background: var(--cp-glass, var(--bg2)); color: var(--text);
+  border: 1px solid var(--cp-glass-brd, var(--border2)); box-shadow: none;
+}
+.modal-action.primary .modal-action-icon {
+  background: linear-gradient(135deg, var(--coral), var(--amber)); color: #fff; border: none;
+  box-shadow: 0 4px 12px var(--coral-glow);
+}
+.modal-action-label { color: var(--text); font-size: 10.5px; }
+.modal-action { padding: 12px 4px; }
+
+/* ── #11 / D8 reviews block ── */
+.modal-ext-rating { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); margin-bottom: 12px; }
+.modal-sub-label { font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 700; color: var(--text); margin: 4px 0 8px; }
+
+/* ── D4 one section-label style app-wide (Settings, planner, request form) ── */
+.p-section-title, .np-label, .field-label {
+  font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 500;
+  letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px;
+}
+.np-label .np-hint, .p-section-hint { font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--muted); opacity: .85; }
+.np-late { display: inline-block; margin-top: 6px; font-size: 12px; font-weight: 600; color: var(--coral); }
+.np-chip--more { display: none; }
+.np-chips--all .np-chip--more { display: inline-flex; }
+.np-chip--showall { color: var(--coral); border-style: dashed; }
+
+/* ── #18 Send-to sheet ── */
+.dm-group-pill { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 999px; font-size: 10px; font-weight: 700; letter-spacing: .02em; color: var(--muted); background: var(--bg2); vertical-align: middle; }
+
+/* ── #17 / D1 inline Share-tab nudge (replaces the centered modal) ── */
+.sf-nudge {
+  display: flex; align-items: center; gap: 10px; margin: 8px 12px 4px; padding: 10px 12px;
+  border-radius: 14px; background: var(--card); border: 1px solid var(--border2);
+  box-shadow: 0 2px 10px rgba(42,31,20,.06);
+}
+.sf-nudge-ic { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 50%; flex: 0 0 auto; color: #fff; background: linear-gradient(135deg, var(--coral), var(--amber)); }
+.sf-nudge-txt { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+.sf-nudge-txt b { font-size: 13.5px; color: var(--text); }
+.sf-nudge-txt span { font-size: 12px; color: var(--muted); line-height: 1.35; }
+.sf-nudge-x { flex: 0 0 auto; width: 28px; height: 28px; border-radius: 50%; border: none; background: var(--bg2); color: var(--muted); font-size: 12px; cursor: pointer; }
+/* Feed dividers ("Most liked this month", "From around San Diego") — D9 */
+.sf-feed-divider { padding: 12px 16px 6px; font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+
+/* ── #19 / D11 picker groups ── */
+.cp-pick-group { padding: 10px 14px 4px; font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+
+/* ── #21 lightbox caption ── */
+.lightbox-cap { position: absolute; left: 16px; right: 16px; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); text-align: center; color: rgba(255,255,255,.9); font-size: 13px; line-height: 1.4; text-shadow: 0 1px 6px rgba(0,0,0,.7); pointer-events: none; }
+
+/* ── D6 / D7 Discover header: List|Map seg + slimmer chrome + feed footer ── */
+.view-seg {
+  display: inline-flex; flex: 0 0 auto; padding: 3px; border-radius: 14px; gap: 2px;
+  background: var(--cp-glass); border: 1px solid var(--cp-glass-brd);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+}
+.vs-btn {
+  display: inline-flex; align-items: center; gap: 5px; border: none; background: none; cursor: pointer;
+  padding: 7px 11px; border-radius: 11px; font-family: 'DM Sans', sans-serif; font-weight: 700; font-size: 12.5px; color: var(--muted);
+  transition: background .15s, color .15s, transform .15s var(--ease-bounce);
+}
+.vs-btn:active { transform: scale(.95); }
+.view-seg:not(.map-active) .vs-list, .view-seg.map-active .vs-map { background: var(--card); color: var(--ink); box-shadow: 0 1px 4px rgba(42,31,20,.12); }
+.view-seg.map-active .vs-map { color: #FF6B4A; }
+.view-seg.vt-pop { animation: none; }
+@media (max-width: 1023px) { .controls-actions .filter-toggle { flex: 1; } }
+.results-bar { padding: 10px 20px 4px; }
+.results-sort { text-transform: none; letter-spacing: 0; font-weight: 500; }
+.feed-footer { grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 26px 16px 34px; }
+.feed-footer-txt { font-size: 13px; color: var(--muted); }
+/* Happening-now toggle inside the Filters panel row */
+.fp-row-planner { display: flex; flex-direction: column; gap: 8px; }
+.filter-panel .happening-toggle { width: 100%; justify-content: center; }
+
+/* ── D10 map: locate-me FAB instead of +/- zoom furniture ── */
+.map-view { position: relative; }
+.map-locate-fab {
+  position: absolute; right: 14px; bottom: calc(96px + env(safe-area-inset-bottom, 0px)); z-index: 650;
+  width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--cp-glass-brd);
+  background: var(--card); color: var(--ink); box-shadow: 0 6px 18px rgba(42,31,20,.18);
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  transition: transform .16s var(--ease-bounce);
+}
+.map-locate-fab:active { transform: scale(.92); }
+.map-locate-fab.locating svg { animation: spin 1s linear infinite; } /* keyframes defined earlier in this file */
+@media (min-width: 1200px) { .map-locate-fab { bottom: 24px; } }
