@@ -12,6 +12,11 @@
  * penalizes intrusive interstitials on mobile organic entry, so the content
  * must stay visible and scrollable behind it.
  *
+ * It also yields to the consent banner (js/consent.js): while the consent UI
+ * is visible — or consent is still pending and the delayed ask hasn't fired
+ * yet — the CTA holds and only appears after the visitor resolves the
+ * consent choice. The two bottom cards never stack.
+ *
  * City source: window.__spotdOrganicCity (set inline by the SSR renderers),
  * falling back to path parsing (/happy-hour/<city>) and blog-slug heuristics.
  * Shown at most once per browser session. Self-contained (injects its own CSS
@@ -152,21 +157,6 @@
     if (closeBtn) closeBtn.addEventListener('click', dismiss);
     if (laterBtn) laterBtn.addEventListener('click', dismiss);
 
-    // The GDPR consent banner (#spotd-consent, js/consent.js) is also fixed to
-    // the bottom at a near-max z-index and self-removes on Accept/Decline —
-    // sit above it while it's visible so neither blocks the other.
-    var lift = setInterval(function () {
-      try {
-        if (!document.body.contains(wrap)) { clearInterval(lift); return; }
-        var bar = document.getElementById('spotd-consent');
-        wrap.style.bottom = (bar && bar.offsetHeight) ? (bar.offsetHeight + 20) + 'px' : '';
-      } catch (e) { clearInterval(lift); }
-    }, 400);
-    try {
-      var bar0 = document.getElementById('spotd-consent');
-      if (bar0 && bar0.offsetHeight) wrap.style.bottom = (bar0.offsetHeight + 20) + 'px';
-    } catch (e) {}
-
     // Slide in on the next frame so the entrance transition runs.
     requestAnimationFrame(function () {
       requestAnimationFrame(function () {
@@ -176,7 +166,35 @@
     });
   }
 
-  function arm() { setTimeout(function () { try { show(); } catch (e) {} }, DELAY_MS); }
+  // ── Consent-aware display ──
+  // The consent banner (js/consent.js, #spotd-consent) is also fixed to the
+  // bottom. Never stack on top of it: if it's visible — or consent is still
+  // pending and the delayed ask hasn't fired yet — hold the CTA until the
+  // visitor resolves the consent UI (Accept, Decline, or Not now), then show.
+  function consentMayAsk() {
+    try {
+      if (window.__spotdConsent !== 'pending') return false;
+      if (sessionStorage.getItem('spotd_consent_asked')) return false;
+      return true;
+    } catch (e) { return false; }
+  }
+
+  function arm() {
+    setTimeout(function () {
+      try {
+        var blocked = !!document.getElementById('spotd-consent') || consentMayAsk();
+        if (!blocked) { show(); return; }
+        var done = false;
+        function go() {
+          if (done) return; done = true;
+          try { show(); } catch (e) {}
+        }
+        document.addEventListener('spotd:consent', go);
+        document.addEventListener('spotd:consent-dismissed', go);
+        setTimeout(go, 45000); // safety: never hold forever
+      } catch (e) { try { show(); } catch (e2) {} }
+    }, DELAY_MS);
+  }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', arm);
   else arm();
 })();
