@@ -6133,7 +6133,7 @@ in San Diego</textarea>
     await ccSavePosts();
     ccCloseCompose();
     ccRender();
-    showToast(!saveErr ? (wasEdit ? 'Post updated' : 'Post created') : `⚠️ Save failed (${saveErr.status}) — post NOT stored.`);
+    showToast(!saveErr ? (wasEdit ? 'Post updated' : 'Post created') : `⚠️ Save failed (${saveErr.status}) — post NOT stored. ${saveErr.error || ''}`);
   }
 
   // ── DELETE ──
