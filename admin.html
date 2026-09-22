@@ -5919,6 +5919,7 @@ in San Diego</textarea>
     _ccMediaFiles = [];
     _ccTags = [];
     _ccEditId = null;
+    ccResetDeleteBtn();
 
     if (postId) {
       const post = _ccPosts.find(p => p.id === postId);
@@ -6147,9 +6148,26 @@ in San Diego</textarea>
   }
 
   // ── DELETE ──
+  let _ccDeleteArmed = false;
+  let _ccDeleteArmTimer = null;
+  function ccResetDeleteBtn() {
+    _ccDeleteArmed = false;
+    clearTimeout(_ccDeleteArmTimer);
+    const btn = document.getElementById('cc-delete-btn');
+    if (btn && btn.dataset.label) { btn.textContent = btn.dataset.label; delete btn.dataset.label; }
+  }
   async function ccDeletePost() {
     if (!_ccEditId) return;
-    if (!confirm('Delete this post?')) return;
+    const btn = document.getElementById('cc-delete-btn');
+    if (!_ccDeleteArmed) {
+      // First tap arms, second tap confirms. Native confirm() is unreliable in PWAs and automation.
+      _ccDeleteArmed = true;
+      if (btn && !btn.dataset.label) { btn.dataset.label = btn.textContent; btn.textContent = 'Tap again to confirm'; }
+      clearTimeout(_ccDeleteArmTimer);
+      _ccDeleteArmTimer = setTimeout(ccResetDeleteBtn, 4000);
+      return;
+    }
+    ccResetDeleteBtn();
     _ccPosts = _ccPosts.filter(p => p.id !== _ccEditId);
     await ccDeletePostFromDb(_ccEditId);
     await ccSavePosts();
