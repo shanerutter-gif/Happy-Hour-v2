@@ -6115,6 +6115,7 @@ in San Diego</textarea>
         saveErr = await ccSavePostToDb(post);
       }
     } else {
+          if (saveErr) { document.title = `CC-SAVE-ERROR ${saveErr.status}: ${saveErr.error || ''}`; }
       const post = {
         id: 'cc_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
                 // The live content_posts table has a NOT NULL title column (added after
@@ -6133,7 +6134,8 @@ in San Diego</textarea>
     await ccSavePosts();
     ccCloseCompose();
     ccRender();
-    showToast(!saveErr ? (wasEdit ? 'Post updated' : 'Post created') : `⚠️ Save failed (${saveErr.status}) — post NOT stored. ${saveErr.error || ''}`);
+        if (saveErr) { document.title = `CC-SAVE-ERROR ${saveErr.status}: ${saveErr.error || ''}`; }
+showToast(!saveErr ? (wasEdit ? 'Post updated' : 'Post created') : `⚠️ Save failed (${saveErr.status}) — post NOT stored. ${saveErr.error || ''}`);
   }
 
   // ── DELETE ──
