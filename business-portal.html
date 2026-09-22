@@ -528,7 +528,7 @@
         background: rgba(245,239,230,0.97);
         border: 1px solid var(--border);
         border-radius: 22px;
-        backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+        backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); box-shadow: 0 4px 24px rgba(42,31,20,0.1);
         z-index: 200;
         padding: 0 0 env(safe-area-inset-bottom);
       }
@@ -1850,7 +1850,7 @@
           </div>
           <div style="display:flex;gap:6px;flex-shrink:0;">
             <button onclick="editEventInline('${e.id}')" style="background:rgba(255,107,74,0.08);border:1px solid rgba(255,107,74,0.2);color:var(--teal);border-radius:7px;padding:6px 12px;cursor:pointer;font-size:12px;font-weight:600;">Edit</button>
-            <button onclick="deleteEvent('${e.id}')" style="background:rgba(192,57,43,0.06);border:1px solid rgba(192,57,43,0.15);color:#C0392B;border-radius:7px;padding:6px 12px;cursor:pointer;font-size:13px;">Delete</button>
+            <button onclick="deleteEvent('${e.id}')" style="background:rgba(192,57,43,0.06);border:1px solid rgba(192,57,43,0.15);color:#C0392B;border-radius:7px;padding:6px 12px;cursor:pointer;font-size:12px;font-weight:600;">Delete</button>
           </div>
         </div>
       </div>
