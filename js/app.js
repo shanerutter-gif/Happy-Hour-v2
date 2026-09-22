@@ -8491,7 +8491,7 @@ function closeNewsTab() {
 }
 
 
-function renderNewsFeed() {
+/* Escape closes the news/blog panel (covers viewport); skipped while typing in a field. */ document.addEventListener('keydown', function (e) { if (e.key !== 'Escape') return; var t = document.activeElement; if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return; var news = document.getElementById('newsTab'); if (news && news.classList.contains('tab-open')) { closeNewsTab(); e.preventDefault(); } }); function renderNewsFeed() {
   var container = document.getElementById('newsFeedContent');
   if (!container) return;
   var citySlug = state.city?.slug || 'san-diego';
