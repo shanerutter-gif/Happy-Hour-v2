@@ -6055,12 +6055,14 @@ in San Diego</textarea>
     });
   })();
 
-  // ── TAGS ──
-  function ccAddTag() {
-    const input = document.getElementById('cc-tag-input');
-    const tag = input.value.trim();
-    if (tag && !_ccTags.includes(tag)) { _ccTags.push(tag); ccRenderTags(); }
-    input.value = '';
+    function ccAddTag() {
+          const input = document.getElementById('cc-tag-input');
+          const raw =  input.value.trim();
+          if (raw) {
+                  raw.split(',').map(t => t.trim()).filter(t => t && !_ccTags.includes(t)).forEach(t => { _ccTags.push(t); });
+                  ccRenderTags();
+          }
+        input.value = '';
   }
 
   function ccRemoveTag(idx) { _ccTags.splice(idx, 1); ccRenderTags(); }
@@ -6071,7 +6073,6 @@ in San Diego</textarea>
       `<span class="cc-tag">${escHtml(t)} <span class="cc-tag-remove" onclick="ccRemoveTag(${i})">✕</span></span>`
     ).join('');
   }
-
   // ── SAVE ──
   async function ccSavePost() {
     const caption = document.getElementById('cc-caption').value.trim();
@@ -6141,7 +6142,7 @@ in San Diego</textarea>
     ccCloseCompose();
     ccRender();
     
-if (saveErr) { document.title = `CC-SAVE-ERROR ${saveErr.status}: ${saveErr.error || ''}`; }
+
     showToast(!saveErr ? (wasEdit ? 'Post updated' : 'Post created') : `⚠️ Save failed (${saveErr.status}) — post NOT stored. ${saveErr.error || ''}`);
   }
 
@@ -7328,6 +7329,8 @@ ${sectionsMjml}
           const name = venueLookup[vid] || 'Unknown';
           return `<div class="dash-row">
             <div class="dash-row-main">
+
+            
               <span class="dash-row-rank">#${i + 1}</span>
               <span class="dash-row-title">${esc(name)}</span>
             </div>
@@ -7350,3 +7353,4 @@ ${sectionsMjml}
 </script>
 </body>
 </html>
+
