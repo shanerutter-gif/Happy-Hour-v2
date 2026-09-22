@@ -6107,6 +6107,7 @@ in San Diego</textarea>
         post.scheduled_date = date;
         post.scheduled_time = time;
         post.status = status;
+        post.platform = (platforms[0] || 'instagram');
         post.notes = notes;
         post.platforms = platforms;
         post.tags = [..._ccTags];
@@ -6115,7 +6116,7 @@ in San Diego</textarea>
         saveErr = await ccSavePostToDb(post);
       }
     } else {
-          if (saveErr) { document.title = `CC-SAVE-ERROR ${saveErr.status}: ${saveErr.error || ''}`; }
+      
       const post = {
         id: 'cc_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
                 // The live content_posts table has a NOT NULL title column (added after
@@ -6123,6 +6124,11 @@ in San Diego</textarea>
         // field, so derive one from the caption or inserts fail.
         title: (caption.split('\n')[0] || 'Untitled').slice(0, 80),
         caption, scheduled_date: date, scheduled_time: time,
+        // Live DB has NOT NULL platform (singular); derive from first selected platform.
+        platform: (platforms[0] || 'instagram'),
+        
+        
+        
         status, notes, platforms, tags: [..._ccTags],
         media_urls: mediaUrls,
         created_at: new Date().toISOString(),
@@ -6134,8 +6140,9 @@ in San Diego</textarea>
     await ccSavePosts();
     ccCloseCompose();
     ccRender();
-        if (saveErr) { document.title = `CC-SAVE-ERROR ${saveErr.status}: ${saveErr.error || ''}`; }
-showToast(!saveErr ? (wasEdit ? 'Post updated' : 'Post created') : `⚠️ Save failed (${saveErr.status}) — post NOT stored. ${saveErr.error || ''}`);
+    
+if (saveErr) { document.title = `CC-SAVE-ERROR ${saveErr.status}: ${saveErr.error || ''}`; }
+    showToast(!saveErr ? (wasEdit ? 'Post updated' : 'Post created') : `⚠️ Save failed (${saveErr.status}) — post NOT stored. ${saveErr.error || ''}`);
   }
 
   // ── DELETE ──
