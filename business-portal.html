@@ -529,7 +529,6 @@
         border: 1px solid var(--border);
         border-radius: 22px;
         backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-        box-shadow: 0 4px 24px rgba(42,31,20,0.1);
         z-index: 200;
         padding: 0 0 env(safe-area-inset-bottom);
       }
@@ -610,7 +609,7 @@
     .btn-manage-sub{background:transparent;color:var(--teal);border:1px solid rgba(255,107,74,0.3);border-radius:50px;padding:10px 18px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:background .2s}
     .btn-manage-sub:hover{background:rgba(255,107,74,0.06)}
     .pro-gate{position:relative;margin-bottom:20px}
-    .pro-gate-overlay{display:flex;align-items:center;justify-content:center;z-index:20;border-radius:16px;background:rgba(245,239,230,0.97);border:1px solid var(--border);flex-direction:column;gap:6px;text-align:center;padding:32px 20px;margin-top:-1px;backdrop-filter:blur(8px);-webkit-backdrop-filter(blur(8px)}
+    .pro-gate-overlay{display:flex;align-items:center;justify-content:center;z-index:20;border-radius:16px;background:rgba(245,239,230,0.97);border:1px solid var(--border);flex-direction:column;gap:6px;text-align:center;padding:32px 20px;margin-top:-1px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
     .pro-gate-label{font-family:'Cabinet Grotesk',sans-serif;font-size:14px;font-weight:800;color:var(--text)}
     .pro-gate-sub{font-size:12px;color:var(--muted)}
     .promo-code-row{display:flex;gap:10px;align-items:flex-end}
@@ -1311,6 +1310,7 @@
     document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.querySelectorAll('.mob-nav-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.mob-nav-btn').forEach(b => b.classList.remove('active'));
 
     const pageEl = document.getElementById('page-' + page);
     if (pageEl) pageEl.classList.add('active');
@@ -1850,7 +1850,7 @@
           </div>
           <div style="display:flex;gap:6px;flex-shrink:0;">
             <button onclick="editEventInline('${e.id}')" style="background:rgba(255,107,74,0.08);border:1px solid rgba(255,107,74,0.2);color:var(--teal);border-radius:7px;padding:6px 12px;cursor:pointer;font-size:12px;font-weight:600;">Edit</button>
-            <button onclick="deleteEvent('${e.id}')" style="background:rgba(192,57,43,0.06);border:1px solid rgba(192,57,43,0.15);color:#C0392B;border-radius:7px;padding:6px 12px;cursor:pointer;font-size:12px;font-weight:600;">Delete</button>
+            <button onclick="deleteEvent('${e.id}')" style="background:rgba(192,57,43,0.06);border:1px solid rgba(192,57,43,0.15);color:#C0392B;border-radius:7px;padding:6px 12px;cursor:pointer;font-size:13px;">Delete</button>
           </div>
         </div>
       </div>
@@ -1879,7 +1879,7 @@
         <div class="form-row">
           <div class="form-group"><label>Start</label><input type="text" id="edit-ev-start-${eventId}" value="${esc(start||'')}" placeholder="7pm" /></div>
           <div class="form-group"><label>End</label><input type="text" id="edit-ev-end-${eventId}" value="${esc(end||'')}" placeholder="9pm" /></div>
-          <div class="form-group"><label>Price</label><input type="text" id="edit-ev-price-${eventId}" value="${esc(price||'')}" placeholder="Free" /></div>
+          <div class="form-group"><label>Price</label><input type="text" id="edit-ev-price-${eventId}" value="${esc(e.price||'')}" placeholder="Free" /></div>
         </div>
         <div class="form-group">
           <label>Days</label>
