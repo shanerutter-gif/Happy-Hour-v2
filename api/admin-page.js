@@ -6,7 +6,7 @@
 export const config = { runtime: 'edge' };
 
 const SCRIPT_TAGS = [
-  '<script src="/admin-claims.js" defer></script>',
+  '<script src="/admin-claims.js" defer></script>', '<script src="/admin-listing-reviews.js" defer></script>',
   '<script src="/admin-giveaway.js" defer></script>',
   '<script src="/admin-attribution.js" defer></script>',
   '<script src="/admin-enrichment.js" defer></script>',
