@@ -2,25 +2,7 @@
 
 <html lang="en">
 <head>
-<!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-5271Q2407Q"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){
-    if(localStorage.getItem('spotd_disable_ga'))return;
-    dataLayer.push(arguments);
-  }
-  if(new URLSearchParams(location.search).get('disable_ga')==='true'){
-    localStorage.setItem('spotd_disable_ga','1');
-    history.replaceState({},'',location.pathname);
-  }
-  if(new URLSearchParams(location.search).get('disable_ga')==='false'){
-    localStorage.removeItem('spotd_disable_ga');
-    history.replaceState({},'',location.pathname);
-  }
-  gtag('js', new Date());
-  gtag('config', 'G-5271Q2407Q');
-</script>
+<script> /* Consent-gated Google Analytics: gtag.js loads only after the visitor explicitly accepts analytics (see js/consent.js). Until then gtag() is a harmless stub. ?disable_ga=true/false still opts out / back in. */ window.dataLayer = window.dataLayer || []; function gtag(){ window.dataLayer.push(arguments); } function spotdLoadGA(){ if (window.__spotdGABooted) return; try { if (localStorage.getItem('spotd_disable_ga')) return; } catch (e) {} window.__spotdGABooted = true; var s = document.createElement('script'); s.async = true; s.src = 'https://www.googletagmanager.com/gtag/js?id=G-5271Q2407Q'; document.head.appendChild(s); gtag('js', new Date()); gtag('config', 'G-5271Q2407Q'); } try { var q = new URLSearchParams(location.search); if (q.get('disable_ga') === 'true') { try { localStorage.setItem('spotd_disable_ga','1'); } catch (e) {} history.replaceState({},'',location.pathname); } if (q.get('disable_ga') === 'false') { try { localStorage.removeItem('spotd_disable_ga'); } catch (e) {} history.replaceState({},'',location.pathname); } } catch (e) {} try { if (localStorage.getItem('spotd_consent') === 'granted') spotdLoadGA(); } catch (e) {} document.addEventListener('spotd:consent', function(){ if (window.__spotdConsent === 'granted') spotdLoadGA(); }); </script>
 <script>
 // Theme init — runs before render to prevent flash
 (function(){
@@ -90,7 +72,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://opcskuzbdfrlnyhraysk.supabase.co" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-<link rel="dns-prefetch" href="https://www.googletagmanager.com">
+
 <link href="https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@400;500;700;800;900&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <noscript><link href="https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@400;500;700;800;900&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet"></noscript>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" media="print" onload="this.media='all'">
@@ -416,7 +398,7 @@
     <div class="btf-footer-legal">
       <a href="/privacy.html" class="btf-footer-link">Privacy Policy</a>
       <span class="btf-footer-sep">·</span>
-      <a href="/terms.html" class="btf-footer-link">Terms of Service</a>
+      <a href="/terms.html" class="btf-footer-link">Terms of Service</a> <span class="btf-footer-sep">·</span> <a href="#" class="btf-footer-link" data-spotd-cookie-settings="1" onclick="event.preventDefault();if(window.spotdShowConsent)window.spotdShowConsent()">Cookie settings</a>
     </div>
     <a href="mailto:support@spotd.biz" class="btf-footer-biz">Support: support@spotd.biz</a>
     <a href="/business-landing.html" class="btf-footer-biz" id="footerBizLink">Own a venue? List it free →</a>
@@ -843,7 +825,7 @@ function dismissAppDownload() {
 </script>
 
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script defer src="js/consent.js?v=20260725a"></script>
+<script defer src="js/consent.js?v=20260922a"></script>
 <script defer src="js/db.js?v=20260916a"></script>
 <script defer src="js/onboarding.js?v=20260707a"></script>
 <script defer src="js/push.js?v=20260408a"></script>
