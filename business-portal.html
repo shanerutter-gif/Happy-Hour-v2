@@ -1405,7 +1405,7 @@
     // Load events
     loadVenueEvents(venueId);
 
-    window._editingVenueId = venueId; ensureProposalNotices(); refreshProposalNotices();
+    window._editingVenueId = venueId; window._editingVenue = venue; ensureProposalNotices(); refreshProposalNotices();
     // Show Edit tab in mobile nav
     const mobEditBtn = document.getElementById('mob-btn-edit');
     if (mobEditBtn) mobEditBtn.style.display = 'flex';
@@ -1595,7 +1595,7 @@
     if (!start || !end) return alert('Please enter start and end times.');
     const hours = `${start} - ${end}`;
     const _sH = await proposeVenueEdit({ hours, days }, 'hours');
-    showSaveToast(_sH ? 'Hours submitted for review!' : 'Could not submit — please try again.');
+    showSaveToast(_sH === 'nochange' ? 'No changes to submit.' : _sH ? 'Hours submitted for review!' : 'Could not submit — please try again.');
   }
 
   // ── DEALS ──
@@ -1626,7 +1626,7 @@
   async function saveDeals() {
     const clean = deals.map(d => d.trim()).filter(Boolean);
     const _sD = await proposeVenueEdit({ deals: clean }, 'deals');
-    showSaveToast(_sD ? 'Deals submitted for review!' : 'Could not submit — please try again.');
+    showSaveToast(_sD === 'nochange' ? 'No changes to submit.' : _sD ? 'Deals submitted for review!' : 'Could not submit — please try again.');
   }
 
   // ── DESCRIPTION ──
@@ -1676,7 +1676,7 @@
       fields[a.key] = document.getElementById('amenity-' + a.key)?.checked ?? false;
     });
     const _sA = await proposeVenueEdit(fields, 'amenities');
-    showSaveToast(_sA ? 'Amenities submitted for review!' : 'Could not submit — please try again.');
+    showSaveToast(_sA === 'nochange' ? 'No changes to submit.' : _sA ? 'Amenities submitted for review!' : 'Could not submit — please try again.');
   }
 
   // ── PHOTO UPLOAD ──────────────────────────────────────
@@ -1819,7 +1819,7 @@
 
     setPhotoStatus(photo_urls.length ? `✓ ${photo_urls.length} photo${photo_urls.length > 1 ? 's' : ''} ready for review` : '', 'success');
     // (submitted as a review proposal above)
-    showSaveToast(_sI ? 'Info submitted for review!' : 'Could not submit — please try again.');
+    showSaveToast(_sI === 'nochange' ? 'No changes to submit.' : _sI ? 'Info submitted for review!' : 'Could not submit — please try again.');
   }
 
   // ─────────────────────────────────────────────
@@ -1992,7 +1992,7 @@
   // ─────────────────────────────────────────────
   // UPDATE VENUE
   // ─────────────────────────────────────────────
-  async function proposeVenueEdit(fields, section) { const _venueId = window._editingVenueId; let _existing = []; try { _existing = await fetch(`${SUPABASE_URL}/rest/v1/venue_edit_proposals?venue_id=eq.${_venueId}&proposed_by=eq.${currentUser.id}&section=eq.${section}&status=eq.pending&select=id,changes`, { headers: sb.headers() }).then(r => r.json()); } catch (_e1) { _existing = []; } const _merged = Object.assign({}, ((_existing[0] && _existing[0].changes) || {}), fields); let _ok = false; try { if (_existing[0]) { const _r = await fetch(`${SUPABASE_URL}/rest/v1/venue_edit_proposals?id=eq.${_existing[0].id}`, { method: 'PATCH', headers: Object.assign({}, sb.headers(), { 'Prefer': 'return=representation' }), body: JSON.stringify({ changes: _merged }) }); _ok = _r.ok; } else { const _t = await sb.from('venue_edit_proposals'); const _res = await _t.insert({ venue_id: _venueId, proposed_by: currentUser.id, section: section, changes: fields, status: 'pending' }); _ok = Array.isArray(_res) && !!_res[0]; } } catch (_e2) { _ok = false; } if (_ok) { for (const _fv of Object.entries(fields)) { const _et = await sb.from('venue_edits'); await _et.insert({ venue_id: _venueId, user_id: currentUser.id, field: _fv[0], new_value: JSON.stringify(_fv[1]) }); } } refreshProposalNotices(); return _ok; } const PROPOSAL_SECTIONS = ['hours', 'deals', 'info', 'amenities', 'promo']; function ensureProposalNotices() { PROPOSAL_SECTIONS.forEach(_s => { const _body = document.querySelector('#section-' + _s + ' .edit-section-body'); if (_body && !document.getElementById('proposal-notice-' + _s)) { const _div = document.createElement('div'); _div.className = 'proposal-notice'; _div.id = 'proposal-notice-' + _s; _div.innerHTML = '⏳ <strong>Changes pending review</strong> — they’ll go live after a quick check (usually within 24 hours).'; _body.prepend(_div); } }); } async function refreshProposalNotices() { const _vId = window._editingVenueId; if (!_vId || !currentUser) return; let _rows = []; try { _rows = await fetch(`${SUPABASE_URL}/rest/v1/venue_edit_proposals?venue_id=eq.${_vId}&proposed_by=eq.${currentUser.id}&status=eq.pending&select=section`, { headers: sb.headers() }).then(r => r.json()); } catch (_e3) { _rows = []; } const _pending = new Set(Array.isArray(_rows) ? _rows.map(_r => _r.section) : []); PROPOSAL_SECTIONS.forEach(_s => { const _el = document.getElementById('proposal-notice-' + _s); if (_el) _el.classList.toggle('show', _pending.has(_s)); }); } async function _updateVenueFieldRetired_DO_NOT_USE(fields) { // retired — do not use; listing edits go through proposeVenueEdit() now
+  async function proposeVenueEdit(fields, section) { const _venueId = window._editingVenueId; const _venue = window._editingVenue || {}; const _changed = {}; for (const _k of Object.keys(fields)) { const _av = fields[_k] === undefined ? null : fields[_k]; const _bv = _venue[_k] === undefined ? null : _venue[_k]; if (JSON.stringify(_av) !== JSON.stringify(_bv)) _changed[_k] = fields[_k]; } fields = _changed; let _existing = []; try { _existing = await fetch(`${SUPABASE_URL}/rest/v1/venue_edit_proposals?venue_id=eq.${_venueId}&proposed_by=eq.${currentUser.id}&section=eq.${section}&status=eq.pending&select=id,changes`, { headers: sb.headers() }).then(r => r.json()); } catch (_e1) { _existing = []; } const _merged = Object.assign({}, ((_existing[0] && _existing[0].changes) || {}), fields); for (const _mk of Object.keys(_merged)) { const _mav = _merged[_mk] === undefined ? null : _merged[_mk]; const _mbv = _venue[_mk] === undefined ? null : _venue[_mk]; if (JSON.stringify(_mav) === JSON.stringify(_mbv)) delete _merged[_mk]; } if (!Object.keys(_merged).length) { if (_existing[0]) { try { await fetch(`${SUPABASE_URL}/rest/v1/venue_edit_proposals?id=eq.${_existing[0].id}`, { method: 'DELETE', headers: sb.headers() }); } catch (_eDel) {} } refreshProposalNotices(); return 'nochange'; } let _ok = false; try { if (_existing[0]) { const _r = await fetch(`${SUPABASE_URL}/rest/v1/venue_edit_proposals?id=eq.${_existing[0].id}`, { method: 'PATCH', headers: Object.assign({}, sb.headers(), { 'Prefer': 'return=representation' }), body: JSON.stringify({ changes: _merged }) }); _ok = _r.ok; } else { const _t = await sb.from('venue_edit_proposals'); const _res = await _t.insert({ venue_id: _venueId, proposed_by: currentUser.id, section: section, changes: _merged, status: 'pending' }); _ok = Array.isArray(_res) && !!_res[0]; } } catch (_e2) { _ok = false; } if (_ok) { for (const _fv of Object.entries(_merged)) { const _et = await sb.from('venue_edits'); await _et.insert({ venue_id: _venueId, user_id: currentUser.id, field: _fv[0], new_value: JSON.stringify(_fv[1]) }); } } refreshProposalNotices(); return _ok; } const PROPOSAL_SECTIONS = ['hours', 'deals', 'info', 'amenities', 'promo']; function ensureProposalNotices() { PROPOSAL_SECTIONS.forEach(_s => { const _body = document.querySelector('#section-' + _s + ' .edit-section-body'); if (_body && !document.getElementById('proposal-notice-' + _s)) { const _div = document.createElement('div'); _div.className = 'proposal-notice'; _div.id = 'proposal-notice-' + _s; _div.innerHTML = '⏳ <strong>Changes pending review</strong> — they’ll go live after a quick check (usually within 24 hours).'; _body.prepend(_div); } }); } async function refreshProposalNotices() { const _vId = window._editingVenueId; let _rows = []; if (_vId && currentUser) { try { _rows = await fetch(`${SUPABASE_URL}/rest/v1/venue_edit_proposals?venue_id=eq.${_vId}&proposed_by=eq.${currentUser.id}&status=eq.pending&select=section`, { headers: sb.headers() }).then(r => r.json()); } catch (_e3) { _rows = []; } } const _pending = new Set(Array.isArray(_rows) ? _rows.map(_r => String(_r.section || '').trim()) : []); PROPOSAL_SECTIONS.forEach(_s => { const _el = document.getElementById('proposal-notice-' + _s); if (_el) _el.classList.toggle('show', _pending.has(_s)); }); } async function _updateVenueFieldRetired_DO_NOT_USE(fields) { // retired — do not use; listing edits go through proposeVenueEdit() now
     const res = await table.eq('id', window._editingVenueId).update(fields);
     if (!Array.isArray(res) || !res[0]) {
       console.warn('updateVenueField response:', JSON.stringify(res));
@@ -2213,7 +2213,7 @@
     const _sP = await proposeVenueEdit({ promo_code: code, promo_description: desc || null }, 'promo');
     const msg = document.getElementById('promo-save-msg');
     if (msg) { msg.style.display = 'block'; setTimeout(() => msg.style.display = 'none', 3000); }
-    showSaveToast(_sP ? 'Promo code submitted for review!' : 'Could not submit — please try again.');
+    showSaveToast(_sP === 'nochange' ? 'No changes to submit.' : _sP ? 'Promo code submitted for review!' : 'Could not submit — please try again.');
   }
 
   // ── Handle ?upgraded=true redirect ───────────────
