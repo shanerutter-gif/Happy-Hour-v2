@@ -14,7 +14,7 @@
   <title>Owner Portal — Spotd for Business</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@400;500;700;800;900&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet" />
-  <style>
+  <style>.badge-pending  { background: rgba(245,158,11,0.1);
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
       --navy:   #F5EFE6;
@@ -252,10 +252,22 @@
       position: relative;
       overflow: hidden;
     }
+    .badge-rejected { background: rgba(192,57,43,0.08); color: var(--error); border: 1px solid rgba(192,57,43,0.18); }
+    .proposal-notice {
+      background: rgba(245,158,11,0.08);
+      border: 1px solid rgba(245,158,11,0.25);
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 13px;
+      color: var(--warn);
+      margin-bottom: 16px;
+      display: none;
+    }
+    padding: 12px 16px; color: var(--warn); margin-bottom: 16px; display: none; } .proposal-notice.show { display: block; }
     .venue-card::before {
       content: '';
       position: absolute; top: 0; left: 0; right: 0;
-      height: 3px;
+      height: 3px;    
       background: linear-gradient(135deg, var(--teal), var(--amber));
     }
     .venue-card-header {
@@ -273,7 +285,8 @@
       font-size: 12px; font-weight: 600; flex-shrink: 0;
     }
     .badge-verified { background: rgba(255,107,74,0.1); color: var(--teal); border: 1px solid rgba(255,107,74,0.2); }
-    .badge-pending  { background: rgba(245,158,11,0.1); color: var(--warn); border: 1px solid rgba(245,158,11,0.2); }
+    .badge-pending  { background: rgba(245,158,11,0.1); color: var(--warn); border: 1px solid rgba(245,158,11,0.2); } 
+                          
 
     /* ── EDIT SECTIONS ── */
     .edit-section {
@@ -668,7 +681,7 @@
           </div>
           <div class="form-group">
             <label>Password</label>
-            <input type="password" id="signup-password" placeholder="Min. 8 characters" />
+            <input type="password" id="signup-password" placeholder="Min. 8 characters" /><label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:13px;font-weight:400;color:var(--muted);margin-top:14px;"><input type="checkbox" id="signup-terms" style="width:16px;height:16px;margin-top:3px;accent-color:#FF6B4A;flex-shrink:0;" /><span>I agree to the <a href="https://www.spotd.biz/business-terms.html" target="_blank" rel="noopener" style="color:var(--teal);">Terms of Service</a> and <a href="https://www.spotd.biz/business-privacy.html" target="_blank" rel="noopener" style="color:var(--teal);">Privacy Policy</a></span></label>
           </div>
           <button class="btn" onclick="handleSignup()">Create account →</button>
         </div>
@@ -813,7 +826,7 @@
                 </div>
                 <div class="form-group">
                   <label>Happy hour details (optional)</label>
-                  <textarea id="new-venue-reason" placeholder="e.g. Happy hour Mon–Fri 3–6pm, $5 margaritas, half-off apps..." style="min-height:80px;"></textarea>
+                  <textarea id="new-venue-reason" placeholder="e.g. Happy hour Mon–Fri 3–6pm, $5 margaritas, half-off apps..." style="min-height:80px;"></textarea><label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:13px;font-weight:400;color:var(--muted);margin-top:14px;"><input type="checkbox" id="new-venue-terms" style="width:16px;height:16px;margin-top:3px;accent-color:#FF6B4A;flex-shrink:0;" /><span>I agree to the <a href="https://www.spotd.biz/business-terms.html" target="_blank" rel="noopener" style="color:var(--teal);">Terms of Service</a> and <a href="https://www.spotd.biz/business-privacy.html" target="_blank" rel="noopener" style="color:var(--teal);">Privacy Policy</a></span></label>
                 </div>
                 <div style="display:flex; gap:12px;">
                   <button class="btn-outline" onclick="document.getElementById('add-venue-form').style.display='none';document.getElementById('not-listed-note').style.display='block';">← Back</button>
@@ -854,12 +867,12 @@
                 </select>
               </div>
               <div class="form-group">
-                <label>Business email (for verification)</label>
+                <label>Business email *</label>
                 <input type="email" id="claim-biz-email" placeholder="manager@yourbar.com" />
               </div>
               <div class="form-group">
                 <label>Anything you want us to know? (optional)</label>
-                <textarea id="claim-notes" placeholder="e.g. 'I'm the owner, been open since 2018. Happy to verify via our website...'"></textarea>
+                <textarea id="claim-notes" placeholder="e.g. 'I'm the owner, been open since 2018. Happy to verify via our website...'"></textarea></div><p style="font-size:12px;color:var(--muted);margin-top:4px;margin-bottom:16px;">We verify every claim within 24 hours by emailing the business address you provide and checking it against the venue's official website. You'll see your claim status here in the dashboard.</p><div class="form-group" style="display:none;">
               </div>
               <div style="display:flex; gap:12px;">
                 <button class="btn-outline" onclick="backToStep1()">← Back</button>
@@ -1076,7 +1089,7 @@
                     </div>
                   </div>
                   <button class="btn btn-sm" style="width:auto;margin-top:12px;" onclick="savePromo()">Save promo code</button>
-                  <div id="promo-save-msg" style="font-size:13px;color:var(--success);margin-top:10px;display:none;">✓ Promo code saved — visible on your listing</div>
+                  <div id="promo-save-msg" style="font-size:13px;color:var(--success);margin-top:10px;display:none;">⏳ Promo code submitted for review — it’ll go live after a quick check.</div>
                 </div>
               </div>
               <div class="pro-gate-overlay" id="promo-lock">
@@ -1276,7 +1289,7 @@
     const email = document.getElementById('signup-email').value.trim();
     const pass = document.getElementById('signup-password').value;
     if (!name || !email || !pass) return showMsg('auth-msg', 'Please fill in all fields.', 'error');
-    if (pass.length < 8) return showMsg('auth-msg', 'Password must be at least 8 characters.', 'error');
+    if (pass.length < 8) return showMsg('auth-msg', 'Password must be at least 8 characters.', 'error'); if (!document.getElementById('signup-terms').checked) return showMsg('auth-msg', 'Please accept the Terms of Service and Privacy Policy to create an account.', 'error');
     showMsg('auth-msg', 'Creating account...', 'warn');
     const data = await sb.signUp(email, pass, name);
     if (data.error) return showMsg('auth-msg', data.error.message || 'Signup failed.', 'error');
@@ -1341,11 +1354,11 @@
             <div class="venue-name">${c.venue_name || c.name || 'Your Venue'}</div>
             <div class="venue-meta">${c.neighborhood || ''} · Submitted ${formatDate(c.created_at)}</div>
           </div>
-          <span class="badge ${c.status === 'approved' ? 'badge-verified' : 'badge-pending'}">
-            ${c.status === 'approved' ? '✓ Verified' : '⏳ Pending'}
+          <span class="badge ${claimBadgeClass(c.status)}">
+            ${claimStatusLabel(c.status)}
           </span>
         </div>
-        ${c.status === 'approved' ? `<button class="btn-outline btn-sm" onclick="openEdit('${c.venue_id}', '${c.status}')">Edit listing →</button>` : ''}
+        ${c.status === 'approved' ? `<button class="btn-outline btn-sm" onclick="openEdit('${c.venue_id}', '${c.status}')">Edit listing →</button> <button class="btn-outline btn-sm btn-danger" id="release-${c.id}" onclick="requestRelease('${c.id}', this)">Release venue</button>` : ''}
       </div>
     `).join('');
 
@@ -1357,7 +1370,7 @@
     }
   }
 
-  async function openEdit(venueId, status) {
+  function claimBadgeClass(status) { return status === 'approved' ? 'badge-verified' : status === 'rejected' ? 'badge-rejected' : 'badge-pending'; } function claimStatusLabel(status) { return status === 'approved' ? '✓ Verified' : status === 'rejected' ? '✕ Not approved' : '⏳ Pending verification'; } async function requestRelease(claimId, btn) { if (btn.dataset.confirming === '1') { btn.disabled = true; btn.textContent = 'Releasing…'; try { const _rr = await fetch(`${SUPABASE_URL}/rest/v1/venue_claims?id=eq.${claimId}`, { method: 'DELETE', headers: sb.headers() }); if (!_rr.ok) throw new Error('delete failed'); showSaveToast('Venue released.'); loadDashboard(); } catch (_re) { btn.disabled = false; delete btn.dataset.confirming; btn.textContent = 'Release venue'; showSaveToast('Could not release venue. Please try again.'); } return; } btn.dataset.confirming = '1'; const _orig = btn.textContent; btn.textContent = 'Tap again to confirm'; setTimeout(() => { if (btn.isConnected && btn.dataset.confirming === '1') { delete btn.dataset.confirming; btn.textContent = _orig; } }, 5000); } async function openEdit(venueId, status) {
     const venues = await (await sb.from('venues')).select('*').eq('id', venueId).get();
     if (!Array.isArray(venues) || !venues[0]) return;
     const venue = venues[0];
@@ -1392,7 +1405,7 @@
     // Load events
     loadVenueEvents(venueId);
 
-    window._editingVenueId = venueId;
+    window._editingVenueId = venueId; ensureProposalNotices(); refreshProposalNotices();
     // Show Edit tab in mobile nav
     const mobEditBtn = document.getElementById('mob-btn-edit');
     if (mobEditBtn) mobEditBtn.style.display = 'flex';
@@ -1472,7 +1485,7 @@
     const reason = document.getElementById('new-venue-reason').value.trim();
 
     if (!name || !city || !email) {
-      return showMsg('add-venue-msg', 'Please fill in venue name, city, and your email.', 'error');
+      return showMsg('add-venue-msg', 'Please fill in venue name, city, and your email.', 'error'); } if (!document.getElementById('new-venue-terms').checked) { return showMsg('add-venue-msg', 'Please accept the Terms of Service and Privacy Policy to submit a venue.', 'error');
     }
     showMsg('add-venue-msg', 'Submitting...', 'warn');
 
@@ -1534,7 +1547,7 @@
     const email = document.getElementById('claim-biz-email').value.trim();
     const phone = document.getElementById('claim-phone').value.trim();
     const notes = document.getElementById('claim-notes').value.trim();
-    if (!name || !email) return showMsg('claim-msg', 'Name and email are required.', 'error');
+    if (!name) return showMsg('claim-msg', 'Please enter your name.', 'error'); if (!email) return showMsg('claim-msg', 'Business email is required so we can verify your claim.', 'error');
 
     const table = await sb.from('venue_claims');
     const res = await table.insert({
@@ -1581,8 +1594,8 @@
     const days = getSelectedDays('days-picker');
     if (!start || !end) return alert('Please enter start and end times.');
     const hours = `${start} - ${end}`;
-    await updateVenueField({ hours, days });
-    showSaveToast('Hours saved!');
+    const _sH = await proposeVenueEdit({ hours, days }, 'hours');
+    showSaveToast(_sH ? 'Hours submitted for review!' : 'Could not submit — please try again.');
   }
 
   // ── DEALS ──
@@ -1612,8 +1625,8 @@
 
   async function saveDeals() {
     const clean = deals.map(d => d.trim()).filter(Boolean);
-    await updateVenueField({ deals: clean });
-    showSaveToast('Deals saved!');
+    const _sD = await proposeVenueEdit({ deals: clean }, 'deals');
+    showSaveToast(_sD ? 'Deals submitted for review!' : 'Could not submit — please try again.');
   }
 
   // ── DESCRIPTION ──
@@ -1662,8 +1675,8 @@
     AMENITY_DEFS.forEach(a => {
       fields[a.key] = document.getElementById('amenity-' + a.key)?.checked ?? false;
     });
-    await updateVenueField(fields);
-    showSaveToast('Amenities saved!');
+    const _sA = await proposeVenueEdit(fields, 'amenities');
+    showSaveToast(_sA ? 'Amenities submitted for review!' : 'Could not submit — please try again.');
   }
 
   // ── PHOTO UPLOAD ──────────────────────────────────────
@@ -1796,17 +1809,17 @@
     // Keep legacy photo_url as first photo for backwards compat
     const photo_url = photo_urls[0] || null;
 
-    const table = await sb.from('venues');
-    const res = await table.eq('id', window._editingVenueId).update({ description, photo_url, photo_urls });
+    const _sI = await proposeVenueEdit({ description, photo_url, photo_urls }, 'info'); // listing edits go through review, not direct writes
+    const res = null; // direct venue writes disabled — edits now go through review proposals
 
     if (res && res.code) {
       setPhotoStatus('❌ Save failed: ' + (res.message || res.code), 'error');
       return;
     }
 
-    setPhotoStatus(photo_urls.length ? `✓ ${photo_urls.length} photo${photo_urls.length > 1 ? 's' : ''} saved` : '', 'success');
-    await updateVenueField({ description, photo_url, photo_urls });
-    showSaveToast('Info saved!');
+    setPhotoStatus(photo_urls.length ? `✓ ${photo_urls.length} photo${photo_urls.length > 1 ? 's' : ''} ready for review` : '', 'success');
+    // (submitted as a review proposal above)
+    showSaveToast(_sI ? 'Info submitted for review!' : 'Could not submit — please try again.');
   }
 
   // ─────────────────────────────────────────────
@@ -1979,8 +1992,7 @@
   // ─────────────────────────────────────────────
   // UPDATE VENUE
   // ─────────────────────────────────────────────
-  async function updateVenueField(fields) {
-    const table = await sb.from('venues');
+  async function proposeVenueEdit(fields, section) { const _venueId = window._editingVenueId; let _existing = []; try { _existing = await fetch(`${SUPABASE_URL}/rest/v1/venue_edit_proposals?venue_id=eq.${_venueId}&proposed_by=eq.${currentUser.id}&section=eq.${section}&status=eq.pending&select=id,changes`, { headers: sb.headers() }).then(r => r.json()); } catch (_e1) { _existing = []; } const _merged = Object.assign({}, ((_existing[0] && _existing[0].changes) || {}), fields); let _ok = false; try { if (_existing[0]) { const _r = await fetch(`${SUPABASE_URL}/rest/v1/venue_edit_proposals?id=eq.${_existing[0].id}`, { method: 'PATCH', headers: Object.assign({}, sb.headers(), { 'Prefer': 'return=representation' }), body: JSON.stringify({ changes: _merged }) }); _ok = _r.ok; } else { const _t = await sb.from('venue_edit_proposals'); const _res = await _t.insert({ venue_id: _venueId, proposed_by: currentUser.id, section: section, changes: fields, status: 'pending' }); _ok = Array.isArray(_res) && !!_res[0]; } } catch (_e2) { _ok = false; } if (_ok) { for (const _fv of Object.entries(fields)) { const _et = await sb.from('venue_edits'); await _et.insert({ venue_id: _venueId, user_id: currentUser.id, field: _fv[0], new_value: JSON.stringify(_fv[1]) }); } } refreshProposalNotices(); return _ok; } const PROPOSAL_SECTIONS = ['hours', 'deals', 'info', 'amenities', 'promo']; function ensureProposalNotices() { PROPOSAL_SECTIONS.forEach(_s => { const _body = document.querySelector('#section-' + _s + ' .edit-section-body'); if (_body && !document.getElementById('proposal-notice-' + _s)) { const _div = document.createElement('div'); _div.className = 'proposal-notice'; _div.id = 'proposal-notice-' + _s; _div.innerHTML = '⏳ <strong>Changes pending review</strong> — they’ll go live after a quick check (usually within 24 hours).'; _body.prepend(_div); } }); } async function refreshProposalNotices() { const _vId = window._editingVenueId; if (!_vId || !currentUser) return; let _rows = []; try { _rows = await fetch(`${SUPABASE_URL}/rest/v1/venue_edit_proposals?venue_id=eq.${_vId}&proposed_by=eq.${currentUser.id}&status=eq.pending&select=section`, { headers: sb.headers() }).then(r => r.json()); } catch (_e3) { _rows = []; } const _pending = new Set(Array.isArray(_rows) ? _rows.map(_r => _r.section) : []); PROPOSAL_SECTIONS.forEach(_s => { const _el = document.getElementById('proposal-notice-' + _s); if (_el) _el.classList.toggle('show', _pending.has(_s)); }); } async function _updateVenueFieldRetired_DO_NOT_USE(fields) { // retired — do not use; listing edits go through proposeVenueEdit() now
     const res = await table.eq('id', window._editingVenueId).update(fields);
     if (!Array.isArray(res) || !res[0]) {
       console.warn('updateVenueField response:', JSON.stringify(res));
@@ -2198,10 +2210,10 @@
     const code = document.getElementById('edit-promo-code')?.value.trim().toUpperCase();
     const desc = document.getElementById('edit-promo-desc')?.value.trim();
     if (!code) return alert('Please enter a promo code.');
-    await updateVenueField({ promo_code: code, promo_description: desc || null });
+    const _sP = await proposeVenueEdit({ promo_code: code, promo_description: desc || null }, 'promo');
     const msg = document.getElementById('promo-save-msg');
     if (msg) { msg.style.display = 'block'; setTimeout(() => msg.style.display = 'none', 3000); }
-    showSaveToast('Promo code saved!');
+    showSaveToast(_sP ? 'Promo code submitted for review!' : 'Could not submit — please try again.');
   }
 
   // ── Handle ?upgraded=true redirect ───────────────
