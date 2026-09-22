@@ -2290,8 +2290,8 @@ async function enterCity(slug, name, stateCode) {
     if (el) el.classList.toggle('active', id === 'showAll');
   });
 
-  // Show loading
-  document.getElementById('cardsGrid').innerHTML = `<div class="loading-state"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div>`;
+  // Show loading — skeleton shimmer shaped like the feed (see css/uplevel.css)
+  document.getElementById('cardsGrid').innerHTML = `<div class="skel-wrap" aria-hidden="true"><div class="skel skel-hero"></div><div class="skel-row"><div class="skel skel-compact"></div><div class="skel skel-compact"></div></div><div class="skel skel-std"></div><div class="skel skel-std"></div></div>`;
 
   // Load data — venues AND events together
   const [venues, events] = await Promise.all([fetchVenues(slug), fetchEvents(slug)]);
@@ -4390,7 +4390,7 @@ async function doGoogleSignIn() {
 async function doForgot() {
   const email = (document.getElementById('aEmail')?.value || '').trim();
   if (!email) { showToast('Enter your email first'); return; }
-  // Show loading state
+  // Show loading — skeleton shimmer shaped like the feed (see css/uplevel.css) state
   const btn = document.querySelector('.auth-forgot');
   if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
   const { error } = await db.auth.resetPasswordForEmail(email, {
