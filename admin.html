@@ -657,6 +657,11 @@
     .cc-media-zone:hover { border-color:var(--coral); background:rgba(255,107,74,0.03); }
     .cc-media-zone-text { font-size:13px; color:var(--muted); font-weight:600; }
     .cc-media-zone-sub { font-size:11px; color:var(--border); margin-top:4px; }
+        /* Visually hidden but present in the accessibility tree (NOT display:none),
+       so automation and assistive tech can target the file input. The zone's
+       onclick still opens the picker for mouse/touch users. */
+    .cc-file-input-hidden { position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; }
+        
     .cc-media-previews { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
     .cc-media-thumb-wrap { position:relative; }
     .cc-media-thumb {
@@ -2773,7 +2778,7 @@ in San Diego</textarea>
       <div class="cc-field">
         <div class="cc-label">Media</div>
         <div class="cc-media-zone" id="cc-media-zone" onclick="document.getElementById('cc-file-input').click()">
-          <input type="file" id="cc-file-input" multiple accept="image/*,video/*" style="display:none" onchange="ccHandleFiles(this.files)">
+          <input type="file" id="cc-file-input" multiple accept="image/*,video/*" class="cc-file-input-hidden" onchange="ccHandleFiles(this.files)">
           <div class="cc-media-zone-text">Click or drag files to upload</div>
           <div class="cc-media-zone-sub">Images (JPG, PNG, WebP) and Videos (MP4, MOV)</div>
         </div>
@@ -5695,7 +5700,7 @@ in San Diego</textarea>
   }
 
   async function ccSavePostToDb(post) {
-    if (!_ccUseSupabase) { ccSavePosts(); return true; }
+    if (!_ccUseSupabase) { ccSavePosts(); return null; }
     const data = { ...post };
     delete data._mediaUrls; // don't send blob URLs to DB
     // DB rows have uuid ids; unsaved posts carry a temp 'cc_<ts>_<rand>' id.
@@ -5727,11 +5732,10 @@ in San Diego</textarea>
     if (!r.ok) {
       const err = await r.text().catch(() => '');
       console.error('content_posts save failed:', r.status, err);
-      return false;
+            return { status: r.status, error: err.slice(0, 200) };
     }
-    return true;
+    return null;
   }
-
   async function ccDeletePostFromDb(id) {
     if (!_ccUseSupabase) { ccSavePosts(); return; }
     await fetch(`${SUPABASE_URL}/rest/v1/content_posts?id=eq.${id}`, {
@@ -6095,7 +6099,7 @@ in San Diego</textarea>
     }
 
     const wasEdit = !!_ccEditId;
-    let saved = true;
+    let saveErr = null; // null = ok, {status, error} = failed
     if (_ccEditId) {
       const post = _ccPosts.find(p => p.id === _ccEditId);
       if (post) {
@@ -6108,11 +6112,15 @@ in San Diego</textarea>
         post.tags = [..._ccTags];
         post.media_urls = mediaUrls;
         post.updated_at = new Date().toISOString();
-        saved = await ccSavePostToDb(post);
+        saveErr = await ccSavePostToDb(post);
       }
     } else {
       const post = {
         id: 'cc_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+                // The live content_posts table has a NOT NULL title column (added after
+        // sql/add-content-posts.sql was written); the compose modal has no title
+        // field, so derive one from the caption or inserts fail.
+        title: (caption.split('\n')[0] || 'Untitled').slice(0, 80),
         caption, scheduled_date: date, scheduled_time: time,
         status, notes, platforms, tags: [..._ccTags],
         media_urls: mediaUrls,
@@ -6120,12 +6128,12 @@ in San Diego</textarea>
         updated_at: new Date().toISOString()
       };
       _ccPosts.push(post);
-      saved = await ccSavePostToDb(post);
+      saveErr = await ccSavePostToDb(post);
     }
     await ccSavePosts();
     ccCloseCompose();
     ccRender();
-    showToast(saved ? (wasEdit ? 'Post updated' : 'Post created') : '⚠️ Save failed — post NOT stored. Check console.');
+    showToast(!saveErr ? (wasEdit ? 'Post updated' : 'Post created') : `⚠️ Save failed (${saveErr.status}) — post NOT stored.`);
   }
 
   // ── DELETE ──
