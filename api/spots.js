@@ -60,11 +60,29 @@ async function fetchAllRows(url, headers) {
   return out;
 }
 
-async function fetchVenues(supabaseUrl, serviceKey) {
+// Lightweight venue index: only the columns needed to match the slug from the
+// URL and build the "nearby" list. Previously this fetched the entire
+// 69-column venues table (select=*) on every page render — ~5-8 MB per hit —
+// which blew through the Supabase egress quota when crawlers worked through
+// the venue pages. The full row for the single requested venue is fetched
+// separately by id below.
+async function fetchVenueIndex(supabaseUrl, serviceKey) {
   return fetchAllRows(
-    `${supabaseUrl}/rest/v1/venues?active=eq.true&select=*`,
+    `${supabaseUrl}/rest/v1/venues?active=eq.true&select=id,name,neighborhood,hours,city_slug`,
     { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` }
   );
+}
+
+// Full row for one venue, by id, after the slug has been matched against the
+// lightweight index above. One row instead of 4,000+.
+async function fetchVenueById(supabaseUrl, serviceKey, venueId) {
+  const res = await fetch(
+    `${supabaseUrl}/rest/v1/venues?id=eq.${venueId}&select=*&limit=1`,
+    { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } }
+  );
+  if (!res.ok) return null;
+  const rows = await res.json();
+  return Array.isArray(rows) && rows.length ? rows[0] : null;
 }
 
 async function fetchReviews(supabaseUrl, serviceKey, venueId) {
@@ -450,8 +468,9 @@ export default async function handler(req) {
   }
 
   try {
-    const venues = await fetchVenues(supabaseUrl, serviceKey);
-    const venue = venues.find(v => slugify(v.name) === slug);
+    const venueIndex = await fetchVenueIndex(supabaseUrl, serviceKey);
+    const match = venueIndex.find(v => slugify(v.name) === slug);
+    const venue = match ? await fetchVenueById(supabaseUrl, serviceKey, match.id) : null;
 
     if (!venue) {
       // 404 page
@@ -462,7 +481,7 @@ export default async function handler(req) {
     }
 
     const reviews = await fetchReviews(supabaseUrl, serviceKey, venue.id);
-    const html = buildPage(venue, reviews, venues);
+    const html = buildPage(venue, reviews, venueIndex);
 
     return new Response(html, {
       status: 200,
