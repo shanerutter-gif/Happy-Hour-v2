@@ -8490,6 +8490,7 @@ function closeNewsTab() {
   if (el) el.classList.remove('tab-open');
 }
 
+
 function renderNewsFeed() {
   var container = document.getElementById('newsFeedContent');
   if (!container) return;
