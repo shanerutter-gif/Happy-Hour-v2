@@ -3603,8 +3603,8 @@ function _renderCardsNow() {
   const venues = items.filter(v => !v.event_type);
 
   // Split into tiers
-  const heroes   = venues.filter(v => v.is_hero && (v.photo_url || (v.photo_urls && v.photo_urls.length)));
-  const nonHeroes = venues.filter(v => !v.is_hero || !(v.photo_url || (v.photo_urls && v.photo_urls.length)));
+  let heroes   = venues.filter(v => v.is_hero && (v.photo_url || (v.photo_urls && v.photo_urls.length)));
+  let nonHeroes = venues.filter(v => !v.is_hero || !(v.photo_url || (v.photo_urls && v.photo_urls.length))); /* PREVIEW-ONLY (design-uplevel): demo Statement heroes while none flagged */ if (!heroes.length) { heroes = venues.filter(v => v.photo_url || (v.photo_urls && v.photo_urls.length)).slice(0, 3); const heroIds = new Set(heroes.map(v => v.id)); nonHeroes = nonHeroes.filter(v => !heroIds.has(v.id)); }
 
   // Compact = next batch with photos (up to 6 venues = 3 rows of 2)
   const withPhoto    = nonHeroes.filter(v => v.photo_url || (v.photo_urls && v.photo_urls.length));
