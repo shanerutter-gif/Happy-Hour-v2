@@ -5425,7 +5425,7 @@ function _composerPickVenue() {
   // Trigger CSS transition: must be in the next frame after .open is added
   requestAnimationFrame(() => requestAnimationFrame(() => overlay.classList.add('open')));
   const rowHTML = v => `
-      <button class="cp-pick-row" onclick='_composerSelectVenue(${JSON.stringify(v.id)}, ${JSON.stringify(v.name)}, ${JSON.stringify(v.neighborhood || "")});this.closest(".overlay").classList.remove("open");setTimeout(()=>this.closest(".overlay")?.remove(),600);'>
+      <button class="cp-pick-row" data-id="${esc(v.id)}" data-name="${esc(v.name)}" data-hood="${esc(v.neighborhood || "")}" onclick='_composerSelectVenue(this.dataset.id, this.dataset.name, this.dataset.hood);this.closest(".overlay").classList.remove("open");setTimeout(()=>this.closest(".overlay")?.remove(),600);'>
         <span class="cp-pick-row-icon">${icn('pin', 16)}</span>
         <span class="cp-pick-row-text">
           <span class="cp-pick-row-name">${esc(v.name)}</span>
