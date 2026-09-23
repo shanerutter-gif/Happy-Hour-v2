@@ -678,9 +678,44 @@
       border-radius:50%; font-size:11px; cursor:pointer;
       display:flex; align-items:center; justify-content:center; font-weight:700;
     }
-    .cc-media-video-badge {
+        .cc-media-video-badge {
       position:absolute; bottom:4px; left:4px; background:rgba(0,0,0,0.7);
       color:#fff; font-size:9px; font-weight:700; padding:2px 6px; border-radius:4px;
+    }
+    .cc-media-thumb-wrap.clickable { cursor:zoom-in; }
+
+    /* Media lightbox */
+    .cc-lightbox-overlay {
+      position:fixed; inset:0; background:rgba(0,0,0,0.92); z-index:10001;
+      display:none; align-items:center; justify-content:center;
+    }
+    .cc-lightbox-overlay.open { display:flex; }
+    .cc-lightbox-content {
+      max-width:92vw; max-height:86vh; display:flex; align-items:center; justify-content:center;
+    }
+    .cc-lightbox-content img {
+      max-width:92vw; max-height:86vh; border-radius:8px; object-fit:contain;
+    }
+    .cc-lightbox-content video {
+      max-width:92vw; max-height:86vh; border-radius:8px; background:#000;
+    }
+    .cc-lightbox-close {
+      position:absolute; top:14px; right:14px; width:44px; height:44px; border-radius:50%;
+      background:rgba(255,255,255,0.14); color:#fff; border:none; font-size:18px;
+      cursor:pointer; display:flex; align-items:center; justify-content:center;
+    }
+    .cc-lightbox-nav {
+      position:absolute; top:50%; transform:translateY(-50%); width:48px; height:48px;
+      border-radius:50%; background:rgba(255,255,255,0.14); color:#fff; border:none;
+      font-size:26px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+      line-height:1;
+    }
+    .cc-lightbox-prev { left:14px; }
+    .cc-lightbox-next { right:14px; }
+    .cc-lightbox-counter {
+      position:absolute; bottom:18px; left:50%; transform:translateX(-50%);
+      color:#fff; font-size:13px; font-weight:600; opacity:0.85;
+      font-family:'DM Sans',sans-serif;
     }
 
     /* Status + date row */
@@ -732,7 +767,22 @@
       .cc-post-card { font-size:9px; padding:2px 4px; }
       .cc-toolbar { flex-direction:column; align-items:stretch; }
       .cc-toolbar-left { justify-content:center; }
-      .cc-modal { max-width:100%; margin:0; border-radius:12px; }
+            /* Compose modal becomes a bottom sheet on phones */
+      .cc-modal-overlay { padding:0; align-items:flex-end; }
+      .cc-modal { max-width:100%; margin:0; border-radius:16px 16px 0 0; max-height:94vh; }
+      .cc-modal-header { padding:14px 16px; }
+      .cc-modal-body { padding:16px; gap:14px; }
+      .cc-modal-footer { padding:12px 16px; flex-wrap:wrap; gap:8px; }
+      .cc-row { flex-direction:column; gap:14px; }
+      .cc-media-zone { padding:18px 12px; }
+      .cc-btn-save { flex:1; padding:12px 24px; }
+      .cc-media-thumb, .cc-media-thumb-video { width:84px; height:84px; }
+      /* Lightbox nav fits small screens */
+      .cc-lightbox-nav { width:40px; height:40px; font-size:22px; }
+      .cc-lightbox-prev { left:8px; }
+      .cc-lightbox-next { right:8px; }
+      .cc-lightbox-content { max-width:100vw; max-height:80vh; }
+      .cc-lightbox-content img, .cc-lightbox-content video { max-width:100vw; max-height:80vh; }
     }
 
     .asset-preview-area {
@@ -2836,6 +2886,15 @@ in San Diego</textarea>
       </div>
     </div>
   </div>
+</div>
+
+<!-- MEDIA LIGHTBOX -->
+<div class="cc-lightbox-overlay" id="ccLightbox" onclick="if(event.target===this)ccCloseLightbox()">
+  <button class="cc-lightbox-close" onclick="ccCloseLightbox()" aria-label="Close">✕</button>
+  <button class="cc-lightbox-nav cc-lightbox-prev" id="ccLbPrev" onclick="ccLightboxNav(-1)" aria-label="Previous">‹</button>
+  <div class="cc-lightbox-content" id="ccLightboxContent"></div>
+  <button class="cc-lightbox-nav cc-lightbox-next" id="ccLbNext" onclick="ccLightboxNav(1)" aria-label="Next">›</button>
+  <div class="cc-lightbox-counter" id="ccLightboxCounter"></div>
 </div>
 
 <!-- APPROVE MODAL -->
@@ -5743,25 +5802,33 @@ in San Diego</textarea>
     });
   }
 
-  // Upload media to Supabase Storage
+    // Upload media to Supabase Storage.
+  // Returns { ok:true, url } on success, { ok:false, status, error } on failure.
+  // HTTP errors never throw — the caller decides what to do (ccSavePost aborts
+  // the save so dead blob: URLs are never persisted to the DB).
   async function ccUploadMedia(file) {
-    const ext = file.name.split('.').pop().toLowerCase();
+    const ext = (file.name.split('.').pop() || 'bin').toLowerCase();
     const name = `content-calendar/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
     try {
       const r = await fetch(`${SUPABASE_URL}/storage/v1/object/spotd-content/${name}`, {
         method: 'POST',
         headers: {
           ...svcHeaders(),
-          'Content-Type': file.type,
+          'Content-Type': file.type || 'application/octet-stream',
           'x-upsert': 'true'
         },
         body: file
       });
       if (r.ok) {
-        return `${SUPABASE_URL}/storage/v1/object/public/spotd-content/${name}`;
+        return { ok: true, url: `${SUPABASE_URL}/storage/v1/object/public/spotd-content/${name}` };
       }
-    } catch(e) { console.warn('Upload failed:', e); }
-    return null;
+      const errBody = await r.text().catch(() => '');
+      console.error('ccUploadMedia failed:', r.status, errBody);
+      return { ok: false, status: r.status, error: errBody.slice(0, 200) || r.statusText || 'upload rejected' };
+    } catch(e) {
+      console.error('ccUploadMedia threw:', e);
+      return { ok: false, status: 0, error: (e && e.message) || 'network error' };
+    }
   }
 
   // ── VIEWS ──
@@ -5896,7 +5963,7 @@ in San Diego</textarea>
       const time = p.scheduled_time || '';
       const caption = (p.title || p.caption || 'Untitled').slice(0, 60);
       const thumbHtml = (p.media_urls && p.media_urls.length)
-        ? `<img class="cc-list-thumb" src="${escHtml(p.media_urls[0])}" alt="">`
+                ? `<img class="cc-list-thumb" style="cursor:zoom-in" title="Tap to preview" onclick="event.stopPropagation();ccOpenLightboxForPost('${p.id}')" src="${escHtml(p.media_urls[0])}" alt="">`
         : '';
       const tagsHtml = (p.tags || []).map(t => `<span class="cc-tag" style="padding:2px 6px;font-size:9px">${escHtml(t)}</span>`).join('');
       return `<div class="cc-list-item" onclick="ccOpenCompose('${p.id}')">
@@ -6023,23 +6090,70 @@ in San Diego</textarea>
     ccRenderMediaPreviews();
   }
 
-  function ccRenderMediaPreviews() {
+    function ccRenderMediaPreviews() {
     const el = document.getElementById('cc-media-previews');
     if (!_ccMediaFiles.length) { el.innerHTML = ''; return; }
     el.innerHTML = _ccMediaFiles.map((m, i) => {
       if (m.type === 'video') {
-        return `<div class="cc-media-thumb-wrap">
-          <video class="cc-media-thumb-video" src="${m.url}" muted></video>
+        return `<div class="cc-media-thumb-wrap clickable" onclick="ccOpenLightbox(_ccMediaFiles, ${i})" title="Tap to preview">
+          <video class="cc-media-thumb-video" src="${m.url}" muted playsinline preload="metadata"></video>
           <div class="cc-media-video-badge">VIDEO</div>
-          <div class="cc-media-remove" onclick="ccRemoveMedia(${i})">✕</div>
+          <div class="cc-media-remove" onclick="event.stopPropagation();ccRemoveMedia(${i})">✕</div>
         </div>`;
       }
-      return `<div class="cc-media-thumb-wrap">
+      return `<div class="cc-media-thumb-wrap clickable" onclick="ccOpenLightbox(_ccMediaFiles, ${i})" title="Tap to preview">
         <img class="cc-media-thumb" src="${m.url}" alt="">
-        <div class="cc-media-remove" onclick="ccRemoveMedia(${i})">✕</div>
+        <div class="cc-media-remove" onclick="event.stopPropagation();ccRemoveMedia(${i})">✕</div>
       </div>`;
     }).join('');
   }
+
+  // ── MEDIA LIGHTBOX ──
+  let _ccLightboxItems = []; // [{ url, type, name }]
+  let _ccLightboxIdx = 0;
+  function ccOpenLightbox(items, idx) {
+    _ccLightboxItems = items || [];
+    _ccLightboxIdx = idx || 0;
+    if (!_ccLightboxItems.length) return;
+    ccRenderLightbox();
+    document.getElementById('ccLightbox').classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+  function ccOpenLightboxForPost(postId, idx) {
+    const post = _ccPosts.find(p => p.id === postId);
+    if (!post || !post.media_urls || !post.media_urls.length) return;
+    ccOpenLightbox(post.media_urls.map((url, i) => ({
+      url, name: 'media-' + i,
+      type: /\.(mp4|mov|webm)(\?|$)/i.test(url) ? 'video' : 'image'
+    })), idx || 0);
+  }
+  function ccRenderLightbox() {
+    const m = _ccLightboxItems[_ccLightboxIdx];
+    const box = document.getElementById('ccLightboxContent');
+    if (!m) { box.innerHTML = ''; return; }
+    box.innerHTML = m.type === 'video'
+      ? `<video src="${escHtml(m.url)}" controls autoplay playsinline style="max-width:100%;max-height:100%"></video>`
+      : `<img src="${escHtml(m.url)}" alt="${escHtml(m.name || '')}">`;
+    const n = _ccLightboxItems.length;
+    document.getElementById('ccLightboxCounter').textContent = n > 1 ? (_ccLightboxIdx + 1) + ' / ' + n : '';
+    document.getElementById('ccLbPrev').style.display = n > 1 ? '' : 'none';
+    document.getElementById('ccLbNext').style.display = n > 1 ? '' : 'none';
+  }
+  function ccLightboxNav(dir) {
+    const n = _ccLightboxItems.length;
+    if (!n) return;
+    _ccLightboxIdx = (_ccLightboxIdx + dir + n) % n;
+    ccRenderLightbox();
+  }
+  function ccCloseLightbox() {
+    document.getElementById('ccLightbox').classList.remove('open');
+    document.getElementById('ccLightboxContent').innerHTML = '';
+    document.body.style.overflow = '';
+    _ccLightboxItems = [];
+  }
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && document.getElementById('ccLightbox')?.classList.contains('open')) ccCloseLightbox();
+  });
 
   // Drag-and-drop on media zone
   (function() {
@@ -6087,17 +6201,26 @@ in San Diego</textarea>
     if (!caption && !_ccMediaFiles.length) { showToast('Add a caption or media'); return; }
     if (!date) { showToast('Pick a date'); return; }
 
-    // Upload new media files
+        // Upload new media files first. If ANY upload fails the whole save is
+    // aborted and the real error is shown — a half-saved post with dead
+    // blob: URLs (which die when the modal closes) is worse than no save.
+    // The modal stays open with the files intact so the user can retry.
     const mediaUrls = [];
-    for (const m of _ccMediaFiles) {
-      if (m.file) {
-        showToast('Uploading media...');
-        const url = await ccUploadMedia(m.file);
-        if (url) mediaUrls.push(url);
-        else mediaUrls.push(m.url); // fallback to blob
-      } else {
-        mediaUrls.push(m.url);
+    const total = _ccMediaFiles.length;
+    for (let i = 0; i < total; i++) {
+      const m = _ccMediaFiles[i];
+      if (!m.file) { mediaUrls.push(m.url); continue; }
+      showToast(`Uploading media ${i + 1} of ${total}...`);
+      const up = await ccUploadMedia(m.file);
+      if (!up.ok) {
+        showToast(`Upload failed (${up.status || 'network'}): ${up.error || 'unknown error'} — post NOT saved. Try again.`);
+        return;
       }
+      mediaUrls.push(up.url);
+      // Swap the temporary blob preview for the permanent storage URL so a
+      // retry (e.g. after a DB error) doesn't re-upload, and closing the
+      // modal never revokes a URL we just persisted.
+      m.file = null; m.blob = false; m.url = up.url;
     }
 
     const wasEdit = !!_ccEditId;
