@@ -3629,7 +3629,7 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 .bottom-nav {
   display: flex;
   position: fixed;
-  bottom: 12px; left: 16px; right: 16px;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px)); left: 16px; right: 16px;
   z-index: 600;
   height: 72px;
   align-items: stretch;
