@@ -3633,8 +3633,9 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   z-index: 600;
   height: 72px;
   align-items: stretch;
+  /* No safe-area padding here: the floating bar is already lifted above the
+     home indicator via `bottom`, so padding would squash the 72px buttons. */
   padding: 0 6px;
-  padding-bottom: env(safe-area-inset-bottom, 0px);
   /* Frosted "liquid glass" — translucent fill blurring the content behind it.
      Falls back to a near-opaque card where backdrop-filter is unsupported. */
   background: rgba(255,255,255,0.66);
