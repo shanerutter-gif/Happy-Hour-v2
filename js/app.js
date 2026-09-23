@@ -2290,8 +2290,8 @@ async function enterCity(slug, name, stateCode) {
     if (el) el.classList.toggle('active', id === 'showAll');
   });
 
-  // Show loading
-  document.getElementById('cardsGrid').innerHTML = `<div class="loading-state"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div>`;
+  // Show loading — skeleton shimmer shaped like the feed (see css/uplevel.css)
+  document.getElementById('cardsGrid').innerHTML = `<div class="skel-wrap" aria-hidden="true"><div class="skel skel-hero"></div><div class="skel-row"><div class="skel skel-compact"></div><div class="skel skel-compact"></div></div><div class="skel skel-std"></div><div class="skel skel-std"></div></div>`;
 
   // Load data — venues AND events together
   const [venues, events] = await Promise.all([fetchVenues(slug), fetchEvents(slug)]);
@@ -3603,15 +3603,15 @@ function _renderCardsNow() {
   const venues = items.filter(v => !v.event_type);
 
   // Split into tiers
-  const heroes   = venues.filter(v => v.is_hero && (v.photo_url || (v.photo_urls && v.photo_urls.length)));
-  const nonHeroes = venues.filter(v => !v.is_hero || !(v.photo_url || (v.photo_urls && v.photo_urls.length)));
+  let heroes   = venues.filter(v => v.is_hero && (v.photo_url || (v.photo_urls && v.photo_urls.length)));
+  let nonHeroes = venues.filter(v => !v.is_hero || !(v.photo_url || (v.photo_urls && v.photo_urls.length))); /* PREVIEW-ONLY (design-uplevel): demo Statement heroes while none flagged */ if (!heroes.length) { heroes = venues.filter(v => v.photo_url || (v.photo_urls && v.photo_urls.length)).slice(0, 3); const heroIds = new Set(heroes.map(v => v.id)); nonHeroes = nonHeroes.filter(v => !heroIds.has(v.id)); }
 
   // Compact = next batch with photos (up to 6 venues = 3 rows of 2)
   const withPhoto    = nonHeroes.filter(v => v.photo_url || (v.photo_urls && v.photo_urls.length));
   const withoutPhoto = nonHeroes.filter(v => !(v.photo_url || (v.photo_urls && v.photo_urls.length)));
 
-  const compactVenues = withPhoto.slice(0, 6);
-  const standardVenues = withPhoto.slice(6).concat(withoutPhoto);
+  const compactVenues = []; // PREVIEW-ONLY (design-uplevel): old compact 6-card type deprecated
+  const standardVenues = withPhoto.concat(withoutPhoto);
 
   let html = '';
   let delay = 0;
@@ -3740,14 +3740,14 @@ function heroCardHTML(v, delay, idx = 0) {
 
   // Badges
   const badges = [];
-  if (count >= 2)       badges.push(`<span class="badge badge-fire">🔥 ${count} here</span>`);
+
   if (v.has_sports_tv)  badges.push(`<span class="badge badge-sports">📺</span>`);
   if (v.owner_verified) badges.push(`<span class="badge badge-verified">✓</span>`);
 
-  // Deals as glass pills (max 2 — name → meta → deals → CTA, one hierarchy)
-  const deals = (v.deals || []).slice(0, 2).map(d =>
-    `<span class="card-hero-deal">${esc(d)}</span>`
-  ).join('');
+  // Statement: lead deal -> big price + dish; next two join the sub-line
+  const dealList = (v.deals || []).filter(Boolean), subDeals = dealList.slice(1, 3).map(d => esc(d)).join(' · ');
+     const heroM = dealList[0]? String(dealList[0]).trim().match(/^(\$[\d,.]+(?:\s*[–-]\s*\$?[\d,.]+)?)\s+(.*)$/): null;
+  const heroDeal = heroM ? { price: heroM[1], text: heroM[2] } : (dealList[0] ? { price: '', text: String(dealList[0]).trim() } : null);
 
   // Check-in bar
   const goingBar = count > 0 ? `
@@ -3768,20 +3768,20 @@ function heroCardHTML(v, delay, idx = 0) {
   return `<div class="card-hero" data-id="${v.id}"
     onclick="openModal('${v.id}','venue')" style="${delay === false ? 'animation:none' : `animation-delay:${delay}ms`}">
     <img class="card-hero-img" src="${esc(optImg(photoUrl, 960))}" data-raw="${esc(photoUrl)}" alt="${esc(v.name)}" loading="${idx === 0 ? 'eager' : 'lazy'}" decoding="async"${idx === 0 ? ' fetchpriority="high"' : ''}
-      onerror="${IMG_FALLBACK}this.closest('.card-hero').style.background='linear-gradient(135deg,#2A1F14,#1A1208)';this.remove()">
-    <div class="card-hero-overlay"></div>
+      onerror="${IMG_FALLBACK}this.remove()">
+
     <button class="card-hero-fav${faved ? ' faved' : ''}"
       onclick="event.stopPropagation();doFavorite('${v.id}','venue',this);this.classList.toggle('faved');this.textContent=this.classList.contains('faved')?'★':'☆'">${faved ? '★' : '☆'}</button>
-    <div class="card-hero-badges">${badges.join('')}</div>
+    
     <div class="card-hero-info">
-      <div class="card-hero-name">${esc(v.name)}</div>
-      <div class="card-hero-meta">${[
-          cardDistance(v), v.neighborhood, v.cuisine, todayH,
-          v.yelp_rating ? `★ ${v.yelp_rating}` : (avg > 0 ? `★ ${avg.toFixed(1)}` : ''),
-        ].filter(Boolean).map(x => `<span>${esc(x)}</span>`).join('<span class="dot"></span>')}</div>
-      ${hhBadgeHTML(v)}
-      <div class="card-hero-deals">${deals}</div>
-      ${eventChipsHTML(v)}
+      <div class="card-hero-eyebrow">${[
+      cardDistance(v), v.neighborhood, v.cuisine,
+          v.yelp_rating? `★ ${v.yelp_rating}`: (avg > 0? `★ ${avg.toFixed(1)}`: ''), ].filter(Boolean).map(x => `<span>${esc(x)}</span>`).join('<span class="dot"></span>')}</div>
+
+         <div class="card-hero-name">${esc(v.name)}</div>
+      ${badges.length? `<div class="card-hero-badges">${badges.join('')}</div>`: ''}
+      ${heroDeal? `<div class="card-hero-hero">${heroDeal.price? `<span class="card-hero-price">${esc(heroDeal.price)}</span>`: ''}<span class="card-hero-dish">${esc(heroDeal.text)}</span></div>`: ''}
+      ${subDeals? `<div class="card-hero-sub">${subDeals}</div>`: ''}
       ${goingBar}
     </div>
   </div>`;
@@ -4390,7 +4390,7 @@ async function doGoogleSignIn() {
 async function doForgot() {
   const email = (document.getElementById('aEmail')?.value || '').trim();
   if (!email) { showToast('Enter your email first'); return; }
-  // Show loading state
+  // Show loading — skeleton shimmer shaped like the feed (see css/uplevel.css) state
   const btn = document.querySelector('.auth-forgot');
   if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
   const { error } = await db.auth.resetPasswordForEmail(email, {
@@ -5425,7 +5425,7 @@ function _composerPickVenue() {
   // Trigger CSS transition: must be in the next frame after .open is added
   requestAnimationFrame(() => requestAnimationFrame(() => overlay.classList.add('open')));
   const rowHTML = v => `
-      <button class="cp-pick-row" onclick='_composerSelectVenue(${JSON.stringify(v.id)}, ${JSON.stringify(v.name)}, ${JSON.stringify(v.neighborhood || "")});this.closest(".overlay").classList.remove("open");setTimeout(()=>this.closest(".overlay")?.remove(),600);'>
+      <button class="cp-pick-row" data-id="${esc(v.id)}" data-name="${esc(v.name)}" data-hood="${esc(v.neighborhood || "")}" onclick='_composerSelectVenue(this.dataset.id, this.dataset.name, this.dataset.hood);this.closest(".overlay").classList.remove("open");setTimeout(()=>this.closest(".overlay")?.remove(),600);'>
         <span class="cp-pick-row-icon">${icn('pin', 16)}</span>
         <span class="cp-pick-row-text">
           <span class="cp-pick-row-name">${esc(v.name)}</span>

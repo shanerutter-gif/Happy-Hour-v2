@@ -227,7 +227,7 @@ body.theme-transitioning{transition:background .35s ease,color .35s ease}
 .type-tab:not(.active):hover{border-color:var(--teal);color:var(--teal)}
 
 /* CONTROLS */
-.controls{position:sticky;top:54px;z-index:200;background:var(--nav-bg);border-bottom:1px solid var(--border2);backdrop-filter:blur(20px) saturate(1.4);-webkit-backdrop-filter:blur(20px) saturate(1.4)}
+.controls{position:sticky;top:60px;z-index:200;background:var(--nav-bg);border-bottom:1px solid var(--border2);backdrop-filter:blur(20px) saturate(1.4);-webkit-backdrop-filter:blur(20px) saturate(1.4)}
 .controls-top{display:flex;align-items:center;gap:8px;padding:10px 16px 6px}
 .controls-actions{display:flex;gap:8px;padding:0 16px 6px}
 .search-box{flex:1;background:var(--bg2);border:none;border-radius:var(--r-lg);padding:11px 16px;font-family:'DM Sans',sans-serif;font-size:16px;color:var(--text);outline:none;min-height:var(--tap);transition:background var(--transition),box-shadow var(--transition);box-shadow:var(--clay-input)}
@@ -661,8 +661,8 @@ textarea.field{border-radius:var(--r-sm);resize:vertical;min-height:80px}
 footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size:9px;letter-spacing:1px;color:rgba(42,31,20,0.25);border-top:1px solid var(--border2);line-height:2}
 
 /* RESPONSIVE */
-@media(min-width:640px){.cards-grid{grid-template-columns:repeat(2,1fr);gap:14px;padding:12px 14px}.card{border-radius:var(--r-lg)}.city-grid{grid-template-columns:repeat(3,1fr)}}
-@media(min-width:960px){.cards-grid{grid-template-columns:repeat(3,1fr)}.map-view.active{flex-direction:row;height:calc(100vh - 210px)}.map-sidebar{display:flex;flex-direction:column}.sheet{border-radius:20px 20px 0 0;margin-bottom:48px}.overlay.open{align-items:center}.card:hover{transform:translateY(-2px);box-shadow:var(--card-shadow-hover)}.fp-inner{gap:14px}.city-grid{grid-template-columns:repeat(4,1fr)}}
+@media(min-width:640px){.card{border-radius:var(--r-lg)}.city-grid{grid-template-columns:repeat(3,1fr)}}
+@media(min-width:960px){.map-view.active{flex-direction:row;height:calc(100vh - 210px)}.map-sidebar{display:flex;flex-direction:column}.sheet{border-radius:20px 20px 0 0;margin-bottom:48px}.overlay.open{align-items:center}.card:hover{transform:translateY(-2px);box-shadow:var(--card-shadow-hover)}.fp-inner{gap:14px}.city-grid{grid-template-columns:repeat(4,1fr)}}
 @media(max-width:380px){.home-title{font-size:40px;letter-spacing:-2px}.s-actions{grid-template-columns:1fr 1fr;grid-template-rows:auto auto}.btn-primary{grid-column:1/-1}}
 
 /* VENUE REQUEST */
@@ -3631,7 +3631,7 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   position: fixed;
   bottom: 12px; left: 16px; right: 16px;
   z-index: 600;
-  height: calc(72px + env(safe-area-inset-bottom, 0px));
+  height: 72px;
   align-items: stretch;
   padding: 0 6px;
   padding-bottom: env(safe-area-inset-bottom, 0px);
