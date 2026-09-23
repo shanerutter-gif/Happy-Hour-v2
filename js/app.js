@@ -3610,8 +3610,8 @@ function _renderCardsNow() {
   const withPhoto    = nonHeroes.filter(v => v.photo_url || (v.photo_urls && v.photo_urls.length));
   const withoutPhoto = nonHeroes.filter(v => !(v.photo_url || (v.photo_urls && v.photo_urls.length)));
 
-  const compactVenues = withPhoto.slice(0, 6);
-  const standardVenues = withPhoto.slice(6).concat(withoutPhoto);
+  const compactVenues = []; // PREVIEW-ONLY (design-uplevel): old compact 6-card type deprecated
+  const standardVenues = withPhoto.concat(withoutPhoto);
 
   let html = '';
   let delay = 0;
