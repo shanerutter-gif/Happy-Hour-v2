@@ -3777,7 +3777,7 @@ function heroCardHTML(v, delay, idx = 0) {
       <div class="card-hero-eyebrow">${[
       cardDistance(v), v.neighborhood, v.cuisine,
           v.yelp_rating? `★ ${v.yelp_rating}`: (avg > 0? `★ ${avg.toFixed(1)}`: ''), ].filter(Boolean).map(x => `<span>${esc(x)}</span>`).join('<span class="dot"></span>')}</div>
-          v.yelp_rating ? `★ ${v.yelp_rating}` : (avg > 0 ? `★ ${avg.toFixed(1)}` : ''),
+
          <div class="card-hero-name">${esc(v.name)}</div>
       ${badges.length? `<div class="card-hero-badges">${badges.join('')}</div>`: ''}
       ${heroDeal? `<div class="card-hero-hero">${heroDeal.price? `<span class="card-hero-price">${esc(heroDeal.price)}</span>`: ''}<span class="card-hero-dish">${esc(heroDeal.text)}</span></div>`: ''}
