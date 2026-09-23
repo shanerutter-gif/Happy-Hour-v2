@@ -3631,7 +3631,7 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   position: fixed;
   bottom: 12px; left: 16px; right: 16px;
   z-index: 600;
-  height: calc(72px + env(safe-area-inset-bottom, 0px));
+  height: 72px;
   align-items: stretch;
   padding: 0 6px;
   padding-bottom: env(safe-area-inset-bottom, 0px);
