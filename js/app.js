@@ -3740,14 +3740,14 @@ function heroCardHTML(v, delay, idx = 0) {
 
   // Badges
   const badges = [];
-  if (count >= 2)       badges.push(`<span class="badge badge-fire">🔥 ${count} here</span>`);
+
   if (v.has_sports_tv)  badges.push(`<span class="badge badge-sports">📺</span>`);
   if (v.owner_verified) badges.push(`<span class="badge badge-verified">✓</span>`);
 
-  // Deals as glass pills (max 2 — name → meta → deals → CTA, one hierarchy)
-  const deals = (v.deals || []).slice(0, 2).map(d =>
-    `<span class="card-hero-deal">${esc(d)}</span>`
-  ).join('');
+  // Statement: lead deal -> big price + dish; next two join the sub-line
+  const dealList = (v.deals || []).filter(Boolean), subDeals = dealList.slice(1, 3).map(d => esc(d)).join(' · ');
+     const heroM = dealList[0]? String(dealList[0]).trim().match(/^(\$[\d,.]+(?:\s*[–-]\s*\$?[\d,.]+)?)\s+(.*)$/): null;
+  const heroDeal = heroM ? { price: heroM[1], text: heroM[2] } : (dealList[0] ? { price: '', text: String(dealList[0]).trim() } : null);
 
   // Check-in bar
   const goingBar = count > 0 ? `
@@ -3768,20 +3768,20 @@ function heroCardHTML(v, delay, idx = 0) {
   return `<div class="card-hero" data-id="${v.id}"
     onclick="openModal('${v.id}','venue')" style="${delay === false ? 'animation:none' : `animation-delay:${delay}ms`}">
     <img class="card-hero-img" src="${esc(optImg(photoUrl, 960))}" data-raw="${esc(photoUrl)}" alt="${esc(v.name)}" loading="${idx === 0 ? 'eager' : 'lazy'}" decoding="async"${idx === 0 ? ' fetchpriority="high"' : ''}
-      onerror="${IMG_FALLBACK}this.closest('.card-hero').style.background='linear-gradient(135deg,#2A1F14,#1A1208)';this.remove()">
-    <div class="card-hero-overlay"></div>
+      onerror="${IMG_FALLBACK}this.remove()">
+
     <button class="card-hero-fav${faved ? ' faved' : ''}"
       onclick="event.stopPropagation();doFavorite('${v.id}','venue',this);this.classList.toggle('faved');this.textContent=this.classList.contains('faved')?'★':'☆'">${faved ? '★' : '☆'}</button>
-    <div class="card-hero-badges">${badges.join('')}</div>
+    
     <div class="card-hero-info">
-      <div class="card-hero-name">${esc(v.name)}</div>
-      <div class="card-hero-meta">${[
-          cardDistance(v), v.neighborhood, v.cuisine, todayH,
+      <div class="card-hero-eyebrow">${[
+      cardDistance(v), v.neighborhood, v.cuisine,
+          v.yelp_rating? `★ ${v.yelp_rating}`: (avg > 0? `★ ${avg.toFixed(1)}`: ''), ].filter(Boolean).map(x => `<span>${esc(x)}</span>`).join('<span class="dot"></span>')}</div>
           v.yelp_rating ? `★ ${v.yelp_rating}` : (avg > 0 ? `★ ${avg.toFixed(1)}` : ''),
-        ].filter(Boolean).map(x => `<span>${esc(x)}</span>`).join('<span class="dot"></span>')}</div>
-      ${hhBadgeHTML(v)}
-      <div class="card-hero-deals">${deals}</div>
-      ${eventChipsHTML(v)}
+         <div class="card-hero-name">${esc(v.name)}</div>
+      ${badges.length? `<div class="card-hero-badges">${badges.join('')}</div>`: ''}
+      ${heroDeal? `<div class="card-hero-hero">${heroDeal.price? `<span class="card-hero-price">${esc(heroDeal.price)}</span>`: ''}<span class="card-hero-dish">${esc(heroDeal.text)}</span></div>`: ''}
+      ${subDeals? `<div class="card-hero-sub">${subDeals}</div>`: ''}
       ${goingBar}
     </div>
   </div>`;
