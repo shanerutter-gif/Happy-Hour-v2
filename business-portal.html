@@ -871,6 +871,10 @@
                 <input type="email" id="claim-biz-email" placeholder="manager@yourbar.com" />
               </div>
               <div class="form-group">
+                <label>Business proof <span style="color:var(--muted);font-weight:400;">(required if you don't have a business email)</span></label>
+                <input type="text" id="claim-proof" placeholder="Link to your venue's website, staff page, or business license" />
+              </div>
+              <div class="form-group">
                 <label>Anything you want us to know? (optional)</label>
                 <textarea id="claim-notes" placeholder="e.g. 'I'm the owner, been open since 2018. Happy to verify via our website...'"></textarea></div><p style="font-size:12px;color:var(--muted);margin-top:4px;margin-bottom:16px;">We verify every claim within 24 hours by emailing the business address you provide and checking it against the venue's official website. You'll see your claim status here in the dashboard.</p><div class="form-group" style="display:none;">
               </div>
@@ -1541,13 +1545,29 @@
     }).catch(() => {});
   }
 
+  // Venue-domain business email check: free inboxes and Apple Private Relay
+  // addresses can't be tied to a business, so they don't count on their own.
+  const FREE_EMAIL_DOMAINS = ['gmail.com','yahoo.com','hotmail.com','outlook.com','live.com','msn.com','aol.com','icloud.com','me.com','mac.com','protonmail.com','proton.me','zoho.com','yandex.com','gmx.com','mail.com','inbox.com'];
+  function isBusinessEmail(email) {
+    const parts = String(email || '').trim().toLowerCase().split('@');
+    if (parts.length !== 2 || !parts[1]) return false;
+    const domain = parts[1];
+    if (domain === 'privaterelay.appleid.com' || domain.endsWith('.privaterelay.appleid.com')) return false;
+    if (domain.indexOf('.') < 0) return false;
+    return FREE_EMAIL_DOMAINS.indexOf(domain) === -1;
+  }
+
   async function submitClaim() {
     if (!selectedVenueId) return showMsg('claim-msg', 'Please select a venue first.', 'error');
     const name = document.getElementById('claim-name').value.trim();
     const email = document.getElementById('claim-biz-email').value.trim();
     const phone = document.getElementById('claim-phone').value.trim();
     const notes = document.getElementById('claim-notes').value.trim();
+    const proof = document.getElementById('claim-proof').value.trim();
     if (!name) return showMsg('claim-msg', 'Please enter your name.', 'error'); if (!email) return showMsg('claim-msg', 'Business email is required so we can verify your claim.', 'error');
+    // Policy: claims need a venue-domain business email, or business proof we can check.
+    // Free inboxes (Gmail, Yahoo, iCloud…) and Apple Private Relay are not verifiable on their own.
+    if (!isBusinessEmail(email) && !proof) return showMsg('claim-msg', 'Please use your business email (e.g. manager@yourbar.com) — or add business proof above so we can verify your claim.', 'error');
 
     const table = await sb.from('venue_claims');
     const res = await table.insert({
@@ -1556,7 +1576,7 @@
       contact_name: name,
       contact_email: email,
       contact_phone: phone,
-      notes: notes,
+      notes: proof ? '[Business proof] ' + proof + (notes ? '\n\n' + notes : '') : notes,
       status: 'pending'
     });
 

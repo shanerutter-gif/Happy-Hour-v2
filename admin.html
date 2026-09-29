@@ -1732,9 +1732,9 @@
           <div class="users-table-wrap">
             <table class="users-table">
               <thead><tr>
-                <th>Venue</th><th>Submitted By</th><th>City</th><th>Status</th><th>Submitted</th><th>Days in Stage</th>
+                <th>Venue</th><th>Submitted By</th><th>City</th><th>Status</th><th>Submitted</th><th>Days in Stage</th><th>Actions</th>
               </tr></thead>
-              <tbody id="pipeline-tbody"><tr><td colspan="6" class="table-empty">Loading…</td></tr></tbody>
+              <tbody id="pipeline-tbody"><tr><td colspan="7" class="table-empty">Loading…</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -3070,6 +3070,10 @@ in San Diego</textarea>
   let allRequests = [];
   let currentFilter = 'pending';
   let approvingRequest = null;
+  // Pipeline funnel ("All Business Requests") keeps its own list; per-row
+  // approve/reject actions reuse the same modal + backend path below.
+  let _pipelineRequests = [];
+  let _approvingList = null;
 
   async function loadRequests() {
     allRequests = await sb.get('venue_requests', 'select=*');
@@ -3131,26 +3135,33 @@ in San Diego</textarea>
   }
 
   // ── ACTIONS ──────────────────────────────────────────
-  async function rejectRequest(id) {
+  async function rejectRequest(id, list) {
     if (!confirm('Reject this request?')) return;
     await sb.patch('venue_requests', id, { status: 'rejected', reviewed_at: new Date().toISOString() });
-    const r = allRequests.find(x => x.id === id);
+    const src = list || allRequests;
+    const r = src.find(x => String(x.id) === String(id));
     if (r) r.status = 'rejected';
     updateCounts(); renderRequests();
+    if (src === _pipelineRequests) loadPipeline();
     showToast('Request rejected');
   }
 
-  async function restoreRequest(id) {
+  async function restoreRequest(id, list) {
     await sb.patch('venue_requests', id, { status: 'pending', reviewed_at: null });
-    const r = allRequests.find(x => x.id === id);
+    const src = list || allRequests;
+    const r = src.find(x => String(x.id) === String(id));
     if (r) r.status = 'pending';
     updateCounts(); renderRequests();
+    if (src === _pipelineRequests) loadPipeline();
     showToast('Restored to pending');
   }
 
   // ── APPROVE MODAL ────────────────────────────────────
-  function openApproveModal(id) {
-    approvingRequest = allRequests.find(r => r.id === id);
+  // list: which request list the row came from (defaults to the Claims nav list).
+  // The pipeline funnel passes _pipelineRequests so its rows can be approved too.
+  function openApproveModal(id, list) {
+    _approvingList = list || allRequests;
+    approvingRequest = _approvingList.find(r => String(r.id) === String(id));
     if (!approvingRequest) return;
     document.getElementById('approve-form').innerHTML = `
       <div class="modal-form-group">
@@ -3242,9 +3253,11 @@ in San Diego</textarea>
       venue_id: result[0].id
     });
 
-    const r = allRequests.find(x => x.id === approvingRequest.id);
+    const r = allRequests.find(x => String(x.id) === String(approvingRequest.id));
     if (r) r.status = 'approved';
     updateCounts(); renderRequests();
+    if (_approvingList === _pipelineRequests) loadPipeline();
+    _approvingList = null;
     closeApproveModal();
     showToast(`✓ "${name}" added — activate in Supabase when ready`);
   }
@@ -4107,9 +4120,10 @@ in San Diego</textarea>
 
   // ── REVENUE PIPELINE ──────────────────────────────────
   async function loadPipeline() {
-    document.getElementById('pipeline-tbody').innerHTML = '<tr><td colspan="6" class="table-empty">Loading…</td></tr>';
+    document.getElementById('pipeline-tbody').innerHTML = '<tr><td colspan="7" class="table-empty">Loading…</td></tr>';
     const reqs = await sb.get('venue_requests', 'select=*&limit=1000');
     const list = Array.isArray(reqs) ? reqs : [];
+    _pipelineRequests = list;
 
     const counts = { pending:0, approved:0, claimed:0, rejected:0 };
     list.forEach(r => { if(counts[r.status]!==undefined) counts[r.status]++; });
@@ -4159,8 +4173,13 @@ in San Diego</textarea>
         <td><span class="req-status ${r.status}">${r.status}</span></td>
         <td style="font-size:12px;color:var(--muted)">${submitted}</td>
         <td style="font-weight:700;color:${days>14?'var(--error)':days>7?'var(--warn)':'var(--muted)'}">${days}d</td>
+        <td style="white-space:nowrap">
+          ${r.status === 'pending' ? `<button class="btn-approve" style="padding:6px 12px;font-size:12px" onclick="openApproveModal('${r.id}', _pipelineRequests)">✓ Approve</button> <button class="btn-reject" style="padding:6px 12px;font-size:12px" onclick="rejectRequest('${r.id}', _pipelineRequests)">✕ Reject</button>` : ''}
+          ${r.status === 'rejected' ? `<button class="btn-restore" style="padding:6px 12px;font-size:12px" onclick="restoreRequest('${r.id}', _pipelineRequests)">↩ Restore</button>` : ''}
+          ${r.status === 'approved' ? `<span style="font-size:12px;color:var(--muted);font-family:'DM Sans',sans-serif">Venue added ✓</span>` : ''}
+        </td>
       </tr>`;
-    }).join('') : '<tr><td colspan="6" class="table-empty">No requests yet</td></tr>';
+    }).join('') : '<tr><td colspan="7" class="table-empty">No requests yet</td></tr>';
   }
 
   function handleLogout() {
