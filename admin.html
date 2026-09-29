@@ -4176,7 +4176,7 @@ in San Diego</textarea>
         <td style="white-space:nowrap">
           ${r.status === 'pending' ? `<button class="btn-approve" style="padding:6px 12px;font-size:12px" onclick="openApproveModal('${r.id}', _pipelineRequests)">✓ Approve</button> <button class="btn-reject" style="padding:6px 12px;font-size:12px" onclick="rejectRequest('${r.id}', _pipelineRequests)">✕ Reject</button>` : ''}
           ${r.status === 'rejected' ? `<button class="btn-restore" style="padding:6px 12px;font-size:12px" onclick="restoreRequest('${r.id}', _pipelineRequests)">↩ Restore</button>` : ''}
-          ${r.status === 'approved' ? `<span style="font-size:12px;color:var(--muted);font-family:'DM Sans',sans-serif">Venue added ✓</span>` : ''}
+          ${r.status === 'approved' ? `<span style="font-size:12px;color:var(--muted);font-family:'DM Sans',sans-serif">Approved ✓</span>` : ''}
         </td>
       </tr>`;
     }).join('') : '<tr><td colspan="7" class="table-empty">No requests yet</td></tr>';
