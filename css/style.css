@@ -5146,8 +5146,8 @@ button:not([disabled]),
 /* ── Profile tab active with gradient underline ── */
 .profile-tab.active { color: var(--coral); border-bottom-color: var(--coral); }
 
-/* ── Giveaway tile (profile) ── */
-.giveaway-tile {
+/* ── Invite friends (referral) tile (profile) ── */
+.ref-tile {
   background: linear-gradient(135deg, #FF6B4A 0%, #E8943A 100%);
   border-radius: 16px;
   padding: 18px;
@@ -5155,35 +5155,27 @@ button:not([disabled]),
   margin: 16px 0 8px;
   box-shadow: 0 4px 14px rgba(255, 107, 74, 0.22);
 }
-.giveaway-tile__header {
+.ref-tile__header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 8px;
   margin-bottom: 12px;
 }
-.giveaway-tile__badge {
+.ref-tile__badge {
   font-family: 'Cabinet Grotesk', sans-serif;
   font-weight: 800;
   font-size: 13px;
   letter-spacing: 0.4px;
   text-transform: uppercase;
 }
-.giveaway-tile__entries {
-  background: rgba(255,255,255,0.22);
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-family: 'DM Mono', monospace;
-  font-size: 12px;
-  white-space: nowrap;
-}
-.giveaway-tile__progress {
+.ref-tile__progress {
   background: rgba(255,255,255,0.14);
   border-radius: 10px;
   padding: 10px 12px;
   margin-bottom: 12px;
 }
-.giveaway-tile__row {
+.ref-tile__row {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -5191,20 +5183,20 @@ button:not([disabled]),
   font-size: 14px;
   gap: 8px;
 }
-.giveaway-tile__row strong {
+.ref-tile__row strong {
   font-family: 'DM Mono', monospace;
   font-weight: 600;
 }
-.giveaway-tile__code {
+.ref-tile__code {
   letter-spacing: 1px;
 }
-.giveaway-tile__hint {
+.ref-tile__hint {
   font-size: 13px;
   opacity: 0.95;
   margin: 0 0 12px 0;
   line-height: 1.4;
 }
-.giveaway-tile__cta {
+.ref-tile__cta {
   width: 100%;
   background: #FFFFFF;
   color: #FF6B4A;
@@ -5217,7 +5209,7 @@ button:not([disabled]),
   cursor: pointer;
   transition: transform .1s ease;
 }
-.giveaway-tile__cta:active { transform: scale(0.98); }
+.ref-tile__cta:active { transform: scale(0.98); }
 
 /* ── In-card check-in buttons (hero / std / compact variants) ──
    All three share the same coral→amber gradient pill language for
@@ -5272,7 +5264,7 @@ button:not([disabled]),
   -webkit-backdrop-filter: blur(6px);
 }
 
-.giveaway-tile__addcode {
+.ref-tile__addcode {
   display: block;
   margin: 10px auto 0;
   background: transparent;
@@ -5287,7 +5279,7 @@ button:not([disabled]),
   text-decoration: underline;
   text-underline-offset: 2px;
 }
-.giveaway-tile__addcode:hover { opacity: 1; }
+.ref-tile__addcode:hover { opacity: 1; }
 
 /* ── Onboarding: attribution chip grid ── */
 .ob-attr-grid {
@@ -5424,312 +5416,6 @@ button:not([disabled]),
   padding: 6px 10px;
 }
 .ref-modal__skip:hover { color: #2A1F14; }
-
-/* ── Giveaway promo banner (above home search bar) ── */
-.giveaway-banner {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  background: linear-gradient(135deg, #FF6B4A 0%, #E8943A 100%);
-  border: none;
-  border-radius: 12px;
-  padding: 10px 12px 10px 14px;
-  margin-bottom: 10px;
-  color: #FFFFFF;
-  font-family: 'DM Sans', sans-serif;
-  font-weight: 600;
-  font-size: 14px;
-  cursor: pointer;
-  text-align: left;
-  box-shadow: 0 3px 10px rgba(255, 107, 74, 0.22);
-  transition: transform .1s ease, filter .1s ease;
-}
-.giveaway-banner:hover  { filter: brightness(1.04); }
-.giveaway-banner:active { transform: scale(0.99); }
-.giveaway-banner__emoji { font-size: 18px; flex-shrink: 0; }
-.giveaway-banner__text { flex: 1; min-width: 0; }
-.giveaway-banner__cta {
-  flex-shrink: 0;
-  background: rgba(255,255,255,0.22);
-  border-radius: 999px;
-  padding: 4px 10px;
-  font-size: 12px;
-  font-weight: 700;
-}
-.giveaway-banner__close {
-  flex-shrink: 0;
-  width: 24px;
-  height: 24px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.18);
-  font-size: 18px;
-  line-height: 1;
-  font-weight: 400;
-  cursor: pointer;
-  user-select: none;
-  margin-left: 2px;
-}
-.giveaway-banner__close:hover { background: rgba(255,255,255,0.32); }
-
-/* ── Giveaway landing sub-page ── */
-.gw-page {
-  max-width: 640px;
-  margin: 0 auto;
-  padding: 0 16px 80px;
-  font-family: 'DM Sans', sans-serif;
-  color: #2A1F14;
-}
-.gw-hero {
-  background: linear-gradient(135deg, #FF6B4A 0%, #E8943A 100%);
-  color: #FFFFFF;
-  border-radius: 18px;
-  padding: 28px 22px 30px;
-  margin: 12px 0 20px;
-  text-align: left;
-  box-shadow: 0 6px 18px rgba(255, 107, 74, 0.22);
-}
-.gw-hero__kicker {
-  display: inline-block;
-  background: rgba(255,255,255,0.22);
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-family: 'DM Mono', monospace;
-  font-size: 11px;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  margin-bottom: 12px;
-}
-.gw-hero__title {
-  font-family: 'Cabinet Grotesk', sans-serif;
-  font-weight: 900;
-  font-size: 32px;
-  line-height: 1.05;
-  letter-spacing: -0.5px;
-  margin: 0 0 10px;
-}
-.gw-hero__sub {
-  font-size: 15px;
-  line-height: 1.5;
-  opacity: 0.95;
-  margin: 0;
-  max-width: 32ch;
-}
-.gw-stats-card {
-  background: #FFFFFF;
-  border: 1px solid rgba(42,31,20,0.08);
-  border-radius: 16px;
-  padding: 18px;
-  margin-bottom: 24px;
-  box-shadow: 0 2px 8px rgba(42,31,20,0.04);
-}
-.gw-stats-loading {
-  text-align: center;
-  color: rgba(42,31,20,0.55);
-  padding: 12px 0;
-  font-size: 14px;
-}
-.gw-stats-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  margin-bottom: 14px;
-}
-.gw-stat {
-  background: #F5EFE6;
-  border-radius: 10px;
-  padding: 12px 8px;
-  text-align: center;
-}
-.gw-stat__num {
-  font-family: 'Cabinet Grotesk', sans-serif;
-  font-weight: 800;
-  font-size: 22px;
-  color: #FF6B4A;
-}
-.gw-stat__lbl {
-  font-size: 11px;
-  color: rgba(42,31,20,0.6);
-  margin-top: 2px;
-  line-height: 1.3;
-}
-.gw-code-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: #F5EFE6;
-  border-radius: 10px;
-  padding: 10px 14px;
-  margin-bottom: 12px;
-}
-.gw-code-row__label {
-  font-size: 13px;
-  color: rgba(42,31,20,0.65);
-  font-weight: 600;
-}
-.gw-code-row__code {
-  font-family: 'DM Mono', monospace;
-  font-weight: 700;
-  font-size: 18px;
-  letter-spacing: 2px;
-  color: #FF6B4A;
-}
-.gw-cta-primary {
-  width: 100%;
-  background: #FF6B4A;
-  color: #FFFFFF;
-  border: none;
-  border-radius: 12px;
-  padding: 14px;
-  font-family: 'DM Sans', sans-serif;
-  font-weight: 700;
-  font-size: 15px;
-  cursor: pointer;
-  transition: filter .1s ease, transform .1s ease;
-}
-.gw-cta-primary:hover  { filter: brightness(1.04); }
-.gw-cta-primary:active { transform: scale(0.99); }
-.gw-stats-foot {
-  font-size: 12px;
-  color: rgba(42,31,20,0.55);
-  margin: 10px 0 0;
-  text-align: center;
-  line-height: 1.4;
-}
-.gw-stats-signedout { text-align: center; padding: 6px 0; }
-.gw-stats-signedout__title {
-  font-family: 'Cabinet Grotesk', sans-serif;
-  font-weight: 800;
-  font-size: 18px;
-  margin-bottom: 4px;
-}
-.gw-stats-signedout__sub {
-  font-size: 13px;
-  color: rgba(42,31,20,0.6);
-  margin-bottom: 14px;
-}
-.gw-section {
-  margin: 20px 0 24px;
-}
-.gw-h2 {
-  font-family: 'Cabinet Grotesk', sans-serif;
-  font-weight: 800;
-  font-size: 18px;
-  margin: 0 0 12px;
-  letter-spacing: -0.2px;
-}
-.gw-steps { display: flex; flex-direction: column; gap: 10px; }
-.gw-step {
-  display: flex;
-  gap: 12px;
-  background: #FFFFFF;
-  border: 1px solid rgba(42,31,20,0.08);
-  border-radius: 12px;
-  padding: 14px 14px 14px 12px;
-}
-.gw-step__num {
-  flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: rgba(255,107,74,0.12);
-  color: #FF6B4A;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: 'Cabinet Grotesk', sans-serif;
-  font-weight: 800;
-  font-size: 14px;
-}
-.gw-step__body { flex: 1; font-size: 14px; line-height: 1.55; }
-.gw-step__body strong { font-weight: 700; }
-.gw-step__list {
-  margin: 6px 0 0 18px;
-  padding: 0;
-  font-size: 13px;
-  color: rgba(42,31,20,0.7);
-}
-.gw-step__list li { margin-bottom: 2px; }
-.gw-faq {
-  background: #FFFFFF;
-  border: 1px solid rgba(42,31,20,0.08);
-  border-radius: 10px;
-  padding: 12px 14px;
-  margin-bottom: 8px;
-}
-.gw-faq summary {
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 14px;
-  list-style: none;
-  position: relative;
-  padding-right: 22px;
-}
-.gw-faq summary::-webkit-details-marker { display: none; }
-.gw-faq summary::after {
-  content: '+';
-  position: absolute;
-  right: 0;
-  top: 0;
-  font-weight: 700;
-  color: rgba(42,31,20,0.5);
-  font-size: 18px;
-  line-height: 1;
-}
-.gw-faq[open] summary::after { content: '−'; }
-.gw-faq p {
-  margin: 8px 0 0;
-  font-size: 13px;
-  color: rgba(42,31,20,0.7);
-  line-height: 1.55;
-}
-.gw-winner {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  background: #FFFFFF;
-  border: 1px solid rgba(42,31,20,0.08);
-  border-radius: 10px;
-  padding: 10px 12px;
-  margin-bottom: 8px;
-}
-.gw-winner__avatar {
-  width: 40px; height: 40px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  background: rgba(255,107,74,0.12);
-  display: flex; align-items: center; justify-content: center;
-  overflow: hidden;
-}
-.gw-winner__avatar img { width: 100%; height: 100%; object-fit: cover; }
-.gw-winner__initials {
-  font-family: 'Cabinet Grotesk', sans-serif;
-  font-weight: 800;
-  font-size: 13px;
-  color: #FF6B4A;
-}
-.gw-winner__body { flex: 1; min-width: 0; }
-.gw-winner__name { font-weight: 600; font-size: 14px; }
-.gw-winner__meta { font-size: 12px; color: rgba(42,31,20,0.55); margin-top: 2px; }
-.gw-winner__prize {
-  flex-shrink: 0;
-  background: rgba(31,107,58,0.12);
-  color: #1F6B3A;
-  border-radius: 999px;
-  padding: 4px 10px;
-  font-family: 'DM Mono', monospace;
-  font-size: 12px;
-  font-weight: 700;
-}
-.gw-fineprint {
-  font-size: 11px;
-  color: rgba(42,31,20,0.5);
-  line-height: 1.55;
-  margin: 24px 0 0;
-}
 
 /* ── Spotd "Official" editorial badge ── */
 /* Spotd verified rosette — sits inline next to display names. SVG carries
@@ -6809,22 +6495,20 @@ html {
 /* Tighten display typography — Cabinet Grotesk wants less line-height
    than the browser default, and slightly negative letter-spacing for
    tabular density at large sizes. */
-h1, h2, .sf-hero-venue, .sf-ed-title, .pf-name, .gw-hero__title,
-.modal-hero-name, .s-name {
+h1, h2, .sf-hero-venue, .sf-ed-title, .pf-name, .modal-hero-name, .s-name {
   letter-spacing: -0.018em;
   line-height: 1.12;
 }
 
 /* Body copy: enforce a comfortable reading rhythm. */
-.sf-hero-caption, .sf-ed-body p, .gw-hero__sub, .gw-step__body,
-.modal-deal-item, .pf-bio, .vt-text {
+.sf-hero-caption, .sf-ed-body p, .modal-deal-item, .pf-bio, .vt-text {
   line-height: 1.5;
 }
 
 /* Tabular numerals for stat-style numbers — keeps counts in lockstep
    instead of dancing as users like/comment. */
-.pf-snum, .kpi-value, .gw-stat__num, .stat,
-.giveaway-tile__entries, .pf-lb-score, .pf-streak,
+.pf-snum, .kpi-value, .stat,
+.pf-lb-score, .pf-streak,
 .sf-actions span {
   font-variant-numeric: tabular-nums;
 }
@@ -6838,7 +6522,6 @@ h1, h2, .sf-hero-venue, .sf-ed-title, .pf-name, .gw-hero__title,
 .modal-hero-wrap img,
 .ugc-photo-thumb img,
 .cp-thumb img,
-.gw-winner__avatar img,
 .imv-media img,
 .stryv-media img {
   filter: saturate(1.06) contrast(1.025);
@@ -6849,8 +6532,8 @@ h1, h2, .sf-hero-venue, .sf-ed-title, .pf-name, .gw-hero__title,
    acknowledges you. Applied to all interactive cards. */
 .card, .card-hero, .card-compact, .card-std,
 .sf-hero, .sf-editorial, .sf-compact, .sf-wide,
-.pf-row, .gw-step, .pf-lb-row, .vt-row,
-.cp-thumb, .stry-tile, .giveaway-tile {
+.pf-row, .pf-lb-row, .vt-row,
+.cp-thumb, .stry-tile, .ref-tile {
   transition: transform var(--motion-fast) var(--ease-spring),
               box-shadow var(--motion-fast) var(--ease-soft),
               border-color var(--motion-fast) var(--ease-soft);
@@ -6927,7 +6610,7 @@ h1, h2, .sf-hero-venue, .sf-ed-title, .pf-name, .gw-hero__title,
    Existing empty states tend to use 🥃-style emoji at huge size with
    a generic message. Tighten typography + add a subtle coral wash
    behind the icon for warmth. */
-.social-empty, .pf-empty, .gw-empty {
+.social-empty, .pf-empty {
   padding: 48px 24px;
   text-align: center;
 }
@@ -6956,9 +6639,8 @@ h1, h2, .sf-hero-venue, .sf-ed-title, .pf-name, .gw-hero__title,
    The existing clay shadow stack is heavy; on smaller cards it reads
    as 'puffy'. Trim 30% on every-day cards. */
 .sf-hero, .sf-editorial,
-.giveaway-tile,
+.ref-tile,
 .pf-card,
-.gw-stats-card,
 .pf-lb-section {
   box-shadow:
     3px 3px 12px rgba(42,31,20,0.07),
@@ -6967,9 +6649,8 @@ h1, h2, .sf-hero-venue, .sf-ed-title, .pf-name, .gw-hero__title,
 }
 [data-theme="dark"] .sf-hero,
 [data-theme="dark"] .sf-editorial,
-[data-theme="dark"] .giveaway-tile,
+[data-theme="dark"] .ref-tile,
 [data-theme="dark"] .pf-card,
-[data-theme="dark"] .gw-stats-card,
 [data-theme="dark"] .pf-lb-section {
   box-shadow:
     3px 3px 12px rgba(0,0,0,0.4),
@@ -7315,7 +6996,6 @@ h1, h2, .sf-hero-venue, .sf-ed-title, .pf-name, .gw-hero__title,
      (active-filter chips) is pushed after suggestions via `order` so it
      wraps onto its own line only when filters are actually applied. */
   .controls { display: flex; flex-wrap: wrap; align-items: center; }
-  .giveaway-banner { flex-basis: 100%; }
   .controls-top { flex: 0 1 440px; min-width: 280px; padding: 10px 4px 10px 24px; }
   .controls-actions { flex: 0 0 auto; padding: 0 4px 0 0; }
   .controls-actions .filter-toggle { flex: none; }
@@ -7979,14 +7659,14 @@ h1, h2, .sf-hero-venue, .sf-ed-title, .pf-name, .gw-hero__title,
 /* Idea banner → glass, theme-aware text */
 .pf-idea-text { color: var(--ink); }
 
-/* Giveaway tile: keep the coral gradient (brand) but add a glassy inner sheen */
-.giveaway-tile {
+/* Invite tile: keep the coral gradient (brand) but add a glassy inner sheen */
+.ref-tile {
   box-shadow: 0 10px 26px -10px rgba(255,107,74,0.5), inset 0 1px 0 rgba(255,255,255,0.25);
 }
-.giveaway-tile__cta {
+.ref-tile__cta {
   transition: transform .16s var(--ease-bounce);
 }
-.giveaway-tile__cta:active { transform: scale(.95); }
+.ref-tile__cta:active { transform: scale(.95); }
 
 /* ════════════════════════════════════════════════════════════════
    SOCIAL SUB-PAGES + MESSAGES — LIQUID GLASS (round 7)

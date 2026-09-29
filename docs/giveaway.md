@@ -1,3 +1,5 @@
+> **⚠️ RETIRED 2026-09-29.** The weekly $25 giveaway was shut down (nothing to offer). Entry-granting triggers were dropped (`sql/retire-giveaway-20260929.sql`); the banner, landing page, profile tile, admin Giveaway tab (`admin-giveaway.js`, `admin/giveaway.html`) and the unused `pick-giveaway-winner` function were removed. `giveaway_entries`/`giveaway_winners` rows are kept as history. **The referral program (codes, `?ref=`, share sheet, post-signup code modal) stays live** — it now lives in the profile "Invite friends" tile. This doc is kept for history only.
+
 # Spotd — Weekly Giveaway & Referral Program
 
 Short context doc for the giveaway/referral system. Last updated 2026-04-29.

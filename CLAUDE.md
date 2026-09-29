@@ -155,7 +155,7 @@ scripts before `</body>`** at serve time. To add a new admin tool:
 2. Append it to `SCRIPT_TAGS` in `api/admin-page.js`.
 3. Inside the file, use the `inject()` IIFE pattern: append a sidebar nav item
    (desktop), a mobile drawer item, and a `<div class="page" id="page-<feature>">`.
-4. Mirror JWT refresh + auth from `admin-giveaway.js` / `admin-attribution.js`.
+4. Mirror JWT refresh + auth from `admin-attribution.js` / `admin-activity.js`.
 
 ### Sidebar groups (matches `admin.html:1256-1331`)
 
@@ -176,7 +176,6 @@ scripts before `</body>`** at serve time. To add a new admin tool:
 | Engage        | `nav-feedback`      | User Feedback         | `feedback` table                            |
 |               | `nav-push`          | **Push Center** — composer, schedule/recurring, automations, merged history | `push_tokens` → `/api/send-push`; `push_campaigns`/`push_automations`/`push_automation_log` → `/api/push-runner` (scheduling+automations UI injected by `admin-push-center.js` into the existing `#page-push`) |
 |               | `nav-newsletter`    | Newsletter Subscribers | `newsletter_subscribers`                   |
-|               | `nav-giveaway`      | Weekly Giveaway       | `giveaway_*` tables (injected by `admin-giveaway.js`) |
 |               | `nav-attribution`   | Signup Attribution    | `signup_attributions` (injected by `admin-attribution.js`) |
 | Tools         | `nav-cms`           | Site Copy editor      | `site_copy` table + iframe preview          |
 |               | `nav-board`         | **Project Board** (iframe → `/admin/board.html`) | `board_cards` table |
@@ -365,14 +364,13 @@ Project ref: `opcskuzbdfrlnyhraysk` (hardcoded in `js/db.js`, `admin/board.html`
 - `notifications` — actor_id, type, post_id, post_type, preview, **`title`**/**`url`** (push rows), read_at (fires `trg_notify_on_tag` and `trg_notify_on_like`). Type check: `like/comment/follow/mention/tagged/push` (`sql/push_inapp_notifications.sql`). `type='push'` rows have NO actor — they're delivered pushes mirrored into the bell panel by `saveInAppNotifications()` in `api/_lib/apns.js`.
 - `post_tags` (`sql/post_tags.sql`) — post_id, tagged_user_id, tagged_by.
 
-**Giveaway / referral** (`sql/giveaway_system.sql`)
+**Referral (+ retired giveaway)** (`sql/giveaway_system.sql`; giveaway retired 2026-09-29 by `sql/retire-giveaway-20260929.sql`)
 - `referral_codes` — user_id PK, code unique (6-char, no 0/O/1/I).
 - `referrals` — referrer_id, referee_id (UNIQUE), referral_code_used.
-- `giveaway_entries` — user_id, week_start, entry_type, source_referee_id. Partial unique indexes.
-- `giveaway_winners` — week_start UNIQUE, winner_user_id, prize_status.
+- `giveaway_entries` — **history only, no longer written** (entry-granting triggers dropped 2026-09-29). user_id, week_start, entry_type, source_referee_id.
+- `giveaway_winners` — **history only.** week_start UNIQUE, winner_user_id, prize_status.
 - `signup_attributions` — user_id PK, source, source_other.
-- Helpers: `current_week_start_pt()`, `generate_referral_code()`, `grant_giveaway_entries()`, `is_giveaway_admin()`.
-- Edge function: `supabase/functions/pick-giveaway-winner/index.ts`.
+- Helpers: `current_week_start_pt()`, `generate_referral_code()` (fired by `trg_create_referral_code` on profile insert — still live), `is_giveaway_admin()` (**the admin gate for every admin RLS policy + admin login — never drop it despite the name**). `grant_giveaway_entries()` + the 3 `trg_*_giveaway` triggers were DROPPED 2026-09-29.
 
 **B2B / CRM** (`sql/crm-tables.sql`)
 - `crm_contacts` — contact_name, business_name, email, phone, city_slug, stage (`lead`/`contacted`/`demo`/`proposal`/`won`/`lost`), venue_id, source. RLS: `WITH CHECK (true)` (admin via service role).
@@ -467,8 +465,8 @@ Copying from a mainline file? Use the bare convention.
 ### File naming
 - **Kebab-case** for everything: `admin-enrich-venues.js`, `loops-event.js`, `business-landing.html`.
 - API filenames map 1:1 to route names in `vercel.json`.
-- Admin extension scripts live at **repo root** (NOT inside `admin/`): `admin-attribution.js`, `admin-claims.js`, `admin-enrichment.js`, `admin-giveaway.js`, `admin-push-center.js`, `admin-activity.js`.
-- `admin/` subdirectory holds full HTML pages: `admin/board.html`, `admin/giveaway.html`.
+- Admin extension scripts live at **repo root** (NOT inside `admin/`): `admin-attribution.js`, `admin-claims.js`, `admin-enrichment.js`, `admin-push-center.js`, `admin-activity.js`.
+- `admin/` subdirectory holds full HTML pages: `admin/board.html`.
 
 ---
 
@@ -565,7 +563,7 @@ directly in the city they chose (`enterCity` reads it on next load).
 ## Docs
 
 - `docs/audit-2026-07.md` — **full 8-domain audit (2026-07-09)**: design, features, marketing, SEO/GSC, admin+business portal, performance, growth, Supabase — with live-verified critical findings and research-backed roadmaps. Read it before proposing growth/marketing/SEO/security work.
-- `docs/giveaway.md` — full giveaway + referral system spec
+- `docs/giveaway.md` — giveaway + referral system spec (**giveaway RETIRED 2026-09-29**; referral half still accurate)
 - `docs/editor-account.md` — official editorial account model (`is_official` flag, auto-follow triggers)
 - `docs/blog-routine.md` — the automated twice-weekly blog routine a scheduled Claude session runs (DB-backed, draft-for-approval)
 
@@ -638,6 +636,8 @@ ships, move it to "Recent decisions" with the PR or commit.
 ## Recent decisions
 
 Append-only architectural / vendor decisions. One line per entry.
+
+- 2026-09-29 · **Weekly $25 giveaway RETIRED; referral program kept.** Shane: "kill the weekly giveaway. We can keep referral, but we don't have anything to offer." Removed: the Discover `#giveawayBanner`, the `#giveawayPage` landing sub-page (`openGiveawayPage`/`renderGiveawayPage`/banner fns in `js/app.js`), `getMyEntriesThisWeek`/`getLastWeekWinner` (`js/db.js`), all `.giveaway-banner`/`.gw-*` CSS, the admin Giveaway tab (`admin-giveaway.js` deleted + dropped from `SCRIPT_TAGS`; `admin/giveaway.html` deleted), and the unused `supabase/functions/pick-giveaway-winner` (the draw was manual — no cron existed). **DB (`sql/retire-giveaway-20260929.sql`, applied via MCP):** dropped `trg_checkin_giveaway`/`trg_review_giveaway`/`trg_social_post_giveaway` + their functions + `grant_giveaway_entries()`; `giveaway_entries` (40 rows)/`giveaway_winners` kept as history. **Referral stays:** `?ref=` capture, signup-form code field, post-signup "Did someone refer you?" modal (copy de-prized: "so they get credit for bringing you to Spotd"), share sheet, friend-leaderboard Referrals tab, `trg_create_referral_code`. The profile giveaway tile became an **"Invite friends" tile** (`#refTile`, `.ref-tile*` — renamed from `.giveaway-tile*`; `renderReferralTile()` shows code + friends-invited count via the simplified `getMyReferralStats()` → `{totalReferred}`). Admin Signup Attribution tab now appends to the sidebar bottom (it used to insert after `nav-giveaway`). **Referrals currently earn nothing** — if an incentive comes back, wire it off `referrals`. Bumped `style.css`/`app.js`/`db.js` → `?v=20260929a`.
 
 - 2026-09-23 · **Bottom nav v2 — iOS 26 tab-bar look** (reference: theScore app screen recording). Slim 64px full-pill capsule (`bottom: calc(8px + safe-area)`), five evenly spaced icon + sentence-case label tabs (11px, no uppercase), a near-full-height `.bn-pill` capsule behind the active tab (still slid by `_moveNavPill`, now `border-radius:999px` + subtle ink/white tint), active icon tinted coral. **The + is no longer a floating 56px FAB** — `#bnPost` is an in-bar "Post" tab (24px coral gradient `.bn-post-ic` disc + label; markup in `ensureBottomNav`, `js/app.js`); it keeps class `.bottom-nav-post` (ripple selectors) and is NOT a `.bottom-nav-btn`, so it never takes the active pill. All styles live in the "BOTTOM NAV v2" block appended at the END of `css/style.css` (overrides the older REDESIGNED BOTTOM NAV block by source order). Bumped `style.css`/`app.js` → `?v=20260923b`.
 
