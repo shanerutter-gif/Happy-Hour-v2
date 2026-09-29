@@ -66,19 +66,40 @@ export default async function handler(req) {
   const type = TYPES.has(body.type) ? body.type : 'chore';
   const priority = PRIORITIES.has(body.priority) ? body.priority : 'medium';
 
-  const card = { board: BOARD, col, type, priority, title, description, position: Date.now() };
+  const svcHeaders = {
+    apikey: serviceKey,
+    Authorization: `Bearer ${serviceKey}`,
+    'Content-Type': 'application/json',
+  };
+
+  // Position: max(position)+1000 within this board+col, like board.html does
+  // client-side. (Date.now() would overflow an int4 position column.)
+  let position = 1000;
+  try {
+    const pr = await fetch(
+      `${supabaseUrl}/rest/v1/board_cards?select=position&board=eq.${BOARD}&col=eq.${col}&order=position.desc&limit=1`,
+      { headers: svcHeaders }
+    );
+    if (pr.ok) {
+      const rows = await pr.json();
+      if (rows && rows[0] && typeof rows[0].position === 'number') {
+        position = rows[0].position + 1000;
+      }
+    }
+  } catch {}
+
+  const card = { board: BOARD, col, type, priority, title, description, position };
 
   const r = await fetch(`${supabaseUrl}/rest/v1/board_cards`, {
     method: 'POST',
-    headers: {
-      apikey: serviceKey,
-      Authorization: `Bearer ${serviceKey}`,
-      'Content-Type': 'application/json',
-      Prefer: 'return=representation',
-    },
+    headers: { ...svcHeaders, Prefer: 'return=representation' },
     body: JSON.stringify(card),
   });
-  if (!r.ok) return json({ error: 'Insert failed' }, 502);
+  if (!r.ok) {
+    let detail = '';
+    try { detail = await r.text(); } catch {}
+    return json({ error: 'Insert failed', upstream_status: r.status, detail: detail.slice(0, 500) }, 502);
+  }
   let rows = null;
   try {
     rows = await r.json();
