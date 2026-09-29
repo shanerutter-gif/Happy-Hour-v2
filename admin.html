@@ -3135,8 +3135,16 @@ in San Diego</textarea>
   }
 
   // ── ACTIONS ──────────────────────────────────────────
+  // Two-tap confirm (no native confirm() — it is auto-dismissed by automation
+  // and some embedded browsers, which made the button appear dead).
   async function rejectRequest(id, list) {
-    if (!confirm('Reject this request?')) return;
+    if (window.__rrArm !== 'r:' + id) {
+      window.__rrArm = 'r:' + id;
+      showToast('Tap "✕ Reject" again to confirm');
+      setTimeout(function () { if (window.__rrArm === 'r:' + id) window.__rrArm = null; }, 6000);
+      return;
+    }
+    window.__rrArm = null;
     await sb.patch('venue_requests', id, { status: 'rejected', reviewed_at: new Date().toISOString() });
     const src = list || allRequests;
     const r = src.find(x => String(x.id) === String(id));
