@@ -3023,7 +3023,7 @@ in San Diego</textarea>
   }
 
   // Data access rides on the user JWT now (no service key in the browser), so
-  // the token must stay fresh. Mirrors tryRefreshSession in admin-giveaway.js.
+  // the token must stay fresh. Mirrors the refresh helpers in the admin extension scripts.
   async function refreshAdminSession() {
     try {
       const saved = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
@@ -4189,7 +4189,7 @@ in San Diego</textarea>
   // service_role key must NEVER ship to the browser (docs/audit-2026-07.md S1).
   const svcHeaders = () => {
     // Read from localStorage each call so a token refreshed by any extension
-    // script (admin-giveaway.js etc. share the same LS entry) is picked up.
+    // script (admin-attribution.js etc. share the same LS entry) is picked up.
     let t = _token;
     try { t = JSON.parse(localStorage.getItem(LS_KEY) || '{}').token || _token; } catch (e) {}
     return {
