@@ -2343,7 +2343,7 @@ async function fetchTodayCheckInsWithProfiles(citySlug) {
 }
 
 // ════════════════════════════════════════════════════════
-// GIVEAWAY + REFERRAL SYSTEM
+// REFERRAL SYSTEM (the weekly giveaway it originally fed was retired 2026-09-29)
 // ════════════════════════════════════════════════════════
 
 const PENDING_REFERRAL_KEY = 'spotd_pending_referral';
@@ -2433,59 +2433,16 @@ async function getMyReferralCode() {
   } catch(e) { return null; }
 }
 
-// { total, self, referral } for the current ISO week (PT).
-async function getMyEntriesThisWeek() {
-  if (!currentUser) return { total: 0, self: 0, referral: 0 };
-  try {
-    const { data: weekStart, error: wsErr } = await db.rpc('current_week_start_pt');
-    if (wsErr) throw wsErr;
-    const { data: entries } = await db.from('giveaway_entries')
-      .select('entry_type')
-      .eq('user_id', currentUser.id)
-      .eq('week_start', weekStart);
-    const rows     = entries || [];
-    const self     = rows.filter(e => e.entry_type === 'self').length;
-    const referral = rows.filter(e => e.entry_type === 'referral_bonus').length;
-    return { total: self + referral, self, referral, weekStart };
-  } catch(e) {
-    console.warn('getMyEntriesThisWeek error', e);
-    return { total: 0, self: 0, referral: 0 };
-  }
-}
-
 async function getMyReferralStats() {
-  if (!currentUser) return { totalReferred: 0, activeThisWeek: 0 };
+  if (!currentUser) return { totalReferred: 0 };
   try {
     const { count: totalReferred } = await db.from('referrals')
       .select('*', { count: 'exact', head: true })
       .eq('referrer_id', currentUser.id);
-
-    const { data: weekStart } = await db.rpc('current_week_start_pt');
-    const { count: activeThisWeek } = await db.from('giveaway_entries')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', currentUser.id)
-      .eq('week_start', weekStart)
-      .eq('entry_type', 'referral_bonus');
-
-    return {
-      totalReferred:   totalReferred  ?? 0,
-      activeThisWeek:  activeThisWeek ?? 0,
-    };
+    return { totalReferred: totalReferred ?? 0 };
   } catch(e) {
-    return { totalReferred: 0, activeThisWeek: 0 };
+    return { totalReferred: 0 };
   }
-}
-
-// Public read; used to show "last week's winner".
-async function getLastWeekWinner() {
-  try {
-    const { data } = await db.from('giveaway_winners')
-      .select('week_start, winner_user_id, total_entries, winner_entry_count, prize_status, profiles!inner(display_name, avatar_url)')
-      .order('week_start', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    return data || null;
-  } catch(e) { return null; }
 }
 
 // ════════════════════════════════════════════════════════

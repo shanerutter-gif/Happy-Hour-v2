@@ -1,6 +1,6 @@
 /* admin-attribution.js
  * Injects an "📊 Attribution" tab into the admin portal showing where
- * recent signups came from. Mirrors the admin-giveaway.js pattern.
+ * recent signups came from. Mirrors the other admin extension scripts' pattern.
  *
  * Reads admin session from localStorage['spotd-admin-session']. All RPCs
  * are gated by is_giveaway_admin() so non-admin auth users can't pull
@@ -13,7 +13,7 @@
   const SUPABASE_ANON = 'sb_publishable_M97B-GmwsRF6xPVahp_ytw_49nI9igs';
   const LS_KEY        = 'spotd-admin-session';
 
-  // ── auth helpers (with token refresh, mirroring admin-giveaway.js) ──
+  // ── auth helpers (with token refresh, same as the other admin extension scripts) ──
   function session() {
     try { return JSON.parse(localStorage.getItem(LS_KEY) || '{}'); } catch (e) { return {}; }
   }
@@ -266,7 +266,8 @@
 
   // ── DOM injection ──────────────────────────────────
   function inject() {
-    // Sidebar — under the Promotions section added by admin-giveaway.js
+    // Sidebar — appended to the bottom (the Giveaway tab it used to sit under
+    // was retired 2026-09-29; the nav-giveaway lookup below is now a no-op)
     const sidebar = document.querySelector('.sidebar');
     if (sidebar && !document.getElementById('nav-attribution')) {
       const item = document.createElement('div');
@@ -325,8 +326,7 @@
 
   // ── bootstrap ──────────────────────────────────────
   function init() {
-    // Wait until admin-giveaway.js has injected (it adds the Promotions
-    // sidebar label we want to live near). 250ms is plenty in practice.
+    // Small delay so admin.html's own sidebar has rendered first.
     setTimeout(inject, 250);
   }
 
