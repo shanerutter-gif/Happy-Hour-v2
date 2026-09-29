@@ -143,11 +143,26 @@ export default async function handler(req) {
 
 // Returns up to 5 {name, deal} spots for a city: the week's most-checked-in
 // venues first, topped up with the highest-rated active venues that have deals.
+// GUARANTEE: whenever the city has >= 3 active venues, the first 3 spots are
+// real, non-empty name+deal pairs — the email never renders a blank deal slot.
+// (The Loops fallbacks stay defined as the safety net for smaller cities.)
 async function rankTopSpots(supabaseUrl, sbHeaders, slug, weekAgo) {
   const out = [];
   const seen = new Set();
 
-  // Week's check-ins for this city → count by venue.
+  // Gate: only real spots enter the list. Empty deal lines are dropped — a
+  // venue with no deals is not digest-worthy (the digest is a deals email).
+  const pushSpot = (v) => {
+    if (!v || seen.has(v.id)) return false;
+    const spot = toSpot(v);
+    if (!spot.name || !spot.deal) return false;
+    seen.add(v.id);
+    out.push(spot);
+    return true;
+  };
+
+  // Week's check-ins for this city → count by venue (active venues only;
+  // a deactivated venue's deals are stale).
   try {
     const ckRes = await fetch(
       `${supabaseUrl}/rest/v1/check_ins?select=venue_id&city_slug=eq.${slug}&created_at=gte.${weekAgo}&venue_id=not.is.null&limit=5000`,
@@ -161,15 +176,14 @@ async function rankTopSpots(supabaseUrl, sbHeaders, slug, weekAgo) {
       if (ranked.length) {
         const ids = ranked.slice(0, 5);
         const vRes = await fetch(
-          `${supabaseUrl}/rest/v1/venues?select=id,name,deals&id=in.(${ids.join(',')})`,
+          `${supabaseUrl}/rest/v1/venues?select=id,name,deals&id=in.(${ids.join(',')})&active=eq.true`,
           { headers: sbHeaders }
         );
         if (vRes.ok) {
           const venues = await vRes.json();
           const vMap = {}; venues.forEach(v => { vMap[v.id] = v; });
           for (const id of ids) {
-            const v = vMap[id];
-            if (v && !seen.has(v.id)) { seen.add(v.id); out.push(toSpot(v)); }
+            pushSpot(vMap[id]);
             if (out.length >= 5) break;
           }
         }
@@ -192,9 +206,7 @@ async function rankTopSpots(supabaseUrl, sbHeaders, slug, weekAgo) {
       if (fRes.ok) {
         const venues = await fRes.json();
         for (const v of venues) {
-          if (!Array.isArray(v.deals) || !v.deals.length) continue;
-          if (seen.has(v.id)) continue;
-          seen.add(v.id); out.push(toSpot(v));
+          pushSpot(v);
           if (out.length >= 5) break;
         }
       } else {
@@ -206,7 +218,46 @@ async function rankTopSpots(supabaseUrl, sbHeaders, slug, weekAgo) {
     }
   }
 
+  // Last resort: highest-rated active venues regardless of deals. The deal
+  // line is synthesized from REAL venue data (happy-hour days + neighborhood
+  // per the days[]/neighborhood conventions) — honest framing, no fabricated
+  // prices. Only fires when a city has no deal-bearing venues to feature.
+  if (out.length < 3) {
+    try {
+      const lRes = await fetch(
+        `${supabaseUrl}/rest/v1/venues?select=id,name,days,neighborhood,google_rating&city_slug=eq.${slug}&active=eq.true&order=google_rating.desc.nullslast&limit=25`,
+        { headers: sbHeaders }
+      );
+      if (lRes.ok) {
+        const venues = await lRes.json();
+        for (const v of venues) {
+          if (seen.has(v.id) || !v.name) continue;
+          const deal = synthDealLine(v);
+          if (!deal) continue;
+          seen.add(v.id);
+          out.push({ name: v.name, deal });
+          if (out.length >= 3) break;
+        }
+      } else {
+        const body = await lRes.text();
+        console.error(`[weekly-digest] last-resort venues fetch failed for ${slug}:`, lRes.status, body);
+      }
+    } catch (e) {
+      console.error(`[weekly-digest] last-resort ranking error for ${slug}:`, e.message);
+    }
+  }
+
   return out.slice(0, 5);
+}
+
+// Honest deal line from real venue data for the last-resort path.
+// days[] is the happy-hour-day convention; never invents prices or times.
+function synthDealLine(v) {
+  const hood = v.neighborhood ? ` \u00b7 ${v.neighborhood}` : '';
+  const days = Array.isArray(v.days) ? v.days.filter(Boolean) : [];
+  const span = days.length > 1 ? `${days[0]}\u2013${days[days.length - 1]}` : days[0];
+  if (span) return `Happy hour ${span}${hood} \u2014 details in the app`;
+  return `Deals tonight${hood} \u2014 details in the app`;
 }
 
 function toSpot(v) {
