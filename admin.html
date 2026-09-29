@@ -1728,7 +1728,8 @@
           <div class="empty-state"><div class="empty-icon">⏳</div><h3>Loading…</h3></div>
         </div>
         <div style="margin-top:32px">
-          <div class="section-title" style="margin-bottom:16px">All Business Requests</div>
+          <div class="section-title" style="margin-bottom:4px">All Business Requests</div>
+          <div style="font-size:12px;color:#999;margin-bottom:16px">Business add-venue requests only — user venue requests are reviewed in the Venue Requests queue, and ownership claims live under Claims.</div>
           <div class="users-table-wrap">
             <table class="users-table">
               <thead><tr>
@@ -3076,7 +3077,9 @@ in San Diego</textarea>
   let _approvingList = null;
 
   async function loadRequests() {
-    allRequests = await sb.get('venue_requests', 'select=*');
+    // User venue requests only (Request Venue form + composer auto-tags).
+    // Business add-venue requests are in the Revenue Funnel; ownership claims in venue_claims.
+    allRequests = await sb.get('venue_requests', 'select=*&source=in.(user_form,composer)');
     if (!Array.isArray(allRequests)) allRequests = [];
     updateCounts();
     renderRequests();
@@ -3787,7 +3790,9 @@ in San Diego</textarea>
       // Parallel fetches
       const [profiles, bizReqs, checkins, reviews] = await Promise.all([
         sb.get('profiles', 'select=id,display_name,username,avatar_emoji,avatar_url,bio,phone,sms_consent,is_public,follower_count,following_count,check_in_count,created_at,last_seen&limit=2000'),
-        sb.get('venue_requests', 'select=user_id&limit=2000'),
+        // Business users = people who filed business-portal add-venue requests.
+        // (User venue requests — user_form/composer sources — are not business users.)
+        sb.get('venue_requests', 'select=user_id&source=eq.business_portal&limit=2000'),
         sb.get('check_ins', 'select=user_id&limit=10000'),
         sb.get('reviews', 'select=user_id&limit=10000'),
       ]);
@@ -4129,7 +4134,10 @@ in San Diego</textarea>
   // ── REVENUE PIPELINE ──────────────────────────────────
   async function loadPipeline() {
     document.getElementById('pipeline-tbody').innerHTML = '<tr><td colspan="7" class="table-empty">Loading…</td></tr>';
-    const reqs = await sb.get('venue_requests', 'select=*&limit=1000');
+    // Business add-venue requests only (source='business_portal'). User venue requests
+    // (user_form/composer) are reviewed in the Venue Requests queue; ownership
+    // claims live in the separate venue_claims table.
+    const reqs = await sb.get('venue_requests', 'select=*&source=eq.business_portal&limit=1000');
     const list = Array.isArray(reqs) ? reqs : [];
     _pipelineRequests = list;
 
@@ -7364,7 +7372,7 @@ ${sectionsMjml}
         fetch(`${SUPABASE_URL}/rest/v1/profiles?select=id,display_name,username,created_at&order=created_at.desc&limit=500`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
         fetch(`${SUPABASE_URL}/rest/v1/newsletter_subscribers?select=id,email,subscribed_at,status&status=eq.active`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
         fetch(`${SUPABASE_URL}/rest/v1/check_ins?select=id&created_at=gte.${thirtyDaysAgo}`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
-        fetch(`${SUPABASE_URL}/rest/v1/venue_requests?select=id,venue_data,created_at,user_id&status=eq.pending&order=created_at.desc&limit=5`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
+        fetch(`${SUPABASE_URL}/rest/v1/venue_requests?select=id,venue_name,neighborhood,city_slug,created_at,user_id&status=eq.pending&order=created_at.desc&limit=5`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
         fetch(`${SUPABASE_URL}/rest/v1/feedback?select=id,text,created_at,status&order=created_at.desc&limit=5`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
         fetch(`${SUPABASE_URL}/rest/v1/content_posts?select=id,title,caption,scheduled_date,platforms,status&scheduled_date=gte.${today}&order=scheduled_date.asc&limit=6`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
         fetch(`${SUPABASE_URL}/rest/v1/board_cards?select=id,title,status,priority,due_date,board&status=neq.done&order=due_date.asc.nullslast&limit=50`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
@@ -7450,13 +7458,12 @@ ${sectionsMjml}
       const reqsEl = document.getElementById('dash-requests');
       if (pendingReqs.length) {
         reqsEl.innerHTML = pendingReqs.map(r => {
-          const vd = r.venue_data || {};
-          const name = vd.name || vd.venue_name || 'Unknown Venue';
+          const name = r.venue_name || 'Unknown Venue';
           const when = r.created_at ? formatRelativeTime(r.created_at) : '';
           return `<div class="dash-row">
             <div class="dash-row-main">
               <span class="dash-row-title">${esc(name)}</span>
-              <span class="dash-row-meta">${esc(vd.neighborhood || vd.city || '')}</span>
+              <span class="dash-row-meta">${esc(r.neighborhood || r.city_slug || '')}</span>
             </div>
             <span class="dash-row-time">${when}</span>
           </div>`;

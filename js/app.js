@@ -5621,6 +5621,7 @@ async function submitComposer() {
         user_id:    currentUser.id,
         user_email: currentUser.email || null,
         reason:     'Tagged in a post (auto-submitted from the composer)',
+        source:     'composer',
       }).catch(() => {});
     }
     closeComposer();
@@ -7567,6 +7568,7 @@ async function submitVenueRequest() {
     city_slug: state.city?.slug || null,
     user_id: currentUser?.id || null,
     user_email: currentUser?.email || null,
+    source: 'user_form',
   });
 
   if (error) {

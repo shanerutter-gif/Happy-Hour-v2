@@ -888,7 +888,14 @@ async function removeGoingTonight(userId, venueId, date) { return removeCheckIn(
 
 // ── VENUE REQUESTS ─────────────────────────────────────
 async function submitVenueRequestToDB(payload) {
-  const { data, error } = await db.from('venue_requests').insert(payload);
+  let res = await db.from('venue_requests').insert(payload);
+  if (res.error && /source/i.test(res.error.message || '')) {
+    // The source column isn't migrated yet — retry without it so the request isn't lost.
+    // (Remove this fallback once sql/venue-requests-source-20260929.sql is applied.)
+    const { source: _dropped, ...rest } = payload;
+    res = await db.from('venue_requests').insert(rest);
+  }
+  const { data, error } = res;
   if (error) console.error('submitVenueRequest error:', error);
   if (!error) sendLoopsEvent('venue_request_submitted', { venueName: payload.venue_name, citySlug: payload.city_slug });
   return { data, error };
