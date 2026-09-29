@@ -7341,7 +7341,7 @@ ${sectionsMjml}
         fetch(`${SUPABASE_URL}/rest/v1/feedback?select=id,text,created_at,status&order=created_at.desc&limit=5`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
         fetch(`${SUPABASE_URL}/rest/v1/content_posts?select=id,title,caption,scheduled_date,platforms,status&scheduled_date=gte.${today}&order=scheduled_date.asc&limit=6`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
         fetch(`${SUPABASE_URL}/rest/v1/board_cards?select=id,title,status,priority,due_date,board&status=neq.done&order=due_date.asc.nullslast&limit=50`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
-        fetch(`${SUPABASE_URL}/rest/v1/check_ins?select=venue_id&created_at=gte.${sevenDaysAgo}`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
+        fetch(`${SUPABASE_URL}/rest/v1/check_ins?select=venue_id&created_at=gte.${sevenDaysAgo}&limit=10000`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
       ]);
 
       // ── KPIs ──
@@ -7463,15 +7463,24 @@ ${sectionsMjml}
         const counts = {};
         recentCheckins.forEach(c => { counts[c.venue_id] = (counts[c.venue_id] || 0) + 1; });
         const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5);
-        // Build a name lookup from venues
-        const venueLookup = {};
-        venues.forEach(v => { venueLookup[v.id] = v.name; });
+        // Resolve names for exactly the venues with check-ins — with NO active
+        // filter, so check-ins at deactivated/removed venues still resolve
+        // instead of rendering "Unknown". (The dashboard KPI query above is
+        // active-only, which was the source of the Unknown rows.)
+        const trendIds = [...new Set(sorted.map(([vid]) => vid).filter(vid => vid && vid !== 'null'))];
+        const trendLookup = {};
+        if (trendIds.length) {
+          try {
+            const tRes = await fetch(`${SUPABASE_URL}/rest/v1/venues?select=id,name&id=in.(${trendIds.join(',')})`, { headers: h });
+            if (tRes.ok) (await tRes.json()).forEach(v => { trendLookup[v.id] = v.name; });
+          } catch (e) { /* fall through to the Unknown fallback below */ }
+        }
         trendEl.innerHTML = sorted.map(([vid, cnt], i) => {
-          const name = venueLookup[vid] || 'Unknown';
+          const name = (!vid || vid === 'null') ? 'No venue tagged' : (trendLookup[vid] || 'Unknown');
           return `<div class="dash-row">
             <div class="dash-row-main">
 
-            
+
               <span class="dash-row-rank">#${i + 1}</span>
               <span class="dash-row-title">${esc(name)}</span>
             </div>

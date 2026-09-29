@@ -7027,36 +7027,11 @@ async function loadGoingTonight(citySlug) {
 
 const CHECK_IN_DAILY_LIMIT = 5;
 
-async function doGoingTonight(venueId, btn) {
-  if (!currentUser) { openAuth('signin', 'checkin'); showToast('Sign in to check in'); return; }
-  const isCheckedIn = state.goingByMe.has(venueId);
-  const today = localDateKey();
-  if (isCheckedIn) {
-    await removeCheckIn(currentUser.id, venueId, today);
-    state.goingByMe.delete(venueId);
-    state.todayCheckInCount = Math.max(0, state.todayCheckInCount - 1);
-    state.goingCounts[venueId] = Math.max(0, (state.goingCounts[venueId] || 1) - 1);
-    if(typeof haptic==='function')haptic('light');
-    showToast('Check-in removed');
-  } else {
-    if (state.todayCheckInCount >= CHECK_IN_DAILY_LIMIT) {
-      showToast(`You've hit the ${CHECK_IN_DAILY_LIMIT} check-in limit for today`);
-      return;
-    }
-    // Update UI immediately — don't wait for DB
-    state.goingByMe.add(venueId);
-    state.todayCheckInCount++;
-    state.goingCounts[venueId] = (state.goingCounts[venueId] || 0) + 1;
-    if(typeof haptic==='function')haptic('medium');
-    showToast('Checked in!');
-    // Fire DB write and streak check in background
-    addCheckIn({ userId: currentUser.id, venueId, citySlug: state.city.slug, date: today })
-      .then(() => {
-        checkStreakAfterCheckIn();
-      })
-      .catch(() => {});
-    setTimeout(() => maybeOpenPhotoCheckin(venueId), 600);
-  }
+// ── Check-in write integrity ─────────────────────────────────────────
+// Re-renders the check-in button, fire badge, and header counters from the
+// current check-in state. Shared by the tap handler and the write-failure
+// rollback so both paths render identically.
+function syncGoingTonightUI(venueId, btn) {
   const count = state.goingCounts[venueId] || 0;
   const nowIn = state.goingByMe.has(venueId);
   if (btn) {
@@ -7076,6 +7051,72 @@ async function doGoingTonight(venueId, btn) {
     else badge.style.display = 'none';
   }
   refreshCheckInCounters();
+}
+
+// Single-row existence check: distinguishes a genuinely failed check-in write
+// from a lost response / cross-tab duplicate. The unique constraint on
+// (user_id, venue_id, date) means the row can exist even when addCheckIn
+// reported false (another tab won the race, or the response was lost).
+async function _checkInRowExists(userId, venueId, date) {
+  try {
+    const { data } = await db.from('check_ins').select('id')
+      .eq('user_id', userId).eq('venue_id', venueId).eq('date', date)
+      .maybeSingle();
+    return !!data;
+  } catch (e) { return false; }
+}
+
+// Undo the optimistic check-in UI when the write verifiably failed, so the
+// button, counts, and badges match the DB instead of showing a phantom check-in.
+function _rollbackCheckIn(venueId, btn) {
+  state.goingByMe.delete(venueId);
+  state.todayCheckInCount = Math.max(0, state.todayCheckInCount - 1);
+  state.goingCounts[venueId] = Math.max(0, (state.goingCounts[venueId] || 1) - 1);
+  syncGoingTonightUI(venueId, btn);
+  showToast("Couldn't save your check-in — please try again");
+}
+async function doGoingTonight(venueId, btn) {
+  if (!currentUser) { openAuth('signin', 'checkin'); showToast('Sign in to check in'); return; }
+  const isCheckedIn = state.goingByMe.has(venueId);
+  const today = localDateKey();
+  if (isCheckedIn) {
+    await removeCheckIn(currentUser.id, venueId, today);
+    state.goingByMe.delete(venueId);
+    state.todayCheckInCount = Math.max(0, state.todayCheckInCount - 1);
+    state.goingCounts[venueId] = Math.max(0, (state.goingCounts[venueId] || 1) - 1);
+    if(typeof haptic==='function')haptic('light');
+    showToast('Check-in removed');
+  } else {
+    if (state.todayCheckInCount >= CHECK_IN_DAILY_LIMIT) {
+      showToast(`You've hit the ${CHECK_IN_DAILY_LIMIT} check-in limit for today`);
+      return;
+    }
+    // Optimistic UI for snappiness — but the write below is awaited and the
+    // optimistic state is rolled back if the row verifiably didn't land, so the
+    // UI can never claim a check-in the DB doesn't have. (Previously the write
+    // was fire-and-forget with errors swallowed: "Checked in!" showed while
+    // nothing was persisted — the silent divergence behind the check-in KPI
+    // undercounts.)
+    state.goingByMe.add(venueId);
+    state.todayCheckInCount++;
+    state.goingCounts[venueId] = (state.goingCounts[venueId] || 0) + 1;
+    if(typeof haptic==='function')haptic('medium');
+    showToast('Checked in!');
+    syncGoingTonightUI(venueId, btn);
+    let landed = false;
+    try {
+      landed = await addCheckIn({ userId: currentUser.id, venueId, citySlug: state.city.slug, date: today });
+    } catch (e) { landed = false; /* addCheckIn never rejects, but stay honest */ }
+    if (landed || await _checkInRowExists(currentUser.id, venueId, today)) {
+      // Row is in the DB (or was already there via another tab) — the full
+      // side-effect chain (feed, badges, Loops, analytics) has fired.
+      checkStreakAfterCheckIn();
+      setTimeout(() => maybeOpenPhotoCheckin(venueId), 600);
+    } else {
+      _rollbackCheckIn(venueId, btn);
+    }
+  }
+  syncGoingTonightUI(venueId, btn);
 }
 
 function checkInBtnLabel(count, isIn) {
