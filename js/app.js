@@ -317,6 +317,20 @@ function onAuthChange(user) {
   // Refresh unread badges whenever auth state changes
   if (user) { dmRefreshBadge(); checkSocialNotifications(); }
   else checkSocialNotifications(); // clears the Share-tab badge on sign-out
+  // Flush any native iOS push token that arrived before sign-in completed.
+  // (push.js stashes it in 'pendingNativePushToken' when currentUser is null.)
+  // Without this, a user who grants push permission before finishing signup
+  // is silently lost to the daily 4pm campaign forever — nativePushAsked
+  // permanently suppresses re-prompting on iOS.
+  if (user) {
+    try {
+      const pending = localStorage.getItem('pendingNativePushToken');
+      if (pending) {
+        localStorage.removeItem('pendingNativePushToken');
+        if (typeof savePushToken === 'function') savePushToken(pending, 'ios');
+      }
+    } catch(e) {}
+  }
   // Push prompt is now shown via the soft modal after check-in/save flow
   // If user just signed in, enter pending city or auto-enter last city
   if (user && window._pendingCity) {

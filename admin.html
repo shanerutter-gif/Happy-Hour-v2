@@ -3748,7 +3748,7 @@ in San Diego</textarea>
 
   async function loadFeedbackCount() {
     try {
-      const r = await fetch(`${SUPABASE_URL}/rest/v1/feedback?select=id`, { headers: svcHeaders() });
+      const r = await authFetch(`${SUPABASE_URL}/rest/v1/feedback?select=id`, { headers: svcHeaders() });
       const data = await r.json();
       if (Array.isArray(data)) {
         const el = document.getElementById('sidebar-feedback-count');
@@ -3880,6 +3880,16 @@ in San Diego</textarea>
 
   function filterUserTable() { _userPage = 1; renderUserTable(); }
 
+  // Privacy (2026-09-29): mask phone numbers in admin tables — show only the
+  // last 4 digits. Full numbers stay in profiles.phone (query the DB if ever
+  // needed). Covers the Users table and the churn table below.
+  function maskPhone(p) {
+    const s = String(p);
+    const digits = (s.match(/\d/g) || []).length;
+    let seen = 0;
+    return s.replace(/\d/g, d => (++seen <= digits - 4 ? '\u2022' : d));
+  }
+
   function renderUserTable() {
     const filtered = getFilteredUsers();
     const total = filtered.length;
@@ -3913,7 +3923,7 @@ in San Diego</textarea>
           </div></td>
           <td style="font-size:12px;color:var(--muted)">${u.username ? '@'+escHtml(u.username) : '—'}</td>
           <td>${typeBadge}</td>
-          <td style="font-family:'DM Mono',monospace;font-size:12px">${u.phone ? escHtml(u.phone) : '<span style="color:var(--muted)">—</span>'}</td>
+          <td style="font-family:'DM Mono',monospace;font-size:12px" title="Masked for privacy — full number in profiles.phone">${u.phone ? escHtml(maskPhone(u.phone)) : '<span style="color:var(--muted)">—</span>'}</td>
           <td>${smsBadge}</td>
           <td style="font-weight:600">${u.checkins}</td>
           <td style="font-weight:600">${u.reviews}</td>
@@ -4128,7 +4138,7 @@ in San Diego</textarea>
           <div class="user-avatar">${u.avatar_emoji||'🍺'}</div>
           <div class="user-name">${escHtml(u.display_name||'Unnamed')}</div>
         </div></td>
-        <td style="font-family:'DM Mono',monospace;font-size:12px">${u.phone?escHtml(u.phone):'<span style="color:var(--muted)">—</span>'}</td>
+        <td style="font-family:'DM Mono',monospace;font-size:12px" title="Masked for privacy — full number in profiles.phone">${u.phone?escHtml(maskPhone(u.phone)):'<span style="color:var(--muted)">—</span>'}</td>
         <td>${u.sms_consent?'<span class="badge-sms-on">✓ Yes</span>':'<span class="badge-sms-off">—</span>'}</td>
         <td style="color:var(--muted);font-size:12px">${joined}</td>
         <td><span style="font-weight:700;color:${days>30?'var(--error)':days>7?'var(--warn)':'var(--muted)'}">${days}d</span></td>
@@ -5871,7 +5881,7 @@ in San Diego</textarea>
 
   async function ccCheckTable() {
     try {
-      const r = await fetch(`${SUPABASE_URL}/rest/v1/content_posts?select=id&limit=1`, { headers: svcHeaders() });
+      const r = await authFetch(`${SUPABASE_URL}/rest/v1/content_posts?select=id&limit=1`, { headers: svcHeaders() });
       if (r.ok) { _ccUseSupabase = true; return true; }
     } catch(e) {}
     return false;
@@ -5880,7 +5890,7 @@ in San Diego</textarea>
   async function ccLoadPosts() {
     if (_ccUseSupabase) {
       try {
-        const r = await fetch(`${SUPABASE_URL}/rest/v1/content_posts?select=*&order=scheduled_date.asc`, { headers: svcHeaders() });
+        const r = await authFetch(`${SUPABASE_URL}/rest/v1/content_posts?select=*&order=scheduled_date.asc`, { headers: svcHeaders() });
         if (r.ok) {
           _ccPosts = await r.json();
           _ccPosts.forEach(p => {
@@ -5917,7 +5927,7 @@ in San Diego</textarea>
     let r;
     if (isDbId) {
       // Update existing
-      r = await fetch(`${SUPABASE_URL}/rest/v1/content_posts?id=eq.${post.id}`, {
+      r = await authFetch(`${SUPABASE_URL}/rest/v1/content_posts?id=eq.${post.id}`, {
         method: 'PATCH',
         headers: { ...svcHeaders(), 'Prefer': 'return=minimal' },
         body: JSON.stringify(data)
@@ -5925,7 +5935,7 @@ in San Diego</textarea>
     } else {
       // Insert new
       delete data.id;
-      r = await fetch(`${SUPABASE_URL}/rest/v1/content_posts`, {
+      r = await authFetch(`${SUPABASE_URL}/rest/v1/content_posts`, {
         method: 'POST',
         headers: { ...svcHeaders(), 'Prefer': 'return=representation' },
         body: JSON.stringify(data)
@@ -5944,7 +5954,7 @@ in San Diego</textarea>
   }
   async function ccDeletePostFromDb(id) {
     if (!_ccUseSupabase) { ccSavePosts(); return; }
-    await fetch(`${SUPABASE_URL}/rest/v1/content_posts?id=eq.${id}`, {
+    await authFetch(`${SUPABASE_URL}/rest/v1/content_posts?id=eq.${id}`, {
       method: 'DELETE', headers: { ...svcHeaders(), 'Prefer': 'return=minimal' }
     });
   }
@@ -5957,7 +5967,7 @@ in San Diego</textarea>
     const ext = (file.name.split('.').pop() || 'bin').toLowerCase();
     const name = `content-calendar/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
     try {
-      const r = await fetch(`${SUPABASE_URL}/storage/v1/object/spotd-content/${name}`, {
+      const r = await authFetch(`${SUPABASE_URL}/storage/v1/object/spotd-content/${name}`, {
         method: 'POST',
         headers: {
           ...svcHeaders(),
@@ -7480,15 +7490,15 @@ ${sectionsMjml}
 
     try {
       const [venues, users, subs, checkins30, pendingReqs, feedback, socialPosts, boardTasks, recentCheckins] = await Promise.all([
-        fetch(`${SUPABASE_URL}/rest/v1/venues?select=id,name,active&active=eq.true&limit=10000`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
-        fetch(`${SUPABASE_URL}/rest/v1/profiles?select=id,display_name,username,created_at&order=created_at.desc&limit=500`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
-        fetch(`${SUPABASE_URL}/rest/v1/newsletter_subscribers?select=id,email,subscribed_at,status&status=eq.active`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
-        fetch(`${SUPABASE_URL}/rest/v1/check_ins?select=id&created_at=gte.${thirtyDaysAgo}`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
-        fetch(`${SUPABASE_URL}/rest/v1/venue_requests?select=id,venue_name,neighborhood,city_slug,created_at,user_id&status=eq.pending&order=created_at.desc&limit=5`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
-        fetch(`${SUPABASE_URL}/rest/v1/feedback?select=id,text,created_at,status&order=created_at.desc&limit=5`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
-        fetch(`${SUPABASE_URL}/rest/v1/content_posts?select=id,title,caption,scheduled_date,platforms,status&scheduled_date=gte.${today}&order=scheduled_date.asc&limit=6`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
-        fetch(`${SUPABASE_URL}/rest/v1/board_cards?select=id,title,status,priority,due_date,board&status=neq.done&order=due_date.asc.nullslast&limit=50`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
-        fetch(`${SUPABASE_URL}/rest/v1/check_ins?select=venue_id&created_at=gte.${sevenDaysAgo}&limit=10000`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
+        authFetch(`${SUPABASE_URL}/rest/v1/venues?select=id,name,active&active=eq.true&limit=10000`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
+        authFetch(`${SUPABASE_URL}/rest/v1/profiles?select=id,display_name,username,created_at&order=created_at.desc&limit=500`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
+        authFetch(`${SUPABASE_URL}/rest/v1/newsletter_subscribers?select=id,email,subscribed_at,status&status=eq.active`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
+        authFetch(`${SUPABASE_URL}/rest/v1/check_ins?select=id&created_at=gte.${thirtyDaysAgo}`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
+        authFetch(`${SUPABASE_URL}/rest/v1/venue_requests?select=id,venue_name,neighborhood,city_slug,created_at,user_id&status=eq.pending&order=created_at.desc&limit=5`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
+        authFetch(`${SUPABASE_URL}/rest/v1/feedback?select=id,text,created_at&order=created_at.desc&limit=5`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []), // NOTE (2026-09-29): feedback has no 'status' column — the write path (js/app.js submitFeedback/submitFeatureRequest) inserts user_id/type/text/url/created_at only. Selecting 'status' 400s the query and the silent fallback above renders "No feedback yet" while items exist.
+        authFetch(`${SUPABASE_URL}/rest/v1/content_posts?select=id,title,caption,scheduled_date,platforms,status&scheduled_date=gte.${today}&order=scheduled_date.asc&limit=6`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
+        authFetch(`${SUPABASE_URL}/rest/v1/board_cards?select=id,title,status,priority,due_date,board&status=neq.done&order=due_date.asc.nullslast&limit=50`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
+        authFetch(`${SUPABASE_URL}/rest/v1/check_ins?select=venue_id&created_at=gte.${sevenDaysAgo}&limit=10000`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
       ]);
 
       // ── KPIs ──
@@ -7617,7 +7627,7 @@ ${sectionsMjml}
         const trendLookup = {};
         if (trendIds.length) {
           try {
-            const tRes = await fetch(`${SUPABASE_URL}/rest/v1/venues?select=id,name&id=in.(${trendIds.join(',')})`, { headers: h });
+            const tRes = await authFetch(`${SUPABASE_URL}/rest/v1/venues?select=id,name&id=in.(${trendIds.join(',')})`, { headers: h });
             if (tRes.ok) (await tRes.json()).forEach(v => { trendLookup[v.id] = v.name; });
           } catch (e) { /* fall through to the Unknown fallback below */ }
         }

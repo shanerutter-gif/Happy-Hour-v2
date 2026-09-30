@@ -8823,3 +8823,19 @@ img.np-stop-photo { object-fit: cover; display: block; }
   color: #fff;
   box-shadow: 0 3px 10px rgba(255,107,74,0.38);
 }
+/* ── iOS HIG 44pt minimum touch targets (Sofia 2026-09-29) ──
+   The --tap:44px design token existed but was unused on these controls.
+   Measured sizes: .day-pill ~22px, .review-act ~24px, .request-venue-btn
+   ~26px, .chip ~28px, .amenity-card ~28px, .hood-follow-pill 30px,
+   .sheet-close 32px, .city-pill ~34px, .nav-btn/.type-tab 34-36px.
+   WCAG 2.2 AA floor is 24x24 — day-pill and review-act were AT or BELOW it.
+   Raising to Apple's 44pt floor. VISUAL CHANGE: pills/buttons get taller —
+   verify filter rows, the venue-sheet day picker, and hood pills still read
+   clean before shipping. */
+.chip{min-height:44px}
+.day-pill{min-height:44px;padding-top:6px;padding-bottom:6px}
+.review-act{min-height:44px;padding-top:6px;padding-bottom:6px}
+.sheet-close{width:44px;height:44px}
+.city-pill{min-height:44px}
+.nav-btn,.type-tab{min-height:44px}
+.hood-follow-pill{min-height:44px}

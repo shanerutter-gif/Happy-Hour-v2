@@ -54,7 +54,17 @@ async function requestNativePush() {
     // Set up token callback before requesting permission
     return new Promise((resolve) => {
       window.onNativePushToken = (token) => {
-        console.log('[Push] Device token:', token);
+        // Device tokens are sensitive: log a prefix only, never the full token.
+        console.log('[Push] Device token received (' + String(token).slice(0, 8) + '...)');
+        if (!token) return;
+        // The token can arrive before the user has signed in (e.g. cold start
+        // with a cached native permission, or a session restore racing auth).
+        // savePushToken() drops the token when there is no currentUser, so
+        // stash it here and flush it from onAuthChange once the user is known.
+        if (!currentUser) {
+          try { localStorage.setItem('pendingNativePushToken', token); } catch(e) {}
+          return;
+        }
         savePushToken(token, 'ios');
       };
       window.onNativePushResult = (granted) => {
@@ -93,12 +103,33 @@ async function savePushToken(token, platformOverride) {
 }
 
 // ── HAPTIC FEEDBACK (native only) ──────────────────────
+// The native shell is referenced three different ways across the codebase:
+//   push.js isNative() ......... window.spotdNative (custom JS bridge)
+//   app.js _isCapacitorNative() . window.Capacitor.isNativePlatform()
+//   haptic() below ............. window.Capacitor.Plugins.Haptics
+// haptic() is called from ~79 call sites in app.js. If the wrapper is a pure
+// WKWebView + spotdNative bridge (no Capacitor runtime), every haptic call
+// silently no-ops in its try/catch. If it IS Capacitor, the spotdNative-only
+// hooks (openBrowser/openOAuth/spotdCache/spotdSpotlight) are the ones that
+// may no-op instead. UNVERIFIABLE until the wrapper source is located —
+// this patch makes haptic() try both channels instead of assuming one.
 async function haptic(style = 'light') {
-  if (!isNative()) return;
+  const native = isNative() || !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+  if (!native) return;
   try {
-    const { Haptics } = window.Capacitor.Plugins;
     const map = { light: 'LIGHT', medium: 'MEDIUM', heavy: 'HEAVY' };
-    await Haptics.impact({ style: map[style] || 'LIGHT' });
+    // Capacitor shell: use the Haptics plugin.
+    const cap = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Haptics;
+    if (cap && typeof cap.impact === 'function') {
+      await cap.impact({ style: map[style] || 'LIGHT' });
+      return;
+    }
+    // Custom WKWebView bridge: spotdNative.haptic(style), then the legacy
+    // script-message channel as a last resort.
+    if (window.spotdNative && typeof window.spotdNative.haptic === 'function') { window.spotdNative.haptic(style); return; }
+    if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.spotdHaptics) {
+      window.webkit.messageHandlers.spotdHaptics.postMessage(style);
+    }
   } catch(e) {}
 }
 

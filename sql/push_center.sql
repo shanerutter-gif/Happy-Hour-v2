@@ -5,6 +5,16 @@
 -- push-runner) can touch these tables.
 -- ═══════════════════════════════════════════════════════
 
+-- NOTE (2026-09-29): push_campaigns is the Push Center UI's source of truth
+-- for Scheduled Campaigns (status='scheduled') and Recent Sends (sent_at not
+-- null; per-send stats live in the result jsonb). It is RLS-gated on
+-- is_giveaway_admin(), so any query WITHOUT the admin JWT returns 0 rows —
+-- that means "not an admin", NOT "no campaigns ever existed" (this exact
+-- misread happened 2026-09-29 and produced the false "push was never used"
+-- claim that had to be corrected). Instant/one-off sends via
+-- POST /api/send-push do NOT write here; their only traces are notifications
+-- rows (type='push') and Apple's feedback service.
+
 -- One-off or recurring push sends composed in the admin portal.
 create table if not exists public.push_campaigns (
   id          uuid primary key default gen_random_uuid(),
