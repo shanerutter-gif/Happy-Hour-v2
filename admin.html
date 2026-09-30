@@ -1349,7 +1349,6 @@
     <div class="drawer-section-label">Engage</div>
     <button class="drawer-item" onclick="showPage('feedback');closeMobileMenu()" id="mob-nav-feedback">📬 User Feedback</button>
     <button class="drawer-item" onclick="showPage('push');closeMobileMenu()" id="mob-nav-push">🔔 Push Notifications</button>
-    <button class="drawer-item" onclick="showPage('newsletter');closeMobileMenu()" id="mob-nav-newsletter">📩 Newsletter Subs</button>
     <div class="drawer-section-label">Tools</div>
     <button class="drawer-item" onclick="showPage('cms');closeMobileMenu()" id="mob-nav-cms">✏️ Site Copy</button>
     <button class="drawer-item" onclick="showPage('board');closeMobileMenu()" id="mob-nav-board">🗂️ Project Board</button>
@@ -1412,9 +1411,6 @@
       <div class="sidebar-item" onclick="showPage('push')" id="nav-push">
         🔔 Push Notifications
       </div>
-      <div class="sidebar-item" onclick="showPage('newsletter')" id="nav-newsletter">
-        📩 Newsletter Subs
-      </div>
       <div class="sidebar-label" style="margin-top:20px;margin-bottom:8px">Tools</div>
       <div class="sidebar-item" onclick="showPage('cms')" id="nav-cms">
         ✏️ Site Copy
@@ -1451,7 +1447,6 @@
         <div class="dash-kpis" id="dash-kpis">
           <div class="dash-kpi"><div class="dash-kpi-val" id="dk-venues">—</div><div class="dash-kpi-label">Active Venues</div></div>
           <div class="dash-kpi"><div class="dash-kpi-val" id="dk-users">—</div><div class="dash-kpi-label">Total Users</div></div>
-          <div class="dash-kpi"><div class="dash-kpi-val" id="dk-subs">—</div><div class="dash-kpi-label">Newsletter Subs</div></div>
           <div class="dash-kpi"><div class="dash-kpi-val" id="dk-checkins">—</div><div class="dash-kpi-label">Check-ins (30d)</div></div>
           <div class="dash-kpi"><div class="dash-kpi-val" id="dk-requests">—</div><div class="dash-kpi-label">Pending Requests</div></div>
         </div>
@@ -2076,50 +2071,9 @@
         </div>
       </div>
 
-      <!-- NEWSLETTER SUBSCRIBERS PAGE -->
-      <div class="page" id="page-newsletter">
-        <div class="page-title">📩 Newsletter Subscribers</div>
-        <div class="page-sub">Email subscribers from blog CTAs. Create the <code>newsletter_subscribers</code> table in Supabase with: <code>id (uuid, PK, default gen_random_uuid()), email (text, unique), source (text), subscribed_at (timestamptz, default now()), status (text, default 'active')</code></div>
-
-        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px">
-          <div class="stat-card" style="flex:1;min-width:140px">
-            <div class="stat-num" id="nl-total">—</div>
-            <div class="stat-label">Total Subscribers</div>
-          </div>
-          <div class="stat-card" style="flex:1;min-width:140px">
-            <div class="stat-num" id="nl-active">—</div>
-            <div class="stat-label">Active</div>
-          </div>
-          <div class="stat-card" style="flex:1;min-width:140px">
-            <div class="stat-num" id="nl-today">—</div>
-            <div class="stat-label">Today</div>
-          </div>
-          <div class="stat-card" style="flex:1;min-width:140px">
-            <div class="stat-num" id="nl-week">—</div>
-            <div class="stat-label">This Week</div>
-          </div>
-        </div>
-
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
-          <button class="btn btn-primary" onclick="nlExportCSV()">📥 Export CSV</button>
-          <div style="flex:1"></div>
-          <input type="text" id="nl-search" placeholder="Search emails…" oninput="nlFilterList()" style="padding:8px 14px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--card);color:var(--text);outline:none;width:200px;font-family:'DM Sans',sans-serif">
-        </div>
-
-        <div style="overflow-x:auto;border:1px solid var(--border);border-radius:14px;background:var(--card)">
-          <table style="width:100%;border-collapse:collapse;font-size:13px" id="nl-table">
-            <thead style="background:var(--bg2)">
-              <tr>
-                <th style="padding:11px 14px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700;border-bottom:1px solid var(--border)">Email</th>
-                <th style="padding:11px 14px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700;border-bottom:1px solid var(--border)">Source</th>
-                <th style="padding:11px 14px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700;border-bottom:1px solid var(--border)">Date</th>
-                <th style="padding:11px 14px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700;border-bottom:1px solid var(--border)">Status</th>
-              </tr>
-            </thead>
-            <tbody id="nl-tbody"></tbody>
-          </table>
-        </div>
-      </div>
+      <!-- NEWSLETTER SUBSCRIBERS PAGE — REMOVED 2026-09-30 (Elena/Shane): concept parked; -->
+      <!-- the newsletter_subscribers table was never created (page showed setup SQL).       -->
+      <!-- Re-add this block + JS section + nav entries to revive.                           -->
 
       <!-- FEEDBACK PAGE -->
       <div class="page" id="page-feedback">
@@ -3074,11 +3028,37 @@ in San Diego</textarea>
   // Authenticated fetch with one automatic retry: if the admin JWT expired
   // mid-session (e.g. laptop sleep between refresh ticks), refresh once and
   // retry instead of failing with a 401 that callers misread as missing data.
+  // If the refresh itself fails AND the access token is expired, the session
+  // is dead: say so plainly and route to the login screen instead of letting
+  // every privileged call fail with a cryptic 401/403 while the portal still
+  // looks signed in. (Mirrors the boot path, which clears a dead session
+  // instead of entering the app with an expired token.)
+  let _sessionDeathHandled = false;
+
+  // Heuristic only (no signature verification): decode the stored access
+  // token's exp to tell a dead session from a real permission error.
+  // Returns false on any parse failure — never clear a session we can't
+  // prove is expired.
+  function adminTokenExpired() {
+    try {
+      const t = JSON.parse(localStorage.getItem(LS_KEY) || '{}').token;
+      if (!t) return true;
+      const payload = JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+      return typeof payload.exp === 'number' ? payload.exp * 1000 <= Date.now() : false;
+    } catch (e) { return false; }
+  }
+
   async function authFetch(url, options = {}) {
     let r = await fetch(url, options);
     if (r.status === 401 || r.status === 403) {
       if (await refreshAdminSession()) {
         r = await fetch(url, { ...options, headers: { ...(options.headers || {}), ...svcHeaders() } });
+      } else if (adminTokenExpired() && !_sessionDeathHandled) {
+        _sessionDeathHandled = true;
+        localStorage.removeItem(LS_KEY);
+        _token = null;
+        showToast('Session expired — please sign back in.');
+        setTimeout(() => location.reload(), 1200);
       }
     }
     return r;
@@ -3095,6 +3075,7 @@ in San Diego</textarea>
   });
 
   function enterApp() {
+    _sessionDeathHandled = false;
     document.getElementById('screen-auth').style.display = 'none';
     document.getElementById('screen-app').style.display = 'block';
     document.getElementById('admin-user').textContent = _adminUser?.email || '';
@@ -3617,7 +3598,7 @@ in San Diego</textarea>
   const PAGE_TITLES = {
     dashboard: 'Dashboard', requests: 'Venue Requests', venues: 'All Venues', heroes: 'Hero Picker', users: 'Users',
     churn: 'Users', 'venues-top': 'Top Venues', cities: 'City Breakdown',
-    pipeline: 'Revenue Funnel', crm: 'Pipeline', 'crm-contacts': 'Contacts', feedback: 'User Feedback', push: 'Push Notifications', newsletter: 'Newsletter Subs', cms: 'Site Copy', board: 'Project Board', demo: 'Demo Data', assets: 'Asset Generator', 'email-builder': 'Email Builder', 'content-calendar': 'Content Calendar', blog: 'Blog Manager', team: 'Team'
+    pipeline: 'Revenue Funnel', crm: 'Pipeline', 'crm-contacts': 'Contacts', feedback: 'User Feedback', push: 'Push Notifications', cms: 'Site Copy', board: 'Project Board', demo: 'Demo Data', assets: 'Asset Generator', 'email-builder': 'Email Builder', 'content-calendar': 'Content Calendar', blog: 'Blog Manager', team: 'Team'
   };
   // Consolidated child pages light up their parent's nav item.
   const NAV_PARENT = { churn: 'users', activity: 'users', pipeline: 'crm' };
@@ -3642,7 +3623,6 @@ in San Diego</textarea>
     if (page === 'churn')      loadChurn();
     if (page === 'pipeline')   loadPipeline();
     if (page === 'feedback')   loadFeedback();
-    if (page === 'newsletter') loadNewsletter();
     if (page === 'push')       loadPushPage();
     if (page === 'cms')        loadCms();
     if (page === 'board') {
@@ -7404,72 +7384,11 @@ ${sectionsMjml}
     }
   }
 
-  // ── NEWSLETTER SUBSCRIBERS ───────────────────────────
-  let _nlSubs = [];
-
-  async function loadNewsletter() {
-    try {
-      const r = await fetch(`${SUPABASE_URL}/rest/v1/newsletter_subscribers?select=*&order=subscribed_at.desc`, { headers: svcHeaders() });
-      if (r.ok) _nlSubs = await r.json();
-      else _nlSubs = [];
-    } catch(e) { _nlSubs = []; }
-    nlRenderStats();
-    nlRenderTable(_nlSubs);
-  }
-
-  function nlRenderStats() {
-    const total = _nlSubs.length;
-    const active = _nlSubs.filter(s => s.status !== 'unsubscribed').length;
-    const now = new Date();
-    const todayStr = now.toISOString().slice(0, 10);
-    const weekAgo = new Date(now - 7 * 86400000).toISOString();
-    const today = _nlSubs.filter(s => (s.subscribed_at || '').slice(0, 10) === todayStr).length;
-    const week = _nlSubs.filter(s => (s.subscribed_at || '') >= weekAgo).length;
-    document.getElementById('nl-total').textContent = total;
-    document.getElementById('nl-active').textContent = active;
-    document.getElementById('nl-today').textContent = today;
-    document.getElementById('nl-week').textContent = week;
-  }
-
-  function nlRenderTable(list) {
-    const tbody = document.getElementById('nl-tbody');
-    if (!list.length) {
-      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:32px;color:var(--muted)">No subscribers yet. They\'ll appear here when people sign up from blog posts.</td></tr>';
-      return;
-    }
-    tbody.innerHTML = list.map(s => {
-      const d = s.subscribed_at ? new Date(s.subscribed_at) : null;
-      const dateStr = d ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
-      const source = (s.source || '—').replace(/^\/blog\//, '').replace(/\.html$/, '');
-      const statusClass = s.status === 'unsubscribed' ? 'color:var(--error)' : 'color:var(--success)';
-      return `<tr>
-        <td style="padding:12px 14px;border-bottom:1px solid var(--border);font-weight:500">${escHtml(s.email)}</td>
-        <td style="padding:12px 14px;border-bottom:1px solid var(--border);color:var(--muted)">${escHtml(source)}</td>
-        <td style="padding:12px 14px;border-bottom:1px solid var(--border);color:var(--muted)">${dateStr}</td>
-        <td style="padding:12px 14px;border-bottom:1px solid var(--border);${statusClass};font-weight:600;font-size:11px;text-transform:uppercase">${escHtml(s.status || 'active')}</td>
-      </tr>`;
-    }).join('');
-  }
-
-  function nlFilterList() {
-    const q = (document.getElementById('nl-search').value || '').toLowerCase();
-    const filtered = q ? _nlSubs.filter(s => s.email.toLowerCase().includes(q)) : _nlSubs;
-    nlRenderTable(filtered);
-  }
-
-  function nlExportCSV() {
-    if (!_nlSubs.length) { showToast('No subscribers to export'); return; }
-    const rows = [['Email', 'Source', 'Subscribed At', 'Status']];
-    _nlSubs.forEach(s => rows.push([s.email, s.source || '', s.subscribed_at || '', s.status || 'active']));
-    const csv = rows.map(r => r.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'spotd-newsletter-subscribers.csv';
-    a.click();
-    URL.revokeObjectURL(a.href);
-    showToast('CSV downloaded');
-  }
+  // ── NEWSLETTER SUBSCRIBERS — REMOVED 2026-09-30 (Elena/Shane) ─────
+  // Concept parked; the portal section is deleted but the subscriber concept can
+  // be revived. To restore: re-add the page-newsletter block, nav entries,
+  // PAGE_TITLES key, showPage branch, and the JS loader/render/export functions
+  // below (loadNewsletter, nlRenderStats, nlRenderTable, nlFilterList, nlExportCSV).
 
   // ── DASHBOARD ─────────────────────────────────────────
   let _dashLoaded = false;
@@ -7489,10 +7408,9 @@ ${sectionsMjml}
     const nextWeek = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
 
     try {
-      const [venues, users, subs, checkins30, pendingReqs, feedback, socialPosts, boardTasks, recentCheckins] = await Promise.all([
+      const [venues, users, checkins30, pendingReqs, feedback, socialPosts, boardTasks, recentCheckins] = await Promise.all([
         authFetch(`${SUPABASE_URL}/rest/v1/venues?select=id,name,active&active=eq.true&limit=10000`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
         authFetch(`${SUPABASE_URL}/rest/v1/profiles?select=id,display_name,username,created_at&order=created_at.desc&limit=500`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
-        authFetch(`${SUPABASE_URL}/rest/v1/newsletter_subscribers?select=id,email,subscribed_at,status&status=eq.active`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
         authFetch(`${SUPABASE_URL}/rest/v1/check_ins?select=id&created_at=gte.${thirtyDaysAgo}`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
         authFetch(`${SUPABASE_URL}/rest/v1/venue_requests?select=id,venue_name,neighborhood,city_slug,created_at,user_id&status=eq.pending&order=created_at.desc&limit=5`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
         authFetch(`${SUPABASE_URL}/rest/v1/feedback?select=id,text,created_at&order=created_at.desc&limit=5`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []), // NOTE (2026-09-29): feedback has no 'status' column — the write path (js/app.js submitFeedback/submitFeatureRequest) inserts user_id/type/text/url/created_at only. Selecting 'status' 400s the query and the silent fallback above renders "No feedback yet" while items exist.
@@ -7504,7 +7422,6 @@ ${sectionsMjml}
       // ── KPIs ──
       document.getElementById('dk-venues').textContent = venues.length.toLocaleString();
       document.getElementById('dk-users').textContent = users.length.toLocaleString();
-      document.getElementById('dk-subs').textContent = subs.length.toLocaleString();
       document.getElementById('dk-checkins').textContent = checkins30.length.toLocaleString();
       document.getElementById('dk-requests').textContent = pendingReqs.length;
       if (pendingReqs.length > 0) document.getElementById('dk-requests').style.color = 'var(--coral)';
