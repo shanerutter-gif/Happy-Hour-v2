@@ -2969,11 +2969,11 @@ in San Diego</textarea>
       return r.json();
     },
     async get(table, filters = '') {
-      const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${filters}&order=created_at.desc`, { headers: svcHeaders() });
+      const r = await authFetch(`${SUPABASE_URL}/rest/v1/${table}?${filters}&order=created_at.desc`, { headers: svcHeaders() });
       return r.json();
     },
     async patch(table, id, data) {
-      const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`, {
+      const r = await authFetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`, {
         method: 'PATCH',
         headers: { ...svcHeaders(), 'Prefer': 'return=representation' },
         body: JSON.stringify(data)
@@ -2988,7 +2988,7 @@ in San Diego</textarea>
       }
     },
     async insert(table, data) {
-      const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+      const r = await authFetch(`${SUPABASE_URL}/rest/v1/${table}`, {
         method: 'POST',
         headers: { ...svcHeaders(), 'Prefer': 'return=representation' },
         body: JSON.stringify(data)
@@ -3064,6 +3064,19 @@ in San Diego</textarea>
       }));
       return true;
     } catch (e) { return false; }
+  }
+
+  // Authenticated fetch with one automatic retry: if the admin JWT expired
+  // mid-session (e.g. laptop sleep between refresh ticks), refresh once and
+  // retry instead of failing with a 401 that callers misread as missing data.
+  async function authFetch(url, options = {}) {
+    let r = await fetch(url, options);
+    if (r.status === 401 || r.status === 403) {
+      if (await refreshAdminSession()) {
+        r = await fetch(url, { ...options, headers: { ...(options.headers || {}), ...svcHeaders() } });
+      }
+    }
+    return r;
   }
 
   // Allow Enter key to submit login
@@ -4628,10 +4641,15 @@ in San Diego</textarea>
       if (saved?.token && saved?.user) {
         _token = saved.token; _adminUser = saved.user;
         // Data access rides on the user JWT — refresh if expired or near expiry.
-        if (!saved.expires_at || saved.expires_at * 1000 < Date.now() + 2 * 60000) {
-          await refreshAdminSession();
+        // If the refresh fails the session is dead: clear it and show the login
+        // screen instead of entering the app with an expired token.
+        const needsRefresh = !saved.expires_at || saved.expires_at * 1000 < Date.now() + 2 * 60000;
+        if (!needsRefresh || await refreshAdminSession()) {
+          enterApp();
+        } else {
+          localStorage.removeItem(LS_KEY);
+          _token = null; _adminUser = null;
         }
-        enterApp();
       }
     } catch(e) {}
     // Supabase access tokens last ~1h; keep it fresh while the tab is open.
@@ -5258,8 +5276,15 @@ in San Diego</textarea>
   async function ensureCrmTables() {
     if (_crmTablesReady) return true;
     try {
-      const r = await fetch(`${SUPABASE_URL}/rest/v1/crm_contacts?select=id&limit=1`, { headers: svcHeaders() });
+      const r = await authFetch(`${SUPABASE_URL}/rest/v1/crm_contacts?select=id&limit=1`, { headers: svcHeaders() });
       if (r.ok) { _crmTablesReady = true; return true; }
+      // 401/403 means the admin JWT is expired or invalid — NOT missing tables
+      // (a missing table returns 404/PGRST205). authFetch already tried one
+      // refresh; if we're still unauthorized the session is dead.
+      if (r.status === 401 || r.status === 403) {
+        showSessionExpired();
+        return false;
+      }
     } catch(e) {}
 
     // Tables missing or unreachable. The old auto-create path went through
@@ -5290,6 +5315,26 @@ in San Diego</textarea>
             <strong>2.</strong> Or run the SQL manually in Supabase SQL Editor — copy from <code style="background:var(--bg2);padding:2px 6px;border-radius:4px;font-size:12px">sql/crm-tables.sql</code>
           </div>
           <button class="crm-btn-primary" onclick="ensureCrmTables().then(ok => { if(ok) loadCrmPipeline(); })">🔄 Retry Connection</button>
+        </div>`;
+    });
+  }
+
+  // The admin JWT expired and the refresh failed — the tables are fine, the
+  // login is dead. Tell the user to sign in again instead of showing the
+  // "tables missing" instructions.
+  function showSessionExpired() {
+    const pages = ['page-crm','page-crm-contacts'];
+    pages.forEach(p => {
+      const el = document.getElementById(p);
+      if (!el) return;
+      el.innerHTML = `
+        <div class="page-title">Session expired</div>
+        <div class="page-sub">Your admin login expired. Your data is safe — just sign in again.</div>
+        <div class="request-card" style="max-width:560px">
+          <div style="margin-bottom:16px;line-height:1.8;font-size:14px">
+            Click <strong>Log out</strong> (top right), then sign back in with your admin email and password.
+          </div>
+          <button class="crm-btn-primary" onclick="document.getElementById('btn-logout').click()">Log out now</button>
         </div>`;
     });
   }
