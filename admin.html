@@ -1065,6 +1065,15 @@
     .crm-pipeline-card-meta { font-size:11px; color:var(--muted); }
     .crm-pipeline-card-tags { display:flex; gap:4px; margin-top:6px; flex-wrap:wrap; }
     .crm-tag { font-size:9px; font-weight:600; letter-spacing:.3px; padding:2px 7px; border-radius:4px; text-transform:uppercase; }
+
+    /* Consolidated CRM: KPI strip (single row) on the Pipeline home */
+    .crm-kpi-strip { display:grid; grid-template-columns:repeat(6,minmax(140px,1fr)); gap:10px; margin-bottom:28px; overflow-x:auto; }
+    .crm-kpi-strip .crm-kpi { padding:14px 16px; }
+    .crm-kpi-strip .crm-kpi-value { font-size:22px; }
+    .crm-kpi-strip .crm-kpi-sub { display:none; }
+      @media (max-width:900px) {
+        .crm-kpi-strip { grid-template-columns:repeat(3,minmax(140px,1fr)); }
+      }
     .crm-tag-lead { background:rgba(196,125,14,0.1); color:var(--warn); }
     .crm-tag-contacted { background:rgba(67,133,255,0.1); color:#4385FF; }
     .crm-tag-demo { background:rgba(147,51,234,0.1); color:#9333EA; }
@@ -1311,10 +1320,8 @@
     <button class="drawer-item" onclick="showPage('venues-top');closeMobileMenu()" id="mob-nav-venues-top">🏆 Top Venues</button>
     <button class="drawer-item" onclick="showPage('cities');closeMobileMenu()" id="mob-nav-cities">🗺️ City Breakdown</button>
     <div class="drawer-section-label">CRM</div>
-    <button class="drawer-item" onclick="showPage('crm');closeMobileMenu()" id="mob-nav-crm">📊 Dashboard</button>
+    <button class="drawer-item" onclick="showPage('crm');closeMobileMenu()" id="mob-nav-crm">🔀 Pipeline</button>
     <button class="drawer-item" onclick="showPage('crm-contacts');closeMobileMenu()" id="mob-nav-crm-contacts">👤 Contacts</button>
-    <button class="drawer-item" onclick="showPage('crm-pipeline');closeMobileMenu()" id="mob-nav-crm-pipeline">🔀 Pipeline</button>
-    <button class="drawer-item" onclick="showPage('crm-activity');closeMobileMenu()" id="mob-nav-crm-activity">📋 Activity Log</button>
     <div class="drawer-section-label">Engage</div>
     <button class="drawer-item" onclick="showPage('feedback');closeMobileMenu()" id="mob-nav-feedback">📬 User Feedback</button>
     <button class="drawer-item" onclick="showPage('push');closeMobileMenu()" id="mob-nav-push">🔔 Push Notifications</button>
@@ -1364,16 +1371,10 @@
       </div>
       <div class="sidebar-label" style="margin-top:20px;margin-bottom:8px">CRM</div>
       <div class="sidebar-item" onclick="showPage('crm')" id="nav-crm">
-        📊 Dashboard
+        🔀 Pipeline
       </div>
       <div class="sidebar-item" onclick="showPage('crm-contacts')" id="nav-crm-contacts">
         👤 Contacts
-      </div>
-      <div class="sidebar-item" onclick="showPage('crm-pipeline')" id="nav-crm-pipeline">
-        🔀 Pipeline
-      </div>
-      <div class="sidebar-item" onclick="showPage('crm-activity')" id="nav-crm-activity">
-        📋 Activity Log
       </div>
       <div class="sidebar-label" style="margin-top:20px;margin-bottom:8px">Engage</div>
       <div class="sidebar-item" onclick="showPage('feedback')" id="nav-feedback">
@@ -1716,12 +1717,12 @@
         <div id="churn-pagination" style="display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:14px;font-size:13px;color:var(--muted)"></div>
       </div>
 
-      <!-- REVENUE PIPELINE PAGE -->
+      <!-- REVENUE FUNNEL PAGE -->
       <div class="page" id="page-pipeline">
-        <div class="page-title">Pipeline</div>
+        <div class="page-title">Revenue Funnel</div>
         <div class="page-sub">Business venue requests moving from submission to claimed listing.</div>
         <div class="hub-tabs">
-          <button class="hub-tab" onclick="showPage('crm-pipeline')">🔀 Kanban</button>
+          <button class="hub-tab" onclick="showPage('crm')">🔀 Pipeline</button>
           <button class="hub-tab active" onclick="showPage('pipeline')">💰 Revenue Funnel</button>
         </div>
         <div class="pipeline-stages" id="pipeline-stages">
@@ -1745,12 +1746,15 @@
            CRM PAGES
            ═══════════════════════════════════════════════ -->
 
-      <!-- CRM DASHBOARD -->
+      <!-- CRM PIPELINE (consolidated home: KPIs + kanban + recent activity) -->
       <div class="page" id="page-crm">
-        <div class="page-title">CRM Dashboard</div>
-        <div class="page-sub">Overview of your venue relationships, pipeline, and recent activity.</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:10px">
+          <div class="page-title" style="margin-bottom:0">Pipeline</div>
+          <button class="crm-btn-sm" onclick="showPage('pipeline')" style="white-space:nowrap">💰 Revenue Funnel →</button>
+        </div>
+        <div class="page-sub">Your venue deals at a glance — key numbers, deal stages, and latest activity.</div>
 
-        <div class="crm-kpi-grid" id="crm-kpi-grid">
+        <div class="crm-kpi-strip" id="crm-kpi-strip">
           <div class="crm-kpi">
             <div class="crm-kpi-label">Total Contacts</div>
             <div class="crm-kpi-value" id="crm-kpi-contacts">—</div>
@@ -1758,7 +1762,6 @@
           <div class="crm-kpi">
             <div class="crm-kpi-label">Active Pipeline</div>
             <div class="crm-kpi-value" id="crm-kpi-pipeline">—</div>
-            <div class="crm-kpi-sub">Open deals</div>
           </div>
           <div class="crm-kpi">
             <div class="crm-kpi-label">Won This Month</div>
@@ -1779,13 +1782,13 @@
         </div>
 
         <div class="crm-section">
-          <div class="crm-section-title">Pipeline Snapshot</div>
-          <div class="crm-pipeline" id="crm-dash-pipeline"></div>
+          <div class="crm-section-title">Deal Stages</div>
+          <div class="crm-pipeline" id="crm-pipeline-board" style="min-height:300px"></div>
         </div>
 
         <div class="crm-section">
           <div class="crm-section-title">Recent Activity</div>
-          <div class="crm-timeline" id="crm-dash-timeline"></div>
+          <div class="crm-timeline" id="crm-recent-activity"></div>
         </div>
       </div>
 
@@ -1822,26 +1825,6 @@
 
         <div id="crm-contacts-count" style="font-family:'DM Sans',sans-serif;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:14px"></div>
         <div id="crm-contacts-list"></div>
-      </div>
-
-      <!-- CRM PIPELINE (KANBAN) -->
-      <div class="page" id="page-crm-pipeline">
-        <div class="page-title">Pipeline</div>
-        <div class="page-sub">Drag-free kanban view of your deal stages. Click a card to manage.</div>
-        <div class="hub-tabs">
-          <button class="hub-tab active" onclick="showPage('crm-pipeline')">🔀 Kanban</button>
-          <button class="hub-tab" onclick="showPage('pipeline')">💰 Revenue Funnel</button>
-        </div>
-        <div class="crm-pipeline" id="crm-pipeline-board" style="min-height:400px"></div>
-      </div>
-
-      <!-- CRM ACTIVITY LOG -->
-      <div class="page" id="page-crm-activity">
-        <div class="page-title">Activity Log</div>
-        <div class="page-sub">Complete timeline of all CRM actions — notes, stage changes, and new contacts.</div>
-        <div class="crm-timeline" id="crm-full-timeline" style="min-height:300px">
-          <div class="empty-state"><div class="empty-icon">⏳</div><h3>Loading…</h3></div>
-        </div>
       </div>
 
       <!-- CRM CONTACT DETAIL MODAL -->
@@ -3581,10 +3564,10 @@ in San Diego</textarea>
   const PAGE_TITLES = {
     dashboard: 'Dashboard', requests: 'Venue Requests', venues: 'All Venues', heroes: 'Hero Picker', users: 'Users',
     churn: 'Users', 'venues-top': 'Top Venues', cities: 'City Breakdown',
-    pipeline: 'Pipeline', crm: 'CRM Dashboard', 'crm-contacts': 'Contacts', 'crm-pipeline': 'Pipeline', 'crm-activity': 'Activity Log', feedback: 'User Feedback', push: 'Push Notifications', newsletter: 'Newsletter Subs', cms: 'Site Copy', board: 'Project Board', demo: 'Demo Data', assets: 'Asset Generator', 'email-builder': 'Email Builder', 'content-calendar': 'Content Calendar', blog: 'Blog Manager'
+    pipeline: 'Revenue Funnel', crm: 'Pipeline', 'crm-contacts': 'Contacts', feedback: 'User Feedback', push: 'Push Notifications', newsletter: 'Newsletter Subs', cms: 'Site Copy', board: 'Project Board', demo: 'Demo Data', assets: 'Asset Generator', 'email-builder': 'Email Builder', 'content-calendar': 'Content Calendar', blog: 'Blog Manager'
   };
   // Consolidated child pages light up their parent's nav item.
-  const NAV_PARENT = { churn: 'users', activity: 'users', pipeline: 'crm-pipeline' };
+  const NAV_PARENT = { churn: 'users', activity: 'users', pipeline: 'crm' };
 
   function showPage(page) {
     document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -3617,10 +3600,8 @@ in San Diego</textarea>
         iframe.dataset.loaded = '1';
       }
     }
-    if (page === 'crm')            loadCrmDashboard();
+    if (page === 'crm')            loadCrmPipeline();
     if (page === 'crm-contacts')   loadCrmContacts();
-    if (page === 'crm-pipeline')   loadCrmPipelineBoard();
-    if (page === 'crm-activity')   loadCrmActivityLog();
     if (page === 'assets' && window._assetPreviewUpdate) {
       setTimeout(window._assetPreviewUpdate, 100);
     }
@@ -5255,7 +5236,7 @@ in San Diego</textarea>
   }
 
   function showCrmSetupInstructions() {
-    const pages = ['page-crm','page-crm-contacts','page-crm-pipeline','page-crm-activity'];
+    const pages = ['page-crm','page-crm-contacts'];
     pages.forEach(p => {
       const el = document.getElementById(p);
       if (!el) return;
@@ -5272,7 +5253,7 @@ in San Diego</textarea>
           <div style="margin-bottom:16px;line-height:1.8;font-size:14px">
             <strong>2.</strong> Or run the SQL manually in Supabase SQL Editor — copy from <code style="background:var(--bg2);padding:2px 6px;border-radius:4px;font-size:12px">sql/crm-tables.sql</code>
           </div>
-          <button class="crm-btn-primary" onclick="ensureCrmTables().then(ok => { if(ok) loadCrmDashboard(); })">🔄 Retry Connection</button>
+          <button class="crm-btn-primary" onclick="ensureCrmTables().then(ok => { if(ok) loadCrmPipeline(); })">🔄 Retry Connection</button>
         </div>`;
     });
   }
@@ -5302,13 +5283,13 @@ in San Diego</textarea>
     } catch(e) { return []; }
   }
 
-  // ── DASHBOARD ──
-  async function loadCrmDashboard() {
+  // ── CRM PIPELINE HOME (KPIs + kanban + recent activity) ──
+  async function loadCrmPipeline() {
     await ensureCrmTables();
     await Promise.all([fetchCrmContacts(), fetchCrmActivities()]);
     renderCrmKpis();
-    renderCrmDashPipeline();
-    renderCrmDashTimeline();
+    renderCrmPipelineBoard();
+    renderCrmTimeline();
   }
 
   function renderCrmKpis() {
@@ -5341,31 +5322,8 @@ in San Diego</textarea>
     document.getElementById('crm-kpi-avg-days').textContent = avgDays;
   }
 
-  function renderCrmDashPipeline() {
-    const el = document.getElementById('crm-dash-pipeline');
-    const activeStages = CRM_STAGES.filter(s => s !== 'lost');
-    el.innerHTML = activeStages.map(stage => {
-      const items = crmContacts.filter(c => c.stage === stage);
-      return `
-        <div class="crm-pipeline-col">
-          <div class="crm-pipeline-col-head">
-            <span class="crm-pipeline-col-title">${CRM_STAGE_LABELS[stage]}</span>
-            <span class="crm-pipeline-col-count">${items.length}</span>
-          </div>
-          ${items.slice(0, 5).map(c => `
-            <div class="crm-pipeline-card" onclick="openCrmDetail('${c.id}')">
-              <div class="crm-pipeline-card-name">${esc(c.contact_name)}</div>
-              <div class="crm-pipeline-card-meta">${esc(c.business_name || '—')}${c.city_slug ? ' · ' + esc(c.city_slug) : ''}</div>
-            </div>
-          `).join('')}
-          ${items.length > 5 ? `<div style="font-size:11px;color:var(--muted);text-align:center;padding:4px">+${items.length - 5} more</div>` : ''}
-          ${items.length === 0 ? '<div style="font-size:12px;color:var(--muted);text-align:center;padding:16px 0">Empty</div>' : ''}
-        </div>`;
-    }).join('');
-  }
-
-  function renderCrmDashTimeline() {
-    const el = document.getElementById('crm-dash-timeline');
+  function renderCrmTimeline() {
+    const el = document.getElementById('crm-recent-activity');
     if (!crmActivities.length) {
       el.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:20px 0">No activity yet. Add a contact to get started.</div>';
       return;
@@ -5427,12 +5385,6 @@ in San Diego</textarea>
   }
 
   // ── PIPELINE BOARD ──
-  async function loadCrmPipelineBoard() {
-    await ensureCrmTables();
-    await fetchCrmContacts();
-    renderCrmPipelineBoard();
-  }
-
   function renderCrmPipelineBoard() {
     const el = document.getElementById('crm-pipeline-board');
     el.innerHTML = CRM_STAGES.map(stage => {
@@ -5456,23 +5408,6 @@ in San Diego</textarea>
           ${items.length === 0 ? '<div style="font-size:12px;color:var(--muted);text-align:center;padding:24px 0">No contacts</div>' : ''}
         </div>`;
     }).join('');
-  }
-
-  // ── ACTIVITY LOG ──
-  async function loadCrmActivityLog() {
-    await ensureCrmTables();
-    await fetchCrmActivities(200);
-    const el = document.getElementById('crm-full-timeline');
-    if (!crmActivities.length) {
-      el.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><h3>No activity yet</h3><p style="color:var(--muted);font-size:13px">Actions like adding contacts, changing stages, and writing notes will appear here.</p></div>';
-      return;
-    }
-    el.innerHTML = crmActivities.map(a => `
-      <div class="crm-timeline-item type-${a.activity_type}">
-        <div class="crm-timeline-text">${esc(a.description)}</div>
-        <div class="crm-timeline-date">${formatDate(a.created_at)}</div>
-      </div>
-    `).join('');
   }
 
   // ── CONTACT DETAIL MODAL ──
