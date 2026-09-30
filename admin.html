@@ -1071,6 +1071,23 @@
     .crm-kpi-strip .crm-kpi { padding:14px 16px; }
     .crm-kpi-strip .crm-kpi-value { font-size:22px; }
     .crm-kpi-strip .crm-kpi-sub { display:none; }
+
+    /* ── TEAM PAGE (14-agent overview) ── */
+    .team-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:14px; margin-top:18px; }
+    .team-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px 18px; }
+    .team-card-top { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:4px; }
+    .team-card-name { font-family:'Cabinet Grotesk',sans-serif; font-weight:800; font-size:16px; }
+    .team-card-role { font-size:12px; color:var(--muted); margin-bottom:2px; }
+    .team-card-sched { font-size:11px; color:var(--muted); margin-bottom:10px; }
+    .team-status { font-size:10px; font-weight:700; letter-spacing:.4px; text-transform:uppercase; padding:3px 9px; border-radius:50px; white-space:nowrap; }
+    .team-status-active { background:rgba(46,160,67,0.12); color:#2ea043; }
+    .team-status-blocked { background:rgba(207,34,46,0.12); color:#cf222e; }
+    .team-status-idle { background:rgba(120,120,120,0.12); color:var(--muted); }
+    .team-focus { font-size:13px; line-height:1.55; margin-bottom:8px; }
+    .team-focus-empty { color:var(--muted); font-style:italic; }
+    .team-focus-updated { font-size:11px; color:var(--muted); margin-bottom:10px; }
+    .team-activity { border-top:1px solid var(--border); padding-top:10px; font-size:12px; color:var(--muted); }
+    .team-activity-title { color:var(--text); font-weight:600; display:block; margin-bottom:2px; }
       @media (max-width:900px) {
         .crm-kpi-strip { grid-template-columns:repeat(3,minmax(140px,1fr)); }
       }
@@ -1322,6 +1339,8 @@
     <div class="drawer-section-label">CRM</div>
     <button class="drawer-item" onclick="showPage('crm');closeMobileMenu()" id="mob-nav-crm">🔀 Pipeline</button>
     <button class="drawer-item" onclick="showPage('crm-contacts');closeMobileMenu()" id="mob-nav-crm-contacts">👤 Contacts</button>
+    <div class="drawer-section-label">Team</div>
+    <button class="drawer-item" onclick="showPage('team');closeMobileMenu()" id="mob-nav-team">🧑‍💼 Team</button>
     <div class="drawer-section-label">Engage</div>
     <button class="drawer-item" onclick="showPage('feedback');closeMobileMenu()" id="mob-nav-feedback">📬 User Feedback</button>
     <button class="drawer-item" onclick="showPage('push');closeMobileMenu()" id="mob-nav-push">🔔 Push Notifications</button>
@@ -1375,6 +1394,10 @@
       </div>
       <div class="sidebar-item" onclick="showPage('crm-contacts')" id="nav-crm-contacts">
         👤 Contacts
+      </div>
+      <div class="sidebar-label" style="margin-top:20px;margin-bottom:8px">Team</div>
+      <div class="sidebar-item" onclick="showPage('team')" id="nav-team">
+        🧑‍💼 Team
       </div>
       <div class="sidebar-label" style="margin-top:20px;margin-bottom:8px">Engage</div>
       <div class="sidebar-item" onclick="showPage('feedback')" id="nav-feedback">
@@ -2775,6 +2798,18 @@ in San Diego</textarea>
         </div>
       </div>
 
+      <!-- TEAM PAGE -->
+      <div class="page" id="page-team">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:10px">
+          <div class="page-title" style="margin-bottom:0">🧑‍💼 Team</div>
+          <button class="crm-btn-primary" onclick="loadTeamPage()" style="white-space:nowrap">↻ Refresh</button>
+        </div>
+        <div class="page-sub">All 14 AI agents at a glance — current focus, status, and latest logged activity. Focus lines are updated by each agent's scheduled run.</div>
+        <div class="team-grid" id="team-grid">
+          <div style="color:var(--muted);font-size:13px">Loading team…</div>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -3564,7 +3599,7 @@ in San Diego</textarea>
   const PAGE_TITLES = {
     dashboard: 'Dashboard', requests: 'Venue Requests', venues: 'All Venues', heroes: 'Hero Picker', users: 'Users',
     churn: 'Users', 'venues-top': 'Top Venues', cities: 'City Breakdown',
-    pipeline: 'Revenue Funnel', crm: 'Pipeline', 'crm-contacts': 'Contacts', feedback: 'User Feedback', push: 'Push Notifications', newsletter: 'Newsletter Subs', cms: 'Site Copy', board: 'Project Board', demo: 'Demo Data', assets: 'Asset Generator', 'email-builder': 'Email Builder', 'content-calendar': 'Content Calendar', blog: 'Blog Manager'
+    pipeline: 'Revenue Funnel', crm: 'Pipeline', 'crm-contacts': 'Contacts', feedback: 'User Feedback', push: 'Push Notifications', newsletter: 'Newsletter Subs', cms: 'Site Copy', board: 'Project Board', demo: 'Demo Data', assets: 'Asset Generator', 'email-builder': 'Email Builder', 'content-calendar': 'Content Calendar', blog: 'Blog Manager', team: 'Team'
   };
   // Consolidated child pages light up their parent's nav item.
   const NAV_PARENT = { churn: 'users', activity: 'users', pipeline: 'crm' };
@@ -3602,6 +3637,7 @@ in San Diego</textarea>
     }
     if (page === 'crm')            loadCrmPipeline();
     if (page === 'crm-contacts')   loadCrmContacts();
+    if (page === 'team')           loadTeamPage();
     if (page === 'assets' && window._assetPreviewUpdate) {
       setTimeout(window._assetPreviewUpdate, 100);
     }
@@ -5662,6 +5698,93 @@ in San Diego</textarea>
         await fetchCrmContacts();
       }
     } catch(e) { console.warn('Venue claim import failed:', e); }
+  }
+
+  // ═══════════════════════════════════════════════════════
+  // TEAM PAGE (14-agent overview)
+  // ═══════════════════════════════════════════════════════
+  // Roster is static; focus lines come from public.agent_focus via
+  // GET /api/team-focus (upserted by each agent's scheduled run via POST).
+  // If the table/API isn't set up yet, the page degrades gracefully:
+  // roster + latest board activity render, focus shows "not set yet".
+  // Latest activity: newest card on the 'agents' board whose title starts
+  // with the agent's name (e.g. "Sam: …" or "[Sam] …").
+
+  const TEAM_ROSTER = [
+    { agent:'Maya',   role:'Head of Product',           schedule:'Weekdays ~8:23am' },
+    { agent:'Ravi',   role:'Founding Engineer',         schedule:'Daily ~6:23am' },
+    { agent:'Jess',   role:'Head of Growth',            schedule:'Daily ~7:23am' },
+    { agent:'Marcus', role:'Head of Partnerships',      schedule:'Weekdays ~9:23am' },
+    { agent:'Theo',   role:'Full-stack Engineer',       schedule:'Tue/Thu ~7:23am' },
+    { agent:'Sofia',  role:'iOS Engineer',              schedule:'Tue/Thu/Sat ~8:23am' },
+    { agent:'Priya',  role:'Growth/Data Engineer',      schedule:'Weekdays ~9:23am' },
+    { agent:'Leo',    role:'Product Designer',          schedule:'Mon/Wed/Fri ~9:23am' },
+    { agent:'Kai',    role:'Content Creator',           schedule:'Daily ~9:23am & ~5:23pm' },
+    { agent:'Nora',   role:'Content Writer/Strategist', schedule:'Weekdays ~9:23am & ~2:23pm' },
+    { agent:'Diego',  role:'Community Manager',         schedule:'Daily ~8:23am, ~11:23am & ~5:23pm' },
+    { agent:'Elena',  role:'Lifecycle Marketer',        schedule:'Weekdays ~10:23am' },
+    { agent:'Sam',    role:'SDR',                       schedule:'Weekdays ~10:23am & ~3:23pm' },
+    { agent:'Jordan', role:'AE',                        schedule:'Mon/Wed/Fri ~9:23am & ~3:23pm' },
+  ];
+  const TEAM_STATUS_LABELS = { active:'Active', blocked:'Blocked', idle:'Idle' };
+
+  function teamLatestCard(cards, name) {
+    const n = name.toLowerCase();
+    for (const c of cards) {
+      const t = String(c.title || '').trim();
+      const tl = t.toLowerCase();
+      if (tl === n || tl.startsWith(n + ':') || tl.startsWith(n + ' -') ||
+          tl.startsWith(n + ' —') || tl.startsWith(n + ' –') || tl.startsWith('[' + n + ']')) {
+        return c;
+      }
+    }
+    return null;
+  }
+
+  function teamCardHtml(member, focusRow, latest) {
+    const status = (focusRow && ['active','blocked','idle'].includes(focusRow.status)) ? focusRow.status : 'active';
+    const focus = focusRow && focusRow.focus ? focusRow.focus : '';
+    const updated = focusRow && focusRow.updated_at ? focusRow.updated_at : null;
+    const activity = latest
+      ? `<span class="team-activity-title">${esc(latest.title)}</span>logged ${formatRelativeTime(latest.created_at)}`
+      : 'Nothing logged yet';
+    return `
+      <div class="team-card">
+        <div class="team-card-top">
+          <div class="team-card-name">${esc(member.agent)}</div>
+          <span class="team-status team-status-${status}">${esc(TEAM_STATUS_LABELS[status])}</span>
+        </div>
+        <div class="team-card-role">${esc(member.role)}</div>
+        <div class="team-card-sched">📅 ${esc(member.schedule)}</div>
+        <div class="team-focus ${focus ? '' : 'team-focus-empty'}">${focus ? esc(focus) : 'Focus not set yet — the agent will post it on its next run.'}</div>
+        ${updated ? `<div class="team-focus-updated">Updated ${formatRelativeTime(updated)}</div>` : ''}
+        <div class="team-activity">Latest activity<br>${activity}</div>
+      </div>`;
+  }
+
+  async function loadTeamPage() {
+    const grid = document.getElementById('team-grid');
+    if (!grid) return;
+    grid.innerHTML = '<div style="color:var(--muted);font-size:13px">Loading team…</div>';
+
+    // Focus rows — graceful if the table/endpoint isn't live yet.
+    let focusByAgent = {};
+    try {
+      const r = await fetch('/api/team-focus');
+      if (r.ok) {
+        const data = await r.json();
+        (data.rows || []).forEach(row => { if (row && row.agent) focusByAgent[row.agent] = row; });
+      }
+    } catch(e) {}
+
+    // Latest cards on the Agent Activity board, attributed by title prefix.
+    let cards = [];
+    try {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/board_cards?select=title,created_at&board=eq.agents&order=created_at.desc&limit=150`, { headers: svcHeaders() });
+      if (r.ok) cards = await r.json();
+    } catch(e) {}
+
+    grid.innerHTML = TEAM_ROSTER.map(m => teamCardHtml(m, focusByAgent[m.agent], teamLatestCard(cards, m.agent))).join('');
   }
 
   // ── CONTENT CALENDAR ──────────────────────────────────
