@@ -2,10 +2,12 @@
 // Team page.
 //
 // GET  /api/team-focus                       (no auth, read-only)
-//   → { ok:true, rows:[{agent,focus,status,updated_at}] }
+//   → { ok:true, rows:[{agent,focus,status,details,updated_at}] }
 //
 // POST /api/team-focus
-//   { token, agent, focus, status? }          (status: active|blocked|idle)
+//   { token, agent, focus, status?, details? }  (status: active|blocked|idle;
+//                                               details: up to 2000 chars of
+//                                               extra context for the card)
 //   → { ok:true, agent } | { error }
 //
 // Auth: POST uses the shared token compared timing-safe against the
@@ -68,7 +70,7 @@ export default async function handler(req) {
   // ── READ: all focus rows, no auth ──
   if (req.method === 'GET') {
     const r = await fetch(
-      `${s.url}/rest/v1/agent_focus?select=agent,focus,status,updated_at&order=agent.asc`,
+      `${s.url}/rest/v1/agent_focus?select=agent,focus,status,details,updated_at&order=agent.asc`,
       { headers: s.headers }
     );
     if (!r.ok) {
@@ -106,7 +108,9 @@ export default async function handler(req) {
   const status = typeof body.status === 'string' ? body.status.trim().toLowerCase() : 'active';
   if (!STATUSES.has(status)) return json({ error: 'Invalid status' }, 400);
 
-  const row = { agent, focus, status, updated_at: new Date().toISOString() };
+  const details = typeof body.details === 'string' ? body.details.trim().slice(0, 2000) : '';
+
+  const row = { agent, focus, status, details, updated_at: new Date().toISOString() };
   const r = await fetch(`${s.url}/rest/v1/agent_focus?on_conflict=agent`, {
     method: 'POST',
     headers: { ...s.headers, Prefer: 'resolution=merge-duplicates' },

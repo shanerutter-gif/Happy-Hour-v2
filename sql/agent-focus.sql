@@ -9,3 +9,8 @@ CREATE TABLE IF NOT EXISTS public.agent_focus (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 COMMENT ON TABLE public.agent_focus IS 'Current focus per AI agent, written by /api/team-focus; rendered on the admin portal Team page.';
+
+-- 2026-09-30: per-agent context for the Team page. Agents POST 2-4 sentences
+-- of current context (what they're working on, key findings, pending decisions)
+-- rendered as an expandable "More context" block on their card.
+ALTER TABLE public.agent_focus ADD COLUMN IF NOT EXISTS details TEXT;

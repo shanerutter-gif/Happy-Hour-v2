@@ -1086,6 +1086,11 @@
     .team-focus { font-size:13px; line-height:1.55; margin-bottom:8px; }
     .team-focus-empty { color:var(--muted); font-style:italic; }
     .team-focus-updated { font-size:11px; color:var(--muted); margin-bottom:10px; }
+    .team-details { font-size:12.5px; line-height:1.55; margin:0 0 8px; }
+    .team-details summary, .team-activity-more summary { cursor:pointer; font-weight:700; font-size:12px; color:var(--text); }
+    .team-details > div { margin-top:4px; }
+    .team-activity-more { margin-top:4px; font-size:12px; }
+    .team-activity-more > div { margin-top:4px; color:var(--text); line-height:1.5; }
     .team-activity { border-top:1px solid var(--border); padding-top:10px; font-size:12px; color:var(--muted); }
     .team-activity-title { color:var(--text); font-weight:600; display:block; margin-bottom:2px; }
       @media (max-width:900px) {
@@ -5789,9 +5794,12 @@ in San Diego</textarea>
   function teamCardHtml(member, focusRow, latest) {
     const status = (focusRow && ['active','blocked','idle'].includes(focusRow.status)) ? focusRow.status : 'active';
     const focus = focusRow && focusRow.focus ? focusRow.focus : '';
+    const details = focusRow && focusRow.details ? focusRow.details : '';
     const updated = focusRow && focusRow.updated_at ? focusRow.updated_at : null;
+    const activityDesc = latest && latest.description ? esc(latest.description).replace(/\n/g, '<br>') : '';
     const activity = latest
       ? `<span class="team-activity-title">${esc(latest.title)}</span>logged ${formatRelativeTime(latest.created_at)}`
+        + (activityDesc ? `<details class="team-activity-more"><summary>Details</summary><div>${activityDesc}</div></details>` : '')
       : 'Nothing logged yet';
     return `
       <div class="team-card">
@@ -5802,6 +5810,7 @@ in San Diego</textarea>
         <div class="team-card-role">${esc(member.role)}</div>
         <div class="team-card-sched">📅 ${esc(member.schedule)}</div>
         <div class="team-focus ${focus ? '' : 'team-focus-empty'}">${focus ? esc(focus) : 'Focus not set yet — the agent will post it on its next run.'}</div>
+        ${details ? `<details class="team-details"><summary>More context</summary><div>${esc(details).replace(/\n/g, '<br>')}</div></details>` : ''}
         ${updated ? `<div class="team-focus-updated">Updated ${formatRelativeTime(updated)}</div>` : ''}
         <div class="team-activity">Latest activity<br>${activity}</div>
       </div>`;
@@ -5825,7 +5834,7 @@ in San Diego</textarea>
     // Latest cards on the Agent Activity board, attributed by title prefix.
     let cards = [];
     try {
-      const r = await fetch(`${SUPABASE_URL}/rest/v1/board_cards?select=title,created_at&board=eq.agents&order=created_at.desc&limit=150`, { headers: svcHeaders() });
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/board_cards?select=title,description,created_at&board=eq.agents&order=created_at.desc&limit=150`, { headers: svcHeaders() });
       if (r.ok) cards = await r.json();
     } catch(e) {}
 
