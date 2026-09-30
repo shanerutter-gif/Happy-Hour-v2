@@ -644,11 +644,13 @@
     });
     document.getElementById('ana-goto-attr')?.addEventListener('click', e => {
       e.preventDefault();
+      // Route through the Attribution tab's own nav handler so its loader runs.
+      const nav = document.getElementById('nav-attribution');
+      if (nav) { nav.click(); return; }
       document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
       document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
       document.querySelectorAll('.drawer-item').forEach(i => i.classList.remove('active'));
       document.getElementById('page-attribution')?.classList.add('active');
-      document.getElementById('nav-attribution')?.classList.add('active');
       document.getElementById('mob-nav-attribution')?.classList.add('active');
       const title = document.getElementById('mobilePageTitle');
       if (title) title.textContent = 'Attribution';
