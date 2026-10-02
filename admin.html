@@ -4163,7 +4163,17 @@ in San Diego</textarea>
     // (user_form/composer) are reviewed in the Venue Requests queue; ownership
     // claims live in the separate venue_claims table.
     const reqs = await sb.get('venue_requests', 'select=*&source=eq.business_portal&limit=1000');
-    const list = Array.isArray(reqs) ? reqs : [];
+    if (!Array.isArray(reqs)) {
+      // A PostgREST error object (400 on a missing `source` column, or an RLS
+      // 403) used to render as all-zero stages — indistinguishable from "no
+      // requests". Surface it instead so the state is diagnosable.
+      const msg = (reqs && (reqs.message || reqs.error)) || 'request failed';
+      document.getElementById('pipeline-tbody').innerHTML =
+        `<tr><td colspan="7" class="table-empty">Couldn't load requests — ${esc(msg)}. If it names the <code>source</code> column, run <code>sql/venue-requests-source-20260929.sql</code> in the Supabase SQL editor.</td></tr>`;
+      document.getElementById('pipeline-stages').innerHTML = '';
+      return;
+    }
+    const list = reqs;
     _pipelineRequests = list;
 
     const counts = { pending:0, approved:0, claimed:0, rejected:0 };
