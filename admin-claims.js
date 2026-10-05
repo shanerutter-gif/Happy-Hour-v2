@@ -68,6 +68,55 @@
   // ── state ───────────────────────────────────────────
   let allClaims = [];
   let filter = 'pending';
+  // Claim ids for which the venue_claim.approved lifecycle event is already
+  // in-flight or sent. The approve button is removed on re-render, but this
+  // guards against double-fire from double-clicks / re-entrant calls.
+  const __approvedEventFired = new Set();
+
+  // ── owner lifecycle trigger ─────────────────────────
+  // Fires venue_claim.approved to Loops (first-party analytics mirrored with
+  // owner attribution) exactly once per claim. Fire-and-forget: every failure
+  // path is swallowed so the approval UI can never block on it.
+  // Exported onto window for unit tests.
+  async function fireClaimApprovedEvent(c) {
+    if (!c || c.id == null) return false;
+    const key = String(c.id);
+    if (__approvedEventFired.has(key)) return false; // already in-flight/sent
+    __approvedEventFired.add(key);
+    const email = String(c.contact_email || '').trim();
+    if (!email) return false;
+    const firstName = String(c.contact_name || '').trim().split(/\s+/)[0] || 'there';
+    const venueName = (c.venue && c.venue.name) || '';
+    const payload = {
+      email,
+      eventName: 'venue_claim.approved',
+      properties: {
+        firstName,
+        venueName,
+        venueId: c.venue_id || '',
+        citySlug: (c.venue && c.venue.city_slug) || '',
+        portalUrl: 'https://www.spotd.biz/business-portal.html',
+      },
+      // Mirror into analytics_events attributed to the OWNER (not the admin
+      // doing the approving) so the trigger shows in Traffic Analytics.
+      mirror: {
+        userId: c.user_id || null,
+        eventName: 'venue_claim.approved',
+        props: { venue_id: c.venue_id || null, venue_name: venueName || null },
+        path: '/admin/claims',
+        platform: 'web',
+      },
+    };
+    try {
+      await fetch('/api/loops-event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+    } catch (e) { console.warn('[claims] approved event failed:', e.message); }
+    return true;
+  }
+  window.__fireClaimApprovedEvent = fireClaimApprovedEvent;
 
   // ── data ────────────────────────────────────────────
   async function loadClaims() {
@@ -158,10 +207,13 @@
 
     try {
       // 1. flip claim to approved
-      await sbPatch('venue_claims', id, { status: 'approved', reviewed_at: now, reviewed_by: reviewer });
+      await sbPatch('venue_claims', id, { status: 'approved', reviewed_at: now, reviewed_by: reviewer, approved_at: now });
 
       // 2. mark venue as owner-verified
       if (c.venue_id) await sbPatch('venues', c.venue_id, { owner_verified: true });
+
+      // 2b. owner lifecycle trigger — fire-and-forget (never blocks approval UI)
+      fireClaimApprovedEvent(c);
 
       // 3. best-effort CRM import
       try {

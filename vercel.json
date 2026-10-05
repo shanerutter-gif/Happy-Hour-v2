@@ -8,6 +8,7 @@
   },
   "crons": [
     { "path": "/api/loops-inactive", "schedule": "0 14 * * *" },
+    { "path": "/api/loops-owner-inactive", "schedule": "30 14 * * *" },
     { "path": "/api/daily-deals", "schedule": "0 14 * * *" },
     { "path": "/api/weekly-digest", "schedule": "0 15 * * 4" },
     { "path": "/api/push-runner", "schedule": "*/15 * * * *" },
@@ -35,6 +36,7 @@
     { "src": "/api/analytics-rollup",      "dest": "/api/analytics-rollup.js" },
     { "src": "/api/loops-update-contact",  "dest": "/api/loops-update-contact.js" },
     { "src": "/api/loops-inactive",        "dest": "/api/loops-inactive.js" },
+    { "src": "/api/loops-owner-inactive",  "dest": "/api/loops-owner-inactive.js" },
     { "src": "/api/daily-deals",           "dest": "/api/daily-deals.js" },
     { "src": "/api/weekly-digest",         "dest": "/api/weekly-digest.js" },
     { "src": "/api/stripe-checkout",       "dest": "/api/stripe-checkout.js" },
