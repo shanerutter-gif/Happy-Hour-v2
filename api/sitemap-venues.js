@@ -1,16 +1,12 @@
 export const config = { runtime: 'edge' };
 
+import { canonicalVenueSlugs } from './_lib/seo.js';
+
 // Canonical host — must match the venue page <link rel="canonical"> (www, the
 // host that serves 200). The apex redirects, so apex sitemap URLs fail to fetch.
 const SITE_URL = 'https://www.spotd.biz';
 
-function slugify(name) {
-  return name.toLowerCase()
-    .replace(/&/g, 'and')
-    .replace(/['']/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
+// slugify lives in _lib/seo.js (used internally by canonicalVenueSlugs).
 
 // Fetch ALL rows, paging past PostgREST's 1,000-row default cap via Range
 // headers. Active photo'd venues exceed 1,000 since the 7-city launch, so an
@@ -43,23 +39,34 @@ export default async function handler() {
     // Only include venues with a real photo. Photoless venues render as grey
     // placeholder cards — keep them out of Google's index until the enrichment
     // pass populates photo_url. See api/admin-enrich-venues.js.
+    // id + city_slug are needed for cross-city slug disambiguation below.
+    // Rows arrive in PostgREST default (physical) order — the same relative
+    // order api/spots.js sees — so group "firsts" here match the URLs that
+    // /spots/<slug> resolves to. Do NOT add an order= param: it would reshuffle
+    // winners and break currently-indexed URLs.
     const venues = await fetchAllRows(
-      `${supabaseUrl}/rest/v1/venues?active=eq.true&photo_url=not.is.null&select=name,updated_at`,
+      `${supabaseUrl}/rest/v1/venues?active=eq.true&photo_url=not.is.null&select=id,name,city_slug,updated_at`,
       { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` }
     );
 
-    // Dedupe by slug: slugify(name) ignores city, so ~44 cross-city name
-    // collisions would otherwise emit duplicate <loc>s. Keep the first.
-    const seen = new Set();
+    // Cross-city disambiguation: previously this deduped by slug keeping the
+    // first, so ~44 losing venues had no indexable URL at all (their would-be
+    // URL 404'd). Now every venue gets a canonical slug — winners keep the
+    // plain slug, losers get `<slug>-<city_slug>` — and all are emitted.
+    const { byId } = canonicalVenueSlugs(venues);
+    const lastmodOf = {};
+    for (const v of venues) {
+      lastmodOf[v.id] = v.updated_at
+        ? new Date(v.updated_at).toISOString().split('T')[0]
+        : new Date().toISOString().split('T')[0];
+    }
     const urls = [];
     for (const v of venues) {
-      const slug = slugify(v.name);
-      if (seen.has(slug)) continue;
-      seen.add(slug);
-      const lastmod = v.updated_at ? new Date(v.updated_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+      const slug = byId.get(v.id);
+      if (!slug) continue;
       urls.push(`  <url>
     <loc>${SITE_URL}/spots/${slug}</loc>
-    <lastmod>${lastmod}</lastmod>
+    <lastmod>${lastmodOf[v.id]}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>`);

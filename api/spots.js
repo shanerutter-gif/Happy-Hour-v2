@@ -1,19 +1,13 @@
 export const config = { runtime: 'edge' };
 
+import { slugify, canonicalVenueSlugs, canonicalHood, openingHoursSpec } from './_lib/seo.js';
+
 // Canonical host. The apex (spotd.biz) 301s to www, so every canonical / og:url
 // / sitemap URL must use www — the host that returns 200 — or Google treats the
 // page as "Alternate page with proper canonical tag" and won't index it.
 const SITE_URL = 'https://www.spotd.biz';
 
 /* ── helpers ─────────────────────────────────────── */
-
-function slugify(name) {
-  return name.toLowerCase()
-    .replace(/&/g, 'and')
-    .replace(/['']/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
 
 function esc(s) {
   if (!s) return '';
@@ -95,7 +89,8 @@ async function fetchReviews(supabaseUrl, serviceKey, venueId) {
 
 /* ── Build the page ──────────────────────────────── */
 
-function buildPage(venue, reviews, allVenues) {
+function buildPage(venue, reviews, allVenues, seo) {
+  const { canonSlug, slugById } = seo;
   const name = esc(venue.name);
   const hood = esc(venue.neighborhood || '');
   const city = venue.city_slug ? venue.city_slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : '';
@@ -128,6 +123,12 @@ function buildPage(venue, reviews, allVenues) {
   const dealText = deals.length ? ` Deals: ${deals.slice(0, 2).join(', ')}.` : '';
   const metaDesc = `${venue.name}${hood ? ` in ${venue.neighborhood}` : ''}${city ? `, ${city}` : ''}.${dealText} ${hours ? `Hours: ${hours}.` : ''} See reviews, deals & check in on Spotd.`;
 
+  // Canonical neighborhood (freeform variants like "Gaslamp" / "PB" collapse to
+  // one slug so the hub link below always resolves to the canonical page).
+  const hoodCanon = canonicalHood(venue.neighborhood);
+  const hoodSlug = hoodCanon ? hoodCanon.slug : '';
+  const hoodName = hoodCanon ? hoodCanon.name : '';
+
   // JSON-LD: LocalBusiness
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -156,7 +157,21 @@ function buildPage(venue, reviews, allVenues) {
           description: d
         }))
       }
-    })
+    }),
+    // openingHoursSpecification — only when days[] and the freeform hours
+    // string are both unambiguous. Parsed conservatively (see _lib/seo.js);
+    // the block is omitted entirely rather than emitting guessed hours.
+    ...(() => {
+      const ohs = openingHoursSpec(venue.days, venue.hours);
+      return ohs ? {
+        openingHoursSpecification: {
+          '@type': 'OpeningHoursSpecification',
+          dayOfWeek: ohs.dayOfWeek,
+          opens: ohs.opens,
+          closes: ohs.closes
+        }
+      } : {};
+    })()
   };
 
   // BreadcrumbList JSON-LD
@@ -166,16 +181,15 @@ function buildPage(venue, reviews, allVenues) {
     itemListElement: [
       { '@type': 'ListItem', position: 1, name: 'Home', item: SITE_URL },
       { '@type': 'ListItem', position: 2, name: 'Spots', item: `${SITE_URL}/spots` },
-      { '@type': 'ListItem', position: 3, name: venue.name, item: `${SITE_URL}/spots/${slugify(venue.name)}` }
+      { '@type': 'ListItem', position: 3, name: venue.name, item: `${SITE_URL}/spots/${canonSlug}` }
     ]
   };
 
-  // Nearby venues (same neighborhood, max 6)
+  // Nearby venues (same neighborhood, max 6). Links use the canonical
+  // (disambiguated) slug so same-named venues in other cities resolve correctly.
   const nearby = allVenues
     .filter(v => v.id !== venue.id && v.neighborhood === venue.neighborhood)
     .slice(0, 6);
-
-  const venueSlug = slugify(venue.name);
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -190,12 +204,12 @@ function buildPage(venue, reviews, allVenues) {
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>${name}${hood ? ` — ${esc(venue.neighborhood)}` : ''} | Happy Hour & Deals — Spotd</title>
 <meta name="description" content="${esc(metaDesc)}">
-<link rel="canonical" href="${SITE_URL}/spots/${venueSlug}">
+<link rel="canonical" href="${SITE_URL}/spots/${canonSlug}">
 
 <!-- Open Graph -->
 <meta property="og:type" content="place">
-<meta property="og:url" content="${SITE_URL}/spots/${venueSlug}">
-<meta name="twitter:url" content="${SITE_URL}/spots/${venueSlug}">
+<meta property="og:url" content="${SITE_URL}/spots/${canonSlug}">
+<meta name="twitter:url" content="${SITE_URL}/spots/${canonSlug}">
 <meta property="og:title" content="${name}${hood ? ` — ${esc(venue.neighborhood)}` : ''} | Spotd">
 <meta property="og:description" content="${esc(metaDesc)}">
 <meta property="og:image" content="${esc(ogImage)}">
@@ -422,11 +436,20 @@ ${venue.lat && venue.lng ? `<meta property="place:location:latitude" content="${
     <h2 class="spot-section-title">More in ${esc(venue.neighborhood)}</h2>
     <div class="spot-nearby">
       ${nearby.map(v => `
-      <a href="/spots/${slugify(v.name)}" class="spot-nearby-card">
+      <a href="/spots/${slugById.get(v.id) || slugify(v.name)}" class="spot-nearby-card">
         <div class="spot-nearby-name">${esc(v.name)}</div>
         <div class="spot-nearby-meta">${esc(v.neighborhood || '')}${v.hours ? ` · ${esc(v.hours)}` : ''}</div>
       </a>`).join('')}
     </div>
+  </div>` : ''}
+
+  <!-- Neighborhood happy-hour hub (internal linking: venue -> canonical hood page) -->
+  ${hoodSlug && venue.city_slug ? `
+  <div class="spot-section">
+    <h2 class="spot-section-title">More happy hours in ${esc(hoodName)}</h2>
+    <a href="/happy-hour/${esc(venue.city_slug)}/${hoodSlug}" class="spot-cta spot-cta-sec" style="margin-top:0">
+      Browse ${esc(hoodName)} happy hours &rarr;
+    </a>
   </div>` : ''}
 
   <!-- Footer -->
@@ -469,7 +492,11 @@ export default async function handler(req) {
 
   try {
     const venueIndex = await fetchVenueIndex(supabaseUrl, serviceKey);
-    const match = venueIndex.find(v => slugify(v.name) === slug);
+    // Canonical slug map (two-pass: winners keep their natural slug, losers
+    // get `<slug>-<city_slug>`). Pass rows in fetch order so "first" matches
+    // the historical .find() resolution — currently-indexed URLs never change.
+    const { byId: slugById, bySlug } = canonicalVenueSlugs(venueIndex);
+    const match = bySlug.get(slug);
     const venue = match ? await fetchVenueById(supabaseUrl, serviceKey, match.id) : null;
 
     if (!venue) {
@@ -481,13 +508,17 @@ export default async function handler(req) {
     }
 
     const reviews = await fetchReviews(supabaseUrl, serviceKey, venue.id);
-    const html = buildPage(venue, reviews, venueIndex);
+    const canonSlug = slugById.get(venue.id) || slugify(venue.name);
+    const html = buildPage(venue, reviews, venueIndex, { canonSlug, slugById });
 
+    // Crawl-efficiency: venue deals/hours change weekly at most, and sitemap
+    // lastmod already tracks updated_at — so cache venue pages at the edge for
+    // a day. This is the single biggest DB-egress win on crawler traffic.
     return new Response(html, {
       status: 200,
       headers: {
         'Content-Type': 'text/html; charset=utf-8',
-        'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400'
+        'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=604800'
       }
     });
   } catch (err) {

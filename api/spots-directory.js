@@ -1,18 +1,14 @@
 export const config = { runtime: 'edge' };
 
+import { canonicalVenueSlugs } from './_lib/seo.js';
+
 // Canonical host — www serves 200, the apex redirects. Keep canonical / og:url /
 // JSON-LD on www so Google indexes the served URL rather than the redirect.
 const SITE_URL = 'https://www.spotd.biz';
 
 /* ── helpers ─────────────────────────────────────── */
 
-function slugify(name) {
-  return name.toLowerCase()
-    .replace(/&/g, 'and')
-    .replace(/['']/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
+// slugify lives in _lib/seo.js (used internally by canonicalVenueSlugs).
 
 function esc(s) {
   if (!s) return '';
@@ -53,8 +49,13 @@ async function fetchAllRows(url, headers) {
 async function fetchVenues(supabaseUrl, serviceKey) {
   // Mirror the sitemap: only venues with a real photo are indexable. Photoless
   // venues render as grey placeholders and stay out of Google's index.
+  // NOTE: no order= param here. Rows arrive in PostgREST default (physical)
+  // order — the same relative order api/spots.js sees — so the canonical slug
+  // map below assigns plain slugs to the same "first" venues /spots/<slug>
+  // resolves to. Display sorting happens in JS after the map is built, so the
+  // page order is unchanged. id is needed for the slug lookup.
   return fetchAllRows(
-    `${supabaseUrl}/rest/v1/venues?active=eq.true&photo_url=not.is.null&select=name,neighborhood,city_slug,deals&order=city_slug.asc,name.asc`,
+    `${supabaseUrl}/rest/v1/venues?active=eq.true&photo_url=not.is.null&select=id,name,neighborhood,city_slug,deals`,
     { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` }
   );
 }
@@ -71,6 +72,19 @@ export default async function handler() {
 
   try {
     const venues = await fetchVenues(supabaseUrl, serviceKey);
+
+    // Canonical slugs for cross-city name collisions (winners keep the plain
+    // slug, losers get `<slug>-<city_slug>`). Computed over physical fetch
+    // order so winners match /spots/<slug> resolution.
+    const { byId: slugById } = canonicalVenueSlugs(venues);
+    const canonSlug = (v) => slugById.get(v.id) || v.name;
+
+    // Display order (previously done in SQL): city, then name.
+    venues.sort((a, b) => {
+      const ca = a.city_slug || 'other', cb = b.city_slug || 'other';
+      if (ca !== cb) return ca < cb ? -1 : 1;
+      return (a.name || '').localeCompare(b.name || '');
+    });
 
     // Group by city, ordered by size (launched markets — SD, OC — surface first).
     const byCity = {};
@@ -91,7 +105,7 @@ export default async function handler() {
       itemListElement: venues.map((v, i) => ({
         '@type': 'ListItem',
         position: i + 1,
-        url: `${SITE_URL}/spots/${slugify(v.name)}`,
+        url: `${SITE_URL}/spots/${canonSlug(v)}`,
         name: v.name
       }))
     };
@@ -111,7 +125,7 @@ export default async function handler() {
 
     const sections = cities.map(c => {
       const list = byCity[c].map(v => {
-        const slug = slugify(v.name);
+        const slug = canonSlug(v);
         const t = teaser(v.deals);
         return `<li class="dir-item">
           <a class="dir-link" href="/spots/${slug}">${esc(v.name)}</a>

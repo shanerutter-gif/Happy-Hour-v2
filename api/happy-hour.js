@@ -1,18 +1,12 @@
 export const config = { runtime: 'edge' };
 
+import { slugify, canonicalHood, isHoodAlias } from './_lib/seo.js';
+
 // Canonical host — www serves 200, the apex redirects. Keep canonical / og:url /
 // JSON-LD on www so Google indexes the served URL rather than the redirect.
 const SITE_URL = 'https://www.spotd.biz';
 
 /* ── helpers ─────────────────────────────────────── */
-
-function slugify(name) {
-  return (name || '').toLowerCase()
-    .replace(/&/g, 'and')
-    .replace(/['']/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
 
 function esc(s) {
   if (!s) return '';
@@ -96,26 +90,50 @@ export default async function handler(req) {
 
     const cityNameStr = cityName(city);
 
-    // Distinct neighborhoods in this city (for chips + counts).
+    // Distinct neighborhoods in this city, canonicalized: freeform variants
+    // ("Gaslamp" vs "Gaslamp Quarter", "PB" vs "Pacific Beach") collapse to
+    // one canonical slug so we never render duplicate thin neighborhood pages.
+    // Unmapped variants are kept as-is (logged once per request) so no venue
+    // data is silently dropped — admin can map them later in _lib/seo.js.
     const hoodMap = {};
+    const loggedHoods = new Set();
     for (const v of venues) {
       const n = v.neighborhood;
       if (!n) continue;
-      const s = slugify(n);
-      if (!hoodMap[s]) hoodMap[s] = { name: n, slug: s, count: 0 };
-      hoodMap[s].count++;
+      const canon = canonicalHood(n);
+      if (!canon) continue;
+      if (!canon.mapped && !loggedHoods.has(canon.slug)) {
+        loggedHoods.add(canon.slug);
+        console.log(`[seo-recovery] unmapped neighborhood variant: "${n}" (city: ${city})`);
+      }
+      if (!hoodMap[canon.slug]) hoodMap[canon.slug] = { name: canon.name, slug: canon.slug, count: 0 };
+      hoodMap[canon.slug].count++;
     }
     const neighborhoods = Object.values(hoodMap).sort((a, b) => b.count - a.count);
 
-    // Resolve neighborhood filter.
+    // Resolve neighborhood filter. Alias slugs (e.g. /gaslamp, /pb) 301 to the
+    // canonical page (/gaslamp-quarter, /pacific-beach) so link equity
+    // consolidates on one URL per neighborhood. ?day= is preserved.
     let target = null;
     if (hoodSlug) {
+      if (isHoodAlias(hoodSlug)) {
+        const canonSlug = canonicalHood(hoodSlug).slug;
+        if (neighborhoods.some(x => x.slug === canonSlug)) {
+          const dest = `${SITE_URL}/happy-hour/${city}/${canonSlug}${activeDay ? `?day=${activeDay.q}` : ''}`;
+          return new Response(null, {
+            status: 301,
+            headers: { Location: dest, 'Cache-Control': 'public, s-maxage=86400' }
+          });
+        }
+      }
       target = neighborhoods.find(n => n.slug === hoodSlug);
       if (!target) return notFound();
     }
 
-    // Apply filters.
-    let pool = target ? venues.filter(v => slugify(v.neighborhood || '') === target.slug) : venues;
+    // Apply filters (neighborhood match is on the canonical slug).
+    let pool = target
+      ? venues.filter(v => { const c = canonicalHood(v.neighborhood); return c && c.slug === target.slug; })
+      : venues;
     const dayPool = activeDay ? pool.filter(v => Array.isArray(v.days) && v.days.includes(activeDay.abbr)) : pool;
     const count = dayPool.length;
 

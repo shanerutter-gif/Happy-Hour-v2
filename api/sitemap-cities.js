@@ -1,5 +1,7 @@
 export const config = { runtime: 'edge' };
 
+import { canonicalHood } from './_lib/seo.js';
+
 // Sitemap for the crawlable directory + city/neighborhood happy-hour landing
 // pages. Canonical host is www (the apex redirects). See api/spots-directory.js
 // and api/happy-hour.js.
@@ -7,13 +9,7 @@ const SITE_URL = 'https://www.spotd.biz';
 
 const DAY_SLUGS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
-function slugify(name) {
-  return (name || '').toLowerCase()
-    .replace(/&/g, 'and')
-    .replace(/['']/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
+// slugify lives in _lib/seo.js (used internally by canonicalHood).
 
 function urlEntry(loc, priority, changefreq) {
   return `  <url>
@@ -53,13 +49,28 @@ export default async function handler() {
       { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` }
     );
 
-    // city -> Set of neighborhood slugs
+    // city -> Map of canonical neighborhood slug -> true. Freeform variants
+    // ("Gaslamp" vs "Gaslamp Quarter", "PB" vs "Pacific Beach") collapse to
+    // one canonical slug via canonicalHood() so the sitemap never emits
+    // duplicate thin neighborhood pages. Unmapped variants are kept as-is
+    // (logged) rather than dropped.
     const cities = {};
+    const loggedVariants = new Set();
     for (const v of venues) {
       const c = v.city_slug;
       if (!c) continue;
-      if (!cities[c]) cities[c] = new Set();
-      if (v.neighborhood) cities[c].add(slugify(v.neighborhood));
+      if (!cities[c]) cities[c] = new Map();
+      if (!v.neighborhood) continue;
+      const canon = canonicalHood(v.neighborhood);
+      if (!canon) continue;
+      if (!canon.mapped) {
+        const key = `${c}|${canon.slug}`;
+        if (!loggedVariants.has(key)) {
+          loggedVariants.add(key);
+          console.log(`[seo-recovery] unmapped neighborhood variant: "${v.neighborhood}" (city: ${c}) -> /happy-hour/${c}/${canon.slug}`);
+        }
+      }
+      cities[c].set(canon.slug, true);
     }
 
     const entries = [urlEntry(`${SITE_URL}/spots`, '0.9', 'daily')];
@@ -70,8 +81,8 @@ export default async function handler() {
       for (const day of DAY_SLUGS) {
         entries.push(urlEntry(`${SITE_URL}/happy-hour/${city}?day=${day}`, '0.6', 'weekly'));
       }
-      // Neighborhood pages.
-      for (const hood of [...cities[city]].sort()) {
+      // Neighborhood pages — canonical slugs only.
+      for (const hood of [...cities[city].keys()].sort()) {
         entries.push(urlEntry(`${SITE_URL}/happy-hour/${city}/${hood}`, '0.7', 'weekly'));
       }
     }
