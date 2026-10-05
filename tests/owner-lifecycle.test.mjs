@@ -148,6 +148,79 @@ function extractFunction(src, startMarker) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// 1b. classifyNudgeCohorts unit tests (day-3 / day-10 onboarding nudges)
+// ═══════════════════════════════════════════════════════════════
+{
+  const mod = await import('../api/loops-owner-inactive.js');
+  const { classifyNudgeCohorts } = mod;
+  const now = Date.now();
+  const iso = (daysAgo) => new Date(now - daysAgo * DAY).toISOString();
+  const mk = (over) => ({
+    id: over.id, contact_name: 'Sam Owner', contact_email: 'sam@bar.com',
+    venue_id: 'v1', user_id: 'u1', approved_at: iso(over.approvedDaysAgo ?? 12),
+    created_at: iso((over.approvedDaysAgo ?? 12) + 1),
+    owner_nudged_3d_at: null, owner_nudged_10d_at: null,
+    venue: { name: 'Test Bar', owner_last_update_at: over.stamp ?? null },
+    ...over.extra,
+  });
+  const noProps = new Map();
+  const ids3 = (r) => r.nudge3.map(e => e.claim.id).sort();
+  const ids10 = (r) => r.nudge10.map(e => e.claim.id).sort();
+
+  // P1: approved 3.5d ago, untouched → nudge3
+  let r = classifyNudgeCohorts([mk({ id: 'P1', approvedDaysAgo: 3.5 })], noProps, now);
+  check('P1: 3.5d untouched → nudge3', ids3(r).join() === 'P1' && r.nudge10.length === 0);
+
+  // P2: approved 2d ago → neither (too early)
+  r = classifyNudgeCohorts([mk({ id: 'P2', approvedDaysAgo: 2 })], noProps, now);
+  check('P2: 2d → skipped', r.nudge3.length === 0 && r.nudge10.length === 0);
+
+  // P3: approved 12d ago, untouched, never nudged → nudge3 first (catch-up pacing)
+  r = classifyNudgeCohorts([mk({ id: 'P3', approvedDaysAgo: 12 })], noProps, now);
+  check('P3: 12d missed nudge3 → nudge3 (not both)', ids3(r).join() === 'P3' && r.nudge10.length === 0);
+
+  // P4: 12d ago, nudge3 already sent → nudge10
+  r = classifyNudgeCohorts([mk({ id: 'P4', approvedDaysAgo: 12, extra: { owner_nudged_3d_at: iso(9) } })], noProps, now);
+  check('P4: nudge3 sent → nudge10', ids10(r).join() === 'P4' && r.nudge3.length === 0);
+
+  // P5: both nudges sent → neither
+  r = classifyNudgeCohorts([mk({ id: 'P5', approvedDaysAgo: 20, extra: { owner_nudged_3d_at: iso(17), owner_nudged_10d_at: iso(10) } })], noProps, now);
+  check('P5: both sent → skipped', r.nudge3.length === 0 && r.nudge10.length === 0);
+
+  // P6: owner touched listing after approval (stamp) → neither
+  r = classifyNudgeCohorts([mk({ id: 'P6', approvedDaysAgo: 12, stamp: iso(2) })], noProps, now);
+  check('P6: touched 2d ago → skipped', r.nudge3.length === 0 && r.nudge10.length === 0);
+
+  // P7: owner proposal after approval (fallback signal) → neither
+  r = classifyNudgeCohorts(
+    [mk({ id: 'P7', approvedDaysAgo: 12 })],
+    new Map([['v1|u1', iso(5)]]), now);
+  check('P7: proposal after approval → skipped', r.nudge3.length === 0 && r.nudge10.length === 0);
+
+  // P8: proposal BEFORE approval does not count as a touch
+  r = classifyNudgeCohorts(
+    [mk({ id: 'P8', approvedDaysAgo: 3.5 })],
+    new Map([['v1|u1', iso(4)]]), now);
+  check('P8: pre-approval proposal ignored → nudge3', ids3(r).join() === 'P8');
+
+  // P9: missing email → skipped
+  r = classifyNudgeCohorts([mk({ id: 'P9', approvedDaysAgo: 5, extra: { contact_email: null } })], noProps, now);
+  check('P9: missing email → skipped', r.nudge3.length === 0 && r.nudge10.length === 0);
+
+  // P10: exactly 3d boundary → included
+  r = classifyNudgeCohorts([mk({ id: 'P10', approvedDaysAgo: 3 })], noProps, now);
+  check('P10: exactly 3d → nudge3', ids3(r).join() === 'P10');
+
+  // P11: exactly 10d, nudge3 sent → nudge10
+  r = classifyNudgeCohorts([mk({ id: 'P11', approvedDaysAgo: 10, extra: { owner_nudged_3d_at: iso(7) } })], noProps, now);
+  check('P11: exactly 10d, nudge3 sent → nudge10', ids10(r).join() === 'P11');
+
+  // P12: approved_at null falls back to created_at
+  r = classifyNudgeCohorts([mk({ id: 'P12', approvedDaysAgo: 5, extra: { approved_at: null, created_at: iso(5) } })], noProps, now);
+  check('P12: null approved_at → created_at fallback → nudge3', ids3(r).join() === 'P12');
+}
+
+// ═══════════════════════════════════════════════════════════════
 // 2+3. Endpoint dry-run and full send path (stubbed fetch)
 // ═══════════════════════════════════════════════════════════════
 {
@@ -202,7 +275,9 @@ function extractFunction(src, startMarker) {
   let body = await res.json();
   check('dry: returns cohorts without sending',
     body.dry === true && body.cohort7.length === 1 && body.cohort30.length === 1 &&
-    body.cohort7[0].claim_id === 'c7' && body.cohort30[0].claim_id === 'c30');
+    body.nudge3.length === 1 && body.nudge10.length === 0 &&
+    body.cohort7[0].claim_id === 'c7' && body.cohort30[0].claim_id === 'c30' &&
+    body.nudge3[0].claim_id === 'c7');
   check('dry: no Loops calls made', !calls.some(c => c.url.includes('app.loops.so')));
   check('dry: no stamps written', !calls.some(c => c.method === 'PATCH'));
   check('dry: no analytics inserts', !calls.some(c => c.url.includes('analytics_events')));
@@ -211,24 +286,31 @@ function extractFunction(src, startMarker) {
   calls.length = 0;
   res = await handler(req(''));
   body = await res.json();
-  check('send: counts', body.sent7 === 1 && body.sent30 === 1 && body.cohort7 === 1 && body.cohort30 === 1,
+  check('send: counts',
+    body.sent7 === 1 && body.sent30 === 1 && body.sentNudge3 === 1 && body.sentNudge10 === 0 &&
+    body.cohort7 === 1 && body.cohort30 === 1 && body.nudge3 === 1 && body.nudge10 === 0,
     JSON.stringify(body));
   const loopsCalls = calls.filter(c => c.url.includes('app.loops.so'));
-  check('send: 2 Loops events', loopsCalls.length === 2);
+  check('send: 3 Loops events (7d + 30d + nudge3)', loopsCalls.length === 3);
   const ev7 = loopsCalls.find(c => c.body.eventName === 'owner.inactive_7d');
   const ev30 = loopsCalls.find(c => c.body.eventName === 'owner.inactive_30d');
+  const evN3 = loopsCalls.find(c => c.body.eventName === 'owner.nudge_3d');
   check('send: 7d → amy@bar.com', ev7 && ev7.body.email === 'amy@bar.com');
   check('send: 30d → bob@bar.com', ev30 && ev30.body.email === 'bob@bar.com');
+  check('send: nudge3 → amy@bar.com (c7 missed day-3, paced catch-up)', evN3 && evN3.body.email === 'amy@bar.com');
+  check('send: c30 not double-nudged (30d suppresses nudge)',
+    !loopsCalls.some(c => c.body.email === 'bob@bar.com' && c.body.eventName.startsWith('owner.nudge')));
   check('send: 7d props carry venue + portal',
     ev7 && ev7.body.eventProperties.venueName === 'Amy Bar' &&
     ev7.body.eventProperties.portalUrl === 'https://www.spotd.biz/business-portal.html' &&
     ev7.body.eventProperties.firstName === 'Amy');
   const stamps = calls.filter(c => c.method === 'PATCH' && c.url.includes('venue_claims'));
-  check('send: 2 claim stamps', stamps.length === 2);
+  check('send: 3 claim stamps', stamps.length === 3);
   check('send: 7d stamp column', stamps.some(c => c.url.includes('id=eq.c7') && c.body.owner_reengaged_7d_at));
   check('send: 30d stamp column', stamps.some(c => c.url.includes('id=eq.c30') && c.body.owner_reengaged_30d_at));
+  check('send: nudge3 stamp column', stamps.some(c => c.url.includes('id=eq.c7') && c.body.owner_nudged_3d_at));
   const analytics = calls.filter(c => c.url.includes('analytics_events'));
-  check('send: 2 analytics mirrors', analytics.length === 2);
+  check('send: 3 analytics mirrors', analytics.length === 3);
   const aRow = analytics.find(c => c.body[0].event_name === 'owner.inactive_7d');
   check('send: analytics attributed to owner',
     aRow && aRow.body[0].user_id === 'u7' && aRow.body[0].props.venue_id === 'v7');
