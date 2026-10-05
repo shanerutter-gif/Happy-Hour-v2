@@ -12,6 +12,8 @@ const SCRIPT_TAGS = [
   '<script src="/admin-push-center.js" defer></script>',
   '<script src="/admin-activity.js" defer></script>',
   '<script src="/admin-analytics.js" defer></script>',
+  '<script src="/admin-social-analytics.js" defer></script>',
+  '<script src="/admin-email-analytics.js" defer></script>',
 ];
 
 // Fetch admin.html from the GitHub Contents API instead of raw.githubusercontent.com.
