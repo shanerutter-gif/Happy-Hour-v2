@@ -7,7 +7,11 @@
   "orientation": "portrait",
   "background_color": "#F5EFE6",
   "theme_color": "#FF6B4A",
-  "categories": ["food", "lifestyle", "navigation"],
+  "categories": [
+    "food",
+    "lifestyle",
+    "navigation"
+  ],
   "icons": [
     {
       "src": "/icons/icon-72.png",
@@ -67,23 +71,23 @@
   "screenshots": [
     {
       "src": "/screenshots/home.png",
-      "sizes": "390x844",
+      "sizes": "580x1287",
       "type": "image/png",
       "form_factor": "narrow",
       "label": "Find today's best spots"
     },
     {
       "src": "/screenshots/venues.png",
-      "sizes": "390x844",
+      "sizes": "593x1345",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "Browse happy hours near you"
+      "label": "Real hours. Real deals."
     }
   ],
   "related_applications": [
     {
       "platform": "itunes",
-      "url": "https://apps.apple.com/app/spotd/id000000000"
+      "url": "https://apps.apple.com/us/app/spotd/id6760452388"
     }
   ]
 }

@@ -16,8 +16,8 @@ self.addEventListener('push', event => {
   const title = payload.title || 'Spotd';
   const options = {
     body:  payload.body  || '',
-    icon:  payload.icon  || '/img/icon-192.png',
-    badge: payload.badge || '/img/icon-192.png',
+    icon:  payload.icon  || '/icons/icon-192.png',
+    badge: payload.badge || '/icons/icon-192.png',
     data:  payload.data  || {},
     tag:   payload.tag   || 'spotd-notification',
   };
