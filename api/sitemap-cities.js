@@ -11,10 +11,10 @@ const DAY_SLUGS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'satu
 
 // slugify lives in _lib/seo.js (used internally by canonicalHood).
 
-function urlEntry(loc, priority, changefreq) {
+function urlEntry(loc, priority, changefreq, lastmod) {
   return `  <url>
     <loc>${loc}</loc>
-    <changefreq>${changefreq}</changefreq>
+    ${lastmod ? `<lastmod>${lastmod}</lastmod>\n` : ''}    <changefreq>${changefreq}</changefreq>
     <priority>${priority}</priority>
   </url>`;
 }
@@ -45,7 +45,7 @@ export default async function handler() {
 
   try {
     const venues = await fetchAllRows(
-      `${supabaseUrl}/rest/v1/venues?active=eq.true&photo_url=not.is.null&select=city_slug,neighborhood`,
+      `${supabaseUrl}/rest/v1/venues?active=eq.true&photo_url=not.is.null&select=city_slug,neighborhood,updated_at`,
       { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` }
     );
 
@@ -54,12 +54,19 @@ export default async function handler() {
     // one canonical slug via canonicalHood() so the sitemap never emits
     // duplicate thin neighborhood pages. Unmapped variants are kept as-is
     // (logged) rather than dropped.
+    //
+    // lastmod: track the newest venue updated_at per city / neighborhood so
+    // Google can skip re-crawling hub pages whose data hasn't changed — a
+    // crawl-budget win while 2,300+ URLs sit discovered-but-not-indexed.
     const cities = {};
     const loggedVariants = new Set();
+    const dayOf = (ts) => ts ? new Date(ts).toISOString().split('T')[0] : '';
     for (const v of venues) {
       const c = v.city_slug;
       if (!c) continue;
-      if (!cities[c]) cities[c] = new Map();
+      if (!cities[c]) cities[c] = { hoods: new Map(), lastmod: '' };
+      const lm = dayOf(v.updated_at);
+      if (lm && lm > cities[c].lastmod) cities[c].lastmod = lm;
       if (!v.neighborhood) continue;
       const canon = canonicalHood(v.neighborhood);
       if (!canon) continue;
@@ -70,20 +77,23 @@ export default async function handler() {
           console.log(`[seo-recovery] unmapped neighborhood variant: "${v.neighborhood}" (city: ${c}) -> /happy-hour/${c}/${canon.slug}`);
         }
       }
-      cities[c].set(canon.slug, true);
+      const prev = cities[c].hoods.get(canon.slug) || '';
+      if (lm && lm > prev) cities[c].hoods.set(canon.slug, lm);
+      else if (!cities[c].hoods.has(canon.slug)) cities[c].hoods.set(canon.slug, '');
     }
 
     const entries = [urlEntry(`${SITE_URL}/spots`, '0.9', 'daily')];
 
     for (const city of Object.keys(cities).sort()) {
-      entries.push(urlEntry(`${SITE_URL}/happy-hour/${city}`, '0.9', 'daily'));
+      const cityLm = cities[city].lastmod;
+      entries.push(urlEntry(`${SITE_URL}/happy-hour/${city}`, '0.9', 'daily', cityLm));
       // City-level day filters (target "tuesday happy hour san diego" etc.)
       for (const day of DAY_SLUGS) {
-        entries.push(urlEntry(`${SITE_URL}/happy-hour/${city}?day=${day}`, '0.6', 'weekly'));
+        entries.push(urlEntry(`${SITE_URL}/happy-hour/${city}?day=${day}`, '0.6', 'weekly', cityLm));
       }
       // Neighborhood pages — canonical slugs only.
-      for (const hood of [...cities[city].keys()].sort()) {
-        entries.push(urlEntry(`${SITE_URL}/happy-hour/${city}/${hood}`, '0.7', 'weekly'));
+      for (const hood of [...cities[city].hoods.keys()].sort()) {
+        entries.push(urlEntry(`${SITE_URL}/happy-hour/${city}/${hood}`, '0.7', 'weekly', cities[city].hoods.get(hood) || cityLm));
       }
     }
 
