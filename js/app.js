@@ -2876,6 +2876,10 @@ function toggleHappeningNow() {
   if (typeof haptic === 'function') haptic('light');
   state.happeningNow = !state.happeningNow;
   document.getElementById('happeningToggle')?.classList.toggle('active', state.happeningNow);
+  // This view forces "ends soonest" ordering no matter which sort pill is
+  // selected — disable the pills so the UI can't imply the chosen sort is
+  // in effect while the view is active.
+  document.getElementById('sortFilters')?.classList.toggle('sort-disabled', state.happeningNow);
   if (state.happeningNow) { _hhNowAt = 0; startHHTicker(); track('happening_now_filter', { on: true }); }
   else { stopHHTicker(); }
   applyFilters(); updateChips(); updateClearBtn();
@@ -2885,6 +2889,7 @@ function resetHappeningNow() {
   state.happeningNow = false;
   stopHHTicker();
   document.getElementById('happeningToggle')?.classList.remove('active');
+  document.getElementById('sortFilters')?.classList.remove('sort-disabled');
 }
 
 // ══════════════════════════════════════════════════════════
@@ -3458,9 +3463,13 @@ function applyFilters() {
     rc.textContent = state.happeningNow
       ? `${state.filtered.length} happy hour${state.filtered.length === 1 ? '' : 's'} on right now`
       : `${state.filtered.length} of ${pool.length} venues`;
-    // Nearest is the default sort but nothing said so (and cards reorder once
-    // location resolves) — caption it.
-    if (!state.happeningNow && !searchRanked && state.sort === 'distance' && state.userLat != null) {
+    // Say what the list is actually sorted by: "Happening now" forces
+    // ends-soonest ordering no matter which sort pill is selected.
+    if (state.happeningNow) {
+      rc.insertAdjacentHTML('beforeend', '<span class="results-sort"> · ending soonest</span>');
+    } else if (!searchRanked && state.sort === 'distance' && state.userLat != null) {
+      // Nearest is the default sort but nothing said so (and cards reorder once
+      // location resolves) — caption it.
       rc.insertAdjacentHTML('beforeend', '<span class="results-sort"> · nearest first</span>');
     }
   }
@@ -3784,7 +3793,7 @@ function heroCardHTML(v, delay, idx = 0) {
     <img class="card-hero-img" src="${esc(optImg(photoUrl, 960))}" data-raw="${esc(photoUrl)}" alt="${esc(v.name)}" loading="${idx === 0 ? 'eager' : 'lazy'}" decoding="async"${idx === 0 ? ' fetchpriority="high"' : ''}
       onerror="${IMG_FALLBACK}this.remove()">
 
-    <button class="card-hero-fav${faved ? ' faved' : ''}"
+    <button class="card-hero-fav${faved ? ' faved' : ''}" data-fav-for="${v.id}"
       onclick="event.stopPropagation();doFavorite('${v.id}','venue',this);this.classList.toggle('faved');this.textContent=this.classList.contains('faved')?'★':'☆'">${faved ? '★' : '☆'}</button>
     
     <div class="card-hero-info">
@@ -3827,7 +3836,7 @@ function compactCardHTML(v, delay) {
     <img class="card-compact-img" src="${esc(optImg(photoUrl, 640))}" data-raw="${esc(photoUrl)}" alt="${esc(v.name)}" loading="lazy" decoding="async"
       onerror="${IMG_FALLBACK}this.closest('.card-compact').style.background='linear-gradient(135deg,#2A1F14,#1A1208)';this.remove()">
     <div class="card-compact-overlay"></div>
-    <button class="card-compact-fav${faved ? ' faved' : ''}"
+    <button class="card-compact-fav${faved ? ' faved' : ''}" data-fav-for="${v.id}"
       onclick="event.stopPropagation();doFavorite('${v.id}','venue',this);this.classList.toggle('faved');this.textContent=this.classList.contains('faved')?'★':'☆'">${faved ? '★' : '☆'}</button>
     ${badge}
     <div class="card-compact-info">
@@ -3886,7 +3895,7 @@ function standardCardHTML(v, delay, first = false) {
       <button class="card-std-checkin${isMeIn ? ' joined' : ''}" data-vid="${v.id}"
         onclick="event.stopPropagation();doGoingTonight('${v.id}',this)">${isMeIn ? '✓ Checked In' : '+ Check In'}</button>
     </div>
-    <button class="card-std-fav${faved ? ' faved' : ''}"
+    <button class="card-std-fav${faved ? ' faved' : ''}" data-fav-for="${v.id}"
       onclick="event.stopPropagation();doFavorite('${v.id}','venue',this);this.classList.toggle('faved');this.textContent=this.classList.contains('faved')?'★':'☆'">${faved ? '★' : '☆'}</button>
   </div>`;
 }
@@ -3929,7 +3938,13 @@ async function doFavorite(itemId, itemType, btn) {
   if (!currentUser) { openAuth('signin', 'favorite'); showToast('Sign in to save'); return; }
   if(typeof haptic==='function')haptic('light');
   const added = await toggleFavorite(itemId, itemType);
-  btn.textContent = added ? '★' : '☆'; btn.classList.toggle('faved', added);
+  // The modal save button and the grid card behind it are separate DOM nodes —
+  // flip every save star for this item to the server-confirmed state so the
+  // card behind the modal can't go stale (was: only the tapped button updated).
+  const star = added ? '★' : '☆';
+  document.querySelectorAll(`[data-fav-for="${CSS.escape(String(itemId))}"]`).forEach(b => {
+    b.textContent = star; b.classList.toggle('faved', added);
+  });
   showToast(added ? 'Saved ★' : 'Removed');
   if(added && typeof promptPushIfAppropriate==='function') promptPushIfAppropriate();
 }
@@ -4040,13 +4055,13 @@ function renderModal(v, type, reviews) {
     <div class="modal-hero-wrap${photos.length > 1 ? ' modal-hero-carousel' : ''}"${photos.length > 1 ? '' : ` onclick="openPhotoLightbox('${esc(photo)}','${esc(v.name)}')"`}>
       ${photos.length > 1
         ? `<div class="modal-hero-track" onscroll="_syncModalDots(this)">
-            ${photos.map((p, i) => `<div class="modal-hero-slide" onclick="openPhotoLightbox('${esc(p)}','${esc(v.name)}')"><img src="${esc(optImg(p, 1080))}" data-raw="${esc(p)}" alt="${esc(v.name)}" ${i === 0 ? 'loading="eager" fetchpriority="high"' : 'loading="lazy"'} decoding="async" onerror="${IMG_FALLBACK}this.style.display='none'"></div>`).join('')}
+            ${photos.map((p, i) => `<div class="modal-hero-slide" onclick="openPhotoLightbox('${esc(p)}','${esc(v.name)}')"><img src="${esc(optImg(p, 1080))}" data-raw="${esc(p)}" alt="${esc(v.name)}" ${i === 0 ? 'loading="eager" fetchpriority="high"' : 'loading="lazy"'} decoding="async" onload="this.classList.add('is-loaded');var w=this.closest('.modal-hero-wrap');if(w)w.classList.add('img-ready')" onerror="${IMG_FALLBACK}this.style.display='none';var w=this.closest('.modal-hero-wrap');if(w)w.classList.add('img-ready')"></div>`).join('')}
           </div>`
-        : `<img src="${esc(optImg(photo, 1080))}" data-raw="${esc(photo)}" alt="${esc(v.name)}" loading="eager" fetchpriority="high" decoding="async" onerror="${IMG_FALLBACK}this.closest('.modal-hero-wrap').style.background='linear-gradient(135deg,#2A1F14,#1A1208)';this.remove()">`}
+        : `<img src="${esc(optImg(photo, 1080))}" data-raw="${esc(photo)}" alt="${esc(v.name)}" loading="eager" fetchpriority="high" decoding="async" onload="this.classList.add('is-loaded');var w=this.closest('.modal-hero-wrap');if(w)w.classList.add('img-ready')" onerror="${IMG_FALLBACK}var w=this.closest('.modal-hero-wrap');if(w){w.style.background='linear-gradient(135deg,#2A1F14,#1A1208)';w.classList.add('img-ready')}this.remove()">`}
       <div class="modal-hero-grad"></div>
       ${!isVenue ? `<div class="modal-hero-tag">${esc(v.event_type || 'Event')}</div>` : ''}
       <div class="modal-hero-name">${esc(v.name)}${v.owner_verified ? ' ✓' : ''}</div>
-      <button class="modal-hero-fav${faved ? ' faved' : ''}" onclick="event.stopPropagation();doFavorite('${v.id}','${type}',this)">${faved ? '★' : '☆'}</button>
+      <button class="modal-hero-fav${faved ? ' faved' : ''}" data-fav-for="${v.id}" onclick="event.stopPropagation();doFavorite('${v.id}','${type}',this)">${faved ? '★' : '☆'}</button>
       ${photos.length > 1 ? `<div class="modal-hero-dots">${photos.map((_, i) => `<span class="modal-hero-dot${i === 0 ? ' on' : ''}"></span>`).join('')}</div>` : ''}
     </div>` : `
     <div style="padding:26px 18px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
@@ -4054,7 +4069,7 @@ function renderModal(v, type, reviews) {
         ${!isVenue ? `<div class="s-tag ev">${esc(v.event_type || 'Event')}</div>` : ''}
         <div class="s-name">${esc(v.name)}${v.owner_verified ? ' <span class="verified-badge verified-badge--modal">✓ Verified</span>' : ''}</div>
       </div>
-      <button class="heart-btn heart-btn--lg${faved ? ' faved' : ''}" onclick="doFavorite('${v.id}','${type}',this)" style="margin-top:4px;flex-shrink:0">${faved ? '★' : '☆'}</button>
+      <button class="heart-btn heart-btn--lg${faved ? ' faved' : ''}" data-fav-for="${v.id}" onclick="doFavorite('${v.id}','${type}',this)" style="margin-top:4px;flex-shrink:0">${faved ? '★' : '☆'}</button>
     </div>`}
 
     <div class="modal-actions-grid">
@@ -4476,6 +4491,7 @@ async function openProfile() {
   const content = document.getElementById('profileContent');
   if (content && !content.dataset.userId) content.innerHTML = _profileSkeletonHTML();
   page.classList.add('profile-page--open');
+  _profilePushHistory();
   document.getElementById('bnProfile')?.classList.add('active');
   document.getElementById('bnFeed')?.classList.remove('active');
   await renderProfile(currentUser);
@@ -4512,7 +4528,45 @@ function closeProfile() {
   if (!page) return;
   page.classList.remove('profile-page--open');
   closeProfileMenu();
+  // Unwind the history entry openProfile() pushed (no-op when the page was
+  // closed by a popstate, which already unwound it — see the guard there).
+  if (_profileHistoryPushed) { _profileHistoryPushed = false; history.back(); }
 }
+
+// ── PROFILE PAGE: history + Escape wiring ──────────────────────────────
+// The profile page is a full-viewport fixed panel with no history entry, so a
+// browser-back press used to leave the SPA entirely (blank page / previous
+// site). openProfile() pushes a same-URL state; the popstate listener below
+// closes the panel instead of navigating. Escape mirrors the newsTab pattern.
+let _profileHistoryPushed = false;
+function _profilePushHistory() {
+  if (_profileHistoryPushed) return; // openProfile() can be re-entered
+  try { history.pushState({ spotd: 'profile' }, document.title, location.href); _profileHistoryPushed = true; }
+  catch (e) { _profileHistoryPushed = false; }
+}
+window.addEventListener('popstate', function () {
+  const page = document.getElementById('profilePage');
+  if (page && page.classList.contains('profile-page--open')) {
+    _profileHistoryPushed = false; // this pop already unwound our entry
+    closeProfile();
+    // The panel closed "backward" — restore the Discover tab's active state
+    // so the nav doesn't lie about where the user is.
+    _setActiveNavBtn(document.getElementById('bnFeed'));
+  }
+});
+document.addEventListener('keydown', function (e) {
+  if (e.key !== 'Escape') return;
+  const t = document.activeElement;
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+  const page = document.getElementById('profilePage');
+  if (page && page.classList.contains('profile-page--open')) {
+    // An open modal/sheet sits above the profile page and owns Escape.
+    if (document.querySelector('.overlay.open')) return;
+    e.preventDefault();
+    closeProfile();
+    _setActiveNavBtn(document.getElementById('bnFeed'));
+  }
+});
 
 function toggleProfileMenu(e) {
   e.stopPropagation();
@@ -4569,7 +4623,12 @@ async function renderProfile(user) {
 
   document.getElementById('profileContent').innerHTML = `
     <div class="pf-header">
-      <img src="/spotd_logo_v5.png" alt="Spotd" class="header-logo-img" onerror="this.style.display='none'">
+      <div class="pf-header-left">
+        <button class="pf-header-btn" onclick="bottomNavFeed(document.getElementById('bnFeed'))" title="Back" aria-label="Back to Discover">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <img src="/spotd_logo_v5.png" alt="Spotd" class="header-logo-img" onerror="this.style.display='none'">
+      </div>
       <div class="pf-header-actions">
         <button class="pf-header-btn" onclick="closeProfile();openDmInbox()" title="Messages">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
