@@ -1505,7 +1505,10 @@
         status: 'pending',
         source: 'business_portal'
       };
-      const postRequest = (body) => fetch(`${SUPABASE_URL}/rest/v1/venue_requests`, {
+      // sql/venue-requests-source-20260929.sql is applied (the `source` column is
+      // live — the portal's source=eq.business_portal queries succeed). The
+      // pre-migration retry-without-source fallback was removed 2026-10-04.
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/venue_requests`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1513,18 +1516,8 @@
           'Authorization': `Bearer ${getToken() || SUPABASE_ANON}`,
           'Prefer': 'return=representation'
         },
-        body: JSON.stringify(body)
+        body: JSON.stringify(payload)
       });
-      let r = await postRequest(payload);
-      if (!r.ok) {
-        const err = await r.json().catch(() => ({}));
-        if (/source/i.test(err.message || '')) {
-          // The source column isn't migrated yet — retry without it so the request isn't lost.
-          // (Remove this fallback once sql/venue-requests-source-20260929.sql is applied.)
-          const { source: _dropped, ...rest } = payload;
-          r = await postRequest(rest);
-        }
-      }
       if (!r.ok) {
         const err = await r.json().catch(() => ({}));
         throw new Error(err.message || 'Submission failed');

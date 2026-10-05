@@ -68,6 +68,8 @@
     .sidebar-item { display:flex; align-items:center; justify-content:space-between; padding:10px 20px; cursor:pointer; color:var(--muted); font-size:14px; font-weight:500; border-radius:0; transition:background .15s, color .15s; }
     .sidebar-item:hover { background:rgba(255,107,74,0.06); color:var(--text); }
     .sidebar-item.active { background:rgba(255,107,74,0.1); color:var(--coral); font-weight:600; }
+    button.sidebar-item { background:none; border:none; width:100%; text-align:left; font:inherit; color:inherit; }
+    button.sidebar-item:focus-visible { outline:2px solid var(--coral); outline-offset:-2px; }
     .sidebar-count { font-family:'DM Sans',sans-serif; font-size:11px; background:rgba(255,107,74,0.15); color:var(--coral); border-radius:50px; padding:1px 8px; font-weight:700; }
     .sidebar-count.zero { background:var(--bg2); color:var(--muted); }
 
@@ -1366,73 +1368,73 @@
 
     <!-- SIDEBAR -->
     <div class="sidebar">
-      <div class="sidebar-item active" onclick="showPage('dashboard')" id="nav-dashboard" style="margin-bottom:12px;font-weight:700">
+      <button type="button" class="sidebar-item active" onclick="showPage('dashboard')" id="nav-dashboard" style="margin-bottom:12px;font-weight:700">
         🏠 Dashboard
-      </div>
+      </button>
       <div class="sidebar-label" style="margin-bottom:8px">Review Queue</div>
-      <div class="sidebar-item" onclick="showPage('requests')" id="nav-requests">
+      <button type="button" class="sidebar-item" onclick="showPage('requests')" id="nav-requests">
         Venue Requests
         <span class="sidebar-count" id="sidebar-pending-count">—</span>
-      </div>
+      </button>
       <div class="sidebar-label" style="margin-top:20px;margin-bottom:8px">Listings</div>
-      <div class="sidebar-item" onclick="showPage('venues')" id="nav-venues">
+      <button type="button" class="sidebar-item" onclick="showPage('venues')" id="nav-venues">
         All Venues
-      </div>
-      <div class="sidebar-item" onclick="showPage('heroes')" id="nav-heroes">
+      </button>
+      <button type="button" class="sidebar-item" onclick="showPage('heroes')" id="nav-heroes">
         🔥 Hero Picker
-      </div>
+      </button>
       <div class="sidebar-label" style="margin-top:20px;margin-bottom:8px">Users</div>
-      <div class="sidebar-item" onclick="showPage('users')" id="nav-users">
+      <button type="button" class="sidebar-item" onclick="showPage('users')" id="nav-users">
         Users
-      </div>
+      </button>
       <div class="sidebar-label" style="margin-top:20px;margin-bottom:8px">Insights</div>
-      <div class="sidebar-item" onclick="showPage('venues-top')" id="nav-venues-top">
+      <button type="button" class="sidebar-item" onclick="showPage('venues-top')" id="nav-venues-top">
         Top Venues
-      </div>
-      <div class="sidebar-item" onclick="showPage('cities')" id="nav-cities">
+      </button>
+      <button type="button" class="sidebar-item" onclick="showPage('cities')" id="nav-cities">
         City Breakdown
-      </div>
+      </button>
       <div class="sidebar-label" style="margin-top:20px;margin-bottom:8px">CRM</div>
-      <div class="sidebar-item" onclick="showPage('crm')" id="nav-crm">
+      <button type="button" class="sidebar-item" onclick="showPage('crm')" id="nav-crm">
         🔀 Pipeline
-      </div>
-      <div class="sidebar-item" onclick="showPage('crm-contacts')" id="nav-crm-contacts">
+      </button>
+      <button type="button" class="sidebar-item" onclick="showPage('crm-contacts')" id="nav-crm-contacts">
         👤 Contacts
-      </div>
+      </button>
       <div class="sidebar-label" style="margin-top:20px;margin-bottom:8px">Team</div>
-      <div class="sidebar-item" onclick="showPage('team')" id="nav-team">
+      <button type="button" class="sidebar-item" onclick="showPage('team')" id="nav-team">
         🧑‍💼 Team
-      </div>
+      </button>
       <div class="sidebar-label" style="margin-top:20px;margin-bottom:8px">Engage</div>
-      <div class="sidebar-item" onclick="showPage('feedback')" id="nav-feedback">
+      <button type="button" class="sidebar-item" onclick="showPage('feedback')" id="nav-feedback">
         📬 User Feedback
         <span class="sidebar-count zero" id="sidebar-feedback-count">—</span>
-      </div>
-      <div class="sidebar-item" onclick="showPage('push')" id="nav-push">
+      </button>
+      <button type="button" class="sidebar-item" onclick="showPage('push')" id="nav-push">
         🔔 Push Notifications
-      </div>
+      </button>
       <div class="sidebar-label" style="margin-top:20px;margin-bottom:8px">Tools</div>
-      <div class="sidebar-item" onclick="showPage('cms')" id="nav-cms">
+      <button type="button" class="sidebar-item" onclick="showPage('cms')" id="nav-cms">
         ✏️ Site Copy
-      </div>
-      <div class="sidebar-item" onclick="showPage('board')" id="nav-board">
+      </button>
+      <button type="button" class="sidebar-item" onclick="showPage('board')" id="nav-board">
         🗂️ Project Board
-      </div>
-      <div class="sidebar-item" onclick="showPage('demo')" id="nav-demo">
+      </button>
+      <button type="button" class="sidebar-item" onclick="showPage('demo')" id="nav-demo">
         🎭 Demo Data
-      </div>
-      <div class="sidebar-item" onclick="showPage('assets')" id="nav-assets">
+      </button>
+      <button type="button" class="sidebar-item" onclick="showPage('assets')" id="nav-assets">
         🎨 Asset Generator
-      </div>
-      <div class="sidebar-item" onclick="showPage('email-builder')" id="nav-email-builder">
+      </button>
+      <button type="button" class="sidebar-item" onclick="showPage('email-builder')" id="nav-email-builder">
         📧 Email Builder
-      </div>
-      <div class="sidebar-item" onclick="showPage('content-calendar')" id="nav-content-calendar">
+      </button>
+      <button type="button" class="sidebar-item" onclick="showPage('content-calendar')" id="nav-content-calendar">
         📅 Content Calendar
-      </div>
-      <div class="sidebar-item" onclick="showPage('blog')" id="nav-blog">
+      </button>
+      <button type="button" class="sidebar-item" onclick="showPage('blog')" id="nav-blog">
         ✍️ Blog Manager
-      </div>
+      </button>
     </div>
 
     <!-- MAIN -->

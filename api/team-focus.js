@@ -28,6 +28,7 @@ const AGENTS = new Set([
   'Kai', 'Nora',
   'Diego', 'Elena',
   'Sam', 'Jordan',
+  'Alex', // COO agent (org-health desk) — added 2026-10-03, Shane-approved 2026-10-02
 ]);
 const STATUSES = new Set(['active', 'blocked', 'idle']);
 
