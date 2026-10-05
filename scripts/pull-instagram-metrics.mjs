@@ -13,13 +13,13 @@
 //   4. account-insights (best-effort)               → reach/views/interactions
 //   5. POSTs { social_daily_metrics, social_post_metrics } to /api/metrics-ingest.js
 //
-// Known limitation (verified 2026-10-05): the only linked Instagram account is
-// the founder's PERSONAL account, so account-insights returns HTTP 500 (no
-// insights API on personal accounts) and @spotdtoday is not linked. Until
-// @spotdtoday is linked as a professional account, views/reach/interactions/
-// profile_visits stay NULL and per-post views/shares stay NULL (the CLI never
-// exposes those per post). Follower count and per-post likes/comments come
-// from public reads and work today.
+// Insights (verified 2026-10-05): account-insights works once @spotdtoday is
+// linked as a professional account, but it returns 30-day PERIOD TOTALS only
+// (content_views, accounts_reached, total_interactions, profile_visits) — no
+// daily breakdown exists via the API. We store the per-day average (rounded)
+// so the dashboard's 7-day KPI sums approximate the trailing week. Per-post
+// views/shares stay NULL (the CLI never exposes those per post). Follower
+// count and per-post likes/comments come from public reads.
 //
 // Rate limits: stops immediately on HTTP 429. Stops the insights bulk read
 // after the first HTTP 500 (per the instagram skill).
@@ -117,14 +117,36 @@ async function main() {
     return Number.isFinite(t) && t >= cutoff;
   }).length;
 
+  // 5. Normalize account insights → per-day averages.
+  // account-insights returns 30-day PERIOD TOTALS (a list of entries each
+  // carrying a `value` field); the dashboard sums daily rows over 7-day
+  // windows, so we store the rounded per-day average. Missing metrics stay
+  // NULL rather than 0 — the dashboard renders those as "—".
+  const INSIGHTS_PERIOD_DAYS = 30;
+  function insightsTotal(name) {
+    const m = insights && insights[name];
+    if (!Array.isArray(m) || !m.length) return null;
+    const v = m[0] && m[0].value;
+    return typeof v === 'number' ? v : null;
+  }
+  function perDayAverage(total) {
+    return total == null ? null : Math.round(total / INSIGHTS_PERIOD_DAYS);
+  }
+  const igViews        = perDayAverage(insightsTotal('content_views'));
+  const igReach        = perDayAverage(insightsTotal('accounts_reached'));
+  const igInteractions = perDayAverage(insightsTotal('total_interactions'));
+  const igProfileVisits = perDayAverage(insightsTotal('profile_visits'));
+  log(`insights → per-day avg: views=${igViews ?? 'n/a'} reach=${igReach ?? 'n/a'} ` +
+      `interactions=${igInteractions ?? 'n/a'} profile_visits=${igProfileVisits ?? 'n/a'}`);
+
   const dailyRow = {
     day,
     platform: 'instagram',
     followers,
-    views: null,          // not exposed by the CLI
-    reach: null,          // needs account-insights on a linked professional account
-    interactions: null,   // same
-    profile_visits: null, // same
+    views: igViews,
+    reach: igReach,
+    interactions: igInteractions,
+    profile_visits: igProfileVisits,
     posts_published: postsPublished,
     collected_at: now,
   };

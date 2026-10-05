@@ -218,20 +218,34 @@
   // ── KPI math ───────────────────────────────────────
   function windowSums(days, offsetDays) {
     // Sum metrics over a `days`-long window ending `offsetDays` ago.
+    // "Both" is an explicit sum of the per-platform subtotals, so the toggle
+    // views can never disagree with the combined view.
     const end = new Date(); end.setHours(0, 0, 0, 0); end.setDate(end.getDate() - offsetDays);
     const start = new Date(end); start.setDate(start.getDate() - days);
-    const plats = new Set(platforms());
-    const out = { views: 0, interactions: 0, profile_visits: 0, posts_published: 0, has: false };
+    const byPlatform = {};
+    platforms().forEach(p => {
+      byPlatform[p] = { views: 0, interactions: 0, profile_visits: 0, posts_published: 0, has: false };
+    });
     data.daily.forEach(r => {
-      if (!plats.has(r.platform)) return;
+      const b = byPlatform[r.platform];
+      if (!b) return; // row's platform is not selected by the toggle
       const d = new Date(r.day + 'T12:00:00');
       if (d >= start && d < end) {
-        out.has = true;
-        out.views += +r.views || 0;
-        out.interactions += +r.interactions || 0;
-        out.profile_visits += +r.profile_visits || 0;
-        out.posts_published += +r.posts_published || 0;
+        b.has = true;
+        b.views += +r.views || 0;
+        b.interactions += +r.interactions || 0;
+        b.profile_visits += +r.profile_visits || 0;
+        b.posts_published += +r.posts_published || 0;
       }
+    });
+    const out = { views: 0, interactions: 0, profile_visits: 0, posts_published: 0, has: false, byPlatform };
+    Object.values(byPlatform).forEach(b => {
+      if (!b.has) return;
+      out.has = true;
+      out.views += b.views;
+      out.interactions += b.interactions;
+      out.profile_visits += b.profile_visits;
+      out.posts_published += b.posts_published;
     });
     return out;
   }
@@ -373,6 +387,7 @@
           <div>🕒 Pulls run daily at ~06:00 PT — Instagram via API, TikTok via TikTok Studio.</div>
           <div>${health.fresh.note ? esc(health.fresh.note) : '— checking…'}</div>
           <div>ℹ️ Instagram per-post views/shares aren't exposed by the API, so those cells show "—", not 0.</div>
+          <div>ℹ️ Instagram account-level views/reach are 30-day daily averages — the API only exposes period totals, not true daily counts.</div>
         </div>
       </div>
 

@@ -97,16 +97,20 @@ A source that fails 3 days in a row gets flagged to the founder.
 
 - **Instagram:** only the founder's *personal* account is linked to
   `instagram-cli`; `@spotdtoday` is not linked, so `account-insights` returns
-  HTTP 500. Until @spotdtoday is linked as a professional account,
-  `views/reach/interactions/profile_visits` stay NULL and per-post
-  views/shares stay NULL. Follower count + per-post likes/comments work today
-  via public reads. The UI shows "—" for unavailable cells, never 0.
+  @spotdtoday is now linked as a professional account, so account-insights
+  works — but it returns 30-day PERIOD TOTALS only (no daily breakdown).
+  The puller stores the rounded per-day average in the daily row so the 7-day
+  KPI sums approximate the trailing week. Per-post views/shares stay NULL
+  (never exposed per post). Follower count + per-post likes/comments come
+  from public reads. The UI shows "—" for unavailable cells, never 0.
 - **TikTok:** no API/CLI access — Studio numbers come from the browser task.
   Reach is not captured (Studio's "reach" definition differs); the column stays
   NULL until someone maps it.
-- **Email contacts KPI** reads `public.newsletter_subscribers` (admin JWT).
-  If Loops' contact count diverges from that table, the KPI should be
-  revisited.
+- **Email contacts KPI** reads the latest `__audience_total__` row's `sends`
+  value from `email_daily_metrics` (the Loops audience contact count),
+  falling back to `public.newsletter_subscribers` when no audience row exists.
+  The sentinel row is excluded from every send/open/click aggregation and from
+  the per-workflow table.
 - The `tiktok-studio-recon.md` and `loops-recon.md` briefs referenced in the
   original task do not exist yet — the pull steps above are written to be
   self-sufficient, but dedicated recon docs would tighten them.

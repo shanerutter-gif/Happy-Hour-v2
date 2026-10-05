@@ -14,8 +14,9 @@
  *
  * Read-only. Reuses the signed-in admin's user JWT + anon key (same pattern as
  * admin-analytics.js). Zero new RPCs — reads the metrics tables directly via
- * PostgREST, plus newsletter_subscribers for the contacts KPI. Failed reads
- * render a SUSPECT chip — never zeros.
+ * PostgREST, plus the __audience_total__ sentinel row for the contacts KPI
+ * (falling back to newsletter_subscribers when no audience row exists).
+ * Failed reads render a SUSPECT chip — never zeros.
  *
  * Registered in api/admin-page.js SCRIPT_TAGS. Served from GitHub main at
  * request time.
@@ -26,6 +27,11 @@
   const SUPABASE_URL  = 'https://opcskuzbdfrlnyhraysk.supabase.co';
   const SUPABASE_ANON = 'sb_publishable_M97B-GmwsRF6xPVahp_ytw_49nI9igs';
   const LS_KEY        = 'spotd-admin-session';
+
+  // Sentinel workflow row in email_daily_metrics: its `sends` column holds the
+  // Loops audience contact count. It feeds ONLY the Contacts KPI — it must be
+  // excluded from every send/open/click aggregation and from the workflows table.
+  const AUDIENCE_WORKFLOW = '__audience_total__';
 
   // ── auth helpers (verbatim pattern from admin-analytics.js) ──
   function session() {
@@ -164,7 +170,8 @@
   const data = {
     daily: [],      // email_daily_metrics rows (last 90 days)
     campaigns: [],  // email_campaigns rows
-    contacts: null, // newsletter_subscribers count
+    contacts: null, // Loops audience count (or legacy newsletter_subscribers count)
+    contactsSource: null, // 'Loops audience' | 'newsletter_subscribers' | null
   };
 
   function mark(key, status, note) {
@@ -210,7 +217,7 @@
         mark('kpis', 'stale', 'no data yet');
       } else {
         const oldestPullH = Math.min(...wfs.map(w => (Date.now() - new Date(pw[w].lastPull).getTime()) / 36e5));
-        const notes = wfs.map(w => `${esc(w)}: through ${pw[w].lastDay}, pulled ${relTime(pw[w].lastPull)}`).join(' · ');
+        const notes = wfs.map(w => `${esc(w === AUDIENCE_WORKFLOW ? 'audience' : w)}: through ${pw[w].lastDay}, pulled ${relTime(pw[w].lastPull)}`).join(' · ');
         mark('fresh', oldestPullH > 30 ? 'stale' : 'fresh', notes + ' — pulls run daily ~06:00 PT');
         mark('kpis', 'fresh', `${data.daily.length} daily rows · ${wfs.length} workflows`);
       }
@@ -233,10 +240,24 @@
   }
 
   async function loadContacts() {
+    // Primary source: the latest __audience_total__ row — its `sends` column
+    // is the Loops audience contact count. Fallback: the legacy
+    // newsletter_subscribers table (kept for history, currently empty).
+    try {
+      const r = await pg(`email_daily_metrics?select=sends,day&workflow=eq.${AUDIENCE_WORKFLOW}&order=day.desc&limit=1`);
+      const rows = await r.json();
+      if (Array.isArray(rows) && rows.length && rows[0].sends != null) {
+        data.contacts = +rows[0].sends;
+        data.contactsSource = 'Loops audience';
+        return;
+      }
+    } catch (e) { /* fall through to the legacy source */ }
     try {
       data.contacts = await pgCount('newsletter_subscribers');
+      data.contactsSource = 'newsletter_subscribers';
     } catch (e) {
       data.contacts = null; // KPI card will show the SUSPECT state via health
+      data.contactsSource = null;
       if (health.kpis.status === 'fresh') mark('kpis', 'fresh', (health.kpis.note || '') + ' · contacts read failed');
     }
   }
@@ -247,6 +268,7 @@
     const start = new Date(end); start.setDate(start.getDate() - days);
     const out = { sends: 0, opens: 0, clicks: 0, unsubscribes: 0, bounces: 0, has: false };
     data.daily.forEach(r => {
+      if (r.workflow === AUDIENCE_WORKFLOW) return; // contact count, not email activity
       const d = new Date(r.day + 'T12:00:00');
       if (d >= start && d < end) {
         out.has = true;
@@ -327,9 +349,10 @@
     const cur = windowSums(7, 0), prev = windowSums(7, 7);
     const cur30 = windowSums(30, 0);
 
-    // 30-day series: sends + opens per day
+    // 30-day series: sends + opens per day, 30 days
     const dayMap = {};
     data.daily.forEach(r => {
+      if (r.workflow === AUDIENCE_WORKFLOW) return; // contact count, not email activity
       const e = dayMap[r.day] || (dayMap[r.day] = { bucket: r.day, main: 0, sub: 0 });
       e.main += +r.sends || 0;
       e.sub += +r.opens || 0;
@@ -339,9 +362,11 @@
       .filter(d => new Date(d + 'T12:00:00') >= cutoff)
       .map(d => dayMap[d]);
 
-    // Per-workflow aggregates (last 30 days)
+    // Per-workflow aggregates (last 30 days). The __audience_total__ sentinel is
+    // excluded — it feeds the Contacts KPI, not this table.
     const wfMap = {};
     data.daily.forEach(r => {
+      if (r.workflow === AUDIENCE_WORKFLOW) return;
       const d = new Date(r.day + 'T12:00:00');
       if (d < cutoff) return;
       const e = wfMap[r.workflow] || (wfMap[r.workflow] = { workflow: r.workflow, sends: 0, opens: 0, clicks: 0, unsubscribes: 0, bounces: 0 });
@@ -381,7 +406,7 @@
         ${health.kpis.status === 'suspect'
           ? `<div style="padding:24px;text-align:center;color:var(--coral)">Couldn't load KPIs: ${esc(health.kpis.note)}<br><span style="color:var(--muted);font-size:12px">Showing nothing rather than zeros.</span></div>`
           : `<div class="kpi-row" style="display:flex;gap:12px;flex-wrap:wrap;padding:16px">
-              ${kpiCard('Contacts', contactsSuspect ? 'SUSPECT' : fmtInt(data.contacts), '<span style="color:var(--muted)">newsletter_subscribers</span>')}
+              ${kpiCard('Contacts', contactsSuspect ? 'SUSPECT' : fmtInt(data.contacts), data.contactsSource ? `<span style="color:var(--muted)">${esc(data.contactsSource)}</span>` : '')}
               ${kpiCard('Sends', cur.has ? fmtInt(cur.sends) : '—', cur.has ? deltaHTML(cur.sends, prev.has ? prev.sends : null) : '')}
               ${kpiCard('Open rate', cur.has ? fmtRate(cur.opens, cur.sends) : '—', cur.has ? rateDeltaHTML(cur.opens, cur.sends, prev.opens, prev.sends) : '')}
               ${kpiCard('Click rate', cur.has ? fmtRate(cur.clicks, cur.sends) : '—', cur.has ? rateDeltaHTML(cur.clicks, cur.sends, prev.clicks, prev.sends) : '')}
