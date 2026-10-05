@@ -425,7 +425,11 @@ function _loopsSignupContext() {
       || '';
   } catch (e) {}
 
-  return { city_slug: citySlug, cityName, vibes, platform, sourceDetail };
+  // Marketing UTMs captured at landing (first-touch, best-effort).
+  let utm = {};
+  try { utm = _readPendingUtm(); } catch (e) {}
+
+  return { city_slug: citySlug, cityName, vibes, platform, sourceDetail, ...utm };
 }
 
 function triggerLoopsOnboarding(email, firstName, userId, source) {
@@ -2462,19 +2466,68 @@ function getPendingAttribution() {
   try { return sessionStorage.getItem(PENDING_ATTRIBUTION_KEY) || null; } catch(e) { return null; }
 }
 
-// Write the stashed attribution (selected during onboarding) to the DB.
-// Idempotent: PK is user_id, so a second insert silently no-ops.
+// ── UTM CAPTURE (marketing attribution) ─────────────────────────────
+// Stash first-touch UTMs + landing referrer in sessionStorage on page load so
+// they survive until signup (same tab, incl. the OAuth redirect round-trip).
+// Best-effort and silent: never throws, never overwrites an existing stash.
+const PENDING_UTM_KEY = 'spotd_pending_utm';
+const UTM_PARAMS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'];
+
+function _readPendingUtm() {
+  try {
+    const raw = sessionStorage.getItem(PENDING_UTM_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch (e) { return {}; }
+}
+
+function capturePendingUtm() {
+  try {
+    // First-touch wins within the tab session: never overwrite.
+    if (sessionStorage.getItem(PENDING_UTM_KEY)) return;
+    const q = new URLSearchParams(window.location.search || '');
+    const utm = {};
+    let hasUtm = false;
+    for (const k of UTM_PARAMS) {
+      const v = (q.get(k) || '').trim().slice(0, 200);
+      if (v) { utm[k] = v; hasUtm = true; }
+    }
+    // Landing referrer (first-touch): skip empty and same-origin.
+    let ref = '';
+    try {
+      const r = document.referrer || '';
+      if (r) {
+        const ru = new URL(r);
+        if (ru.origin !== window.location.origin) ref = r.slice(0, 500);
+      }
+    } catch (e) {}
+    if (!hasUtm && !ref) return; // nothing worth stashing
+    if (ref) utm.referrer = ref;
+    sessionStorage.setItem(PENDING_UTM_KEY, JSON.stringify(utm));
+  } catch (e) { /* best-effort */ }
+}
+
+// Run at script parse: window.location + sessionStorage are available this early.
+try { capturePendingUtm(); } catch (e) {}
+
+// Write the stashed attribution (selected during onboarding) plus any captured
+// marketing UTMs to the DB. Idempotent: PK is user_id, so a second insert
+// silently no-ops. Proceeds when either an onboarding source or UTM data exists.
 async function applyPendingAttribution(newUserId) {
   if (!newUserId) return null;
   let source = null;
   try { source = sessionStorage.getItem(PENDING_ATTRIBUTION_KEY); } catch(e) {}
-  if (!source) return null;
+  const utm = _readPendingUtm();
+  const utmKeys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'referrer'];
+  const hasUtm = utm && utmKeys.some(k => utm[k]);
+  if (!source && !hasUtm) return null;
 
   try {
-    const { error } = await db.from('signup_attributions').insert({
-      user_id: newUserId,
-      source:  source,
-    });
+    const row = { user_id: newUserId };
+    if (source) row.source = source;
+    for (const k of utmKeys) {
+      if (utm[k]) row[k] = utm[k];
+    }
+    const { error } = await db.from('signup_attributions').insert(row);
     // 23505 = already recorded; treat as success
     if (error && error.code !== '23505') {
       console.warn('applyPendingAttribution error', error);
@@ -2482,7 +2535,10 @@ async function applyPendingAttribution(newUserId) {
   } catch(e) {
     console.warn('applyPendingAttribution exception', e);
   } finally {
-    try { sessionStorage.removeItem(PENDING_ATTRIBUTION_KEY); } catch(e) {}
+    try {
+      sessionStorage.removeItem(PENDING_ATTRIBUTION_KEY);
+      sessionStorage.removeItem(PENDING_UTM_KEY);
+    } catch(e) {}
   }
   return source;
 }
