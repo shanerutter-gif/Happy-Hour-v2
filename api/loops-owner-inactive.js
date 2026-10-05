@@ -6,6 +6,12 @@ export const config = { runtime: 'edge' };
 // Loops owner lifecycle events (owner.inactive_7d / owner.inactive_30d) so
 // Loops can run the owner retention emails.
 //
+// Also fires the onboarding nudge events owner.nudge_3d / owner.nudge_10d:
+// exactly once per claim, only when the owner has NOT touched their listing
+// since approval. (Loops cannot express "no venue.listing_updated since
+// approval" as a workflow condition, so the guard is evaluated here and the
+// Loops nudge workflows trigger on these dedicated events with no timer.)
+//
 // Owner activity ("last touch") is the max of:
 //   1. venues.owner_last_update_at        (stamped by the business portal on
 //                                          approved-owner saves)
@@ -60,6 +66,40 @@ export function classifyOwnerCohorts(claims, proposalMax, nowMs) {
   return { cohort7, cohort30 };
 }
 
+// ── Nudge cohorts (day-3 / day-10 onboarding nudges) ──
+// Fires owner.nudge_3d / owner.nudge_10d exactly once per claim, ONLY when the
+// owner has not touched their listing since approval. Loops cannot express
+// "no venue.listing_updated since approval" as a workflow condition, so the
+// guard lives here: the cron evaluates it and fires a dedicated event per
+// nudge, and the Loops workflows trigger on those events with no timer.
+// Catch-up pacing: if a claim somehow missed its day-3 window (cron outage),
+// it gets nudge_3d first and nudge_10d on the next run — never both same-day.
+export function classifyNudgeCohorts(claims, proposalMax, nowMs) {
+  const nudge3 = [];
+  const nudge10 = [];
+  for (const c of claims) {
+    if (!c.contact_email || !c.venue_id) continue;
+    const clockStart = c.approved_at || c.created_at;
+    if (!clockStart) continue;
+    const startMs = new Date(clockStart).getTime();
+    if (Number.isNaN(startMs) || nowMs - startMs < 0) continue;
+    // Owner touch = any owner-attributed edit AFTER the approval moment.
+    let touched = false;
+    const stamp = c.venue && c.venue.owner_last_update_at;
+    if (stamp && new Date(stamp).getTime() > startMs) touched = true;
+    const prop = proposalMax.get(`${c.venue_id}|${c.user_id}`);
+    if (prop && new Date(prop).getTime() > startMs) touched = true;
+    if (touched) continue;
+    const age = nowMs - startMs;
+    if (age >= 3 * DAY && !c.owner_nudged_3d_at) {
+      nudge3.push({ claim: c, ageDays: +(age / DAY).toFixed(1) });
+    } else if (age >= 10 * DAY && !c.owner_nudged_10d_at) {
+      nudge10.push({ claim: c, ageDays: +(age / DAY).toFixed(1) });
+    }
+  }
+  return { nudge3, nudge10 };
+}
+
 export default async function handler(req) {
   if (req.method !== 'GET') return jsonRes({ error: 'GET only' }, 405);
 
@@ -101,8 +141,8 @@ export default async function handler(req) {
     //    scan cheap: only claims missing at least one nudge stamp are candidates.
     const selUrl = `${supabaseUrl}/rest/v1/venue_claims`
       + `?status=eq.approved`
-      + `&select=id,contact_name,contact_email,venue_id,user_id,approved_at,created_at,owner_reengaged_7d_at,owner_reengaged_30d_at,venue:venues(name,owner_last_update_at)`
-      + `&or=(owner_reengaged_7d_at.is.null,owner_reengaged_30d_at.is.null)`
+      + `&select=id,contact_name,contact_email,venue_id,user_id,approved_at,created_at,owner_reengaged_7d_at,owner_reengaged_30d_at,owner_nudged_3d_at,owner_nudged_10d_at,venue:venues(name,owner_last_update_at)`
+      + `&or=(owner_reengaged_7d_at.is.null,owner_reengaged_30d_at.is.null,owner_nudged_3d_at.is.null,owner_nudged_10d_at.is.null)`
       + `&limit=2000`;
     const res = await fetch(selUrl, { headers });
     if (!res.ok) {
@@ -134,6 +174,13 @@ export default async function handler(req) {
     }
 
     const { cohort7, cohort30 } = classifyOwnerCohorts(claims, proposalMax, nowMs);
+    let { nudge3, nudge10 } = classifyNudgeCohorts(claims, proposalMax, nowMs);
+    // Pacing: a claim already getting the 30d dormant email doesn't also get a
+    // nudge in the same run — one email per owner per run. (cohort7 has no
+    // email workflow attached, so it needs no such guard.)
+    const in30 = new Set(cohort30.map(e => e.claim.id));
+    nudge3 = nudge3.filter(e => !in30.has(e.claim.id));
+    nudge10 = nudge10.filter(e => !in30.has(e.claim.id));
 
     if (dry) {
       return jsonRes({
@@ -141,19 +188,23 @@ export default async function handler(req) {
         candidates: claims.length,
         cohort7: cohort7.map(e => summarize(e)),
         cohort30: cohort30.map(e => summarize(e)),
+        nudge3: nudge3.map(e => summarize(e)),
+        nudge10: nudge10.map(e => summarize(e)),
       });
     }
 
-    if (!cohort7.length && !cohort30.length) {
-      return jsonRes({ sent7: 0, sent30: 0, candidates: claims.length });
+    if (!cohort7.length && !cohort30.length && !nudge3.length && !nudge10.length) {
+      return jsonRes({ sent7: 0, sent30: 0, sentNudge3: 0, sentNudge10: 0, candidates: claims.length });
     }
 
     const ctx = { headers, loopsHeaders, supabaseUrl, nowIso };
-    let sent7 = 0, sent30 = 0;
+    let sent7 = 0, sent30 = 0, sentNudge3 = 0, sentNudge10 = 0;
     sent30 = await processCohort(ctx, cohort30, 'owner.inactive_30d', 'owner_reengaged_30d_at');
     sent7  = await processCohort(ctx, cohort7,  'owner.inactive_7d',  'owner_reengaged_7d_at');
+    sentNudge3  = await processCohort(ctx, nudge3,  'owner.nudge_3d',  'owner_nudged_3d_at');
+    sentNudge10 = await processCohort(ctx, nudge10, 'owner.nudge_10d', 'owner_nudged_10d_at');
 
-    return jsonRes({ sent7, sent30, cohort7: cohort7.length, cohort30: cohort30.length });
+    return jsonRes({ sent7, sent30, sentNudge3, sentNudge10, cohort7: cohort7.length, cohort30: cohort30.length, nudge3: nudge3.length, nudge10: nudge10.length });
   } catch (e) {
     console.error('[loops-owner-inactive] Error:', e.message);
     return jsonRes({ error: e.message }, 500);
