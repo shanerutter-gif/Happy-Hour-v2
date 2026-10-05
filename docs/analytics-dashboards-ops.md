@@ -22,7 +22,7 @@ project → SQL Editor, paste and run `sql/analytics-dashboards-20261005.sql`.
 Verify with:
 ```sql
 select count(*) from public.social_daily_metrics;
-select count(*) from public.social_posts;
+select count(*) from public.social_post_metrics;
 select count(*) from public.email_daily_metrics;
 select count(*) from public.email_campaigns;
 ```
@@ -72,7 +72,7 @@ no admin.html edit needed.
    - Per video (last 30 days): post URL, post date, views, likes, comments, shares.
    - POST to the ingest endpoint:
      - `social_daily_metrics`: `{day, platform:'tiktok', followers, views, reach:null, interactions: likes+comments+shares, profile_visits, posts_published}`
-     - `social_posts`: one row per video (`post_id` = video id or URL slug).
+     - `social_post_metrics`: one row per video (`post_id` = video id or URL slug).
    - If Studio is unreachable, log it and continue — do not fail the run.
 
 3. **Loops** — browser task (Loops dashboard, magic-link login as shane@spotd.biz):

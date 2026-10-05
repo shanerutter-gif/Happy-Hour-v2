@@ -3,7 +3,7 @@
 //
 // POST /api/metrics-ingest
 //   Headers: x-ingest-token: <METRICS_INGEST_TOKEN>
-//   Body: { table: 'social_daily_metrics'|'social_posts'
+//   Body: { table: 'social_daily_metrics'|'social_post_metrics'
 //                  |'email_daily_metrics'|'email_campaigns',
 //           rows: [ {...}, ... ] }
 //   → { ok:true, table, written:<n> } | { error }
@@ -29,7 +29,7 @@ const TABLES = {
     columns: new Set(['day', 'platform', 'followers', 'views', 'reach',
       'interactions', 'profile_visits', 'posts_published', 'collected_at']),
   },
-  social_posts: {
+  social_post_metrics: {
     onConflict: 'platform,post_id',
     columns: new Set(['platform', 'post_id', 'posted_at', 'url',
       'caption_snippet', 'views', 'likes', 'comments', 'shares', 'collected_at']),

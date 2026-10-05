@@ -11,7 +11,7 @@
 //   2. user-profile --username spotdtoday           → follower count (public read)
 //   3. posts --username spotdtoday --limit 50       → per-post likes/comments/urls
 //   4. account-insights (best-effort)               → reach/views/interactions
-//   5. POSTs { social_daily_metrics, social_posts } to /api/metrics-ingest.js
+//   5. POSTs { social_daily_metrics, social_post_metrics } to /api/metrics-ingest.js
 //
 // Known limitation (verified 2026-10-05): the only linked Instagram account is
 // the founder's PERSONAL account, so account-insights returns HTTP 500 (no
@@ -153,7 +153,7 @@ async function main() {
     console.log(JSON.stringify({
       tables: {
         social_daily_metrics: { rows: [dailyRow] },
-        social_posts: { rows: postRows },
+        social_post_metrics: { rows: postRows },
       },
     }, null, 2));
     log(`dry run complete: 1 daily row + ${postRows.length} post rows. Nothing sent.`);
@@ -166,7 +166,7 @@ async function main() {
     console.error('[ig-pull] FATAL: METRICS_INGEST_TOKEN env is not set.');
     process.exit(1);
   }
-  for (const [table, rows] of [['social_daily_metrics', [dailyRow]], ['social_posts', postRows]]) {
+  for (const [table, rows] of [['social_daily_metrics', [dailyRow]], ['social_post_metrics', postRows]]) {
     if (!rows.length) { log(`skipping ${table}: no rows`); continue; }
     const r = await fetch(INGEST_URL, {
       method: 'POST',

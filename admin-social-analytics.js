@@ -1,6 +1,6 @@
 /* admin-social-analytics.js
  * Injects a "📊 Social Analytics" section into the admin portal — TikTok +
- * Instagram performance over the social_daily_metrics / social_posts tables,
+ * Instagram performance over the social_daily_metrics / social_post_metrics tables,
  * written daily by the metrics cron via /api/metrics-ingest.js
  * (spec: docs/analytics-dashboards-ops.md).
  *
@@ -133,7 +133,7 @@
   };
   const data = {
     daily: [],   // social_daily_metrics rows (last 40 days, both platforms)
-    posts: [],   // social_posts rows, deduped to latest snapshot
+    posts: [],   // social_post_metrics rows, deduped to latest snapshot
     perPlatform: {}, // { tiktok: {lastDay, lastPull}, instagram: {...} }
   };
 
@@ -197,7 +197,7 @@
 
   async function loadPosts() {
     try {
-      const rows = await pg('social_posts?select=*&order=collected_at.desc&limit=300');
+      const rows = await pg('social_post_metrics?select=*&order=collected_at.desc&limit=300');
       // Dedupe to the latest snapshot per (platform, post_id)
       const seen = new Set();
       const deduped = [];

@@ -44,8 +44,8 @@ CREATE TABLE IF NOT EXISTS public.social_daily_metrics (
 COMMENT ON TABLE public.social_daily_metrics IS
   'Daily social rollups (TikTok Studio + Instagram), written by /api/metrics-ingest.js; read by the portal Social Analytics section. NULLs mean the source does not expose that metric.';
 
--- ── 2. social_posts: per-post stats (upserted daily, keeps latest) ────────
-CREATE TABLE IF NOT EXISTS public.social_posts (
+-- ── 2. social_post_metrics: per-post stats (upserted daily, keeps latest) ────────
+CREATE TABLE IF NOT EXISTS public.social_post_metrics (
   platform       TEXT        NOT NULL CHECK (platform IN ('tiktok', 'instagram')),
   post_id        TEXT        NOT NULL,
   posted_at      TIMESTAMPTZ,
@@ -56,9 +56,9 @@ CREATE TABLE IF NOT EXISTS public.social_posts (
   comments       INTEGER,
   shares         INTEGER,
   collected_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
-  CONSTRAINT social_posts_pkey PRIMARY KEY (platform, post_id)
+  CONSTRAINT social_post_metrics_pkey PRIMARY KEY (platform, post_id)
 );
-COMMENT ON TABLE public.social_posts IS
+COMMENT ON TABLE public.social_post_metrics IS
   'Per-post social stats (latest snapshot per post), written by /api/metrics-ingest.js; powers the Top Posts table. Instagram does not expose per-post views/shares via the CLI — those stay NULL.';
 
 -- ── 3. email_daily_metrics: one row per Loops workflow per day ────────────
@@ -94,7 +94,7 @@ COMMENT ON TABLE public.email_campaigns IS
 
 -- ── 5. RLS: admin reads only; writes via service role (bypasses RLS) ─────
 ALTER TABLE public.social_daily_metrics ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.social_posts        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.social_post_metrics        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.email_daily_metrics ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.email_campaigns     ENABLE ROW LEVEL SECURITY;
 
@@ -102,8 +102,8 @@ DROP POLICY IF EXISTS "Admins read social_daily_metrics" ON public.social_daily_
 CREATE POLICY "Admins read social_daily_metrics" ON public.social_daily_metrics
   FOR SELECT TO authenticated USING (public.is_giveaway_admin());
 
-DROP POLICY IF EXISTS "Admins read social_posts" ON public.social_posts;
-CREATE POLICY "Admins read social_posts" ON public.social_posts
+DROP POLICY IF EXISTS "Admins read social_post_metrics" ON public.social_post_metrics;
+CREATE POLICY "Admins read social_post_metrics" ON public.social_post_metrics
   FOR SELECT TO authenticated USING (public.is_giveaway_admin());
 
 DROP POLICY IF EXISTS "Admins read email_daily_metrics" ON public.email_daily_metrics;
