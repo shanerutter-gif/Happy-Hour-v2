@@ -1422,7 +1422,7 @@
     // Load events
     loadVenueEvents(venueId);
 
-    window._editingVenueId = venueId; window._editingVenue = venue; ensureProposalNotices(); refreshProposalNotices();
+    window._editingVenueId = venueId; window._editingVenue = venue; window._editingClaimStatus = status || null; ensureProposalNotices(); refreshProposalNotices();
     // Show Edit tab in mobile nav
     const mobEditBtn = document.getElementById('mob-btn-edit');
     if (mobEditBtn) mobEditBtn.style.display = 'flex';
@@ -1566,6 +1566,62 @@
   // Venue-domain business email check: free inboxes and Apple Private Relay
   // addresses can't be tied to a business, so they don't count on their own.
   const FREE_EMAIL_DOMAINS = ['gmail.com','yahoo.com','hotmail.com','outlook.com','live.com','msn.com','aol.com','icloud.com','me.com','mac.com','protonmail.com','proton.me','zoho.com','yandex.com','gmx.com','mail.com','inbox.com'];
+
+  // ── Owner lifecycle: listing-updated trigger ─────────────────────────────
+  // Called by proposeVenueEdit() after an edit proposal is successfully saved.
+  // Fires ONLY when the signed-in owner has an APPROVED claim for the venue
+  // being edited (gated on window._editingClaimStatus, captured in openEdit —
+  // the edit form itself is disabled for non-approved claims). Three
+  // fire-and-forget side effects; every failure path is swallowed so the save
+  // flow can never break:
+  //   1. Loops `venue.listing_updated` event (drives the owner email chain).
+  //   2. Stamp venues.owner_last_update_at (best-effort; needs the owner-scoped
+  //      venues UPDATE policy — the inactivity cron also falls back to
+  //      venue_edit_proposals, so a blocked stamp can't cause a wrong nudge).
+  //   3. First-party analytics via /api/track-event (server attributes the row
+  //      to the owner from their bearer token).
+  async function _onOwnerListingSaved(venueId, section) {
+    try {
+      if (window._editingClaimStatus !== 'approved') return;
+      if (!currentUser || !venueId) return;
+      const venue = window._editingVenue || {};
+      const venueName = venue.name || '';
+      const email = currentUser.email || '';
+      const sec = section || '';
+      // 1. Loops event
+      _sendPortalLoopsEvent(email, 'venue.listing_updated', {
+        venueId: venueId,
+        venueName: venueName,
+        section: sec,
+      });
+      // 2. Owner activity stamp
+      try {
+        await fetch(`${SUPABASE_URL}/rest/v1/venues?id=eq.${venueId}`, {
+          method: 'PATCH',
+          headers: { ...sb.headers(), 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ owner_last_update_at: new Date().toISOString() }),
+        });
+      } catch (e) { /* stamp is best-effort */ }
+      // 3. First-party analytics (owner-attributed via bearer token)
+      try {
+        const tok = (typeof getToken === 'function') ? getToken() : null;
+        if (tok) {
+          await fetch('/api/track-event', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok },
+            body: JSON.stringify({
+              events: [{
+                n: 'venue.listing_updated',
+                p: { venue_id: venueId, venue_name: venueName, section: sec },
+                path: '/business-portal',
+              }],
+              platform: 'web',
+            }),
+          });
+        }
+      } catch (e) { /* analytics must never break the app */ }
+    } catch (e) { /* never break the save flow */ }
+  }
   function isBusinessEmail(email) {
     const parts = String(email || '').trim().toLowerCase().split('@');
     if (parts.length !== 2 || !parts[1]) return false;
@@ -2030,7 +2086,7 @@
   // ─────────────────────────────────────────────
   // UPDATE VENUE
   // ─────────────────────────────────────────────
-  async function proposeVenueEdit(fields, section) { const _venueId = window._editingVenueId; const _venue = window._editingVenue || {}; const _changed = {}; for (const _k of Object.keys(fields)) { const _av = fields[_k] === undefined ? null : fields[_k]; const _bv = _venue[_k] === undefined ? null : _venue[_k]; if (JSON.stringify(_av) !== JSON.stringify(_bv)) _changed[_k] = fields[_k]; } fields = _changed; let _existing = []; try { _existing = await fetch(`${SUPABASE_URL}/rest/v1/venue_edit_proposals?venue_id=eq.${_venueId}&proposed_by=eq.${currentUser.id}&section=eq.${section}&status=eq.pending&select=id,changes`, { headers: sb.headers() }).then(r => r.json()); } catch (_e1) { _existing = []; } const _merged = Object.assign({}, ((_existing[0] && _existing[0].changes) || {}), fields); for (const _mk of Object.keys(_merged)) { const _mav = _merged[_mk] === undefined ? null : _merged[_mk]; const _mbv = _venue[_mk] === undefined ? null : _venue[_mk]; if (JSON.stringify(_mav) === JSON.stringify(_mbv)) delete _merged[_mk]; } if (!Object.keys(_merged).length) { if (_existing[0]) { try { await fetch(`${SUPABASE_URL}/rest/v1/venue_edit_proposals?id=eq.${_existing[0].id}`, { method: 'DELETE', headers: sb.headers() }); } catch (_eDel) {} } refreshProposalNotices(); return 'nochange'; } let _ok = false; try { if (_existing[0]) { const _r = await fetch(`${SUPABASE_URL}/rest/v1/venue_edit_proposals?id=eq.${_existing[0].id}`, { method: 'PATCH', headers: Object.assign({}, sb.headers(), { 'Prefer': 'return=representation' }), body: JSON.stringify({ changes: _merged }) }); _ok = _r.ok; } else { const _t = await sb.from('venue_edit_proposals'); const _res = await _t.insert({ venue_id: _venueId, proposed_by: currentUser.id, section: section, changes: _merged, status: 'pending' }); _ok = Array.isArray(_res) && !!_res[0]; } } catch (_e2) { _ok = false; } if (_ok) { for (const _fv of Object.entries(_merged)) { const _et = await sb.from('venue_edits'); await _et.insert({ venue_id: _venueId, user_id: currentUser.id, field: _fv[0], new_value: JSON.stringify(_fv[1]) }); } } refreshProposalNotices(); return _ok; } const PROPOSAL_SECTIONS = ['hours', 'deals', 'info', 'amenities', 'promo']; function ensureProposalNotices() { PROPOSAL_SECTIONS.forEach(_s => { const _body = document.querySelector('#section-' + _s + ' .edit-section-body'); if (_body && !document.getElementById('proposal-notice-' + _s)) { const _div = document.createElement('div'); _div.className = 'proposal-notice'; _div.id = 'proposal-notice-' + _s; _div.innerHTML = '⏳ <strong>Changes pending review</strong> — they’ll go live after a quick check (usually within 24 hours).'; _body.prepend(_div); } }); } async function refreshProposalNotices() { const _vId = window._editingVenueId; let _rows = []; if (_vId && currentUser) { try { _rows = await fetch(`${SUPABASE_URL}/rest/v1/venue_edit_proposals?venue_id=eq.${_vId}&proposed_by=eq.${currentUser.id}&status=eq.pending&select=section`, { headers: sb.headers() }).then(r => r.json()); } catch (_e3) { _rows = []; } } const _pending = new Set(Array.isArray(_rows) ? _rows.map(_r => String(_r.section || '').trim()) : []); PROPOSAL_SECTIONS.forEach(_s => { const _el = document.getElementById('proposal-notice-' + _s); if (_el) _el.classList.toggle('show', _pending.has(_s)); }); } async function _updateVenueFieldRetired_DO_NOT_USE(fields) { // retired — do not use; listing edits go through proposeVenueEdit() now
+  async function proposeVenueEdit(fields, section) { const _venueId = window._editingVenueId; const _venue = window._editingVenue || {}; const _changed = {}; for (const _k of Object.keys(fields)) { const _av = fields[_k] === undefined ? null : fields[_k]; const _bv = _venue[_k] === undefined ? null : _venue[_k]; if (JSON.stringify(_av) !== JSON.stringify(_bv)) _changed[_k] = fields[_k]; } fields = _changed; let _existing = []; try { _existing = await fetch(`${SUPABASE_URL}/rest/v1/venue_edit_proposals?venue_id=eq.${_venueId}&proposed_by=eq.${currentUser.id}&section=eq.${section}&status=eq.pending&select=id,changes`, { headers: sb.headers() }).then(r => r.json()); } catch (_e1) { _existing = []; } const _merged = Object.assign({}, ((_existing[0] && _existing[0].changes) || {}), fields); for (const _mk of Object.keys(_merged)) { const _mav = _merged[_mk] === undefined ? null : _merged[_mk]; const _mbv = _venue[_mk] === undefined ? null : _venue[_mk]; if (JSON.stringify(_mav) === JSON.stringify(_mbv)) delete _merged[_mk]; } if (!Object.keys(_merged).length) { if (_existing[0]) { try { await fetch(`${SUPABASE_URL}/rest/v1/venue_edit_proposals?id=eq.${_existing[0].id}`, { method: 'DELETE', headers: sb.headers() }); } catch (_eDel) {} } refreshProposalNotices(); return 'nochange'; } let _ok = false; try { if (_existing[0]) { const _r = await fetch(`${SUPABASE_URL}/rest/v1/venue_edit_proposals?id=eq.${_existing[0].id}`, { method: 'PATCH', headers: Object.assign({}, sb.headers(), { 'Prefer': 'return=representation' }), body: JSON.stringify({ changes: _merged }) }); _ok = _r.ok; } else { const _t = await sb.from('venue_edit_proposals'); const _res = await _t.insert({ venue_id: _venueId, proposed_by: currentUser.id, section: section, changes: _merged, status: 'pending' }); _ok = Array.isArray(_res) && !!_res[0]; } } catch (_e2) { _ok = false; } if (_ok) { for (const _fv of Object.entries(_merged)) { const _et = await sb.from('venue_edits'); await _et.insert({ venue_id: _venueId, user_id: currentUser.id, field: _fv[0], new_value: JSON.stringify(_fv[1]) }); } } refreshProposalNotices(); if (_ok) { try { _onOwnerListingSaved(_venueId, section); } catch (e) {} } return _ok; } const PROPOSAL_SECTIONS = ['hours', 'deals', 'info', 'amenities', 'promo']; function ensureProposalNotices() { PROPOSAL_SECTIONS.forEach(_s => { const _body = document.querySelector('#section-' + _s + ' .edit-section-body'); if (_body && !document.getElementById('proposal-notice-' + _s)) { const _div = document.createElement('div'); _div.className = 'proposal-notice'; _div.id = 'proposal-notice-' + _s; _div.innerHTML = '⏳ <strong>Changes pending review</strong> — they’ll go live after a quick check (usually within 24 hours).'; _body.prepend(_div); } }); } async function refreshProposalNotices() { const _vId = window._editingVenueId; let _rows = []; if (_vId && currentUser) { try { _rows = await fetch(`${SUPABASE_URL}/rest/v1/venue_edit_proposals?venue_id=eq.${_vId}&proposed_by=eq.${currentUser.id}&status=eq.pending&select=section`, { headers: sb.headers() }).then(r => r.json()); } catch (_e3) { _rows = []; } } const _pending = new Set(Array.isArray(_rows) ? _rows.map(_r => String(_r.section || '').trim()) : []); PROPOSAL_SECTIONS.forEach(_s => { const _el = document.getElementById('proposal-notice-' + _s); if (_el) _el.classList.toggle('show', _pending.has(_s)); }); } async function _updateVenueFieldRetired_DO_NOT_USE(fields) { // retired — do not use; listing edits go through proposeVenueEdit() now
     const res = await table.eq('id', window._editingVenueId).update(fields);
     if (!Array.isArray(res) || !res[0]) {
       console.warn('updateVenueField response:', JSON.stringify(res));
