@@ -39,16 +39,18 @@ function getTodayHours(v, dayName = TODAY) {
     const m2 = trimmed.match(/^(.+?)\s+([A-Z][a-z]+)(?:–([A-Z][a-z]+))?$/);
 
     if (m1) {
-      startDay = m1[1]; endDay = m1[2]; time = m1[3];
+      // Hours strings mix day-name formats too ("Mon–Thu" vs "Friday 3pm-8pm"):
+      // normalize through schedNormDay so full names resolve against dayOrder.
+      startDay = schedNormDay(m1[1]); endDay = m1[2] ? schedNormDay(m1[2]) : null; time = m1[3];
     } else if (m2) {
-      time = m2[1]; startDay = m2[2]; endDay = m2[3];
+      time = m2[1]; startDay = schedNormDay(m2[2]); endDay = m2[3] ? schedNormDay(m2[3]) : null;
     } else {
       continue;
     }
 
-    const startIdx = dayOrder.indexOf(startDay);
+    const startIdx = startDay ? dayOrder.indexOf(startDay) : -1;
     const endIdx   = endDay ? dayOrder.indexOf(endDay) : startIdx;
-    if (startIdx === -1) continue;
+    if (startIdx === -1 || endIdx === -1) continue;
 
     // Handle wrap-around ranges (e.g. Fri–Sun)
     let inRange = false;
@@ -79,6 +81,20 @@ function schedNormDay(tok) {
   if (t.length < 3) return null;
   const cap = t.charAt(0).toUpperCase() + t.slice(1, 3).toLowerCase();
   return SCHED_DAYS.includes(cap) ? cap : null;
+}
+
+// venues.days arrives in mixed formats: most rows use 3-letter abbreviations
+// ("Mon") but ~23% use full names ("Monday"). Every downstream comparison
+// (TODAY, day filter, map pins, getTodayHours fallback) uses 3-letter codes,
+// so normalize once at load. Read-only: never written back to the DB.
+function normDaysAbbrev(days) {
+  if (!Array.isArray(days)) return days;
+  const out = [];
+  for (const d of days) {
+    const n = schedNormDay(d);
+    if (n && n !== 'DAILY' && !out.includes(n)) out.push(n);
+  }
+  return out;
 }
 
 // Inclusive day expansion, wrapping around the week ("Fri–Sun" → Fri,Sat,Sun)
@@ -2529,8 +2545,10 @@ async function enterCity(slug, name, stateCode) {
 
   // Load data — venues AND events together
   const [venues, events] = await Promise.all([fetchVenues(slug), fetchEvents(slug)]);
-  state.venues = venues;
-  state.events = events;
+  // Normalize mixed day-name formats once (see normDaysAbbrev) — fixes card
+  // hours, day filter, map pins, and the modal fallback for full-name rows.
+  state.venues = venues.map(v => { v.days = normDaysAbbrev(v.days); return v; });
+  state.events = events.map(e => { e.days = normDaysAbbrev(e.days); return e; });
 
   // Index events by venue name so they surface on the matching venue (card
   // chips + modal). Events are never rendered as standalone cards.
@@ -3637,7 +3655,16 @@ function applyFilters() {
       const s = scoreVenueForSearch(v, parsedSearch);
       if (s > 0) scored.push([v, s]);
     }
-    scored.sort((a, b) => {
+    // Exact/prefix name-match short-circuit: a multi-token query that exactly
+    // (140) or prefix-matches (80) a venue name is a name lookup, not a concept
+    // browse. Without this, "12 fox beer co" keeps 459/551 venues because OR
+    // substring scoring lets generic fragments ("co", "beer") match nearly
+    // everything. Single-token concept queries ("tacos", "beer") are untouched.
+    let maxScore = 0;
+    for (const [, s] of scored) if (s > maxScore) maxScore = s;
+    const nameLookup = maxScore >= 80 && parsedSearch.tokens.length >= 2;
+    const ranked = nameLookup ? scored.filter(([, s]) => s >= 55) : scored;
+    ranked.sort((a, b) => {
       if (b[1] !== a[1]) return b[1] - a[1];
       const fa = a[0].featured ? 1 : 0, fb = b[0].featured ? 1 : 0;
       if (fb !== fa) return fb - fa;
@@ -3645,7 +3672,7 @@ function applyFilters() {
       if (rb !== ra) return rb - ra;
       return (a[0].name || '').localeCompare(b[0].name || '');
     });
-    state.filtered = scored.map(x => x[0]);
+    state.filtered = ranked.map(x => x[0]);
   }
 
   // Sort
