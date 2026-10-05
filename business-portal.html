@@ -1297,7 +1297,16 @@
     showMsg('auth-msg', 'Creating account...', 'warn');
     const data = await sb.signUp(email, pass, name);
     if (data.error) return showMsg('auth-msg', data.error.message || 'Signup failed.', 'error');
-    showMsg('auth-msg', 'Check your email to confirm your account, then sign in.', 'success');
+    // Proxy may return { data: { access_token, user } } or flat { access_token, user }.
+    // When email confirmation is disabled, signup returns a session — sign straight in.
+    // When confirmation is required, there is no session — tell the user to check email.
+    const session = data.data || data;
+    if (session && session.access_token && session.user) {
+      saveSession(session);
+      enterApp();
+    } else {
+      showMsg('auth-msg', 'Check your email to confirm your account, then sign in.', 'success');
+    }
   }
 
   // ─────────────────────────────────────────────
