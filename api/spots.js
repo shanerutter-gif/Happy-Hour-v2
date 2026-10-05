@@ -102,11 +102,19 @@ function buildPage(venue, reviews, allVenues, seo) {
   const photoUrl = venue.photo_url || venue.photo_urls?.[0] || '';
   const ogImage = photoUrl || `${SITE_URL}/icons/icon-512.png`;
 
-  // Compute average rating
+  // Compute average rating (Spotd reviews first, Google rating as fallback)
   const avgRating = reviews.length
     ? (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1)
     : null;
   const ratingCount = reviews.length;
+  const googleRating = venue.google_rating ? parseFloat(venue.google_rating) : null;
+
+  // "Verified {Mon YYYY}" trust label — last_verified_at is maintained by the
+  // deal-verification workflow (3to6 shows per-venue checked dates; this is
+  // Spotd's equivalent, fed by real data, never fabricated).
+  const verifiedLabel = venue.last_verified_at
+    ? new Date(venue.last_verified_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+    : '';
 
   // Build amenity tags
   const amenities = [];
@@ -118,10 +126,16 @@ function buildPage(venue, reviews, allVenues, seo) {
   if (venue.is_dog_friendly) amenities.push('Dog Friendly');
   if (venue.has_bingo) amenities.push('Bingo');
   if (venue.has_comedy) amenities.push('Comedy');
+  if (venue.serves_beer) amenities.push('Beer');
+  if (venue.serves_wine) amenities.push('Wine');
+  if (venue.serves_cocktails) amenities.push('Cocktails');
+  if (venue.outdoor_seating) amenities.push('Outdoor Seating');
+  if (venue.good_for_groups) amenities.push('Good for Groups');
+  if (venue.reservable) amenities.push('Reservable');
 
   // Build meta description
   const dealText = deals.length ? ` Deals: ${deals.slice(0, 2).join(', ')}.` : '';
-  const metaDesc = `${venue.name}${hood ? ` in ${venue.neighborhood}` : ''}${city ? `, ${city}` : ''}.${dealText} ${hours ? `Hours: ${hours}.` : ''} See reviews, deals & check in on Spotd.`;
+  const metaDesc = `${venue.name} happy hour${hood ? ` in ${venue.neighborhood}` : ''}${city ? `, ${city}` : ''}.${dealText}${hours ? ` Hours: ${hours}.` : ''}${verifiedLabel ? ` Deal info verified ${verifiedLabel}.` : ''} See reviews, deals & check in on Spotd.`;
 
   // Canonical neighborhood (freeform variants like "Gaslamp" / "PB" collapse to
   // one slug so the hub link below always resolves to the canonical page).
@@ -139,7 +153,7 @@ function buildPage(venue, reviews, allVenues, seo) {
     ...(url && { url }),
     ...(photoUrl && { image: photoUrl }),
     ...(cuisine && { servesCuisine: venue.cuisine }),
-    ...(avgRating && {
+    ...(avgRating ? {
       aggregateRating: {
         '@type': 'AggregateRating',
         ratingValue: avgRating,
@@ -147,7 +161,16 @@ function buildPage(venue, reviews, allVenues, seo) {
         bestRating: '5',
         worstRating: '1'
       }
-    }),
+    } : (googleRating ? {
+      // Fallback: the venue's Google rating (labeled as such on-page). Only
+      // emitted when there are no Spotd reviews to aggregate.
+      aggregateRating: {
+        '@type': 'AggregateRating',
+        ratingValue: googleRating.toFixed(1),
+        bestRating: '5',
+        worstRating: '1'
+      }
+    } : {})),
     ...(deals.length && {
       hasOfferCatalog: {
         '@type': 'OfferCatalog',
@@ -185,6 +208,47 @@ function buildPage(venue, reviews, allVenues, seo) {
     ]
   };
 
+  // Venue FAQ — every answer is built from this venue's own data (deals,
+  // hours/days, address). No generic filler; the block is omitted when the
+  // venue has none of the underlying data.
+  const venueFaqs = [];
+  if (deals.length) {
+    venueFaqs.push({
+      q: `Does ${venue.name} have happy hour?`,
+      a: `Yes. Current deals at ${venue.name} include ${deals.slice(0, 2).join('; ')}${deals.length > 2 ? `, plus ${deals.length - 2} more listed on this page` : ''}.${verifiedLabel ? ` Deal information last verified ${verifiedLabel} — confirm with the venue before you go, as times change often.` : ''}`
+    });
+  }
+  if (venue.hours) {
+    venueFaqs.push({
+      q: `When is happy hour at ${venue.name}?`,
+      a: `${venue.name} lists happy hour as ${venue.hours}${venue.days && venue.days.length ? ` on ${formatDays(venue.days)}` : ''}.`
+    });
+  }
+  if (venue.address) {
+    venueFaqs.push({
+      q: `Where is ${venue.name} located?`,
+      a: `${venue.name} is at ${venue.address}${venue.neighborhood ? ` in the ${venue.neighborhood} neighborhood` : ''}${city ? `, ${city}` : ''}.${venue.phone ? ` Call ${venue.phone}.` : ''}`
+    });
+  }
+  const venueFaqLd = venueFaqs.length ? {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: venueFaqs.map(f => ({
+      '@type': 'Question',
+      name: f.q,
+      acceptedAnswer: { '@type': 'Answer', text: f.a }
+    }))
+  } : null;
+
+  // Official social profiles (primary sources — the E-E-A-T mechanic the
+  // teardown calls out: link to the venue's own properties, not Yelp).
+  const socials = [];
+  if (venue.instagram) socials.push(['Instagram', venue.instagram]);
+  if (venue.facebook) socials.push(['Facebook', venue.facebook]);
+  if (venue.twitter) socials.push(['Twitter', venue.twitter]);
+  if (venue.tiktok) socials.push(['TikTok', venue.tiktok]);
+  const phoneHref = venue.phone ? String(venue.phone).replace(/[^+\d]/g, '') : '';
+
   // Nearby venues (same neighborhood, max 6). Links use the canonical
   // (disambiguated) slug so same-named venues in other cities resolve correctly.
   const nearby = allVenues
@@ -202,7 +266,7 @@ function buildPage(venue, reviews, allVenues, seo) {
 </script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>${name}${hood ? ` — ${esc(venue.neighborhood)}` : ''} | Happy Hour & Deals — Spotd</title>
+<title>${name} Happy Hour${hood ? ` in ${esc(venue.neighborhood)}` : ''}${city ? `, ${esc(city)}` : ''} | Spotd</title>
 <meta name="description" content="${esc(metaDesc)}">
 <link rel="canonical" href="${SITE_URL}/spots/${canonSlug}">
 
@@ -229,6 +293,7 @@ ${venue.lat && venue.lng ? `<meta property="place:location:latitude" content="${
 <!-- Structured Data -->
 <script type="application/ld+json">${JSON.stringify(jsonLd)}</script>
 <script type="application/ld+json">${JSON.stringify(breadcrumbLd)}</script>
+${venueFaqLd ? `<script type="application/ld+json">${JSON.stringify(venueFaqLd)}</script>` : ''}
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@400;500;700;800;900&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
@@ -335,9 +400,22 @@ ${venue.lat && venue.lng ? `<meta property="place:location:latitude" content="${
       ${hood ? `<span>${esc(venue.neighborhood)}</span><span class="spot-meta-sep">·</span>` : ''}
       ${city ? `<span>${esc(city)}</span>` : ''}
       ${avgRating ? `<span class="spot-meta-sep">·</span><span class="spot-rating"><span class="spot-rating-stars">${starHTML(Math.round(parseFloat(avgRating)))}</span> ${avgRating} (${ratingCount})</span>` : ''}
+      ${!avgRating && googleRating ? `<span class="spot-meta-sep">·</span><span class="spot-rating"><span class="spot-rating-stars">${starHTML(Math.round(googleRating))}</span> ${googleRating.toFixed(1)} <span style="font-weight:400;color:var(--muted)">on Google</span></span>` : ''}
+      ${avgRating && googleRating ? `<span class="spot-meta-sep">·</span><span style="color:var(--muted)">${googleRating.toFixed(1)} on Google</span>` : ''}
       ${venue.owner_verified ? '<span class="spot-meta-sep">·</span><span style="color:var(--coral);font-weight:600">✓ Verified</span>' : ''}
+      ${verifiedLabel ? `<span class="spot-meta-sep">·</span><span style="color:var(--muted)" title="Deal information last checked">Deals verified ${verifiedLabel}</span>` : ''}
     </div>
   </div>
+
+  ${venue.description ? `
+  <!-- About — the venue's own editorial description (94% of venues have one).
+       This is the single biggest thin-content fix on venue pages. -->
+  <div class="spot-section">
+    <h2 class="spot-section-title">About ${name}</h2>
+    <div class="spot-card">
+      <p style="font-size:14px;color:var(--text);line-height:1.6;margin:0">${esc(venue.description)}</p>
+    </div>
+  </div>` : ''}
 
   <!-- Primary CTA -->
   <a href="/?spot=${venue.id}" class="spot-cta">
@@ -389,12 +467,28 @@ ${venue.lat && venue.lng ? `<meta property="place:location:latitude" content="${
           <div class="spot-info-value">${cuisine}</div>
         </div>
       </div>` : ''}
+      ${venue.phone ? `
+      <div class="spot-info-row">
+        <div class="spot-info-icon">📞</div>
+        <div>
+          <div class="spot-info-label">Phone</div>
+          <div class="spot-info-value"><a href="tel:${esc(phoneHref)}">${esc(venue.phone)}</a></div>
+        </div>
+      </div>` : ''}
       ${url ? `
       <div class="spot-info-row">
         <div class="spot-info-icon">🔗</div>
         <div>
           <div class="spot-info-label">Website</div>
           <div class="spot-info-value"><a href="${esc(url)}" target="_blank" rel="noopener">${esc(url.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, ''))}</a></div>
+        </div>
+      </div>` : ''}
+      ${socials.length ? `
+      <div class="spot-info-row">
+        <div class="spot-info-icon">📣</div>
+        <div>
+          <div class="spot-info-label">Follow</div>
+          <div class="spot-info-value">${socials.map(([label, href]) => `<a href="${esc(href)}" target="_blank" rel="noopener" style="margin-right:10px">${label}</a>`).join('')}</div>
         </div>
       </div>` : ''}
     </div>
@@ -429,6 +523,19 @@ ${venue.lat && venue.lng ? `<meta property="place:location:latitude" content="${
   <a href="/?spot=${venue.id}" class="spot-cta spot-cta-sec">
     See More on Spotd
   </a>
+
+  ${venueFaqs.length ? `
+  <!-- Venue FAQ — answers built from this venue's own data -->
+  <div class="spot-section">
+    <h2 class="spot-section-title">${name} FAQs</h2>
+    <div class="spot-card" style="padding:6px 16px">
+      ${venueFaqs.map((f, i) => `
+      <div style="padding:12px 0${i < venueFaqs.length - 1 ? ';border-bottom:1px solid var(--border2)' : ''}">
+        <div style="font-weight:700;font-size:14px;color:var(--ink);margin-bottom:4px">${esc(f.q)}</div>
+        <div style="font-size:14px;color:var(--text);line-height:1.5">${esc(f.a)}</div>
+      </div>`).join('')}
+    </div>
+  </div>` : ''}
 
   <!-- Nearby Spots -->
   ${nearby.length ? `

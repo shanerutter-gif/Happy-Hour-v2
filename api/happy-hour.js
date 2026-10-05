@@ -56,7 +56,7 @@ function parseStartHour(hours) {
 
 async function fetchCityVenues(supabaseUrl, serviceKey, city) {
   const res = await fetch(
-    `${supabaseUrl}/rest/v1/venues?active=eq.true&photo_url=not.is.null&city_slug=eq.${encodeURIComponent(city)}&select=name,neighborhood,address,deals,hours,days,cuisine,photo_url&order=name.asc`,
+    `${supabaseUrl}/rest/v1/venues?active=eq.true&photo_url=not.is.null&city_slug=eq.${encodeURIComponent(city)}&select=name,neighborhood,address,deals,hours,days,cuisine,photo_url,google_rating,last_verified_at,url&order=name.asc`,
     { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } }
   );
   return res.ok ? res.json() : [];
@@ -182,16 +182,25 @@ export default async function handler(req) {
     ).join('') : '';
 
     // ── Venue list ──
+    // Rows carry the trust signals competitors show: Google rating stars and
+    // a per-venue "Verified {Mon YYYY}" label (both from real DB columns).
     const venueList = dayPool.map(v => {
       const slug = slugify(v.name);
       const t = teaser(v.deals);
       const metaBits = [];
       if (!target && v.neighborhood) metaBits.push(esc(v.neighborhood));
+      if (v.cuisine) metaBits.push(esc(v.cuisine));
       if (v.hours) metaBits.push(esc(v.hours));
+      const gRating = v.google_rating ? parseFloat(v.google_rating) : null;
+      const verified = v.last_verified_at
+        ? new Date(v.last_verified_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+        : '';
       return `<li class="hh-venue">
         <a class="hh-venue-name" href="/spots/${slug}">${esc(v.name)}</a>
+        ${gRating ? `<span class="hh-venue-rating">★ ${gRating.toFixed(1)} <span>on Google</span></span>` : ''}
         ${metaBits.length ? `<span class="hh-venue-meta">${metaBits.join(' · ')}</span>` : ''}
         ${t ? `<span class="hh-venue-deal">🍹 ${esc(t)}</span>` : ''}
+        ${verified ? `<span class="hh-venue-verified">✓ Verified ${verified}</span>` : ''}
       </li>`;
     }).join('');
 
@@ -330,6 +339,9 @@ export default async function handler(req) {
   .hh-venue-name:hover { color: var(--coral); }
   .hh-venue-meta { font-size: 12px; color: var(--muted); }
   .hh-venue-deal { font-size: 13px; color: var(--text); }
+  .hh-venue-rating { font-size: 12px; font-weight: 700; color: var(--coral); }
+  .hh-venue-rating span { color: var(--muted); font-weight: 400; }
+  .hh-venue-verified { font-size: 11px; color: var(--muted); }
   .hh-section-title { font-family: 'Cabinet Grotesk', sans-serif; font-weight: 800; font-size: 22px; color: var(--ink); margin: 36px 0 14px; }
   .blog-faq { margin-top: 8px; }
   .hh-back { display: inline-block; margin: 28px 0 0; color: var(--coral); font-weight: 700; text-decoration: none; }
