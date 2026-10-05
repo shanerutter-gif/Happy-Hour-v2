@@ -1309,7 +1309,11 @@
     const email = currentUser?.email || '';
     document.getElementById('nav-user').textContent = email;
     document.getElementById('btn-logout').style.display = 'block';
-    document.getElementById('mob-bottom-nav').style.display = 'flex';
+    // Clear the auth-screen inline hide so CSS decides: visible on mobile
+    // (≤700px media query), hidden on desktop. Setting 'flex' here would
+    // force it visible on desktop too, since inline styles beat the base
+    // `.mobile-bottom-nav { display:none }` rule.
+    document.getElementById('mob-bottom-nav').style.display = '';
     loadDashboard();
   }
 
