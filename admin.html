@@ -600,6 +600,47 @@
     .cc-list-status.scheduled { background:rgba(59,130,246,0.12); color:#3B82F6; }
     .cc-list-status.published { background:rgba(34,197,94,0.12); color:#22C55E; }
 
+    /* Mobile agenda view — replaces the 7-column grid on phones.
+       Same container (#cc-grid) gets .cc-agenda instead of .cc-grid. */
+    .cc-agenda { display:flex; flex-direction:column; gap:10px; }
+    .cc-agenda-day {
+      background:var(--card); border:1px solid var(--border); border-radius:14px;
+      overflow:hidden; scroll-margin-top:150px;
+    }
+    .cc-agenda-day-header {
+      display:flex; align-items:center; gap:10px; width:100%;
+      padding:13px 14px; background:var(--bg2); border:none; cursor:pointer;
+      font-family:'Cabinet Grotesk',sans-serif; text-align:left; color:var(--text);
+    }
+    .cc-agenda-day-name { font-size:15px; font-weight:800; }
+    .cc-agenda-day-date { font-size:12px; color:var(--muted); font-weight:600; }
+    .cc-agenda-today {
+      font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.5px;
+      background:var(--coral); color:#fff; padding:3px 9px; border-radius:20px;
+    }
+    .cc-agenda-day-count { margin-left:auto; font-size:12px; color:var(--muted); font-weight:700; }
+    .cc-agenda-day-add { font-size:18px; color:var(--coral); font-weight:800; line-height:1; }
+    .cc-agenda-posts { display:flex; flex-direction:column; }
+    .cc-agenda-post {
+      display:flex; align-items:center; gap:12px; padding:12px 14px;
+      border-top:1px solid var(--border); cursor:pointer; min-height:72px;
+    }
+    .cc-agenda-post:active { background:var(--bg2); }
+    .cc-agenda-post-thumb {
+      width:56px; height:56px; border-radius:10px; object-fit:cover;
+      border:1px solid var(--border); flex-shrink:0; background:var(--bg2);
+    }
+    .cc-agenda-post-info { flex:1; min-width:0; }
+    .cc-agenda-post-title {
+      font-family:'Cabinet Grotesk',sans-serif; font-weight:700; font-size:14px; line-height:1.35;
+      display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+    }
+    .cc-agenda-post-meta {
+      font-size:12px; color:var(--muted); margin-top:5px;
+      display:flex; gap:6px; align-items:center; flex-wrap:wrap;
+    }
+    .cc-agenda-empty { text-align:center; padding:56px 24px; color:var(--muted); font-size:14px; line-height:1.6; }
+
     /* Compose modal */
     .cc-modal-overlay {
       position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:9999;
@@ -762,13 +803,36 @@
     .cc-stat-label { font-size:11px; color:var(--muted); margin-top:4px; text-transform:uppercase; letter-spacing:.5px; font-weight:600; }
 
     @media(max-width:680px) {
-      #cc-calendar-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
-      .cc-grid { min-width:600px; }
-      .cc-day { min-height:80px; padding:4px; }
-      .cc-day-num { font-size:11px; }
-      .cc-post-card { font-size:9px; padding:2px 4px; }
-      .cc-toolbar { flex-direction:column; align-items:stretch; }
-      .cc-toolbar-left { justify-content:center; }
+      /* Sticky, thumb-friendly toolbar: month nav stays reachable while scrolling */
+      .cc-toolbar {
+        flex-direction:column; align-items:stretch; gap:10px;
+        position:sticky; top:calc(60px + env(safe-area-inset-top,0px)); z-index:250;
+        background:var(--bg); padding:10px 0 12px; margin-bottom:12px;
+      }
+      .cc-toolbar-left { justify-content:space-between; }
+      .cc-month-label { min-width:0; flex:1; font-size:18px; }
+      .cc-nav-btn { padding:12px 18px; font-size:18px; border-radius:10px; }
+      .cc-toolbar-right { flex-wrap:wrap; }
+      .cc-toolbar-right .cc-view-toggle { flex:1 1 auto; }
+      .cc-toolbar-right .cc-view-btn { flex:1; padding:11px 0; font-size:13px; }
+      .cc-toolbar-right .cc-input { flex:1 1 0; min-width:0; }
+      .cc-toolbar-right .cc-new-btn { width:100%; padding:14px; font-size:15px; order:5; }
+      /* Stats as a compact 2x2 grid */
+      .cc-stats { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+      .cc-stat-card { padding:12px 14px; min-width:0; }
+      .cc-stat-num { font-size:24px; }
+      /* List view: bigger thumbs, readable two-line titles */
+      .cc-list-item { padding:14px; gap:12px; }
+      .cc-list-thumb { width:64px; height:64px; }
+      .cc-list-title {
+        white-space:normal; display:-webkit-box; -webkit-line-clamp:2;
+        -webkit-box-orient:vertical; overflow:hidden;
+      }
+      /* 16px inputs stop iOS auto-zoom on focus */
+      .cc-input, .cc-textarea { font-size:16px; }
+      /* Platform picker becomes a 2-column grid of 44px targets */
+      .cc-platform-row { display:grid; grid-template-columns:1fr 1fr; }
+      .cc-platform-btn { min-height:44px; justify-content:center; font-size:13px; }
             /* Compose modal becomes a bottom sheet on phones */
       .cc-modal-overlay { padding:0; align-items:flex-end; }
       .cc-modal { max-width:100%; margin:0; border-radius:16px 16px 0 0; max-height:94vh; }
@@ -5848,6 +5912,7 @@ in San Diego</textarea>
   let _ccYear = new Date().getFullYear();
   let _ccMonth = new Date().getMonth();
   let _ccView = 'calendar';
+  let _ccAgendaScrolled = false; // mobile agenda auto-scrolls to today once per month view
   let _ccEditId = null;
   let _ccMediaFiles = []; // { file, url, type, name }
   let _ccTags = [];
@@ -5994,14 +6059,32 @@ in San Diego</textarea>
     _ccMonth += dir;
     if (_ccMonth > 11) { _ccMonth = 0; _ccYear++; }
     if (_ccMonth < 0) { _ccMonth = 11; _ccYear--; }
+    _ccAgendaScrolled = false;
     ccRender();
   }
 
   function ccGoToday() {
     _ccYear = new Date().getFullYear();
     _ccMonth = new Date().getMonth();
+    _ccAgendaScrolled = false;
     ccRender();
   }
+
+  // Re-render the calendar when crossing the mobile breakpoint (grid <-> agenda).
+  // Only the calendar page is affected; desktop rendering is untouched.
+  let _ccWasMobile = window.matchMedia('(max-width: 680px)').matches;
+  let _ccResizeT = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(_ccResizeT);
+    _ccResizeT = setTimeout(() => {
+      const isMobile = window.matchMedia('(max-width: 680px)').matches;
+      if (isMobile !== _ccWasMobile) {
+        _ccWasMobile = isMobile;
+        const page = document.getElementById('page-content-calendar');
+        if (page && page.classList.contains('active') && _ccView === 'calendar') ccRender();
+      }
+    }, 250);
+  });
 
   // ── FILTERING ──
   function ccFilteredPosts() {
@@ -6040,6 +6123,9 @@ in San Diego</textarea>
 
   function ccRenderCalendar() {
     const grid = document.getElementById('cc-grid');
+    // On phones the 7-column grid is unusable — render a vertical agenda instead.
+    if (window.matchMedia('(max-width: 680px)').matches) { ccRenderAgenda(); return; }
+    grid.className = 'cc-grid';
     const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
     let html = dayNames.map(d => `<div class="cc-grid-header">${d}</div>`).join('');
 
@@ -6091,6 +6177,76 @@ in San Diego</textarea>
     }
 
     grid.innerHTML = html;
+  }
+
+  // ── MOBILE AGENDA ──
+  // Vertical day-by-day list used on phones instead of the month grid.
+  // Same data, same actions: tap a day header to draft a post for that date,
+  // tap a post to edit it. Auto-scrolls to today on first render of the month.
+  function ccRenderAgenda() {
+    const grid = document.getElementById('cc-grid');
+    grid.className = 'cc-agenda';
+    const dayNamesFull = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const today = new Date();
+    const todayStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
+    const monthPrefix = _ccYear + '-' + String(_ccMonth+1).padStart(2,'0');
+
+    const postsByDate = {};
+    ccFilteredPosts().forEach(p => {
+      const d = (p.scheduled_date || '').slice(0, 10);
+      if (!d || d.slice(0, 7) !== monthPrefix) return;
+      if (!postsByDate[d]) postsByDate[d] = [];
+      postsByDate[d].push(p);
+    });
+    const dates = Object.keys(postsByDate).sort();
+
+    if (!dates.length) {
+      grid.innerHTML = `<div class="cc-agenda-empty">No posts scheduled for ${CC_MONTHS[_ccMonth]} ${_ccYear} yet.<br><br><button class="cc-new-btn" onclick="ccOpenCompose()">+ New Post</button></div>`;
+      return;
+    }
+
+    grid.innerHTML = dates.map(dateStr => {
+      const parts = dateStr.split('-').map(Number);
+      const dt = new Date(parts[0], parts[1] - 1, parts[2]);
+      const isToday = dateStr === todayStr;
+      const posts = postsByDate[dateStr].slice().sort((a, b) => (a.scheduled_time || '').localeCompare(b.scheduled_time || ''));
+      const postsHtml = posts.map(p => {
+        const platforms = (p.platforms || []).map(pl =>
+          `<span class="cc-post-dot ${CC_PLATFORM_DOTS[pl] || ''}" title="${CC_PLATFORM_LABELS[pl] || pl}"></span>`).join('');
+        const tagsHtml = (p.tags || []).slice(0, 3).map(t =>
+          `<span class="cc-tag" style="padding:2px 6px;font-size:9px">${escHtml(t)}</span>`).join('');
+        const thumb = (p.media_urls && p.media_urls.length)
+          ? `<img class="cc-agenda-post-thumb" src="${escHtml(p.media_urls[0])}" alt="" loading="lazy" onerror="this.style.display='none'">` : '';
+        const time = (p.scheduled_time || '').slice(0, 5);
+        return `<div class="cc-agenda-post" onclick="ccOpenCompose('${p.id}')">` +
+          thumb +
+          `<div class="cc-agenda-post-info">` +
+            `<div class="cc-agenda-post-title">${escHtml(p.title || p.caption || 'Untitled')}</div>` +
+            `<div class="cc-agenda-post-meta">${platforms}${time ? `<span>${escHtml(time)}</span>` : ''}${tagsHtml}</div>` +
+          `</div>` +
+          `<div class="cc-list-status ${p.status || 'draft'}">${p.status || 'draft'}</div>` +
+        `</div>`;
+      }).join('');
+      return `<div class="cc-agenda-day"${isToday ? ' id="cc-agenda-today"' : ''}>` +
+        `<button class="cc-agenda-day-header" onclick="ccOpenCompose(null,'${dateStr}')" aria-label="Add post on ${dateStr}">` +
+          `<span class="cc-agenda-day-name">${dayNamesFull[dt.getDay()]}</span>` +
+          `<span class="cc-agenda-day-date">${CC_MONTHS[parts[1]-1].slice(0,3)} ${parts[2]}</span>` +
+          (isToday ? `<span class="cc-agenda-today">Today</span>` : '') +
+          `<span class="cc-agenda-day-count">${posts.length} post${posts.length !== 1 ? 's' : ''}</span>` +
+          `<span class="cc-agenda-day-add">+</span>` +
+        `</button>` +
+        `<div class="cc-agenda-posts">${postsHtml}</div>` +
+      `</div>`;
+    }).join('');
+
+    // Jump to today when viewing the current month (once per month view)
+    if (monthPrefix === todayStr.slice(0, 7) && !_ccAgendaScrolled) {
+      _ccAgendaScrolled = true;
+      requestAnimationFrame(() => {
+        const el = document.getElementById('cc-agenda-today');
+        if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'start' });
+      });
+    }
   }
 
   function ccRenderList() {
