@@ -3676,6 +3676,21 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 .social-refresh-btn:active { transform: scale(.9); background: var(--ink-12); }
 .social-refresh-btn svg { display: block; }
 
+/* Guides entry point in the Share header — a labeled pill (not icon-only) so
+   it's obvious. Opens the same guides/blog panel as the Discover rail. */
+.social-guides-btn {
+  height: 44px; padding: 0 16px; border-radius: 22px;
+  background: var(--coral-dim);
+  border: 1px solid var(--coral-glow);
+  color: var(--coral);
+  font-weight: 700; font-size: 14px; cursor: pointer;
+  display: flex; align-items: center;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform var(--motion-fast, .15s) var(--ease-spring, cubic-bezier(.32,.72,0,1)),
+              background-color var(--motion-fast, .15s) var(--ease-soft, cubic-bezier(.4,0,.2,1));
+}
+.social-guides-btn:active { transform: scale(.95); background: var(--coral-glow); }
+
 /* Pull-to-refresh indicator — sits between the sub-tabs and the feed; JS
    drives transform/opacity from the touch pull, and adds .social-ptr--spin
    while the refresh request is in flight. */
