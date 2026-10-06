@@ -171,6 +171,54 @@ for (const needle of [
   check(`MIG: contains "${needle}"`, mig.includes(needle));
 }
 
+// ═══════════════════════════════════════════════════════════════
+// 6. validateCreatorAction (api/admin-creators.js)
+// ═══════════════════════════════════════════════════════════════
+const { validateCreatorAction, CREATOR_TIERS } = await import('../api/admin-creators.js');
+
+check('V0: tiers exported', Array.isArray(CREATOR_TIERS) && CREATOR_TIERS.join() === 'founding,verified');
+
+// V1: valid set/founding → patch with all three flags
+let v = validateCreatorAction({ action: 'set', user_id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890', tier: 'founding' });
+check('V1: set founding → ok + patch',
+  v.ok === true && v.tier === 'founding' &&
+  v.patch.is_creator === true && v.patch.creator_tier === 'founding' &&
+  typeof v.patch.creator_since === 'string' && !Number.isNaN(Date.parse(v.patch.creator_since)));
+
+// V2: valid set/verified
+v = validateCreatorAction({ action: 'set', user_id: 'abc12345', tier: 'verified' });
+check('V2: set verified → ok', v.ok === true && v.patch.creator_tier === 'verified');
+
+// V3: valid clear → nulls everything out
+v = validateCreatorAction({ action: 'clear', user_id: 'abc12345' });
+check('V3: clear → ok + nulls',
+  v.ok === true && v.patch.is_creator === false &&
+  v.patch.creator_tier === null && v.patch.creator_since === null);
+
+// V4: bad tier rejected
+v = validateCreatorAction({ action: 'set', user_id: 'abc12345', tier: 'gold' });
+check('V4: bad tier rejected', v.ok === false && /tier/.test(v.error));
+
+// V5: missing tier rejected
+v = validateCreatorAction({ action: 'set', user_id: 'abc12345' });
+check('V5: missing tier rejected', v.ok === false);
+
+// V6: bad action rejected
+v = validateCreatorAction({ action: 'delete', user_id: 'abc12345' });
+check('V6: bad action rejected', v.ok === false);
+
+// V7: missing user_id rejected
+v = validateCreatorAction({ action: 'clear' });
+check('V7: missing user_id rejected', v.ok === false);
+
+// V8: malformed user_id rejected (injection guard)
+v = validateCreatorAction({ action: 'clear', user_id: "1'; DROP TABLE profiles;--" });
+check('V8: injection-y user_id rejected', v.ok === false);
+
+// V9: empty body rejected
+v = validateCreatorAction();
+check('V9: empty body rejected', v.ok === false);
+
 // ── report ───────────────────────────────────────────────────────────────
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failures.length) {
