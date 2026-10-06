@@ -618,10 +618,6 @@ function renderBottomNav(user) {
         <span class="bn-post-ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>
         <span>Post</span>
       </button>
-      <button class="bottom-nav-btn" id="bnNews" onclick="bottomNavNews(this)">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><line x1="10" y1="6" x2="18" y2="6"/><line x1="10" y1="10" x2="18" y2="10"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
-        <span>Blog</span>
-      </button>
       <button class="bottom-nav-btn" id="bnProfile" onclick="bottomNavProfile(this)">
         <div class="bn-avatar" id="bnAvatarCircle">${initials}<span class="bn-dot" id="bnProfileBadge" style="display:none"></span></div>
         <span id="bnProfileLabel">Profile</span>
@@ -2355,7 +2351,7 @@ async function renderSavedPosts() {
   const wrap = document.getElementById('my-saved-posts');
   if (!wrap) return;
   if (!currentUser) { wrap.innerHTML = '<div class="pf-empty">Sign in to see your saved posts</div>'; return; }
-  wrap.innerHTML = '<div class="pf-empty" id="my-saved-posts-loading"><div class="pf-empty-icon">🔖</div>Loading…</div>';
+  wrap.innerHTML = _tileSkeletonHTML(6);
   try {
     const items = await fetchMySavedPosts(60);
     if (!items.length) {
@@ -3875,6 +3871,9 @@ function _renderCardsNow() {
   // Split into tiers
   let heroes   = venues.filter(v => v.is_hero && (v.photo_url || (v.photo_urls && v.photo_urls.length)));
   let nonHeroes = venues.filter(v => !v.is_hero || !(v.photo_url || (v.photo_urls && v.photo_urls.length))); /* PREVIEW-ONLY (design-uplevel): demo Statement heroes while none flagged */ if (!heroes.length) { heroes = venues.filter(v => v.photo_url || (v.photo_urls && v.photo_urls.length)).slice(0, 3); const heroIds = new Set(heroes.map(v => v.id)); nonHeroes = nonHeroes.filter(v => !heroIds.has(v.id)); }
+  // "Hot right now" ranks by tonight's check-ins, so the label's claim is
+  // truthful and the criterion is legible (Fix #17).
+  heroes.sort((a, b) => (state.goingCounts[b.id] || 0) - (state.goingCounts[a.id] || 0));
 
   // Compact = next batch with photos (up to 6 venues = 3 rows of 2)
   const withPhoto    = nonHeroes.filter(v => v.photo_url || (v.photo_urls && v.photo_urls.length));
@@ -3922,7 +3921,7 @@ function _renderCardsNow() {
     // On mobile the wrapper is display:contents (see style.css), so the cards
     // behave exactly as direct children — rendering is identical to before.
     if (heroes.length) {
-      html += `<div class="feed-label">🔥 Hot right now</div>`;
+      html += `<div class="feed-label">🔥 Hot right now <span style="opacity:.65;text-transform:none;letter-spacing:0">· most checked-in tonight</span></div>`;
       html += `<div class="card-hero-row">`;
       heroes.forEach((v, i) => {
         html += heroCardHTML(v, nextDelay(80), i);
@@ -3957,9 +3956,42 @@ function _renderCardsNow() {
     }
   }
 
+// ── GUIDES RAIL (Fix #15) ─────────────────────────────────────────────
+// Blog is no longer a bottom tab; guides live as a Discover rail instead.
+// Article pages (/blog/*.html) are untouched — deep links keep working.
+function _guidesForCity(citySlug) {
+  const all = (typeof NEWS_ARTICLES !== 'undefined' ? NEWS_ARTICLES : [])
+    .concat(typeof _dbArticles !== 'undefined' ? _dbArticles : []);
+  const seen = {};
+  return all.filter(a => {
+    if (a.city !== citySlug && a.city !== 'all') return false;
+    const stem = String(a.url || '').replace(/^.*\/blog\//, '').replace(/\.html$/, '').replace(/[?#].*$/, '');
+    if (seen[stem]) return false;
+    seen[stem] = 1;
+    return true;
+  }).slice(0, 8);
+}
+function _guidesRailHTML() {
+  const citySlug = state.city?.slug || 'san-diego';
+  const guides = _guidesForCity(citySlug);
+  if (!guides.length) return '';
+  const cards = guides.map(a => `
+    <a href="${esc(a.url)}" class="guide-card" onclick="track('blog_article_opened',{url:'${esc(a.url)}',city:'${citySlug}',source:'discover_rail'})">
+      <div class="guide-card-img" style="background-image:url('${esc(a.img)}')"></div>
+      <div class="guide-card-body">
+        <div class="guide-card-tag">${esc(a.tag || 'Guide')}</div>
+        <div class="guide-card-title">${esc(a.title)}</div>
+        <div class="guide-card-meta">${esc(a.readTime || '')}</div>
+      </div>
+    </a>`).join('');
+  return `<div class="feed-label">📖 Guides <span style="opacity:.65;text-transform:none;letter-spacing:0">· neighborhood guides &amp; rankings</span></div>
+    <div class="guides-rail">${cards}</div>`;
+}
+
   // "+ Request a Venue" lives at the END of the feed (and in the empty-search
   // state), not in the header — it was the fourth row of chrome above the
   // first card.
+  html += _guidesRailHTML();
   html += `<div class="feed-footer"><div class="feed-footer-txt">Know a spot we're missing?</div><button class="request-venue-btn request-venue-btn--empty" onclick="openRequestVenue()">+ Request a Venue</button></div>`;
   grid.innerHTML = html;
 
@@ -4019,7 +4051,22 @@ function heroCardHTML(v, delay, idx = 0) {
      const heroM = dealList[0]? String(dealList[0]).trim().match(/^(\$[\d,.]+(?:\s*[–-]\s*\$?[\d,.]+)?)\s+(.*)$/): null;
   const heroDeal = heroM ? { price: heroM[1], text: heroM[2] } : (dealList[0] ? { price: '', text: String(dealList[0]).trim() } : null);
 
-  // Check-in bar
+  // Zero-check-in nudge: rotate a few variants so every card doesn't read the
+// same line. Deterministic per venue id (stable across re-renders, no flicker).
+function _emptyGoingLine(venueId) {
+  const variants = [
+    'Be the first one here tonight',
+    'No one\u2019s checked in yet \u2014 claim your stool',
+    'Quiet so far tonight',
+    'Your move \u2014 check in first',
+  ];
+  let h = 0;
+  const s = String(venueId || '');
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return variants[h % variants.length];
+}
+
+// Check-in bar
   const goingBar = count > 0 ? `
     <div class="card-hero-going">
       <div class="card-hero-going-left">
@@ -4030,7 +4077,7 @@ function heroCardHTML(v, delay, idx = 0) {
         onclick="event.stopPropagation();doGoingTonight('${v.id}',this)">${isMeIn ? '✓ Checked In' : '+ Check In'}</button>
     </div>` : `
     <div class="card-hero-going">
-      <div class="card-hero-going-left">Be the first one here tonight</div>
+      <div class="card-hero-going-left">${_emptyGoingLine(v.id)}</div>
       <button class="card-hero-going-btn"
         onclick="event.stopPropagation();doGoingTonight('${v.id}',this)">+ Check In</button>
     </div>`;
@@ -4287,6 +4334,45 @@ function avgHTML(reviews) {
   return `${starHTML(avg, 5, 11)} <span class="review-summary-sub">${avg.toFixed(1)} · ${reviews.length} review${reviews.length !== 1 ? 's' : ''}</span>`;
 }
 
+// Deals vs menu highlights (Fix #13): the `deals` array mixes time-bound
+// specials ("$5 margaritas 3-6pm") with plain menu highlights ("Wood-fired
+// pizzas"). Split them so each gets an honest label. Pure + tested.
+const _DEAL_SIGNALS = [
+  /\$\s*\d/, /(\d+)\s*%/, /\boff\b/i, /half[ -]?price/i, /\bbogo\b/i,
+  /2[ -]?for[ -]?\d?/i, /happy\s*hour/i, /all[ -]?day/i, /late[ -]?night/i,
+  /\b(mon(day)?|tue(sday)?|wed(nesday)?|thu(rsday)?|fri(day)?|sat(urday)?|sun(day)?)\b/i,
+  /\d\s*(am|pm)\b/i, /\d\s*[–-]\s*\d\s*(am|pm)?\b/,
+];
+function _isTimeBoundDeal(text) {
+  const s = String(text || '');
+  return _DEAL_SIGNALS.some(re => re.test(s));
+}
+function _splitDealsAndMenu(deals) {
+  const list = (deals || []).filter(Boolean);
+  const timeBound = list.filter(_isTimeBoundDeal);
+  const menu = list.filter(d => !_isTimeBoundDeal(d));
+  return { timeBound, menu };
+}
+function _dealItemHTML(d) {
+  return `<div class="modal-deal-item"><div class="modal-deal-arrow"></div>${esc(d)}</div>`;
+}
+// Renders the venue modal's deals block: time-bound specials under
+// "Deals & Specials", plain menu highlights under their own label.
+function _dealsBlockHTML(v) {
+  const { timeBound, menu } = _splitDealsAndMenu(v.deals);
+  if (!timeBound.length && !menu.length) return '';
+  let html = '';
+  if (timeBound.length) {
+    html += `<div class="modal-section-label">Deals &amp; Specials</div>` +
+      timeBound.map(_dealItemHTML).join('');
+  }
+  if (menu.length) {
+    html += `<div class="modal-section-label" style="margin-top:14px">Menu Highlights</div>` +
+      menu.map(_dealItemHTML).join('');
+  }
+  return html;
+}
+
 function renderModal(v, type, reviews) {
   const faved   = isFavorite(v.id);
   const isVenue = type === 'venue';
@@ -4368,8 +4454,8 @@ function renderModal(v, type, reviews) {
       ${isVenue ? `
         ${(() => { const tags = AMENITIES.filter(a => v[a.key]).map(a => `<span class="amenity-tag amenity-tag--${a.key}">${icn(a.icon,12)} ${a.label}</span>`).join(''); return tags ? `<div class="amenity-tags amenity-tags--modal" style="margin-top:10px">${tags}</div>` : ''; })()}
         <div class="s-div"></div>
-        <div class="modal-section-label">Deals &amp; Specials</div>
-        ${(v.deals || []).map(d => `<div class="modal-deal-item"><div class="modal-deal-arrow"></div>${esc(d)}</div>`).join('')}
+
+        ${_dealsBlockHTML(v)}
         ${v.promo_code ? `
         <div class="modal-promo">
           <div class="modal-promo-inner" onclick="copyPromo('${esc(v.promo_code)}',this)">
@@ -4735,8 +4821,10 @@ const BADGE_DEFS = {
   top_reviewer:   { icon: 'pen',       label: 'Top Reviewer',         desc: 'Left 25+ reviews' },
 };
 
+let _openProfileSeq = 0;
 async function openProfile() {
   if (!currentUser) { openAuth('signin'); return; }
+  const seq = ++_openProfileSeq;
   const page = document.getElementById('profilePage');
   // Paint a skeleton FIRST so the page slides in with content shape,
   // not an empty div that fills 300ms later (which is the flicker).
@@ -4746,7 +4834,10 @@ async function openProfile() {
   _profilePushHistory();
   document.getElementById('bnProfile')?.classList.add('active');
   document.getElementById('bnFeed')?.classList.remove('active');
-  await renderProfile(currentUser);
+  await renderProfile(currentUser, seq);
+  // A second openProfile() call (double-tap) supersedes this one; don't let
+  // the stale render overwrite the fresh one (Fix #3: double-render).
+  if (seq !== _openProfileSeq) return;
   if (content) content.dataset.userId = currentUser.id;
 }
 function _profileSkeletonHTML() {
@@ -4774,6 +4865,25 @@ function _profileSkeletonHTML() {
         <div class="skel" style="height:200px;border-radius:14px"></div>
       </div>
     </div>`;
+}
+// Shared skeleton helpers (Fix #9): tile grid for photo grids, rows for
+// people/check-in lists. Replaces bare "Loading…" text that flashed and
+// jumped layout on tab switches.
+function _tileSkeletonHTML(n) {
+  const count = n || 6;
+  return `<div class="pf-tagged-grid" aria-hidden="true">${Array.from({ length: count }).map(() =>
+    `<div class="skel" style="aspect-ratio:1/1;border-radius:10px"></div>`).join('')}</div>`;
+}
+function _rowSkeletonHTML(n) {
+  const count = n || 4;
+  return Array.from({ length: count }).map(() =>
+    `<div style="display:flex;align-items:center;gap:12px;padding:10px 2px" aria-hidden="true">
+       <div class="skel skel--avatar"></div>
+       <div style="flex:1;min-width:0">
+         <div class="skel skel--title" style="width:42%"></div>
+         <div class="skel skel--text" style="width:68%"></div>
+       </div>
+     </div>`).join('');
 }
 function closeProfile() {
   const page = document.getElementById('profilePage');
@@ -4848,13 +4958,17 @@ function closeSubPage(id) {
   setTimeout(() => { page.style.display = 'none'; }, 300);
 }
 
-async function renderProfile(user) {
+async function renderProfile(user, seq) {
   const areas = [...new Set([...state.venues, ...state.events].map(v => v.neighborhood).filter(Boolean))].sort();
   const [profile, myReviews, favItems, followed, checkIns, badges, following, followers] = await Promise.all([
     getProfile(user.id), fetchMyReviews(user.id), getFavoriteItems(user.id),
     getFollowedNeighborhoods(user.id), fetchAllCheckIns(user.id),
     getUserBadges(user.id), getFollowing(user.id), getFollowers(user.id),
   ]);
+  // Stale render guard (Fix #3): a second openProfile() while this fetch was
+  // in flight means the user already triggered a fresher render — bail
+  // instead of painting stale header data over it (the double-render).
+  if (seq !== undefined && seq !== _openProfileSeq) return;
   // Cached for the Settings sheet so it opens prefilled (name / bio / privacy)
   // instead of scraping the DOM (which broke silently when .my-name → .pf-name).
   window._myProfile = profile || {};
@@ -5012,7 +5126,6 @@ async function renderProfile(user) {
       <div class="pf-tabs-inner">
         <button class="pf-tab on" onclick="selectProfileTab('checkins',this)">Check-ins</button>
         <button class="pf-tab" onclick="selectProfileTab('reviews',this)">Reviews</button>
-        <button class="pf-tab" onclick="selectProfileTab('saved',this)">Saved</button>
         <button class="pf-tab" onclick="selectProfileTab('lists',this)">Lists</button>
         <button class="pf-tab" onclick="selectProfileTab('tagged',this)">Tagged</button>
       </div>
@@ -5055,11 +5168,8 @@ async function renderProfile(user) {
         }).join('') : '<div class="pf-empty"><div class="pf-empty-icon">⭐</div>No reviews yet</div>'}
       </div>
 
-      <div id="my-tab-saved" style="display:none">
-        <div class="pf-saved-subtabs">
-          <button class="pf-saved-subtab on" onclick="switchSavedSubtab('spots',this)">Spots</button>
-          <button class="pf-saved-subtab" onclick="switchSavedSubtab('posts',this)">Posts</button>
-        </div>
+      <div id="my-tab-lists" style="display:none">
+        <div class="feed-label">★ Saved spots</div>
         <div id="my-saved-spots">
           ${favSpots.length ? favSpots.map(v =>
             `<div class="pf-row" onclick="closeProfile();openModal('${v.id}','${v.event_type?'event':'venue'}')">
@@ -5073,13 +5183,11 @@ async function renderProfile(user) {
             </div>`
           ).join('') : '<div class="pf-empty"><div class="pf-empty-icon">🔖</div>No saved spots yet — tap ★ on any venue</div>'}
         </div>
-        <div id="my-saved-posts" style="display:none">
-          <div class="pf-empty" id="my-saved-posts-loading"><div class="pf-empty-icon">🔖</div>Loading…</div>
+        <div class="feed-label">🔖 Saved posts</div>
+        <div id="my-saved-posts">
+          <div id="my-saved-posts-loading"></div>
         </div>
-      </div>
-
-      <div id="my-tab-lists" style="display:none">
-        <div style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
+        <div style="margin:16px 0 12px;display:flex;justify-content:space-between;align-items:center">
           <span style="font-size:13px;color:var(--muted)">Your curated venue collections</span>
           <button class="list-create-btn" onclick="openCreateListForm()">+ New List</button>
         </div>
@@ -5088,7 +5196,7 @@ async function renderProfile(user) {
 
       <div id="my-tab-tagged" style="display:none">
         <div style="margin-bottom:12px;font-size:13px;color:var(--muted)">Photos friends have tagged you in.</div>
-        <div id="myTaggedGrid"><div class="pf-empty"><div class="pf-empty-icon">📷</div>Loading…</div></div>
+        <div id="myTaggedGrid">${_tileSkeletonHTML(6)}</div>
       </div>
 
       <div id="my-tab-hoods" style="display:none">
@@ -5114,12 +5222,19 @@ async function renderProfile(user) {
   renderFriendLeaderboard('checkins');
 }
 
+let _lbSeq = 0;
 async function renderFriendLeaderboard(metric) {
   const wrap = document.getElementById('pf-leaderboard');
   if (!wrap) return;
+  const seq = ++_lbSeq;
   document.querySelectorAll('.pf-lb-tab').forEach(b => b.classList.toggle('on', b.dataset.metric === metric));
   wrap.innerHTML = '<div class="pf-empty">Loading…</div>';
-  const rows = await fetchFriendLeaderboard(metric);
+  let rows = [];
+  try {
+    rows = await fetchFriendLeaderboard(metric);
+  } catch (e) { console.warn('renderFriendLeaderboard error', e); rows = []; }
+  // A slow earlier tab must not overwrite the tab the user already switched to.
+  if (seq !== _lbSeq) return;
   if (!rows.length) {
     wrap.innerHTML = '<div class="pf-empty"><div class="pf-empty-icon">🏆</div>Follow friends to see who’s most active</div>';
     return;
@@ -5523,7 +5638,7 @@ async function _composerOpenTagSheet() {
         <div class="cp-pick-sub">They'll see it in their feed and get a notification.</div>
       </div>
       <div class="cp-pick-list" id="cpTagGrid">
-        <div class="cp-pick-empty">Loading friends…</div>
+        ${_rowSkeletonHTML(4)}
       </div>
       <div class="cp-pick-foot"><button class="cp-post-cta" id="cpTagDone">Done</button></div>
     </div>`;
@@ -6237,7 +6352,7 @@ function showBadgeInfo(badgeKey) {
 async function showFollowersList() {
   if (!currentUser) return;
   const content = document.getElementById('followersContent');
-  content.innerHTML = '<div style="text-align:center;padding:32px;color:var(--muted)">Loading…</div>';
+  content.innerHTML = _rowSkeletonHTML(6);
   openSubPage('followersPage');
 
   const followerRows = await getFollowers(currentUser.id);
@@ -6560,7 +6675,7 @@ async function openFindPeople() {
         oninput="debouncePeopleSearch(this.value)"
         style="width:100%;box-sizing:border-box">
     </div>
-    <div id="peopleResults"><div style="text-align:center;padding:32px;color:var(--muted)">Loading…</div></div>`;
+    <div id="peopleResults">${_rowSkeletonHTML(5)}</div>`;
   openSubPage('findPeoplePage');
   setTimeout(() => document.getElementById('peopleSearch')?.focus(), 300);
   const following = await getFollowing(currentUser.id);
@@ -6574,7 +6689,7 @@ async function loadPeopleResults(query) {
   const followingSet = state._following || new Set();
 
   if (query.length >= 2) {
-    el.innerHTML = `<div style="text-align:center;padding:16px;color:var(--muted);font-size:13px">Searching…</div>`;
+    el.innerHTML = _rowSkeletonHTML(4);
     const results = await searchProfiles(query);
     const filtered = results.filter(p => p.id !== currentUser.id);
     if (!filtered.length) { el.innerHTML = `<div class="pub-empty">No one found for "${esc(query)}"</div>`; return; }
@@ -6585,7 +6700,7 @@ async function loadPeopleResults(query) {
       el.innerHTML = `<div class="pub-empty" style="padding-top:32px">Search above to find friends</div>`;
       return;
     }
-    el.innerHTML = `<div class="people-section-label">Following (${followingSet.size})</div><div style="text-align:center;padding:12px;color:var(--muted);font-size:13px">Loading…</div>`;
+    el.innerHTML = `<div class="people-section-label">Following (${followingSet.size})</div>` + _rowSkeletonHTML(5);
     const ids = [...followingSet];
     const { data } = await db.from('profiles').select('id, display_name, avatar_emoji, bio').in('id', ids);
     el.innerHTML = `<div class="people-section-label">Following (${followingSet.size})</div>` +
@@ -6852,7 +6967,7 @@ function updateMapMarkers() {
       maxClusterRadius: 45,
       spiderfyOnMaxZoom: true,
       showCoverageOnHover: false,
-      zoomToBoundsOnClick: true,
+      zoomToBoundsOnClick: false, // Fix #18: tap shows a bottom-sheet list instead
       disableClusteringAtZoom: 17,
       animate: true,
       animateAddingMarkers: false,
@@ -6860,6 +6975,14 @@ function updateMapMarkers() {
       chunkInterval: 100,
       chunkDelay: 10,
     }).addTo(state.map);
+    // Cluster tap → bottom sheet listing the clustered venues (instead of
+    // only zooming/declustering).
+    state._markerLayer.on('clusterclick', (e) => {
+      const venues = e.layer.getAllChildMarkers()
+        .map(m => (state.venues || []).find(v => String(v.id) === String(m._venueId)))
+        .filter(Boolean);
+      if (venues.length) openClusterSheet(venues);
+    });
   }
   state.markers = {};
   const markers = [];
@@ -6868,18 +6991,50 @@ function updateMapMarkers() {
     const isEvent = !!v.event_type;
     const openToday = (v.days||[]).includes(TODAY);
     const bg = isEvent ? '#7C6FD8' : openToday ? '#FF6B4A' : '#9A8E82';
-    const label = v.name.length > 16 ? v.name.slice(0, 15) + '\u2026' : v.name;
+    const label = esc(v.name);
     const iconHtml = `<div class="map-pin-wrap"><div class="map-pin-dot" style="background:${bg};box-shadow:0 0 0 3px ${bg}22"></div><div class="map-pin-label" style="border-color:${bg}33;color:${bg}">${label}</div></div>`;
     const icon = L.divIcon({ className: '', html: iconHtml, iconSize: [10, 10], iconAnchor: [5, 5], popupAnchor: [0, -14] });
     const marker = L.marker([v.lat, v.lng], { icon });
     marker.bindPopup(popupHTML(v), { maxWidth: 260 });
     marker.on('click', () => hlMapCard(v.id));
     markers.push(marker);
+    marker._venueId = v.id;
     state.markers[v.id] = marker;
   });
   state._markerLayer.addLayers(markers);
   // Overlay check-in users on map
   loadMapCheckIns();
+}
+
+// Fix #18: tapping a map cluster opens a bottom sheet listing the clustered
+// venues, instead of only zooming/declustering.
+function openClusterSheet(venues) {
+  const close = () => {
+    const ov = document.getElementById('clusterSheet');
+    if (ov) dismissOverlay(ov);
+  };
+  let ov = document.getElementById('clusterSheet');
+  if (ov) ov.remove();
+  ov = document.createElement('div');
+  ov.className = 'overlay';
+  ov.id = 'clusterSheet';
+  const rows = venues.map(v => {
+    const count = state.goingCounts[v.id] || 0;
+    return `<div class="pf-row" onclick="document.getElementById('clusterSheet')&&dismissOverlay(document.getElementById('clusterSheet'));openModal('${v.id}','venue')">
+      <div class="pf-row-body">
+        <div class="pf-row-name">${esc(v.name)}</div>
+        <div class="pf-row-meta">${esc(v.neighborhood || '')}${count ? ` · 🔥 ${count} tonight` : ''}</div>
+      </div>
+    </div>`;
+  }).join('');
+  ov.innerHTML = `
+    <div class="sheet" style="max-height:70vh">
+      <div class="sheet-handle"></div>
+      <div style="padding:4px 20px 8px;font-weight:800;font-size:16px">${venues.length} spots here</div>
+      <div style="overflow-y:auto;padding:0 8px 24px;-webkit-overflow-scrolling:touch">${rows}</div>
+    </div>`;
+  ov.addEventListener('click', (e) => { if (e.target === ov) close(); });
+  presentOverlay(ov);
 }
 
 async function loadMapCheckIns() {
@@ -7031,6 +7186,12 @@ function presentOverlay(overlay) {
 }
 function openOverlay(id)  {
   const el = document.getElementById(id); if (!el) return;
+  // Already open → don't restart the entrance animation. A second open call
+  // (e.g. double-tap on a venue card) yanking the sheet back to
+  // translateY(100%) mid-slide-up is what produced the "content doubled /
+  // stacked" glitch on laggy devices. Content was already re-rendered by the
+  // caller before this runs, so skipping the animation loses nothing.
+  if (el.classList.contains('open')) return;
   // Ensure the sheet starts at translateY(100%) before animating in
   const sheet = el.querySelector('.sheet');
   if (sheet) {
@@ -7476,18 +7637,24 @@ function refreshCheckInCounters() {
 }
 
 // ── PUBLIC PROFILE ──────────────────────────────────────
+let _pubProfileSeq = 0;
 async function openPublicProfile(userId) {
   // If we're navigating out of the full-screen photo viewer (e.g. a tagged-name
   // tap), close it first so the profile isn't hidden behind it (z-index:10000).
   if (document.getElementById('immersiveViewer')?.classList.contains('imv--open')) closeImmersiveViewer();
   if (userId === currentUser?.id) { openProfile(); return; }
-  document.getElementById('pubProfileContent').innerHTML = `<div style="text-align:center;padding:40px;color:var(--muted)">Loading…</div>`;
+  // Paint a skeleton FIRST (same shape as the real header) so the page slides
+  // in with layout reserved — a bare "Loading…" text that swaps for full
+  // content mid-transition is what produced the double-paint/jump glitch.
+  const content = document.getElementById('pubProfileContent');
+  if (content) content.innerHTML = _profileSkeletonHTML();
   document.getElementById('pubProfileTitle').textContent = 'Profile';
   openSubPage('pubProfilePage');
-  await renderPublicProfile(userId);
+  const seq = ++_pubProfileSeq;
+  await renderPublicProfile(userId, seq);
 }
 
-async function renderPublicProfile(userId) {
+async function renderPublicProfile(userId, seq) {
   state.viewingProfileUserId = userId;
   const [profile, reviews, checkIns, badges, favItems, amIFollowing, following, followers] = await Promise.all([
     fetchPublicProfile(userId),
@@ -7501,9 +7668,11 @@ async function renderPublicProfile(userId) {
   ]);
 
   if (!profile) {
+    if (seq !== undefined && seq !== _pubProfileSeq) return; // superseded by a newer profile open
     document.getElementById('pubProfileContent').innerHTML = `<div style="text-align:center;padding:40px;color:var(--muted)">This profile is private.</div>`;
     return;
   }
+  if (seq !== undefined && seq !== _pubProfileSeq) return; // superseded — don't paint stale content
 
   const allItems = [...state.venues, ...state.events];
   // Build the favorites Set ONCE (was rebuilding inside .filter() — O(n × m))
@@ -7621,7 +7790,7 @@ async function renderPublicProfile(userId) {
           </div>`).join('') : '<div class="pf-empty"><div class="pf-empty-icon">🔖</div>No saved spots</div>'}
       </div>
       <div id="pub-tab-tagged" style="display:none">
-        <div id="pubTaggedGrid"><div class="pf-empty"><div class="pf-empty-icon">📷</div>Loading…</div></div>
+        <div id="pubTaggedGrid">${_tileSkeletonHTML(6)}</div>
       </div>
     </div>`;
 }
@@ -7629,6 +7798,7 @@ async function renderPublicProfile(userId) {
 async function loadPubTaggedPosts(userId) {
   const grid = document.getElementById('pubTaggedGrid');
   if (!grid) return;
+  grid.innerHTML = _tileSkeletonHTML(6);
   const rows = await fetchTaggedPostsForUser(userId, 60);
   if (!rows.length) {
     grid.innerHTML = `<div class="pf-empty"><div class="pf-empty-icon">📷</div>Not tagged in any photos yet.</div>`;
@@ -9446,7 +9616,7 @@ if (window.visualViewport) {
 function selectProfileTab(tab, btn) {
   if(typeof haptic==='function')haptic('light');
   // Hide all tab content panels
-  ['checkins','reviews','saved','lists','tagged','hoods'].forEach(t => {
+  ['checkins','reviews','lists','tagged','hoods'].forEach(t => {
     const el = document.getElementById('my-tab-' + t);
     if (el) el.style.display = 'none';
   });
@@ -9462,7 +9632,7 @@ function selectProfileTab(tab, btn) {
     // Keep the active pill in view when the tab bar scrolls horizontally.
     btn.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
   }
-  if (tab === 'lists')  loadMyLists();
+  if (tab === 'lists')  { loadMyLists(); renderSavedPosts(); }
   if (tab === 'tagged') loadMyTaggedPosts();
 }
 
@@ -9472,6 +9642,7 @@ async function loadMyTaggedPosts() {
   if (!currentUser) return;
   const grid = document.getElementById('myTaggedGrid');
   if (!grid) return;
+  grid.innerHTML = _tileSkeletonHTML(6);
   const rows = await fetchTaggedPostsForUser(currentUser.id, 60);
   if (!rows.length) {
     grid.innerHTML = `<div class="pf-empty"><div class="pf-empty-icon">📷</div>No one has tagged you yet.</div>`;
@@ -9493,19 +9664,19 @@ async function loadMyTaggedPosts() {
   }).join('')}</div>`;
 }
 
-// Opens the immersive viewer at a specific tagged photo. If the photo
-// isn't already in the loaded social feed we hydrate a minimal item.
-function openTaggedPhoto(postId) {
+// Opens the immersive viewer at a specific tagged photo. Always seeds the
+// viewer with the exact post: the viewer's pool is filtered to the active
+// feed tab, so a post filtered out of that tab would resolve to index 0 and
+// open the WRONG photo (the tagged-grid bug). Same pattern as
+// openPostFromNotification.
+async function openTaggedPhoto(postId) {
   if (typeof haptic === 'function') haptic('light');
   const composed = `photo-${postId}`;
-  const existing = (Array.isArray(_socialItems) ? _socialItems : []).find(i => i.id === composed);
-  if (existing && typeof openImmersiveViewer === 'function') {
-    openImmersiveViewer(composed);
-    return;
-  }
-  // Fallback: switch to home feed and let the user scroll to it.
-  if (typeof openModal === 'function' && existing?.venue_id) {
-    openModal(existing.venue_id, 'venue');
+  const inFeed = (Array.isArray(_socialItems) ? _socialItems : []).find(i => i.id === composed);
+  const item = inFeed || await fetchPostById(composed, 'photo');
+  if (!item) { showToast('This photo is no longer available'); return; }
+  if (typeof openImmersiveViewer === 'function') {
+    openImmersiveViewer(composed, [item]);
   }
 }
 
@@ -9514,7 +9685,7 @@ async function loadMyLists() {
   if (!currentUser) return;
   const grid = document.getElementById('myListsGrid');
   if (!grid) return;
-  grid.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted)">Loading...</div>';
+  grid.innerHTML = _rowSkeletonHTML(3);
   const lists = await fetchUserLists(currentUser.id);
   if (!lists.length) {
     grid.innerHTML = '<div class="pf-empty"><div class="pf-empty-icon">\uD83D\uDCCB</div>No lists yet \u2014 create one to curate your favorite spots!</div>';
@@ -10068,8 +10239,13 @@ function openImmersiveViewer(startPostId, seedItems) {
     (i.media_urls && i.media_urls.length) || i.photo_url || i.meta?.photo_url || i.meta?.video_url
   );
   if (!_immersiveItems.length) { showToast('Nothing to view'); return; }
-  const idx = Math.max(0, _immersiveItems.findIndex(i => i.id === startPostId));
-  _immersiveIndex = idx >= 0 ? idx : 0;
+  // Never silently open index 0 when a specific post was requested but isn't
+  // in the pool (tab filtering) — that shows the WRONG post. Callers that
+  // target one post must seed it (see openPostFromNotification,
+  // openTaggedPhoto).
+  const foundIdx = startPostId ? _immersiveItems.findIndex(i => i.id === startPostId) : 0;
+  if (startPostId && foundIdx < 0) { showToast('Nothing to view'); return; }
+  _immersiveIndex = Math.max(0, foundIdx);
 
   let overlay = document.getElementById('immersiveViewer');
   if (!overlay) {

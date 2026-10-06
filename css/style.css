@@ -227,7 +227,10 @@ body.theme-transitioning{transition:background .35s ease,color .35s ease}
 .type-tab:not(.active):hover{border-color:var(--teal);color:var(--teal)}
 
 /* CONTROLS */
-.controls{position:sticky;top:60px;z-index:200;background:var(--nav-bg);border-bottom:1px solid var(--border2);backdrop-filter:blur(20px) saturate(1.4);-webkit-backdrop-filter:blur(20px) saturate(1.4)}
+.controls{position:sticky;top:60px;z-index:200;background:var(--nav-bg);border-bottom:1px solid var(--border2);backdrop-filter:blur(20px) saturate(1.4);-webkit-backdrop-filter:blur(20px) saturate(1.4);
+/* Own composited layer: iOS Safari can ghost-paint a sticky + backdrop-filter
+   header twice during momentum scroll. translateZ(0) pins it to one layer. */
+transform:translateZ(0);-webkit-transform:translateZ(0)}
 .controls-top{display:flex;align-items:center;gap:8px;padding:10px 16px 6px}
 .controls-actions{display:flex;gap:8px;padding:0 16px 6px}
 .search-box{flex:1;background:var(--bg2);border:none;border-radius:var(--r-lg);padding:11px 16px;font-family:'DM Sans',sans-serif;font-size:16px;color:var(--text);outline:none;min-height:var(--tap);transition:background var(--transition),box-shadow var(--transition);box-shadow:var(--clay-input)}
@@ -281,7 +284,9 @@ body.theme-transitioning{transition:background .35s ease,color .35s ease}
 }
 .filter-select:focus{outline:none;box-shadow:var(--ring), var(--clay-sm)}
 .fp-row-amenities{display:flex;flex-direction:column}
-.fp-amenity-scroll{display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:2px}
+/* Wrap (don't horizontal-scroll): a chip clipped mid-label at the scroll edge
+   reads as broken ("Dog Fri"). All 8 amenities fit in 2-3 wrapped rows. */
+.fp-amenity-scroll{display:flex;flex-wrap:wrap;gap:6px;padding-bottom:2px}
 .fp-amenity-scroll::-webkit-scrollbar{display:none}
 .amenity-card{display:flex;align-items:center;gap:4px;padding:6px 12px;border-radius:var(--r-pill);border:none;background:var(--card);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;color:var(--muted);cursor:pointer;white-space:nowrap;flex-shrink:0;transition:background .15s,color .15s,transform .15s,box-shadow .15s;box-shadow:var(--clay-sm)}
 .amenity-card:active{transform:scale(.95);box-shadow:var(--clay-pressed)}
@@ -1052,7 +1057,12 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 
 /* bottom-nav styles moved to redesigned section below */
 
-.app-page { padding-bottom: 96px; overflow-x: clip; }
+/* Tab-bar clearance: the floating bar is 72px tall, lifted 12px above the
+   home indicator. Scroll views need at least this much bottom padding plus
+   a breath of room, or the last card hides behind the bar. */
+:root { --tabbar-clearance: calc(96px + env(safe-area-inset-bottom, 0px)); }
+
+.app-page { padding-bottom: var(--tabbar-clearance); overflow-x: clip; }
 .app-page .top-nav { display: none; }
 .city-bar { position: sticky; top: 0; z-index: 450; }
 
@@ -1252,7 +1262,7 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
-  padding: env(safe-area-inset-top, 0px) 0 100px;
+  padding: env(safe-area-inset-top, 0px) 0 var(--tabbar-clearance);
   visibility: hidden;
   pointer-events: none;
   opacity: 0;
@@ -1296,10 +1306,11 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   align-items: center;
   gap: 10px;
   padding: env(safe-area-inset-top, 12px) 16px 12px;
-  background: var(--nav-bg);
+  /* Opaque (not the 0.95-alpha --nav-bg): during the slide-in transition a
+     translucent blurred header lets the outgoing page's title bleed through,
+     which reads as two titles colliding. */
+  background: var(--bg);
   border-bottom: 1px solid var(--border2);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
 }
 .sub-page-back {
   display: flex; align-items: center; justify-content: center;
@@ -1315,6 +1326,10 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   font-family: 'Cabinet Grotesk', sans-serif;
   font-weight: 800; font-size: 20px;
   color: var(--charcoal); line-height: 1;
+  /* Guard against title collisions: long names truncate instead of wrapping
+     into neighboring header elements during transitions. */
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  min-width: 0; flex: 1;
 }
 
 #findPeopleContent,
@@ -1839,19 +1854,21 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   padding: 14px 20px 12px;
   padding-top: calc(14px + env(safe-area-inset-top, 0px));
   flex-shrink: 0;
-  background: var(--nav-bg);
-  backdrop-filter: blur(20px) saturate(1.4);
-  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  /* Opaque: the old 0.95-alpha blurred header let the underlying tab's header
+     bleed through during transitions (title collisions). */
+  background: var(--bg);
   border-bottom: 1px solid var(--border2);
   z-index: 2;
 }
 .dm-title {
   flex: 1;
+  min-width: 0;
   font-family: 'Cabinet Grotesk', sans-serif;
   font-weight: 900;
   font-size: 22px;
   color: var(--ink);
   letter-spacing: -.5px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .dm-back-btn {
   width: 36px; height: 36px;
@@ -2422,7 +2439,7 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 /* ── MAP PINS ──────────────────────────────────────── */
 .map-pin-wrap{display:flex;flex-direction:column;align-items:center;gap:3px;pointer-events:none}
 .map-pin-dot{width:12px;height:12px;border-radius:50%;border:2px solid #fff;transition:transform .15s;flex-shrink:0}
-.map-pin-label{background:rgba(255,255,255,0.92);backdrop-filter:blur(4px);border:1px solid;border-radius:20px;padding:2px 7px;font-family:'DM Sans',sans-serif;font-size:10px;font-weight:600;white-space:nowrap;line-height:1.4;box-shadow:0 1px 6px rgba(0,0,0,.12)}
+.map-pin-label{background:rgba(255,255,255,0.92);backdrop-filter:blur(4px);border:1px solid;border-radius:20px;padding:2px 7px;font-family:'DM Sans',sans-serif;font-size:10px;font-weight:600;white-space:nowrap;line-height:1.4;box-shadow:0 1px 6px rgba(0,0,0,.12);max-width:120px;overflow:hidden;text-overflow:ellipsis}
 .leaflet-marker-icon:hover .map-pin-dot{transform:scale(1.4)}
 /* Popup refinements for voyager tile */
 .leaflet-popup-content-wrapper{background:#FFFFFF!important;border:none!important;border-radius:14px!important;box-shadow:0 8px 30px rgba(42,31,20,.18),0 2px 8px var(--border2)!important;color:#2A1F14!important;font-family:'DM Sans',sans-serif!important;padding:0!important}
@@ -2777,6 +2794,35 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   color: var(--muted);
   padding: 14px 4px 8px;
 }
+/* ── Guides rail (Fix #15): blog guides live in Discover, not a tab ── */
+.guides-rail {
+  display: flex; gap: 12px; overflow-x: auto;
+  -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  padding: 2px 4px 12px; margin: 0 -4px;
+  scroll-snap-type: x proximity;
+}
+.guides-rail::-webkit-scrollbar { display: none; }
+.guide-card {
+  flex: 0 0 220px; scroll-snap-align: start;
+  background: var(--card); border-radius: 16px; overflow: hidden;
+  box-shadow: var(--clay-sm); text-decoration: none; color: inherit;
+  transition: transform .15s var(--ease-bounce);
+}
+.guide-card:active { transform: scale(.97); }
+.guide-card-img {
+  height: 110px; background-size: cover; background-position: center;
+  background-color: var(--ink-06);
+}
+.guide-card-body { padding: 10px 12px 12px; }
+.guide-card-tag {
+  font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  color: #FF6B4A; margin-bottom: 4px;
+}
+.guide-card-title {
+  font-size: 13px; font-weight: 700; line-height: 1.35; color: var(--text);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.guide-card-meta { font-size: 11px; color: var(--muted); margin-top: 4px; }
 
 /* ── Cards grid override — remove existing grid gap, let cards manage own spacing ── */
 .cards-grid {
