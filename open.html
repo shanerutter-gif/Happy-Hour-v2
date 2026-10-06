@@ -18,26 +18,34 @@
 <body>
 <div class="card">
   <div class="logo">Spotd</div>
-  <p id="msg">Opening the app…</p>
+  <p id="msg">Opening your feed…</p>
   <a class="btn" href="/app-download">Get the app</a>
 </div>
 <script>
 (function () {
-  // Smart link: try the native app first, fall back to the App Store.
+  // Smart link: land on the live feed. Desktop goes straight there; mobile
+  // tries the native app first, then falls back to the feed (the "Get the
+  // app" button above stays for explicit installs).
+  var FEED = '/';
+  var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent || '');
+  if (!isMobile) {
+    location.replace(FEED);
+    return;
+  }
   var params = new URLSearchParams(location.search);
   var deep = params.get('to') || 'spotd://';
   if (!/^spotd:\/\//i.test(deep)) deep = 'spotd://'; // only allow spotd:// targets
   var done = false;
-  function goStore() {
+  function goFeed() {
     if (done) return; done = true;
-    document.getElementById('msg').textContent = 'Taking you to the App Store…';
-    location.href = '/app-download';
+    document.getElementById('msg').textContent = 'Opening your feed…';
+    location.href = FEED;
   }
   // If the app opens, this page gets hidden — cancel the fallback.
   document.addEventListener('visibilitychange', function () { if (document.hidden) done = true; });
   window.addEventListener('pagehide', function () { done = true; });
-  setTimeout(goStore, 2000);
-  try { location.href = deep; } catch (e) { goStore(); }
+  setTimeout(goFeed, 1500);
+  try { location.href = deep; } catch (e) { goFeed(); }
 })();
 </script>
 </body>
