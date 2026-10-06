@@ -35,9 +35,16 @@ const TT_STEPS = [
     pos: 'below',
   },
   {
+    target: '.guides-rail',
+    title: 'Guides',
+    text: 'Neighborhood guides and rankings, from locals. New drops every week.',
+    emoji: '\uD83D\uDCD6',
+    pos: 'above',
+  },
+  {
     target: '#bottomNav',
     title: 'You\u2019re All Set!',
-    text: 'Explore social, news, and your profile from the nav bar. Enjoy!',
+    text: 'Explore the feed, check in at your spots, and find your profile in the nav bar. Enjoy!',
     emoji: '\uD83C\uDF89',
     pos: 'above',
   },

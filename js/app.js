@@ -6967,7 +6967,7 @@ function updateMapMarkers() {
       maxClusterRadius: 45,
       spiderfyOnMaxZoom: true,
       showCoverageOnHover: false,
-      zoomToBoundsOnClick: false, // Fix #18: tap shows a bottom-sheet list instead
+      zoomToBoundsOnClick: true,
       disableClusteringAtZoom: 17,
       animate: true,
       animateAddingMarkers: false,
@@ -6975,14 +6975,6 @@ function updateMapMarkers() {
       chunkInterval: 100,
       chunkDelay: 10,
     }).addTo(state.map);
-    // Cluster tap → bottom sheet listing the clustered venues (instead of
-    // only zooming/declustering).
-    state._markerLayer.on('clusterclick', (e) => {
-      const venues = e.layer.getAllChildMarkers()
-        .map(m => (state.venues || []).find(v => String(v.id) === String(m._venueId)))
-        .filter(Boolean);
-      if (venues.length) openClusterSheet(venues);
-    });
   }
   state.markers = {};
   const markers = [];
@@ -7004,37 +6996,6 @@ function updateMapMarkers() {
   state._markerLayer.addLayers(markers);
   // Overlay check-in users on map
   loadMapCheckIns();
-}
-
-// Fix #18: tapping a map cluster opens a bottom sheet listing the clustered
-// venues, instead of only zooming/declustering.
-function openClusterSheet(venues) {
-  const close = () => {
-    const ov = document.getElementById('clusterSheet');
-    if (ov) dismissOverlay(ov);
-  };
-  let ov = document.getElementById('clusterSheet');
-  if (ov) ov.remove();
-  ov = document.createElement('div');
-  ov.className = 'overlay';
-  ov.id = 'clusterSheet';
-  const rows = venues.map(v => {
-    const count = state.goingCounts[v.id] || 0;
-    return `<div class="pf-row" onclick="document.getElementById('clusterSheet')&&dismissOverlay(document.getElementById('clusterSheet'));openModal('${v.id}','venue')">
-      <div class="pf-row-body">
-        <div class="pf-row-name">${esc(v.name)}</div>
-        <div class="pf-row-meta">${esc(v.neighborhood || '')}${count ? ` · 🔥 ${count} tonight` : ''}</div>
-      </div>
-    </div>`;
-  }).join('');
-  ov.innerHTML = `
-    <div class="sheet" style="max-height:70vh">
-      <div class="sheet-handle"></div>
-      <div style="padding:4px 20px 8px;font-weight:800;font-size:16px">${venues.length} spots here</div>
-      <div style="overflow-y:auto;padding:0 8px 24px;-webkit-overflow-scrolling:touch">${rows}</div>
-    </div>`;
-  ov.addEventListener('click', (e) => { if (e.target === ov) close(); });
-  presentOverlay(ov);
 }
 
 async function loadMapCheckIns() {
