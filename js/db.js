@@ -1086,7 +1086,7 @@ async function isFollowing(followerId, followingId) {
 async function fetchPublicProfile(userId) {
   try {
     const { data, error } = await db.from('profiles')
-      .select('id, display_name, bio, avatar_emoji, avatar_url, username, digest_enabled, is_public, is_official')
+      .select('id, display_name, bio, avatar_emoji, avatar_url, username, digest_enabled, is_public, is_official, is_creator, creator_tier')
       .eq('id', userId)
       .maybeSingle();
     if (error) {

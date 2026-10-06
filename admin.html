@@ -316,6 +316,13 @@
     .badge-type { display:inline-block; padding:3px 9px; border-radius:100px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; }
     .badge-consumer { background:rgba(255,107,74,0.1); color:var(--coral); }
     .badge-business { background:rgba(42,122,90,0.1); color:var(--success); }
+    .badge-creator { background:rgba(255,107,74,0.14); color:var(--coral); }
+    .badge-creator-founding { background:linear-gradient(135deg, rgba(255,107,74,0.22), rgba(255,180,84,0.22)); color:#c2521e; border:1px solid rgba(255,107,74,0.35); }
+    .creator-mini-btn { display:inline-block; margin-top:4px; padding:3px 10px; border-radius:8px; font-size:11px; font-weight:600; cursor:pointer; border:1px solid var(--border); background:var(--bg2); color:var(--text); }
+    .creator-mini-btn:hover { background:var(--border); }
+    .creator-mini-btn.danger { color:var(--error); border-color:rgba(192,57,43,0.25); }
+    .creator-mini-btn.danger:hover { background:rgba(192,57,43,0.1); }
+    .creator-tier-select { font-size:11px; padding:3px 6px; border-radius:8px; border:1px solid var(--border); background:var(--bg2); color:var(--text); margin-right:4px; }
     .badge-sms-on  { background:rgba(42,122,90,0.1); color:var(--success); font-size:11px; }
     .badge-sms-off { color:var(--muted); font-size:16px; }
     .table-empty { text-align:center; padding:32px; color:var(--muted); font-size:14px; }
@@ -1683,6 +1690,7 @@
               <option value="">All types</option>
               <option value="consumer">Consumer</option>
               <option value="business">Business</option>
+              <option value="creator">Creator</option>
             </select>
             <select class="venue-search-input" id="user-sms-filter" onchange="filterUserTable()" style="max-width:160px">
               <option value="">All users</option>
@@ -1699,6 +1707,7 @@
                 <th>User</th>
                 <th>Username</th>
                 <th>Type</th>
+                <th>Creator</th>
                 <th>Phone</th>
                 <th>SMS</th>
                 <th>Check-ins</th>
@@ -3865,12 +3874,12 @@ in San Diego</textarea>
 
   async function loadUsers() {
     const tbody = document.getElementById('users-tbody');
-    tbody.innerHTML = '<tr><td colspan="13" class="table-empty">Loading…</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="14" class="table-empty">Loading…</td></tr>';
 
     try {
       // Parallel fetches
       const [profiles, bizReqs, checkins, reviews] = await Promise.all([
-        sb.get('profiles', 'select=id,display_name,username,avatar_emoji,avatar_url,bio,phone,sms_consent,is_public,follower_count,following_count,check_in_count,created_at,last_seen&limit=2000'),
+        sb.get('profiles', 'select=id,display_name,username,avatar_emoji,avatar_url,bio,phone,sms_consent,is_public,is_creator,creator_tier,follower_count,following_count,check_in_count,created_at,last_seen&limit=2000'),
         // Business users = people who filed business-portal add-venue requests.
         // (User venue requests — user_form/composer sources — are not business users.)
         sb.get('venue_requests', 'select=user_id&source=eq.business_portal&limit=2000'),
@@ -3918,6 +3927,7 @@ in San Diego</textarea>
       if (search && !((u.display_name||'').toLowerCase().includes(search) || (u.username||'').toLowerCase().includes(search) || (u.phone||'').includes(search))) return false;
       if (type === 'business' && !u.isBusiness) return false;
       if (type === 'consumer' && u.isBusiness)  return false;
+      if (type === 'creator'  && !u.is_creator)  return false;
       if (smsF === 'sms'   && !u.sms_consent)  return false;
       if (smsF === 'phone' && !u.phone)         return false;
       return true;
@@ -3945,7 +3955,7 @@ in San Diego</textarea>
 
     const tbody = document.getElementById('users-tbody');
     if (!slice.length) {
-      tbody.innerHTML = '<tr><td colspan="13" class="table-empty">No users match your filters</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="14" class="table-empty">No users match your filters</td></tr>';
     } else {
       tbody.innerHTML = slice.map(u => {
         const joined = u.created_at ? new Date(u.created_at).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }) : '—';
@@ -3960,6 +3970,9 @@ in San Diego</textarea>
           : '<span style="color:var(--muted);font-size:11px">No</span>';
         const bioSnippet = u.bio ? escHtml(u.bio.slice(0, 40)) + (u.bio.length > 40 ? '…' : '') : '<span style="color:var(--muted)">—</span>';
         const lastSeen = u.last_seen ? formatRelativeTime(u.last_seen) : '<span style="color:var(--muted)">Never</span>';
+        const creatorCell = u.is_creator
+          ? `<span class="badge-type ${u.creator_tier === 'founding' ? 'badge-creator-founding' : 'badge-creator'}">★ ${u.creator_tier === 'founding' ? 'Founding' : 'Creator'}</span><br><button class="creator-mini-btn danger" onclick="clearCreator('${u.id}', '${escHtml(u.display_name || u.username || 'this user').replace(/'/g, "\\'")}')">Remove</button>`
+          : `<select class="creator-tier-select" id="creator-tier-${u.id}"><option value="verified">Verified</option><option value="founding">Founding</option></select><button class="creator-mini-btn" onclick="setCreator('${u.id}', '${escHtml(u.display_name || u.username || 'this user').replace(/'/g, "\\'")}')">Make creator</button>`;
         return `<tr>
           <td><div class="user-cell">
             <div class="user-avatar">${u.avatar_emoji || '🍺'}</div>
@@ -3969,6 +3982,7 @@ in San Diego</textarea>
           </div></td>
           <td style="font-size:12px;color:var(--muted)">${u.username ? '@'+escHtml(u.username) : '—'}</td>
           <td>${typeBadge}</td>
+          <td style="white-space:nowrap">${creatorCell}</td>
           <td style="font-family:'DM Mono',monospace;font-size:12px" title="Masked for privacy — full number in profiles.phone">${u.phone ? escHtml(maskPhone(u.phone)) : '<span style="color:var(--muted)">—</span>'}</td>
           <td>${smsBadge}</td>
           <td style="font-weight:600">${u.checkins}</td>
@@ -3999,6 +4013,49 @@ in San Diego</textarea>
   }
 
   function goUserPage(p) { _userPage = p; renderUserTable(); document.getElementById('page-users').scrollTop = 0; }
+
+  // ── CREATOR APPROVAL ──────────────────────────────────
+  // One-click creator onboarding (spec §2 tiers). Writes go through the
+  // admin-gated /api/admin-creators endpoint (service-role server-side);
+  // the browser never sees the service key.
+  async function setCreator(userId, name) {
+    const sel = document.getElementById('creator-tier-' + userId);
+    const tier = sel ? sel.value : 'verified';
+    const tierLabel = tier === 'founding' ? 'Founding Creator' : 'Verified Creator';
+    if (!confirm(`Make ${name} a ${tierLabel}?\n\nThey'll get the creator badge, join the auto-follow set for new signups, and receive a referral link.`)) return;
+    try {
+      const r = await fetch('/api/admin-creators', {
+        method: 'POST',
+        headers: svcHeaders(),
+        body: JSON.stringify({ action: 'set', user_id: userId, tier }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(data.error || ('HTTP ' + r.status));
+      const u = _allUsers.find(x => x.id === userId);
+      if (u) { u.is_creator = true; u.creator_tier = tier; }
+      renderUserTable();
+    } catch (e) {
+      alert('Could not set creator status: ' + e.message);
+    }
+  }
+
+  async function clearCreator(userId, name) {
+    if (!confirm(`Remove creator status from ${name}?\n\nTheir badge is revoked and they leave the auto-follow set for future signups. Existing followers keep the follow.`)) return;
+    try {
+      const r = await fetch('/api/admin-creators', {
+        method: 'POST',
+        headers: svcHeaders(),
+        body: JSON.stringify({ action: 'clear', user_id: userId }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(data.error || ('HTTP ' + r.status));
+      const u = _allUsers.find(x => x.id === userId);
+      if (u) { u.is_creator = false; u.creator_tier = null; }
+      renderUserTable();
+    } catch (e) {
+      alert('Could not remove creator status: ' + e.message);
+    }
+  }
 
   function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
   // Like escHtml, but converts newlines to <br> so multi-paragraph copy in

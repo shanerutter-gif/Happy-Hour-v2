@@ -4537,6 +4537,7 @@ function closeEditReview(e) { if (e && e.target !== document.getElementById('edi
 // ── AUTH ───────────────────────────────────────────────
 function openAuth(mode = 'signin', context = 'other') {
   track('auth_sheet_shown', { context: context });
+  if (typeof resetCreatorDisclosure === 'function') resetCreatorDisclosure();
   renderAuth(mode); openOverlay('authOverlay');
 }
 function closeAuth(e) { if (e && e.target !== document.getElementById('authOverlay')) return; closeOverlay('authOverlay'); }
@@ -4563,6 +4564,7 @@ function renderAuth(mode) {
       <input class="field" id="aReferral" type="text" maxlength="6" placeholder="e.g. SHANE7" autocapitalize="characters" autocorrect="off" spellcheck="false" value="${esc((typeof getPendingReferralCode==='function' ? getPendingReferralCode() : '') || '')}">
     </div>
     ` : ''}
+    ${!si ? `<div id="creatorDisclosure" class="creator-disclosure" style="display:none">You're following Spotd's creators so your feed isn't empty. Unfollow anyone, anytime.</div>` : ''}
     ${si ? `<button class="auth-forgot" onclick="doForgot()">Forgot password?</button>` : ''}
     <button class="btn-submit" id="authBtn" type="submit" style="width:100%;margin-top:4px">${si ? 'Sign In' : 'Create Account'}</button>
     </form>
@@ -4582,6 +4584,10 @@ function renderAuth(mode) {
       const el = document.getElementById(id);
       if (el) el.addEventListener('keydown', e => { if (e.key === 'Enter') doAuth(mode); });
     });
+    // Creator program disclosure (spec §5): shown only when creators exist.
+    if (mode === 'signup' && typeof maybeShowCreatorDisclosure === 'function') {
+      maybeShowCreatorDisclosure();
+    }
     // Show SMS consent checkbox only when a phone number is entered
     const phoneEl = document.getElementById('aPhone');
     const consentRow = document.getElementById('smsConsentRow');
@@ -4925,7 +4931,7 @@ async function renderProfile(user) {
         ${avatarUrl ? `<img src="${esc(avatarUrl)}" alt="Profile">` : initialsAvatar(displayName, 'initials-avatar--lg', profile?.avatar_emoji)}
         <div class="pf-avatar-cam">${icn('camera',11)}</div>
       </div>
-      <div class="pf-name">${esc(displayName)}${officialBadge(profile)}<span id="pf-streak-${user.id}" class="pf-streak" style="display:none"></span></div>
+      <div class="pf-name">${esc(displayName)}${officialBadge(profile)}${typeof creatorBadge === 'function' ? creatorBadge(profile) : ''}<span id="pf-streak-${user.id}" class="pf-streak" style="display:none"></span></div>
       ${profile?.bio
         ? `<div class="pf-bio">${esc(profile.bio)}</div>`
         : `<div class="pf-bio--empty" onclick="openProfileSettings()">+ add a bio</div>`}
@@ -7523,7 +7529,7 @@ async function renderPublicProfile(userId) {
       <div class="pf-avatar">
         ${avatarUrl ? `<img src="${esc(avatarUrl)}" alt="Profile">` : initialsAvatar(displayName, 'initials-avatar--lg', profile.avatar_emoji)}
       </div>
-      <div class="pf-name">${esc(displayName)}${officialBadge(profile)}</div>
+      <div class="pf-name">${esc(displayName)}${officialBadge(profile)}${typeof creatorBadge === 'function' ? creatorBadge(profile) : ''}</div>
       ${profile.username ? `<div style="font-size:13px;color:var(--muted);margin-bottom:4px">@${esc(profile.username)}</div>` : ''}
       ${profile.bio ? `<div class="pf-bio">${esc(profile.bio)}</div>` : ''}
       ${badges.length ? `<div class="pf-badges">${badges.map(b => {
