@@ -75,7 +75,7 @@ create policy "Users manage own follows"
 -- Service-role bypasses RLS; explicit policy documents the server-side writers
 -- (auto-follow trigger, admin tooling).
 create policy "Service role full access"
-  on public.user_follows for all using (true) with check (true);
+  on public.user_follows for all to service_role using (true) with check (true);
 
 -- ── 3. creator_connections: OAuth token store (sync seam) ───────────────
 create table if not exists public.creator_connections (
@@ -102,7 +102,7 @@ alter table public.creator_connections enable row level security;
 -- OAuth callbacks) touches this table. No anon/authenticated policies.
 drop policy if exists "Service role full access" on public.creator_connections;
 create policy "Service role full access"
-  on public.creator_connections for all using (true) with check (true);
+  on public.creator_connections for all to service_role using (true) with check (true);
 
 -- ── 4. feed_items: cross-posted creator content (sync seam) ──────────────
 create table if not exists public.feed_items (
@@ -133,7 +133,7 @@ drop policy if exists "Service role full access" on public.feed_items;
 create policy "Public read"
   on public.feed_items for select using (true);
 create policy "Service role full access"
-  on public.feed_items for all using (true) with check (true);
+  on public.feed_items for all to service_role using (true) with check (true);
 
 -- ── 5. Auto-follow trigger (§5) ──────────────────────────────────────────
 -- On profile creation, the new user follows every active creator
