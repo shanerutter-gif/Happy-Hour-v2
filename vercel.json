@@ -19,6 +19,7 @@
   ],
   "routes": [
     { "src": "/open",                      "dest": "/open.html" },
+    { "src": "/r/([^/]+)",                 "dest": "/api/creator-ref.js?handle=$1" },
     { "src": "/admin.html",                 "dest": "/api/admin-page.js" },
     { "src": "/list/(.+)",                  "dest": "/?list=$1", "status": 302 },
     { "src": "/spots",                      "dest": "/api/spots-directory.js" },

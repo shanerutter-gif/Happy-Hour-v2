@@ -1,0 +1,286 @@
+/* ── Spotd Creator Program — client styles ─────────────────────────────────
+   Badge, follow card, creator directory, and creator dashboard.
+   Brand: coral #FF6B4A (verified), gold #E9A13B (founding). */
+
+/* ── Creator badge (sibling of .official-badge in style.css) ── */
+.creator-badge {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  margin-left: 4px;
+  line-height: 0;
+  position: relative;
+  top: -1px;
+  gap: 4px;
+}
+.creator-badge svg {
+  display: block;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.18));
+}
+.creator-badge-founding-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #E9A13B;
+  line-height: 1;
+}
+
+/* ── Signup disclosure (spec §5) ── */
+.creator-disclosure {
+  font-size: 13px;
+  color: var(--muted, #9a9aa0);
+  text-align: center;
+  margin: 10px 0 2px;
+  line-height: 1.45;
+}
+
+/* ── Existing-user follow card ("Spotd creators are here") ── */
+.creator-card {
+  background: var(--card, #1c1c1e);
+  border: 1px solid rgba(255,107,74,0.25);
+  border-radius: 16px;
+  padding: 18px;
+  margin: 12px 0;
+}
+.creator-card-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text, #fff);
+}
+.creator-card-sub {
+  font-size: 14px;
+  color: var(--muted, #9a9aa0);
+  margin: 6px 0 12px;
+}
+.creator-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 320px;
+  overflow-y: auto;
+  margin-bottom: 12px;
+}
+.creator-card-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.03);
+  cursor: pointer;
+}
+.creator-card-check {
+  width: 20px;
+  height: 20px;
+  accent-color: #FF6B4A;
+  flex-shrink: 0;
+}
+.creator-card-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.creator-card-avatar--fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--coral-dim, rgba(255,107,74,0.12));
+  color: var(--coral, #FF6B4A);
+  font-weight: 800;
+  font-size: 18px;
+}
+.creator-card-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text, #fff);
+}
+.creator-card-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.creator-card-followall,
+.creator-card-followselected {
+  flex: 1;
+  min-width: 120px;
+  padding: 12px;
+  border: none;
+  border-radius: 999px;
+  background: var(--coral, #FF6B4A);
+  color: #fff;
+  font-weight: 800;
+  font-size: 15px;
+  cursor: pointer;
+}
+.creator-card-dismiss {
+  padding: 12px 16px;
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted, #9a9aa0);
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+}
+.creator-card-loading {
+  color: var(--muted, #9a9aa0);
+  font-size: 14px;
+  padding: 12px 0;
+}
+
+/* ── Creator directory (creators.html) ── */
+.creators-page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 20px 16px 80px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  background: #141414;
+  color: #fff;
+  min-height: 100vh;
+}
+.creators-hero { margin-bottom: 20px; }
+.creators-hero h1 { font-size: 26px; font-weight: 800; margin: 0 0 6px; }
+.creators-hero h1 .spotd-word { color: #FF6B4A; }
+.creators-hero p { color: #bbb; font-size: 15px; margin: 0; }
+.creator-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+.creator-tile {
+  background: #1c1c1e;
+  border-radius: 16px;
+  padding: 16px;
+  text-align: center;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.creator-tile--founding { border-color: rgba(233,161,59,0.45); }
+.creator-tile-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-bottom: 10px;
+}
+.creator-tile-avatar--fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,107,74,0.12);
+  color: #FF6B4A;
+  font-weight: 800;
+  font-size: 30px;
+}
+.creator-tile-name { font-weight: 800; font-size: 16px; }
+.creator-tile-handle { color: #9a9aa0; font-size: 13px; margin: 2px 0 2px; }
+.creator-tile-city { color: #9a9aa0; font-size: 12px; margin-bottom: 8px; }
+.creator-tile-tier {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+.creator-tile-tier--founding { background: rgba(233,161,59,0.15); color: #E9A13B; }
+.creator-tile-tier--verified { background: rgba(255,107,74,0.12); color: #FF6B4A; }
+.creator-tile-follow {
+  margin-top: 10px;
+  width: 100%;
+  padding: 10px;
+  border-radius: 999px;
+  border: 1.5px solid #FF6B4A;
+  background: transparent;
+  color: #FF6B4A;
+  font-weight: 800;
+  font-size: 14px;
+  cursor: pointer;
+}
+.creator-tile-follow.following {
+  background: #FF6B4A;
+  color: #fff;
+}
+.creators-empty { color: #9a9aa0; text-align: center; padding: 40px 0; }
+
+/* ── Creator dashboard (creator-dashboard.html) ── */
+.creator-dash {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 20px 16px 80px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  background: #141414;
+  color: #fff;
+  min-height: 100vh;
+}
+.creator-dash h1 { font-size: 24px; font-weight: 800; }
+.creator-dash h1 .spotd-word { color: #FF6B4A; }
+.creator-dash-section {
+  background: #1c1c1e;
+  border-radius: 16px;
+  padding: 18px;
+  margin: 14px 0;
+}
+.creator-dash-section h2 { font-size: 17px; font-weight: 800; margin: 0 0 8px; }
+.creator-dash-section p { color: #bbb; font-size: 14px; margin: 0 0 12px; }
+.creator-connect-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.creator-connect-btn {
+  flex: 1;
+  min-width: 160px;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1.5px solid rgba(255,255,255,0.15);
+  background: #262628;
+  color: #fff;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+.creator-connect-btn .soon {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: #9a9aa0;
+  margin-top: 4px;
+}
+.creator-ref-row { display: flex; gap: 8px; }
+.creator-ref-input {
+  flex: 1;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: #262628;
+  color: #fff;
+  font-size: 14px;
+}
+.creator-ref-copy {
+  padding: 12px 18px;
+  border: none;
+  border-radius: 10px;
+  background: #FF6B4A;
+  color: #fff;
+  font-weight: 800;
+  cursor: pointer;
+}
+.creator-sync-empty { color: #9a9aa0; font-size: 14px; }
+.creator-sync-empty-title { color: #fff; font-weight: 700; margin-bottom: 6px; }
+.creator-sync-list { list-style: none; margin: 0; padding: 0; }
+.creator-sync-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.creator-sync-platform { font-weight: 700; }
+.creator-sync-status { font-size: 13px; color: #9a9aa0; }
+.creator-sync-status--active { color: #4ade80; }
+.creator-dash-gate {
+  text-align: center;
+  padding: 60px 20px;
+  color: #9a9aa0;
+}

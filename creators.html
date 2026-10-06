@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spotd Creators</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="stylesheet" href="/css/creator.css?v=20261005a">
+</head>
+<body>
+<div class="creators-page">
+  <div class="creators-hero">
+    <h1><span class="spotd-word">Spotd</span> Creators</h1>
+    <p>The people who know where to go out. Follow them and never miss a night.</p>
+  </div>
+  <div class="creator-grid" id="creatorGrid">
+    <div class="creators-empty">Loading creators…</div>
+  </div>
+</div>
+<script src="/js/creator.js?v=20261005a"></script>
+<script>
+(function () {
+  var grid = document.getElementById('creatorGrid');
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function badge(tier) {
+    return window.creatorBadge({ is_creator: true, creator_tier: tier });
+  }
+
+  function prettyCity(slug) {
+    return String(slug || '').split('-').map(function (w) {
+      return w.charAt(0).toUpperCase() + w.slice(1);
+    }).join(' ');
+  }
+
+  function tile(c) {
+    var name = esc(c.display_name || c.username || 'Creator');
+    var handle = c.username ? '@' + esc(c.username) : '';
+    var avatar = c.avatar_url
+      ? '<img class="creator-tile-avatar" src="' + esc(c.avatar_url) + '" alt="" loading="lazy">'
+      : '<div class="creator-tile-avatar creator-tile-avatar--fallback">' + esc(name.charAt(0).toUpperCase()) + '</div>';
+    var tier = c.creator_tier === 'founding' ? 'founding' : 'verified';
+    return '<div class="creator-tile creator-tile--' + tier + '" data-id="' + esc(c.id) + '">' +
+      avatar +
+      '<div class="creator-tile-name">' + name + badge(tier) + '</div>' +
+      '<div class="creator-tile-handle">' + handle + '</div>' +
+      (c.city_slug ? '<div class="creator-tile-city">' + esc(prettyCity(c.city_slug)) + '</div>' : '') +
+      '<span class="creator-tile-tier creator-tile-tier--' + tier + '">' +
+        (tier === 'founding' ? 'Founding Creator' : 'Creator') + '</span>' +
+      '<button class="creator-tile-follow" data-follow="' + esc(c.id) + '">Follow</button>' +
+      '</div>';
+  }
+
+  // NOTE: deliberately unlinked from public nav (spec: ship dark until launch).
+  fetch('/api/creators?limit=100')
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      var creators = (data && data.creators) || [];
+      if (!creators.length) {
+        grid.innerHTML = '<div class="creators-empty">No creators yet — check back soon.</div>';
+        return;
+      }
+      grid.innerHTML = creators.map(tile).join('');
+      grid.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-follow]');
+        if (!btn) return;
+        // Follow requires sign-in; the main app owns the follow mutation
+        // (followUser in js/db.js). Deep-link guests into the app instead of
+        // duplicating auth here.
+        btn.textContent = 'Open the Spotd app to follow';
+        setTimeout(function () { location.href = '/open'; }, 900);
+      });
+    })
+    .catch(function () {
+      grid.innerHTML = '<div class="creators-empty">Could not load creators. Try again later.</div>';
+    });
+})();
+</script>
+</body>
+</html>

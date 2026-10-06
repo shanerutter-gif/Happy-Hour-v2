@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Creator Dashboard — Spotd</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="stylesheet" href="/css/creator.css?v=20261005a">
+</head>
+<body>
+<div class="creator-dash" id="dashRoot">
+  <div class="creator-dash-gate" id="gateMsg">Checking your creator status…</div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/js/creator.js?v=20261005a"></script>
+<script>
+(function () {
+  'use strict';
+  // NOTE: deliberately unlinked from public nav (spec: ship dark until launch).
+  // Supabase config mirrors js/db.js — keep in sync if those constants move.
+  var SUPABASE_URL = 'https://opcskuzbdfrlnyhraysk.supabase.co';
+  var SUPABASE_ANON_KEY = 'sb_publishable_M97B-GmwsRF6xPVahp_ytw_49nI9igs';
+  var root = document.getElementById('dashRoot');
+  var gateMsg = document.getElementById('gateMsg');
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function renderGate(text, cta) {
+    gateMsg.innerHTML = '<div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:8px">Creator Dashboard</div>' +
+      '<p>' + text + '</p>' + (cta || '');
+  }
+
+  var client;
+  try {
+    client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  } catch (e) {
+    renderGate('Could not start the dashboard. Please try again later.');
+    return;
+  }
+
+  client.auth.getSession().then(function (res) {
+    var session = res && res.data && res.data.session;
+    if (!session || !session.user) {
+      renderGate('Sign in to Spotd to view your creator dashboard.',
+        '<p style="margin-top:16px"><a href="/open" style="color:#FF6B4A;font-weight:700">Open Spotd</a></p>');
+      return;
+    }
+    return client.from('profiles')
+      .select('id, display_name, username, is_creator, creator_tier')
+      .eq('id', session.user.id)
+      .maybeSingle()
+      .then(function (pr) {
+        var profile = pr && pr.data;
+        if (!profile || !profile.is_creator) {
+          renderGate('This dashboard is for Spotd creators. Your account does not have creator access.',
+            '<p style="margin-top:16px"><a href="/creators" style="color:#FF6B4A;font-weight:700">Meet our creators</a></p>');
+          return;
+        }
+        renderDashboard(profile);
+      });
+  }).catch(function () {
+    renderGate('Could not load your creator status. Please try again later.');
+  });
+
+  function renderDashboard(profile) {
+    var tierLabel = profile.creator_tier === 'founding' ? 'Founding Creator' : 'Creator';
+    var handle = profile.username || '';
+    var refLink = window.getCreatorReferralLink(handle);
+
+    // [CREATOR-OAUTH-SEAM:dashboard-connect-buttons]
+    // Buttons are intentionally disabled until the TikTok / Meta platform
+    // applications are approved. To enable: point each button at the OAuth
+    // authorize URL, handle the callback in api/creator-oauth-callback.js
+    // (new), and show the spec §6 consent copy at connect time. See
+    // window.creatorOAuthStatus() in js/creator.js.
+    root.innerHTML =
+      '<h1><span class="spotd-word">Spotd</span> Creator Dashboard</h1>' +
+      '<p style="color:#bbb;margin:4px 0 0">' + esc(profile.display_name || handle || 'Creator') +
+        ' ' + window.creatorBadge({ is_creator: true, creator_tier: profile.creator_tier }) +
+        ' <span style="color:#9a9aa0">· ' + esc(tierLabel) + '</span></p>' +
+
+      '<div class="creator-dash-section">' +
+        '<h2>Connect your accounts</h2>' +
+        '<p>Link TikTok or Instagram and your public posts will appear in the Spotd feed with credit and a link back to you.</p>' +
+        '<div class="creator-connect-row">' +
+          '<button class="creator-connect-btn" type="button" disabled title="Coming soon">' +
+            'Connect TikTok<span class="soon">Coming soon</span></button>' +
+          '<button class="creator-connect-btn" type="button" disabled title="Coming soon">' +
+            'Connect Instagram<span class="soon">Coming soon</span></button>' +
+        '</div>' +
+      '</div>' +
+
+      '<div class="creator-dash-section">' +
+        '<h2>Sync status</h2>' +
+        '<div id="syncStatus"></div>' +
+      '</div>' +
+
+      '<div class="creator-dash-section">' +
+        '<h2>Your referral link</h2>' +
+        '<p>Put this in your TikTok / Instagram bio. Signups through it are attributed to you.</p>' +
+        (refLink
+          ? '<div class="creator-ref-row">' +
+            '<input class="creator-ref-input" id="refLinkInput" readonly value="' + esc(refLink) + '">' +
+            '<button class="creator-ref-copy" id="refCopyBtn" type="button">Copy</button>' +
+            '</div>'
+          : '<p style="color:#9a9aa0">Set a username on your Spotd profile to get your personal referral link.</p>') +
+      '</div>';
+
+    // Sync status: empty state until the poller exists (see renderCreatorSyncStatus).
+    window.renderCreatorSyncStatus(document.getElementById('syncStatus'), []);
+
+    var copyBtn = document.getElementById('refCopyBtn');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', function () {
+        window.copyCreatorReferralLink(handle);
+      });
+    }
+  }
+})();
+</script>
+</body>
+</html>
