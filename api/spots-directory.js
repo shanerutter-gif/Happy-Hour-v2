@@ -1,6 +1,7 @@
 export const config = { runtime: 'edge' };
 
 import { canonicalVenueSlugs } from './_lib/seo.js';
+import { botGate } from './_lib/botgate.js';
 
 // Canonical host — www serves 200, the apex redirects. Keep canonical / og:url /
 // JSON-LD on www so Google indexes the served URL rather than the redirect.
@@ -62,7 +63,9 @@ async function fetchVenues(supabaseUrl, serviceKey) {
 
 /* ── Handler ─────────────────────────────────────── */
 
-export default async function handler() {
+export default async function handler(req) {
+  const blocked = botGate(req);
+  if (blocked) return blocked;
   const supabaseUrl = process.env.SUPABASE_URL;
   const serviceKey  = process.env.SUPABASE_SERVICE_KEY;
 

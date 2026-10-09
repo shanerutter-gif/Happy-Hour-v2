@@ -477,6 +477,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const deepParams = new URLSearchParams(window.location.search);
   const listId = deepParams.get('list');
   const spotId = deepParams.get('spot');
+  // /?spot=<uuid>&city=<slug> — the SEO venue pages' deep link. The city
+  // param lets us enter the venue's own city before opening its modal;
+  // without it, openModal looks the venue up in the wrong city's list and
+  // silently no-ops (2026-10-07 QA: "Open in Spotd" dropped the venue on
+  // every page). Same allow-list validation as the ?city= organic-signup
+  // param above.
+  const spotCity = CITIES.find(c => c.slug === deepParams.get('city') && c.active) || null;
   // /?happening=1 — the daily push's deep link: open Discover with the
   // "Happening now" filter on.
   const wantHappening = deepParams.get('happening') === '1';
@@ -490,30 +497,41 @@ document.addEventListener('DOMContentLoaded', () => {
   if (currentUser) {
     const lastSlug = localStorage.getItem('spotd-last-city') || 'san-diego';
     const city = CITIES.find(c => c.slug === lastSlug && c.active) || CITIES[0];
-    enterCity(city.slug, city.name, city.state_code).then(() => {
+    // A /?spot= deep link enters the venue's own city (the SEO page sends
+    // &city=<slug>) so openModal can find it in state.venues. It also
+    // becomes the user's last-city — correct for a search visitor.
+    const enter = (spotId && spotCity) || city;
+    enterCity(enter.slug, enter.name, enter.state_code).then(() => {
       if (listId) {
         window.history.replaceState({}, document.title, '/');
         openListDetail(listId);
       } else if (spotId) {
-        // Deep-link: /?spot=<uuid> opens venue modal directly (used by SEO venue pages)
+        // Deep-link: /?spot=<uuid>&city=<slug> opens the venue's modal
+        // directly (used by SEO venue pages)
         window.history.replaceState({}, document.title, window.location.pathname);
-        openModal(spotId, 'venue');
+        openModal(spotId, 'venue').then(opened => {
+          if (!opened) track('spot_deeplink_miss', { spot_id: spotId, city_slug: state.city?.slug });
+        });
       } else {
         _applyHappeningDeepLink();
       }
     });
   } else {
-    const city = CITIES[0];
+    // A /?spot= deep link enters the venue's own city (the SEO page sends
+    // &city=<slug>) so openModal can find it in state.venues.
+    const city = (spotId && spotCity) || CITIES[0];
     if (listId) {
       enterCity(city.slug, city.name, city.state_code).then(() => {
         window.history.replaceState({}, document.title, '/');
         openListDetail(listId);
       });
     } else if (spotId) {
-      // Guest deep-link: enter default city then open modal
+      // Guest deep-link: enter the venue's city then open modal
       enterCity(city.slug, city.name, city.state_code).then(() => {
         window.history.replaceState({}, document.title, window.location.pathname);
-        openModal(spotId, 'venue');
+        openModal(spotId, 'venue').then(opened => {
+          if (!opened) track('spot_deeplink_miss', { spot_id: spotId, city_slug: state.city?.slug });
+        });
       });
     } else if (wantHappening) {
       const last = CITIES.find(c => c.slug === localStorage.getItem('spotd-last-city') && c.active) || city;
@@ -4262,7 +4280,7 @@ async function openModal(id, type = 'venue') {
   state.activeItemType = type;
   const items = type === 'venue' ? state.venues : state.events;
   const item  = items.find(x => String(x.id) === String(id));
-  if (!item) return;
+  if (!item) return null;
   track(type === 'event' ? 'event_modal_opened' : 'venue_modal_opened', { item_id: id, name: item.name, city: state.city?.slug });
   renderModal(item, type, []);
   // Double-rAF before opening the overlay so the modal's initial markup has
@@ -4297,6 +4315,7 @@ async function openModal(id, type = 'venue') {
       observeFeedVideos();
     });
   }
+  return item;
 }
 
 async function getCachedReviews(id, type) {
@@ -4624,14 +4643,17 @@ function closeEditReview(e) { if (e && e.target !== document.getElementById('edi
 function openAuth(mode = 'signin', context = 'other') {
   track('auth_sheet_shown', { context: context });
   if (typeof resetCreatorDisclosure === 'function') resetCreatorDisclosure();
-  renderAuth(mode); openOverlay('authOverlay');
+  renderAuth(mode, context); openOverlay('authOverlay');
 }
 function closeAuth(e) { if (e && e.target !== document.getElementById('authOverlay')) return; closeOverlay('authOverlay'); }
-function renderAuth(mode) {
+function renderAuth(mode, context = 'other') {
   const si = mode === 'signin';
+  // Match the sheet's pitch to why the user tapped: a Check In tap that lands
+  // on "save spots & manage reviews" reads like the wrong door.
+  const checkinCtx = context === 'checkin';
   document.getElementById('authContent').innerHTML = `
     <div class="auth-title">${si ? 'Welcome back' : 'Create account'}</div>
-    <p class="auth-sub">${si ? 'Sign in to save spots & manage reviews' : 'Free forever — save spots, write reviews'}</p>
+    <p class="auth-sub">${si ? (checkinCtx ? 'Sign in to check in and save your night' : 'Sign in to save spots & manage reviews') : 'Free forever — save spots, write reviews'}</p>
     <form id="authForm" onsubmit="event.preventDefault();doAuth('${mode}');" autocomplete="on">
     ${!si ? `<div class="field-group"><div class="field-label">Name</div><input class="field" id="aName" type="text" placeholder="Your name" autocomplete="name"></div>` : ''}
     <div class="field-group"><div class="field-label">Email</div><input class="field" id="aEmail" type="email" placeholder="you@example.com" autocomplete="${si ? 'username' : 'email'}"></div>
@@ -4663,7 +4685,7 @@ function renderAuth(mode) {
       <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59a14.5 14.5 0 0 1 0-9.18l-7.98-6.19a24.0 24.0 0 0 0 0 21.56l7.98-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
       Continue with Google
     </button>
-    <p class="auth-switch">${si ? "No account?" : 'Have an account?'} <button class="auth-switch-btn" onclick="renderAuth('${si ? 'signup' : 'signin'}')">${si ? 'Sign up free' : 'Sign in'}</button></p>
+    <p class="auth-switch">${si ? "No account?" : 'Have an account?'} <button class="auth-switch-btn" onclick="renderAuth('${si ? 'signup' : 'signin'}', '${context}')">${si ? 'Sign up free' : 'Sign in'}</button></p>
     <div class="auth-legal">By continuing, you agree to our <a href="#" onclick="event.preventDefault();event.stopPropagation();openLegalPage('terms')">Terms</a> and <a href="#" onclick="event.preventDefault();event.stopPropagation();openLegalPage('privacy')">Privacy Policy</a></div>`;
   setTimeout(() => {
     ['aEmail','aPass','aName','aPhone'].forEach(id => {
@@ -4916,13 +4938,43 @@ window.addEventListener('popstate', function () {
     _setActiveNavBtn(document.getElementById('bnFeed'));
   }
 });
+// -- VENUE SHEET history wiring (Sofia 2026-10-06) --
+// The venue sheet is a full-viewport overlay with no history entry, so a
+// browser-back press (or iOS edge-swipe in the WKWebView build) used to leave
+// the SPA entirely (verified live 2026-10-06: about:blank on an iPhone-width
+// pass). openOverlay('modalOverlay') pushes a same-URL state; the popstate
+// listener below closes the sheet instead of navigating. Scoped to
+// #modalOverlay only -- other overlays (auth, legal, composer) keep their
+// current behavior.
+let _modalHistoryPushed = false;
+function _modalPushHistory() {
+  if (_modalHistoryPushed) return; // openModal() can re-render while open
+  try { history.pushState({ spotd: 'modal' }, document.title, location.href); _modalHistoryPushed = true; }
+  catch (e) { _modalHistoryPushed = false; }
+}
+window.addEventListener('popstate', function () {
+  if (document.querySelector('#modalOverlay.open')) {
+    _modalHistoryPushed = false; // this pop already unwound our entry
+    closeOverlay('modalOverlay');
+  }
+});
 document.addEventListener('keydown', function (e) {
   if (e.key !== 'Escape') return;
   const t = document.activeElement;
   if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+  // An open venue sheet owns Escape (desktop/PWA parity with the close X);
+  // previously Escape did nothing while any overlay was open.
+  const modalOv = document.getElementById('modalOverlay');
+  if (modalOv && modalOv.classList.contains('open')) {
+    e.preventDefault();
+    closeOverlay('modalOverlay');
+    return;
+  }
   const page = document.getElementById('profilePage');
   if (page && page.classList.contains('profile-page--open')) {
     // An open modal/sheet sits above the profile page and owns Escape.
+    // (The venue-sheet Escape branch above already returned when
+    // #modalOverlay is open, so this still only fires for the bare panel.)
     if (document.querySelector('.overlay.open')) return;
     e.preventDefault();
     closeProfile();
@@ -7153,6 +7205,9 @@ function openOverlay(id)  {
   // stacked" glitch on laggy devices. Content was already re-rendered by the
   // caller before this runs, so skipping the animation loses nothing.
   if (el.classList.contains('open')) return;
+  // Venue sheet: push a history entry so browser-back / iOS swipe-back closes
+  // the sheet instead of leaving the SPA (same pattern as the profile panel).
+  if (id === 'modalOverlay') _modalPushHistory();
   // Ensure the sheet starts at translateY(100%) before animating in
   const sheet = el.querySelector('.sheet');
   if (sheet) {
@@ -7184,6 +7239,10 @@ function closeOverlay(id) {
   setTimeout(() => {
     if (!document.querySelector('.overlay.open')) document.body.style.overflow = '';
   }, 350);
+  // Back out of the history entry the venue sheet pushed on open (mirrors
+  // closeProfile): a programmatic close unwinds the entry so the next
+  // browser-back goes to the real previous page, not a stale sheet state.
+  if (id === 'modalOverlay' && _modalHistoryPushed) { _modalHistoryPushed = false; history.back(); }
 }
 function dismissOverlay(el) {
   if (!el) return;
@@ -7528,12 +7587,29 @@ async function doGoingTonight(venueId, btn) {
   const isCheckedIn = state.goingByMe.has(venueId);
   const today = localDateKey();
   if (isCheckedIn) {
-    await removeCheckIn(currentUser.id, venueId, today);
+    // Optimistic removal (mirrors the add path) — but roll the optimistic
+    // state back when the row verifiably survived, so the UI can never claim
+    // a removal the DB doesn't have. (Previously a failed DELETE still showed
+    // "Check-in removed" and decremented counters while the check_ins row
+    // persisted — the mirror image of the 2026-09-29 add-path divergence.)
     state.goingByMe.delete(venueId);
     state.todayCheckInCount = Math.max(0, state.todayCheckInCount - 1);
     state.goingCounts[venueId] = Math.max(0, (state.goingCounts[venueId] || 1) - 1);
     if(typeof haptic==='function')haptic('light');
     showToast('Check-in removed');
+    syncGoingTonightUI(venueId, btn);
+    let removed = false;
+    try { removed = await removeCheckIn(currentUser.id, venueId, today); }
+    catch (e) { removed = false; /* removeCheckIn never rejects, but stay honest */ }
+    // A lost response can report failure after the DELETE landed server-side —
+    // only roll back when the row verifiably still exists (same rule as add).
+    if (!removed && await _checkInRowExists(currentUser.id, venueId, today)) {
+      state.goingByMe.add(venueId);
+      state.todayCheckInCount++;
+      state.goingCounts[venueId] = (state.goingCounts[venueId] || 0) + 1;
+      syncGoingTonightUI(venueId, btn);
+      showToast("Couldn't remove your check-in — please try again");
+    }
   } else {
     if (state.todayCheckInCount >= CHECK_IN_DAILY_LIMIT) {
       showToast(`You've hit the ${CHECK_IN_DAILY_LIMIT} check-in limit for today`);
@@ -8330,9 +8406,12 @@ async function maybeOpenPhotoCheckin(venueId) {
   openPhotoCheckinPrompt(venueId, venue?.name || 'this spot');
 }
 
-// ── PHOTO CHECK-IN — Capacitor Camera plugin ──────────
-// Uses @capacitor/camera on native iOS/Android — no WKWebView file input hacks.
-// Falls back to a plain file input when running in browser (dev/testing).
+// ── PHOTO CHECK-IN ──────────
+// The live post-check-in prompt (openPhotoCheckinPrompt) uses a plain file
+// input in all shells — the shell is WKWebView + spotdNative (no Capacitor
+// runtime), so @capacitor/camera was never reachable here and the old
+// Capacitor camera path was deleted as dead code 2026-10-08.
+// _isCapacitorNative() remains for geolocation + profile-image callers.
 
 function _isCapacitorNative() {
   return !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
@@ -8348,78 +8427,6 @@ function _base64ToFile(base64Data, mimeType, fileName) {
   return new File([ab], fileName, { type: mimeType });
 }
 
-// Show the preview once we have a data URL (shared by both native and web paths)
-function _showPhotoPreview(dataUrl) {
-  const wrap = document.getElementById('photoPreviewWrap');
-  const img  = document.getElementById('photoPreviewImg');
-  const area = document.getElementById('photoUploadArea');
-  const btn  = document.getElementById('photoSubmitBtn');
-  if (img)  img.src = dataUrl;
-  if (wrap) wrap.style.display = 'block';
-  if (area) area.style.display = 'none';
-  if (btn)  btn.disabled = false;
-}
-
-// Take photo using Capacitor Camera plugin (native path)
-async function _capacitorTakePhoto() {
-  try {
-    const { Camera, CameraResultType, CameraSource } = window.Capacitor.Plugins;
-    const image = await Camera.getPhoto({
-      quality:      90,
-      allowEditing: false,
-      resultType:   CameraResultType.Base64,
-      source:       CameraSource.Camera,
-    });
-    const mime = 'image/jpeg';
-    const file = _base64ToFile(image.base64String, mime, `checkin-${Date.now()}.jpg`);
-    window._pendingCheckinPhoto = file;
-    _showPhotoPreview(`data:${mime};base64,${image.base64String}`);
-  } catch(e) {
-    if (e.message === 'User cancelled photos app') return;
-    console.error('[Photo] Camera error, falling back to file input:', e);
-    _fallbackToFileInput();
-  }
-}
-
-// Choose from library using Capacitor Camera plugin (native path)
-async function _capacitorChoosePhoto() {
-  try {
-    const { Camera, CameraResultType, CameraSource } = window.Capacitor.Plugins;
-    const image = await Camera.getPhoto({
-      quality:      90,
-      allowEditing: false,
-      resultType:   CameraResultType.Base64,
-      source:       CameraSource.Photos,
-    });
-    const mime = 'image/jpeg';
-    const file = _base64ToFile(image.base64String, mime, `checkin-${Date.now()}.jpg`);
-    window._pendingCheckinPhoto = file;
-    _showPhotoPreview(`data:${mime};base64,${image.base64String}`);
-  } catch(e) {
-    if (e.message === 'User cancelled photos app') return;
-    console.error('[Photo] Library error, falling back to file input:', e);
-    _fallbackToFileInput();
-  }
-}
-
-// Fallback: inject a file input and trigger it
-function _fallbackToFileInput() {
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = 'image/*';
-  input.style.display = 'none';
-  input.onchange = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    window._pendingCheckinPhoto = file;
-    const reader = new FileReader();
-    reader.onload = ev => _showPhotoPreview(ev.target.result);
-    reader.readAsDataURL(file);
-    input.remove();
-  };
-  document.body.appendChild(input);
-  input.click();
-}
 
 // Post-check-in sheet. One clean celebration card with a SINGLE action that
 // commits everything together (photo + caption + tags). Everything is optional —
@@ -8591,32 +8598,6 @@ function toggleStagedTag(userId, name, chip) {
   _updateCheckinShareLabel();
 }
 
-// Web fallback handler (file input / drag-drop)
-function handlePhotoDropOrChange(event, venueId, venueName) {
-  event.preventDefault();
-  document.getElementById('photoUploadArea')?.classList.remove('dragover');
-  const file = event.dataTransfer?.files?.[0] || event.target?.files?.[0];
-  if (!file || !file.type.startsWith('image/')) { showToast('Please choose an image file'); return; }
-  if (file.size > 10 * 1024 * 1024) { showToast('Photo must be under 10 MB'); return; }
-  window._pendingCheckinPhoto = file;
-  const reader = new FileReader();
-  reader.onload = e => _showPhotoPreview(e.target.result);
-  reader.readAsDataURL(file);
-}
-
-function clearPhotoPreview(venueId, venueName) {
-  window._pendingCheckinPhoto = null;
-  const wrap = document.getElementById('photoPreviewWrap');
-  const area = document.getElementById('photoUploadArea');
-  const btn  = document.getElementById('photoSubmitBtn');
-  const img  = document.getElementById('photoPreviewImg');
-  if (wrap) wrap.style.display = 'none';
-  if (img)  img.src = '';
-  if (area) area.style.display = '';
-  if (btn)  btn.disabled = true;
-  // On native, re-show the source buttons
-  if (_isCapacitorNative() && area) area.style.display = '';
-}
 
 // Single commit for the post-check-in sheet. Handles every combination:
 //   • photo (+ optional caption + tags)  → photo post

@@ -43,8 +43,15 @@ export default async function handler(req) {
 
   try {
     // 1. Resolve handle -> active creator.
+    // Escape LIKE wildcards: without this, a handle of "%" (via /r/%25)
+    // matches the FIRST creator in the table and redirects with THEIR
+    // referral code, silently mis-attributing the click. PostgreSQL LIKE
+    // treats backslash as the default escape character, so prefixing
+    // \, %, and _ neutralizes the pattern while keeping case-insensitive
+    // matching intact.
+    const likeSafeHandle = rawHandle.replace(/[\\%_]/g, (m) => '\\' + m);
     const creators = await rest(
-      `profiles?is_creator=eq.true&username=ilike.${encodeURIComponent(rawHandle)}&select=id,username&limit=1`,
+      `profiles?is_creator=eq.true&username=ilike.${encodeURIComponent(likeSafeHandle)}&select=id,username&limit=1`,
       url, key
     );
     const creator = creators && creators[0];

@@ -10,7 +10,7 @@
     { "path": "/api/loops-inactive", "schedule": "0 14 * * *" },
     { "path": "/api/loops-owner-inactive", "schedule": "30 14 * * *" },
     { "path": "/api/daily-deals", "schedule": "0 14 * * *" },
-    { "path": "/api/weekly-digest", "schedule": "0 15 * * 4" },
+    { "path": "/api/weekly-digest", "schedule": "0 23 * * 4" },
     { "path": "/api/push-runner", "schedule": "*/15 * * * *" },
     { "path": "/api/analytics-rollup", "schedule": "30 9 * * *" }
   ],

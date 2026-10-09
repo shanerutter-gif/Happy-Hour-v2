@@ -1,6 +1,7 @@
 export const config = { runtime: 'edge' };
 
 import { slugify, canonicalVenueSlugs, canonicalHood, openingHoursSpec } from './_lib/seo.js';
+import { botGate } from './_lib/botgate.js';
 
 // Canonical host. The apex (spotd.biz) 301s to www, so every canonical / og:url
 // / sitemap URL must use www — the host that returns 200 — or Google treats the
@@ -98,6 +99,10 @@ function buildPage(venue, reviews, allVenues, seo) {
   const hours = esc(venue.hours || '');
   const deals = venue.deals || [];
   const cuisine = esc(venue.cuisine || '');
+  // Sanitized city slug for the "Open in Spotd" deep links — lets /?spot=
+  // enter the venue's own city before opening its modal (js/app.js). Same
+  // allow-list as window.__spotdOrganicCity below.
+  const spotCitySlug = String(venue.city_slug || '').replace(/[^a-z0-9-]/gi, '');
   const url = venue.url || '';
   const photoUrl = venue.photo_url || venue.photo_urls?.[0] || '';
   const ogImage = photoUrl || `${SITE_URL}/icons/icon-512.png`;
@@ -418,7 +423,7 @@ ${venueFaqLd ? `<script type="application/ld+json">${JSON.stringify(venueFaqLd)}
   </div>` : ''}
 
   <!-- Primary CTA -->
-  <a href="/?spot=${venue.id}" class="spot-cta">
+  <a href="/?spot=${venue.id}&city=${spotCitySlug}" class="spot-cta">
     Open in Spotd — See Deals & Check In
   </a>
 
@@ -455,7 +460,7 @@ ${venueFaqLd ? `<script type="application/ld+json">${JSON.stringify(venueFaqLd)}
       <div class="spot-info-row">
         <div class="spot-info-icon">🕐</div>
         <div>
-          <div class="spot-info-label">Happy Hour</div>
+          <div class="spot-info-label">Hours</div>
           <div class="spot-info-value">${hours}${venue.days?.length ? ` · ${formatDays(venue.days)}` : ''}</div>
         </div>
       </div>` : ''}
@@ -516,11 +521,11 @@ ${venueFaqLd ? `<script type="application/ld+json">${JSON.stringify(venueFaqLd)}
       </div>
       ${r.text ? `<div class="spot-review-text">"${esc(r.text)}"</div>` : ''}
     </div>`).join('')}
-    ${ratingCount > 10 ? `<p style="font-size:13px;color:var(--muted);text-align:center;margin-top:12px">+ ${ratingCount - 10} more reviews — <a href="/?spot=${venue.id}" style="color:var(--coral);text-decoration:none;font-weight:600">see all in Spotd</a></p>` : ''}
+    ${ratingCount > 10 ? `<p style="font-size:13px;color:var(--muted);text-align:center;margin-top:12px">+ ${ratingCount - 10} more reviews — <a href="/?spot=${venue.id}&city=${spotCitySlug}" style="color:var(--coral);text-decoration:none;font-weight:600">see all in Spotd</a></p>` : ''}
   </div>` : ''}
 
   <!-- Secondary CTA -->
-  <a href="/?spot=${venue.id}" class="spot-cta spot-cta-sec">
+  <a href="/?spot=${venue.id}&city=${spotCitySlug}" class="spot-cta spot-cta-sec">
     See More on Spotd
   </a>
 
@@ -583,6 +588,8 @@ ${venueFaqLd ? `<script type="application/ld+json">${JSON.stringify(venueFaqLd)}
 /* ── Handler ──────────────────────────────────────── */
 
 export default async function handler(req) {
+  const blocked = botGate(req);
+  if (blocked) return blocked;
   const supabaseUrl = process.env.SUPABASE_URL;
   const serviceKey  = process.env.SUPABASE_SERVICE_KEY;
 

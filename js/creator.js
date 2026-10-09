@@ -16,7 +16,23 @@
 (function () {
   'use strict';
 
-  // ── Badge (§4) ─────────────────────────────────────────────────────────
+  // ── HTML escaping ─────────────────────────────────────────────────────
+  // Strings interpolated into innerHTML below MUST go through escHtml.
+  // Escapes & FIRST: the old /</-only pass left a double-encoding hole —
+  // a display_name containing literal "&lt;img src=x onerror=...&gt;"
+  // decodes back into a live tag when the browser parses the entities.
+  // Creators are admin-approved so practical risk is low, but the follow
+  // card renders whatever display_name is on the profile, so do it right.
+  function escHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  // ── Badge (§4) ────────────────────────────────────────────────────────
   // Sibling of officialBadge() in js/app.js — same seal-check shape family,
   // coral for verified creators, gold seal + FOUNDING pill for founders.
   window.creatorBadge = function creatorBadge(profile) {
@@ -83,9 +99,9 @@
       var creators = (data && data.creators) || [];
       if (!creators.length) { el.innerHTML = ''; return; }
       var listHtml = creators.map(function (c) {
-        var name = (c.display_name || c.username || 'Creator').replace(/</g, '&lt;');
+        var name = escHtml(c.display_name || c.username || 'Creator');
         var avatar = c.avatar_url
-          ? '<img class="creator-card-avatar" src="' + c.avatar_url.replace(/"/g, '&quot;') + '" alt="">'
+          ? '<img class="creator-card-avatar" src="' + escHtml(c.avatar_url) + '" alt="">'
           : '<div class="creator-card-avatar creator-card-avatar--fallback">' + name.charAt(0).toUpperCase() + '</div>';
         return '<label class="creator-card-row">' +
           '<input type="checkbox" class="creator-card-check" value="' + c.id + '" checked>' +

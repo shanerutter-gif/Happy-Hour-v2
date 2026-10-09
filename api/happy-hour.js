@@ -1,6 +1,7 @@
 export const config = { runtime: 'edge' };
 
 import { slugify, canonicalHood, isHoodAlias } from './_lib/seo.js';
+import { botGate } from './_lib/botgate.js';
 
 // Canonical host — www serves 200, the apex redirects. Keep canonical / og:url /
 // JSON-LD on www so Google indexes the served URL rather than the redirect.
@@ -72,6 +73,8 @@ function notFound() {
 /* ── Handler ─────────────────────────────────────── */
 
 export default async function handler(req) {
+  const blocked = botGate(req);
+  if (blocked) return blocked;
   const supabaseUrl = process.env.SUPABASE_URL;
   const serviceKey  = process.env.SUPABASE_SERVICE_KEY;
   if (!supabaseUrl || !serviceKey) return new Response('Server configuration error', { status: 500 });
