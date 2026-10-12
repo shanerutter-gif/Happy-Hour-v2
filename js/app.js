@@ -5212,7 +5212,7 @@ async function renderProfile(user, seq) {
               <div class="pf-row-meta">${starHTML(r.rating,5,11)} · ${fmtDate(r.created_at)}</div>
               ${r.text ? `<div class="pf-row-note">"${esc(r.text)}"</div>` : ''}
               <div class="review-acts">
-                <button class="review-act" onclick="openEditReview('${r.id}','${r.venue_id||r.event_id}','${itype}',${r.rating},'${esc(r.text||'')}')">Edit</button>
+                <button class="review-act" onclick="openEditReview('${r.id}','${r.venue_id||r.event_id}','${itype}',${r.rating},'${_jsq(r.text||'')}')">Edit</button>
                 <button class="review-act del" onclick="doDeleteReview('${r.id}','${r.venue_id||r.event_id}','${itype}')">Delete</button>
               </div>
             </div>
@@ -7478,6 +7478,16 @@ function openPhotoLightbox(url, name, caption) {
   document.body.appendChild(lb);
 }
 function esc(s)            { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+// JS-string escaper for values embedded inside single-quoted inline-handler
+// args (e.g. onclick="openEditReview('...','USER TEXT')"). esc() emits HTML
+// entities, but the HTML parser decodes them back to raw quotes BEFORE the JS
+// engine parses the handler -- so esc("Don't") produced an unterminated string
+// literal and the handler threw a SyntaxError (the button silently did
+// nothing). Escape for the JS layer FIRST (backslash, quote, newline, '<' as
+// \x3c), THEN for the HTML attribute layer (" as &quot;, & as &amp;) -- a raw
+// '"' would otherwise terminate the onclick="..." attribute and break the
+// handler exactly the same silent way. Verified 8/8 roundtrips (node harness).
+function _jsq(s)           { return String(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,'\\n').replace(/\r/g,'\\r').replace(/</g,'\\x3c').replace(/&/g,'&amp;').replace(/"/g,'&quot;'); }
 
 // ── CHECK-INS ──────────────────────────────────────────
 async function loadReviewAverages(citySlug) {
@@ -7769,7 +7779,7 @@ async function renderPublicProfile(userId, seq) {
         onclick="toggleFollowUser('${userId}', this)" style="flex:1">
         ${amIFollowing ? '✓ Following' : '+ Follow'}
       </button>
-      <button class="pub-follow-btn" onclick="dmOpenFromProfile('${userId}', '${esc(displayName)}')" style="flex:1;background:transparent;color:var(--coral);border:1.5px solid var(--coral)">
+      <button class="pub-follow-btn" onclick="dmOpenFromProfile('${userId}', '${_jsq(displayName)}')" style="flex:1;background:transparent;color:var(--coral);border:1.5px solid var(--coral)">
         ${ICN.comment} Message
       </button>
     </div>` : ''}
@@ -8572,7 +8582,7 @@ async function _loadTagFriendsInline(venueId, venueName) {
     }
     grid.innerHTML = list.map(p => `
       <button class="cp-tag-row" id="tag-chip-${p.id}" type="button"
-        onclick="toggleStagedTag('${p.id}','${esc(p.display_name || '')}',this)">
+        onclick="toggleStagedTag('${p.id}','${_jsq(p.display_name || '')}',this)">
         <span class="cp-tag-row-avatar">${initialsAvatar(p.display_name || 'Friend', '', p.avatar_emoji, p.avatar_url)}</span>
         <span class="cp-tag-row-name">${esc(p.display_name || 'Friend')}</span>
         <span class="cp-tag-row-check" aria-hidden="true"></span>
@@ -9414,7 +9424,7 @@ function dmFilterSharePicker(query) {
       searchResults.style.display = 'block';
       searchResults.innerHTML = `<div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:8px 0 6px">People</div>`
         + users.map(u => `<div class="dm-thread-row dm-share-row"
-          onclick="dmSendVenueToUser('${u.id}','${esc(u.display_name||'User')}')">
+          onclick="dmSendVenueToUser('${u.id}','${_jsq(u.display_name||'User')}')">
           <div class="dm-thread-main"><div class="dm-thread-avatar">${initialsAvatar(u.display_name || 'User', '', u.avatar_emoji, u.avatar_url)}</div>
           <div class="dm-thread-info"><div class="dm-thread-name">${esc(u.display_name || 'User')}</div></div></div>
           <div class="dm-share-send-btn">Send</div>

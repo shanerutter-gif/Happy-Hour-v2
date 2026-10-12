@@ -56,7 +56,7 @@ async function fetchVenues(supabaseUrl, serviceKey) {
   // resolves to. Display sorting happens in JS after the map is built, so the
   // page order is unchanged. id is needed for the slug lookup.
   return fetchAllRows(
-    `${supabaseUrl}/rest/v1/venues?active=eq.true&photo_url=not.is.null&select=id,name,neighborhood,city_slug,deals`,
+    `${supabaseUrl}/rest/v1/venues?active=eq.true&select=id,name,neighborhood,city_slug,deals`,
     { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` }
   );
 }

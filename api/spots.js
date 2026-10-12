@@ -224,9 +224,15 @@ function buildPage(venue, reviews, allVenues, seo) {
     });
   }
   if (venue.hours) {
+    // V11 follow-up: this block used to answer "When is happy hour?" with the
+    // venue's GENERAL operating hours — the same field/label mismatch the
+    // spot-info row had (now "Hours"). The hours field is not a happy-hour
+    // time, and this copy feeds FAQPage JSON-LD that Google indexes verbatim
+    // (e.g. "lists happy hour as Daily 11am–10pm" while the real deal was
+    // Mon–Fri 2–6pm). Ask about hours; don't mislabel them as happy hour.
     venueFaqs.push({
-      q: `When is happy hour at ${venue.name}?`,
-      a: `${venue.name} lists happy hour as ${venue.hours}${venue.days && venue.days.length ? ` on ${formatDays(venue.days)}` : ''}.`
+      q: `What are ${venue.name}'s hours?`,
+      a: `${venue.name} is open ${venue.hours}${venue.days && venue.days.length ? ` on ${formatDays(venue.days)}` : ''}.`
     });
   }
   if (venue.address) {

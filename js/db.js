@@ -434,6 +434,12 @@ function triggerLoopsOnboarding(email, firstName, userId, source) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, firstName, userId, source, ...ctx }),
+    // keepalive: this fetch is fire-and-forget and the signup moment is
+    // exactly when the page is most likely to navigate (OAuth redirect
+    // callback, fast onboarding taps). Without keepalive a navigating page
+    // cancels the beacon, the Loops contact is never created, and the
+    // welcome email is silently lost forever — no retry exists.
+    keepalive: true,
   }).catch(e => console.warn('[Loops] Onboarding trigger failed:', e.message));
 }
 
@@ -656,16 +662,21 @@ async function handleOAuthCallback() {
     _scheduleTokenRefresh(expiresIn);
     await loadFavorites();
 
-    // Trigger onboarding for new OAuth signups (Loops dedupes existing contacts)
-    if (user.email) {
-      triggerLoopsOnboarding(user.email, user.user_metadata?.full_name, user.id, 'google-oauth');
-    }
     // Persist the chosen city to the profile for per-city digest routing.
     _persistSignupCity();
     analyticsIdentify();
 
     const _provider = user.app_metadata?.provider || 'oauth';
     const _isNew = !!(user.created_at && (Date.now() - new Date(user.created_at).getTime() < 60000));
+    // Trigger onboarding ONLY for genuinely new OAuth signups. The old code
+    // fired on every OAuth sign-in (the comment claimed "Loops dedupes
+    // existing contacts", but contact-create idempotency is not the point —
+    // the 'signup' event in /api/loops-onboarding re-enters the contact into
+    // the onboarding loop, so returning Google users re-received welcome
+    // email #1 on every login).
+    if (_isNew && user.email) {
+      triggerLoopsOnboarding(user.email, user.user_metadata?.full_name, user.id, 'google-oauth');
+    }
     track(_isNew ? 'signup_completed' : 'oauth_login', { method: _provider, new_user: _isNew });
     // login_completed fires alongside (never instead of) the legacy events
     // above — GA continuity. Normalized {method} across email + OAuth.
