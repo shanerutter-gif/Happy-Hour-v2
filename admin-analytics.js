@@ -16,6 +16,13 @@
  *                            check-ins/day from check_ins.created_at (DB ground
  *                            truth, overlaid on the traffic shape) + inline
  *                            attribution summary reusing the Attribution RPCs.
+ *   F  Bots vs humans      — three-bucket split (human / allowed crawlers /
+ *                            blocked junk + unknown-UA) classified by the EXACT
+ *                            edge-gate rules (api/_lib/botgate.js) via the
+ *                            ae_bot_* RPCs (sql/analytics-bot-traffic.sql).
+ *                            Human-only mode is the DEFAULT for Panel A KPIs;
+ *                            one click includes bots. Rows captured before
+ *                            user_agent existed are "unknown", never human.
  *
  * Read-only. Reuses the signed-in admin's user JWT + anon key (same pattern as
  * admin-activity.js / admin-attribution.js). Zero new tables, zero new RPCs,
@@ -164,6 +171,7 @@
   const state = {
     preset: '7d', customFrom: '', customTo: '', surface: 'site',
     tdSel: 'source', hideBots: false,
+    includeBots: false, // Panel F — human-only is the default for growth KPIs
   };
   // Per-panel health: { status: 'fresh'|'stale'|'suspect'|'loading', at: iso, note }
   const health = {
@@ -174,10 +182,14 @@
     break:  { status: 'loading', at: null, note: '' },
     funnel: { status: 'loading', at: null, note: '' },
     attr:   { status: 'loading', at: null, note: '' },
+    botf:   { status: 'loading', at: null, note: '' },
   };
   const data = {
     kpis: {}, kpisPrev: {}, series: [], breakdown: [],
     funnel: [],            // [{bucket, signups, checkins}]
+    botKpis: null,         // Panel F — ae_bot_kpis json (null until loaded)
+    botSeries: [],         // Panel F — [{bucket, human, bots, blocked, unknown}]
+    botByName: [], botByPattern: [], botByGeo: [],
     botDays: 0,           // count of likely-bot days in the window
     attrCoverage: null, attrTop: [],
     parity: [],           // [{panel, rpc, params}] — reviewer parity gate
@@ -223,6 +235,7 @@
     await Promise.allSettled([
       loadHealth(),
       loadKpis(),
+      loadBot(),
       loadSeries(),
       loadPages(),
       loadBreakdown(),
@@ -284,6 +297,33 @@
       data.parity.push({ panel: 'A (KPIs)', rpc: 'ae_traffic_kpis', params });
       mark('kpis', 'fresh', '');
     } catch (e) { mark('kpis', 'suspect', e.message); }
+  }
+
+  // Panel F — bot-vs-human split via the ae_bot_* RPCs (gate-mirrored rules).
+  // If sql/analytics-bot-traffic.sql hasn't been applied yet the RPCs 404 and
+  // the panel renders SUSPECT — Panel A then falls back to raw KPIs.
+  async function loadBot() {
+    const { from, to, bucket } = rangeBounds();
+    const params = { p_from: from, p_to: to, p_surface: state.surface };
+    try {
+      const [k, ts, bn, bp, bg] = await Promise.all([
+        rpc('ae_bot_kpis', params),
+        rpc('ae_bot_timeseries', { ...params, p_bucket: bucket }),
+        rpc('ae_bot_breakdown', { p_dim: 'bot_name', ...params, p_limit: 10 }),
+        rpc('ae_bot_breakdown', { p_dim: 'blocked_pattern', ...params, p_limit: 10 }),
+        rpc('ae_bot_breakdown', { p_dim: 'country', ...params, p_limit: 10 }),
+      ]);
+      data.botKpis = (k && typeof k === 'object') ? k : null;
+      data.botSeries = Array.isArray(ts) ? ts : [];
+      data.botByName = Array.isArray(bn) ? bn : [];
+      data.botByPattern = Array.isArray(bp) ? bp : [];
+      data.botByGeo = Array.isArray(bg) ? bg : [];
+      data.parity.push({ panel: 'F (bots)', rpc: 'ae_bot_kpis', params });
+      mark('botf', data.botKpis ? 'fresh' : 'stale', data.botKpis ? '' : 'no bot data in range');
+    } catch (e) {
+      data.botKpis = null;
+      mark('botf', 'suspect', e.message);
+    }
   }
 
   // Panel B — timeseries; flags likely-bot days (pageviews/visitor ratio).
@@ -409,6 +449,62 @@
     </svg>`;
   }
 
+  // Panel F — stacked area chart: human (coral) + allowed bots (blue) +
+  // blocked junk (red) + unknown UA (gray), with a vertical marker at the
+  // Oct 9, 2026 edge bot-gate deployment when it falls inside the window.
+  const GATE_DATE = Date.UTC(2026, 9, 9); // 2026-10-09
+  function stackedSVG(rows, bucket) {
+    if (!rows.length) {
+      return '<div style="padding:48px;text-align:center;color:var(--muted)">No data in this range yet.</div>';
+    }
+    const W = 1000, H = 260, padL = 46, padR = 16, padT = 14, padB = 26;
+    const innerW = W - padL - padR, innerH = H - padT - padB;
+    const layers = [
+      ['human',   '#FF6B4A'],
+      ['bots',    '#3B82F6'],
+      ['blocked', '#EF4444'],
+      ['unknown', '#9CA3AF'],
+    ];
+    const totals = rows.map(r => layers.reduce((s, [k]) => s + (+r[k] || 0), 0));
+    const maxV = Math.max(1, ...totals);
+    const n = rows.length;
+    const x = i => padL + (n === 1 ? innerW / 2 : (i / (n - 1)) * innerW);
+    const y = v => padT + innerH - (v / maxV) * innerH;
+    // Cumulative stacks, drawn top layer first so lower layers paint over.
+    const cum = rows.map(r => {
+      let acc = 0;
+      return layers.map(([k]) => { acc += (+r[k] || 0); return acc; });
+    });
+    let polys = '';
+    for (let li = layers.length - 1; li >= 0; li--) {
+      const top = rows.map((r, i) => `${x(i).toFixed(1)},${y(cum[i][li]).toFixed(1)}`);
+      const bot = rows.map((r, i) => `${x(i).toFixed(1)},${y(li === 0 ? 0 : cum[i][li - 1]).toFixed(1)}`).reverse();
+      polys += `<polygon points="${top.join(' ')} ${bot.join(' ')}" fill="${layers[li][1]}" fill-opacity="${li === 3 ? 0.45 : 0.75}"/>`;
+    }
+    const grid = [0, 0.25, 0.5, 0.75, 1].map(f => {
+      const yy = (padT + innerH - f * innerH).toFixed(1);
+      return `<line x1="${padL}" y1="${yy}" x2="${W - padR}" y2="${yy}" stroke="var(--border)" stroke-width="1" vector-effect="non-scaling-stroke"/>`
+           + `<text x="${padL - 8}" y="${(+yy + 4)}" text-anchor="end" font-size="11" fill="var(--muted)" font-family="DM Mono,monospace">${fmtNum(Math.round(maxV * f))}</text>`;
+    }).join('');
+    const step = Math.max(1, Math.ceil(n / 7));
+    let xlabels = '';
+    for (let i = 0; i < n; i += step) {
+      xlabels += `<text x="${x(i).toFixed(1)}" y="${H - 8}" text-anchor="middle" font-size="10" fill="var(--muted)" font-family="DM Mono,monospace">${esc(fmtBucket(rows[i].bucket, bucket))}</text>`;
+    }
+    let marker = '';
+    if (bucket !== 'hour') {
+      const gi = rows.findIndex(r => new Date(r.bucket).getTime() >= GATE_DATE);
+      if (gi > 0) {
+        const mx = x(gi).toFixed(1);
+        marker = `<line x1="${mx}" y1="${padT}" x2="${mx}" y2="${padT + innerH}" stroke="#111827" stroke-width="1.5" stroke-dasharray="4 3" vector-effect="non-scaling-stroke"/>`
+               + `<text x="${(+mx) + 5}" y="${padT + 12}" font-size="11" font-weight="700" fill="var(--text)" font-family="DM Mono,monospace">⚑ Bot gate deployed · Oct 9</text>`;
+      }
+    }
+    return `<svg viewBox="0 0 ${W} ${H}" width="100%" height="260" preserveAspectRatio="none" style="display:block">
+      ${grid}${polys}${marker}${xlabels}
+    </svg>`;
+  }
+
   function controlsBarHTML() {
     const presets = [['today', 'Today'], ['7d', '7 days'], ['30d', '30 days'], ['90d', '90 days']];
     const surfaces = [['site', 'Website'], ['app', 'App'], ['all', 'All']];
@@ -459,7 +555,20 @@
     const pageviews = +k.pageviews || 0;
     const visitors = +k.visitors || 0;
     const signups = +k.signups || 0;
-    const conv = visitors ? ((signups / visitors) * 100).toFixed(1) + '%' : '0%';
+
+    // Panel F drives Panel A: human-only is the default for growth KPIs.
+    // Falls back to raw ae_traffic_kpis numbers if the bot RPCs failed.
+    const bk = data.botKpis;
+    const humanOnly = !state.includeBots && !!bk && health.botf.status !== 'suspect';
+    const dispPv       = humanOnly ? (+bk.human_pageviews || 0) : pageviews;
+    const dispSessions = humanOnly ? (+bk.human_sessions || 0) : (+k.sessions || 0);
+    const dispVisitors = humanOnly ? (+bk.human_visitors || 0) : visitors;
+    const conv = dispVisitors ? ((signups / dispVisitors) * 100).toFixed(1) + '%' : '0%';
+    const botsToggle = `<button class="ana-bots-toggle" style="padding:6px 12px;border-radius:999px;border:1px solid var(--border);font-weight:700;font-size:12px;cursor:pointer;background:${state.includeBots ? 'var(--card)' : 'var(--coral)'};color:${state.includeBots ? 'var(--text)' : '#fff'}">${state.includeBots ? '🤖 Bots included' : '🧑 Human-only'}</button>`;
+    const geoRows = (data.botByGeo || []).map(r => ({
+      ...r,
+      value: ['CN', 'HK', 'SG'].includes(r.value) ? r.value + ' ⚠️ crawl-wave geo' : r.value,
+    }));
 
     // Panel B rows: flag likely-bot days, optionally hide them.
     const flagged = new Set();
@@ -500,18 +609,71 @@
       <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:18px;overflow:hidden">
         <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
           <div style="font-family:'Cabinet Grotesk',sans-serif;font-size:16px;font-weight:700">Traffic KPIs</div>
-          <div style="display:flex;gap:8px;align-items:center">${chip('kpis')}<span style="font-size:11px;color:var(--muted)">vs prior ${esc(state.preset === 'custom' ? 'window' : state.preset)}</span></div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${botsToggle}${chip('kpis')}<span style="font-size:11px;color:var(--muted)">vs prior ${esc(state.preset === 'custom' ? 'window' : state.preset)}</span></div>
         </div>
+        ${humanOnly ? `<div style="padding:10px 16px 0;font-size:12px;color:var(--muted)">🧑 Human-only mode (default): pageviews / sessions / visitors count only traffic the edge-gate rules classify as human. Unknown-UA rows are excluded, not assumed human. Signups + conversion are DB truth. Click "Human-only" above to include bots.</div>` : ''}
         ${health.kpis.status === 'suspect'
           ? `<div style="padding:24px;text-align:center;color:var(--coral)">Couldn't load KPIs: ${esc(health.kpis.note)}<br><span style="color:var(--muted);font-size:12px">Showing nothing rather than zeros.</span></div>`
           : `<div class="kpi-row" style="display:flex;gap:12px;flex-wrap:wrap;padding:16px">
-              ${kpiCard('Pageviews', fmtNum(pageviews), deltaHTML(pageviews, kp.pageviews))}
-              ${kpiCard('Sessions', fmtNum(k.sessions), deltaHTML(k.sessions, kp.sessions))}
-              ${kpiCard('Visitors', fmtNum(visitors), deltaHTML(visitors, kp.visitors))}
+              ${kpiCard('Pageviews', fmtNum(dispPv), humanOnly ? '<span style="color:var(--muted)">human-only</span>' : deltaHTML(pageviews, kp.pageviews))}
+              ${kpiCard('Sessions', fmtNum(dispSessions), humanOnly ? '<span style="color:var(--muted)">human-only</span>' : deltaHTML(k.sessions, kp.sessions))}
+              ${kpiCard('Visitors', fmtNum(dispVisitors), humanOnly ? '<span style="color:var(--muted)">human-only</span>' : deltaHTML(visitors, kp.visitors))}
               ${kpiCard('Signed-in', fmtNum(k.signed_in_users), deltaHTML(k.signed_in_users, kp.signed_in_users))}
               ${kpiCard('Signups', fmtNum(signups), deltaHTML(signups, kp.signups))}
               ${kpiCard('Conversion', conv, 'signups / visitors')}
             </div>`}
+      </div>
+
+      <!-- Panel F — Bots vs humans -->
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:18px;overflow:hidden">
+        <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+          <div>
+            <div style="font-family:'Cabinet Grotesk',sans-serif;font-size:16px;font-weight:700">🤖 Bots vs humans</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:2px">Classified by the exact edge bot-gate rules — so "what share of traffic was bots?" answers itself</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${botsToggle}${chip('botf')}</div>
+        </div>
+        ${health.botf.status === 'suspect'
+          ? `<div style="padding:24px;text-align:center;color:var(--coral)">Couldn't load the bot split: ${esc(health.botf.note)}<br><span style="color:var(--muted);font-size:12px">If this says the function doesn't exist, sql/analytics-bot-traffic.sql hasn't been applied to Supabase yet. KPIs above are showing raw totals meanwhile.</span></div>`
+          : bk ? `
+        <div class="kpi-row" style="display:flex;gap:12px;flex-wrap:wrap;padding:16px 16px 4px">
+          <div class="kpi-card" style="cursor:default;min-width:150px;border:2px solid var(--coral)">
+            <div class="kpi-label">Human share</div>
+            <div class="kpi-value">${bk.human_share == null ? '—' : esc(bk.human_share) + '%'}</div>
+            <div class="kpi-sub"><span style="color:var(--muted)">of all counted traffic</span></div>
+          </div>
+          ${kpiCard('Total', fmtNum(bk.total_pageviews), '<span style="color:var(--muted)">pageviews + bot hits</span>')}
+          ${kpiCard('🧑 Human', fmtNum(bk.human_pageviews), deltaHTML(bk.human_pageviews, null))}
+          ${kpiCard('🤖 Allowed bots', fmtNum(bk.bot_pageviews), '<span style="color:var(--muted)">Googlebot, GPTBot, Claude…</span>')}
+          ${kpiCard('🚫 Blocked junk', fmtNum(bk.blocked_pageviews), '<span style="color:var(--muted)">scraper signatures at ingest</span>')}
+          ${kpiCard('❔ Unknown UA', fmtNum(bk.unknown_pageviews), '<span style="color:var(--muted)">pre-UA-capture rows</span>')}
+        </div>
+        <div style="display:flex;gap:14px;font-size:12px;color:var(--muted);padding:10px 16px 0;flex-wrap:wrap">
+          <span><span style="display:inline-block;width:14px;height:8px;background:#FF6B4A;vertical-align:middle;border-radius:2px"></span> Human</span>
+          <span><span style="display:inline-block;width:14px;height:8px;background:#3B82F6;vertical-align:middle;border-radius:2px"></span> Allowed bots</span>
+          <span><span style="display:inline-block;width:14px;height:8px;background:#EF4444;vertical-align:middle;border-radius:2px"></span> Blocked junk</span>
+          <span><span style="display:inline-block;width:14px;height:8px;background:#9CA3AF;vertical-align:middle;border-radius:2px"></span> Unknown UA</span>
+        </div>
+        <div style="padding:10px 10px 6px">${stackedSVG((data.botSeries || []).map(r => ({ bucket: r.bucket, human: +r.human || 0, bots: +r.bots || 0, blocked: +r.blocked || 0, unknown: +r.unknown || 0 })), state.bucket)}</div>
+        <div style="padding:4px 16px 12px;font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:4px">
+          <div>⚑ The Oct 9 marker is the edge bot-gate deploy. The post-gate "cliff" is blocked bots disappearing, not lost visitors — read the human (coral) band across it.</div>
+          <div>Rows captured before user-agent storage shipped have no UA and land in <strong>Unknown</strong> — never folded into Human. Missing days show as gaps, not invented zeros.</div>
+          <div>Blocked page hits at the gate itself return 404 before any analytics loads, so they live in Vercel logs ("[botgate] blocked"); Blocked here counts gate-signature requests recorded at the analytics ingest plus blocked-UA page views.</div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:0;border-top:1px solid var(--border)">
+          <div style="padding:12px 16px 16px">
+            <div style="font-weight:700;font-size:13px;margin-bottom:6px">Allowed bots, by crawler</div>
+            ${barList(data.botByName || [], 'value', 'pageviews', 'sessions', false)}
+          </div>
+          <div style="padding:12px 16px 16px">
+            <div style="font-weight:700;font-size:13px;margin-bottom:6px">Blocked junk, by signature</div>
+            ${barList(data.botByPattern || [], 'value', 'pageviews', 'sessions', false)}
+          </div>
+          <div style="padding:12px 16px 16px">
+            <div style="font-weight:700;font-size:13px;margin-bottom:6px">Non-human traffic, by country</div>
+            ${barList(geoRows, 'value', 'pageviews', 'sessions', false)}
+          </div>
+        </div>` : `<div style="padding:24px;text-align:center;color:var(--muted)">Loading bot split…</div>`}
       </div>
 
       <!-- Panel B — Timeseries -->
@@ -634,6 +796,12 @@
     if (from) from.addEventListener('change', onCustom);
     if (to)   to.addEventListener('change', onCustom);
     document.getElementById('ana-refresh')?.addEventListener('click', loadAll);
+    wrap.querySelectorAll('.ana-bots-toggle').forEach(b => {
+      b.addEventListener('click', () => {
+        state.includeBots = !state.includeBots;
+        render(); // values already loaded — the toggle only re-slices Panel A
+      });
+    });
     document.getElementById('ana-hide-bots')?.addEventListener('change', e => {
       state.hideBots = e.target.checked;
       render();

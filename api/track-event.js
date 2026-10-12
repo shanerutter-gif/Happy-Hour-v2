@@ -33,22 +33,73 @@ const MAX_EVENTS = 50; // hard cap per batch
 // would otherwise dominate the dashboard. Their events are never stored.
 const INTERNAL_EMAILS = ['shanerutter@gmail.com'];
 
-// Crawlers / bots / link-preview fetchers — never stored (they'd swamp the
-// site-wide pageview counts). Client-side site-analytics.js also self-filters,
-// but Googlebot renders JS, so we filter here too as the reliable backstop.
+// Crawlers / bots / link-preview fetchers — never stored as page_views (they'd
+// swamp the site-wide pageview counts). Client-side site-analytics.js also
+// self-filters, but Googlebot renders JS, so we filter here too as the
+// reliable backstop. Requests dropped here that match the EDGE GATE's lists
+// (api/_lib/botgate.js — kept in lockstep) are recorded as a single minimal
+// 'bot_hit' row instead, so the admin Bot-vs-Human panel can count blocked
+// junk and JS-rendering crawlers without polluting pageview KPIs.
 const BOT_RE = /bot|crawl|spider|slurp|mediapartners|googlebot|bingpreview|adsbot|headless|lighthouse|pagespeed|gtmetrix|pingdom|uptime|facebookexternalhit|embedly|quora|whatsapp|telegram|slackbot|discordbot|preview|scrapy|python-requests|axios|node-fetch|go-http|curl|wget|phantomjs/i;
+
+// Mirror of api/_lib/botgate.js ALLOW / BLOCK (same patterns, same order).
+const GATE_ALLOW_RE = /(googlebot|bingbot|slurp|duckduckbot|baiduspider|yandexbot|sogou|exabot|oai-searchbot|chatgpt-user|gptbot|perplexitybot|perplexity-user|claudebot|claude-searchbot|claude-user|google-extended|applebot-extended|applebot)/i;
+const GATE_BLOCK_RE = /(python-requests|scrapy|aiohttp|httpx\/|wget|curl|go-http-client|\bjava\/\b|libwww-perl|httpunit|nutch|mj12bot|ahrefsbot|semrushbot|dotbot|petalbot|bytespider|serpstat|dataforseo)/i;
+
+// One minimal row per dropped bot batch. Best-effort: any failure is
+// swallowed — analytics must never disrupt the app.
+async function recordBotHit(req, body, events, ua) {
+  try {
+    const first = Array.isArray(events) ? events.find(e => e && typeof e.path === 'string') : null;
+    const path = first ? first.path.slice(0, 200) : null;
+    const plat = typeof body.platform === 'string' ? body.platform.slice(0, 16) : null;
+    const row = {
+      user_id:    null,
+      session_id: null,
+      visitor_id: null,
+      event_name: 'bot_hit',
+      props:      {},
+      path,
+      platform:   plat,
+      device:     typeof body.device === 'string' ? body.device.slice(0, 16) : null,
+      surface:    (body.surface === 'app' || body.surface === 'site') ? body.surface
+                    : (plat === 'ios_app' || !path || path === '/') ? 'app' : 'site',
+      country:    req.headers.get('x-vercel-ip-country') || null,
+      user_agent: String(ua || '').slice(0, 300),
+      created_at: new Date().toISOString(),
+    };
+    await fetch(`${SUPABASE_URL}/rest/v1/analytics_events`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: SERVICE_KEY,
+        Authorization: `Bearer ${SERVICE_KEY}`,
+        Prefer: 'return=minimal',
+      },
+      body: JSON.stringify(row),
+    });
+  } catch (e) { /* best-effort */ }
+}
 
 export default async function handler(req) {
   if (req.method === 'OPTIONS') return new Response(null, { status: 200, headers: cors() });
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
   if (!SERVICE_KEY) return json({ error: 'Missing service key' }, 500);
 
-  // Drop crawler/bot traffic outright.
   const ua = req.headers.get('user-agent') || '';
-  if (BOT_RE.test(ua)) return json({ ok: true, bot: true, inserted: 0 });
 
   let body;
   try { body = await req.json(); } catch { return json({ error: 'Invalid JSON' }, 400); }
+
+  // Drop crawler/bot traffic as page_views — but record gate-relevant drops
+  // (empty UA, gate blocklist signatures, gate allowlist crawlers) as one
+  // bot_hit row so the Bot-vs-Human dashboard can count them.
+  if (BOT_RE.test(ua)) {
+    if (!ua.trim() || GATE_ALLOW_RE.test(ua) || GATE_BLOCK_RE.test(ua)) {
+      await recordBotHit(req, body, Array.isArray(body.events) ? body.events : [], ua);
+    }
+    return json({ ok: true, bot: true, inserted: 0 });
+  }
 
   const events = Array.isArray(body.events) ? body.events : [];
   if (!events.length) return json({ ok: true, inserted: 0 });
@@ -98,6 +149,7 @@ export default async function handler(req) {
     device:     dev,
     surface:    surf,
     country:    country,
+    user_agent: ua.slice(0, 300),
     created_at: new Date((e && typeof e.t === 'number') ? e.t : now).toISOString(),
   })).filter(r => r.event_name);
 
@@ -193,6 +245,7 @@ async function handleAnonPing(req, body, events, ua) {
       // Mirror _ae_surface(): the SPA shell at '/' is the app; real paths are the site.
       surface:    (plat === 'ios_app' || path === '/' || !path) ? 'app' : 'site',
       country,
+      user_agent: String(ua || '').slice(0, 300),
       created_at: new Date((e && typeof e.t === 'number') ? e.t : now).toISOString(),
     };
   }).filter(r => r.event_name && ANON_ALLOWED.has(r.event_name));
