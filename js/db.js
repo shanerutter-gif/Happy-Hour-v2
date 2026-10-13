@@ -395,10 +395,20 @@ function getSession() {
 // user picked in the onboarding flow so we can write it onto the Loops contact
 // at signup. All sources are optional/best-effort — never let this throw.
 function _loopsSignupContext() {
+  // Picks stashed by onboarding (js/onboarding.js _obStashPicks). This is the
+  // only source that survives the OAuth full-page redirect: on the return
+  // load obState is back at its defaults (citySlug 'san-diego', no vibes),
+  // and the old precedence read obState FIRST — so every Google/Apple signup
+  // was written to Loops as San Diego with no vibes, whatever the user
+  // picked. Precedence now mirrors _persistSignupCity: stored pick first.
+  let picks = {};
+  try { picks = JSON.parse(sessionStorage.getItem('spotd-ob-picks') || '{}') || {}; } catch (e) {}
+
   let citySlug = 'san-diego';
   try {
-    citySlug = (typeof obState !== 'undefined' && obState.citySlug)
-      || localStorage.getItem('spotd-last-city')
+    citySlug = localStorage.getItem('spotd-last-city')
+      || picks.citySlug
+      || (typeof obState !== 'undefined' && obState.citySlug)
       || 'san-diego';
   } catch (e) {}
 
@@ -410,7 +420,14 @@ function _loopsSignupContext() {
 
   let vibes = '';
   try {
-    if (typeof obState !== 'undefined' && obState.selectedVibes) vibes = [...obState.selectedVibes].join(',');
+    if (typeof obState !== 'undefined' && obState.selectedVibes && obState.selectedVibes.size) vibes = [...obState.selectedVibes].join(',');
+    else if (Array.isArray(picks.vibes) && picks.vibes.length) vibes = picks.vibes.join(',');
+  } catch (e) {}
+
+  let neighborhood = '';
+  try {
+    neighborhood = (typeof obState !== 'undefined' && obState.selectedNeighborhood && obState.selectedNeighborhood.name)
+      || picks.neighborhood || '';
   } catch (e) {}
 
   let platform = 'web';
@@ -429,7 +446,7 @@ function _loopsSignupContext() {
   let utm = {};
   try { utm = _readPendingUtm(); } catch (e) {}
 
-  return { city_slug: citySlug, cityName, vibes, platform, sourceDetail, ...utm };
+  return { city_slug: citySlug, cityName, vibes, neighborhood, platform, sourceDetail, ...utm };
 }
 
 function triggerLoopsOnboarding(email, firstName, userId, source) {

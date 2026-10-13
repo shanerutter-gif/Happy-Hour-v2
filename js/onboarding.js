@@ -20,6 +20,23 @@ const obState = {
 
 const OB_ATTRIBUTION_KEY = 'spotd_pending_attribution';
 
+// Onboarding picks that must survive the OAuth full-page redirect.
+// obState is in-memory only: after Google/Apple sign-in returns to the app,
+// a fresh page load has citySlug='san-diego' and empty vibes, and
+// _loopsSignupContext() (js/db.js) would send that — not what the user
+// picked. Stash the picks in sessionStorage (same tab, survives the
+// redirect; same pattern as attribution + UTM capture) at selection time.
+const OB_PICKS_KEY = 'spotd-ob-picks';
+function _obStashPicks() {
+  try {
+    sessionStorage.setItem(OB_PICKS_KEY, JSON.stringify({
+      citySlug: obState.citySlug,
+      vibes: [...obState.selectedVibes],
+      neighborhood: obState.selectedNeighborhood ? obState.selectedNeighborhood.name : '',
+    }));
+  } catch (e) {}
+}
+
 // ── PER-CITY ONBOARDING CONTENT ───────────────────────
 // To launch a new city in onboarding, add an entry here (see CLAUDE.md
 // "Launching a new city" checklist) AND flip its `active` flag in CITIES
@@ -355,6 +372,7 @@ function obSelectCity(slug, el) {
   // Persist so the app drops the user into the city they picked once they
   // sign up or skip (enterCity reads 'spotd-last-city' on next load).
   try { localStorage.setItem('spotd-last-city', obState.citySlug); } catch (e) {}
+  _obStashPicks();
   if (typeof track === 'function') track('onboarding_city_selected', { city_slug: obState.citySlug });
   // Refresh the city-specific screens (map preview, neighborhoods, headlines).
   obPopulateDynamic();
@@ -555,6 +573,7 @@ function obToggleVibe(id, el) {
     obState.selectedVibes.add(id);
     el.classList.add('ob-vibe-card--selected');
   }
+  _obStashPicks();
   const cta = document.getElementById('obVibeCta');
   if (cta) cta.textContent = obState.selectedVibes.size > 0 ? "That's my vibe →" : "Skip for now →";
 }
@@ -593,6 +612,7 @@ function obSelectNeighborhood(name, deals, el) {
   document.querySelectorAll('.ob-neigh-btn').forEach(b => b.classList.remove('ob-neigh-btn--selected'));
   el.classList.add('ob-neigh-btn--selected');
   obState.selectedNeighborhood = { name, deals };
+  _obStashPicks();
   setTimeout(() => obNext(), 300);
 }
 

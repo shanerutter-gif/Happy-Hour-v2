@@ -12,7 +12,7 @@ export default async function handler(req) {
   let body;
   try { body = await req.json(); } catch { return jsonRes({ error: 'Invalid JSON' }, 400); }
 
-  const { email, firstName, userId, source, city_slug, cityName, vibes, platform, sourceDetail } = body;
+  const { email, firstName, userId, source, city_slug, cityName, vibes, neighborhood, platform, sourceDetail } = body;
   if (!email) return jsonRes({ error: 'Email required' }, 400);
 
   const loopsHeaders = {
@@ -35,6 +35,7 @@ export default async function handler(req) {
     if (city_slug)    contactBody.city_slug = city_slug;
     if (cityName)     contactBody.cityName = cityName;
     if (vibes)        contactBody.vibes = vibes;
+    if (neighborhood) contactBody.neighborhood = neighborhood;
     if (platform)     contactBody.platform = platform;
     if (sourceDetail) contactBody.sourceDetail = sourceDetail;
 
