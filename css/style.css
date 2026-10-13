@@ -3948,6 +3948,24 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
   box-shadow: var(--shadow);
 }
 .pf-header-btn:active { transform: scale(.88); }
+/* Profile-slice hit areas (Sofia 2026-10-10): .pf-header-btn renders 36x36,
+   .list-card-del ~28x28, .list-create-btn is 32px tall, .pf-idea-close ~20x22 --
+   all under Apple's 44px HIG. Expand the tap area invisibly; visuals unchanged.
+   (::before is unused on all four. .pf-idea-close is absolutely positioned, so
+   it needs no position:relative redeclare; the other three get one.) */
+.pf-header-btn,
+.list-card-del,
+.list-create-btn { position: relative; }
+.pf-header-btn::before,
+.list-card-del::before,
+.list-create-btn::before,
+.pf-idea-close::before {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  /* hit area only -- no paint */
+}
+.pf-idea-close::before { inset: -12px; }
 
 /* Dropdown menu — anchored to header */
 .pf-menu-anchor { position: relative; }
