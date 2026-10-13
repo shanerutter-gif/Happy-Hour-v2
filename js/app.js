@@ -22,6 +22,25 @@ document.addEventListener('visibilitychange', () => {
 // Separators: ", " or " · "
 function getTodayHours(v, dayName = TODAY) {
   if (!v.hours) return '';
+  // Prefer the schedule-redesign parser (same one the venue modal's
+  // .sched-status pill uses): it reads operating days/times out of the
+  // hours string itself. The legacy path below conflates v.days — which
+  // are HAPPY-HOUR days, not operating days — with being open, so a venue
+  // open today whose HH doesn't run today (or whose hours use a wrapping
+  // range like "Sun\u2013Sat") was mislabeled "Not open today" on feed/map
+  // cards while the modal correctly said "Closed \u00b7 Opens 11am today"
+  // (QA 2026-10-12, George's at the Cove). When the parser fully resolves
+  // the week, its verdict is authoritative; 'Not open today' is returned
+  // ONLY when the parsed schedule says the venue is closed today, which
+  // preserves venueOpenWindow()'s closed sentinel.
+  try {
+    const parsed = parseVenueHours(v.hours, v.days);
+    if (parsed && parsed.ok) {
+      const t = parsed.days[dayName];
+      if (t && t.open != null) return schedFmt(t.open) + ' \u2013 ' + schedFmt(t.close);
+      if (t === null) return 'Not open today';
+    }
+  } catch (e) { /* fall through to the legacy parse */ }
   const dayOrder = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
   const todayIdx = dayOrder.indexOf(dayName);
   if (todayIdx === -1) return v.hours;
@@ -62,8 +81,12 @@ function getTodayHours(v, dayName = TODAY) {
     if (inRange) return time;
   }
 
-  // No match for today — venue not open today
-  return (v.days || []).includes(dayName) ? v.hours : 'Not open today';
+  // No segment matched today and the redesign parser could not resolve
+  // the string either. v.days are happy-hour days, NOT operating days,
+  // so they cannot prove the venue is closed today — show the raw hours
+  // string (the modal's legacy fallback does the same) rather than a
+  // false "Not open today".
+  return v.hours;
 }
 
 // ── SCHEDULE REDESIGN: begin ──
