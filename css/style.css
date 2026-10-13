@@ -3341,8 +3341,23 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 }
 .modal-hero-wrap.img-ready::after { display: none; }
 @keyframes modalHeroShimmer { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+/* Broken/missing-photo placeholder (Leo P4, 2026-10-12): sits BEHIND the
+   photo (z-index 0; photo/track/gradient at z-index 1) on the espresso
+   gradient the wrap already paints. A loaded photo covers it completely;
+   when the img errors and removes/hides itself, the coral pin + neighborhood
+   show through instead of the solid near-black void 710 Beach Club rendered. */
+.modal-hero-empty {
+  position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  color: var(--coral);
+}
+.modal-hero-hood {
+  font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: .18em;
+  text-transform: uppercase; color: rgba(255,255,255,.55);
+}
+.modal-hero-wrap img, .modal-hero-track { position: relative; z-index: 1; }
 .modal-hero-grad {
-  position: absolute; inset: 0;
+  position: absolute; inset: 0; z-index: 1;
   background: linear-gradient(180deg,
     rgba(20,15,8,0.15) 0%,
     transparent 25%,
