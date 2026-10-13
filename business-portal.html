@@ -1142,6 +1142,40 @@
   </div>
 
   <script>
+  // ── UTM CAPTURE (marketing attribution) ────────────────────────
+  // Mirror of capturePendingUtm() in js/db.js (which loads only on
+  // index.html): stash first-touch UTMs + landing referrer in
+  // sessionStorage under the same key/shape. business-landing.html
+  // runs the identical capture, so a stash from the landing page
+  // survives the same-tab hop here; this copy covers direct landings
+  // on the portal. Best-effort and silent; never overwrites an
+  // existing stash (first-touch wins).
+  (function() {
+    try {
+      if (sessionStorage.getItem('spotd_pending_utm')) return;
+      var q = new URLSearchParams(window.location.search || '');
+      var keys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'];
+      var utm = {}, hasUtm = false;
+      for (var i = 0; i < keys.length; i++) {
+        var v = (q.get(keys[i]) || '').trim().slice(0, 200);
+        if (v) { utm[keys[i]] = v; hasUtm = true; }
+      }
+      var ref = '';
+      try {
+        var r = document.referrer || '';
+        if (r) {
+          var ru = new URL(r);
+          if (ru.origin !== window.location.origin) ref = r.slice(0, 500);
+        }
+      } catch (e) {}
+      if (!hasUtm && !ref) return; // nothing worth stashing
+      if (ref) utm.referrer = ref;
+      sessionStorage.setItem('spotd_pending_utm', JSON.stringify(utm));
+    } catch (e) { /* best-effort */ }
+  })();
+  </script>
+
+  <script>
   // ─────────────────────────────────────────────
   // CONFIG — fill these in (same as your db.js)
   // ─────────────────────────────────────────────
@@ -1258,6 +1292,38 @@
   }
 
   // ─────────────────────────────────────────────
+  // SIGNUP ATTRIBUTION (mirror of applyPendingAttribution in js/db.js)
+  // ─────────────────────────────────────────────
+  // After a portal signup, write one signup_attributions row marked
+  // source='business_portal', carrying the first-touch UTMs/referrer
+  // stashed by the capture script above (or by business-landing.html).
+  // Idempotent: user_id is the PK, so a 23505 duplicate is success.
+  // Strictly best-effort: any failure is swallowed so attribution can
+  // never break signup or the claim flow.
+  async function recordBusinessSignupAttribution(userId) {
+    if (!userId) return;
+    try {
+      let utm = {};
+      try { utm = JSON.parse(sessionStorage.getItem('spotd_pending_utm') || '{}') || {}; } catch (e) { utm = {}; }
+      const row = { user_id: userId, source: 'business_portal' };
+      for (const k of ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'referrer']) {
+        if (utm[k]) row[k] = utm[k];
+      }
+      const table = await sb.from('signup_attributions');
+      const res = await table.insert(row);
+      // PostgREST returns the inserted rows on success, or an error
+      // object ({code, ...}) on failure — 23505 = already recorded.
+      if (res && !Array.isArray(res) && res.code && res.code !== '23505') {
+        console.warn('recordBusinessSignupAttribution error', res);
+      }
+    } catch (e) {
+      console.warn('recordBusinessSignupAttribution exception', e);
+    } finally {
+      try { sessionStorage.removeItem('spotd_pending_utm'); } catch (e) {}
+    }
+  }
+
+  // ─────────────────────────────────────────────
   // AUTH HANDLERS
   // ─────────────────────────────────────────────
   function switchTab(tab) {
@@ -1303,6 +1369,7 @@
     const session = data.data || data;
     if (session && session.access_token && session.user) {
       saveSession(session);
+      await recordBusinessSignupAttribution(session.user.id);
       enterApp();
     } else {
       showMsg('auth-msg', 'Check your email to confirm your account, then sign in.', 'success');

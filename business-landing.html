@@ -806,6 +806,38 @@
   } catch(e) {}
 })();
 </script>
+<script>
+  // ── UTM CAPTURE (marketing attribution) ──────────────────────────
+  // Mirror of capturePendingUtm() in js/db.js (which loads only on
+  // index.html): stash first-touch UTMs + landing referrer in
+  // sessionStorage under the same key/shape, so they survive the
+  // same-tab hop to business-portal.html, where signup writes them to
+  // signup_attributions. Best-effort and silent; never overwrites an
+  // existing stash (first-touch wins).
+  (function() {
+    try {
+      if (sessionStorage.getItem('spotd_pending_utm')) return;
+      var q = new URLSearchParams(window.location.search || '');
+      var keys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'];
+      var utm = {}, hasUtm = false;
+      for (var i = 0; i < keys.length; i++) {
+        var v = (q.get(keys[i]) || '').trim().slice(0, 200);
+        if (v) { utm[keys[i]] = v; hasUtm = true; }
+      }
+      var ref = '';
+      try {
+        var r = document.referrer || '';
+        if (r) {
+          var ru = new URL(r);
+          if (ru.origin !== window.location.origin) ref = r.slice(0, 500);
+        }
+      } catch (e) {}
+      if (!hasUtm && !ref) return; // nothing worth stashing
+      if (ref) utm.referrer = ref;
+      sessionStorage.setItem('spotd_pending_utm', JSON.stringify(utm));
+    } catch (e) { /* best-effort */ }
+  })();
+</script>
 <script defer src="/js/consent.js?v=20260922a"></script>
 <script defer src="/js/site-analytics.js?v=20260725a"></script>
 </body>
