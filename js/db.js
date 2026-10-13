@@ -2540,6 +2540,10 @@ try { capturePendingUtm(); } catch (e) {}
 // Write the stashed attribution (selected during onboarding) plus any captured
 // marketing UTMs to the DB. Idempotent: PK is user_id, so a second insert
 // silently no-ops. Proceeds when either an onboarding source or UTM data exists.
+// signup_attributions.source is NOT NULL with a CHECK constraint, so the row
+// must always carry a source: the onboarding survey answer when there is one,
+// otherwise the default 'web' (UTM-only signup — previously these inserts were
+// rejected with 23502 and the rows silently lost).
 async function applyPendingAttribution(newUserId) {
   if (!newUserId) return null;
   let source = null;
@@ -2550,8 +2554,7 @@ async function applyPendingAttribution(newUserId) {
   if (!source && !hasUtm) return null;
 
   try {
-    const row = { user_id: newUserId };
-    if (source) row.source = source;
+    const row = { user_id: newUserId, source: source || 'web' };
     for (const k of utmKeys) {
       if (utm[k]) row[k] = utm[k];
     }
