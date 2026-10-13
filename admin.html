@@ -606,6 +606,12 @@
     .cc-list-status.draft { background:rgba(158,142,126,0.15); color:#9E8E7E; }
     .cc-list-status.scheduled { background:rgba(59,130,246,0.12); color:#3B82F6; }
     .cc-list-status.published { background:rgba(34,197,94,0.12); color:#22C55E; }
+    .cc-approved-badge {
+      display:inline-flex; align-items:center; background:rgba(34,197,94,0.16);
+      color:#15803d; border:1px solid rgba(34,197,94,0.5); font-size:9px;
+      font-weight:800; letter-spacing:.4px; padding:2px 6px; border-radius:999px;
+      text-transform:uppercase; white-space:nowrap; vertical-align:middle;
+    }
 
     /* Mobile agenda view — replaces the 7-column grid on phones.
        Same container (#cc-grid) gets .cc-agenda instead of .cc-grid. */
@@ -794,6 +800,14 @@
       border-radius:10px; font-size:13px; font-weight:600; cursor:pointer;
       font-family:'DM Sans',sans-serif;
     }
+    .cc-btn-approve {
+      padding:10px 16px; background:#22C55E; color:#fff; border:1px solid #22C55E;
+      border-radius:10px; font-size:13px; font-weight:700; cursor:pointer;
+      font-family:'DM Sans',sans-serif; margin-left:8px;
+    }
+    .cc-btn-approve:hover { background:#16A34A; border-color:#16A34A; }
+    .cc-btn-approve.approved { background:rgba(34,197,94,0.14); color:#15803d; }
+    .cc-btn-approve:disabled { opacity:.55; cursor:wait; }
     .cc-btn-cancel {
       padding:10px 16px; background:var(--bg2); color:var(--muted); border:1px solid var(--border);
       border-radius:10px; font-size:13px; font-weight:600; cursor:pointer;
@@ -2900,7 +2914,7 @@ in San Diego</textarea>
         </div>
         <div class="cc-field">
           <div class="cc-label">Status</div>
-          <select class="cc-input" id="cc-status">
+          <select class="cc-input" id="cc-status" onchange="ccSyncApproveBtn()">
             <option value="draft">Draft</option>
             <option value="scheduled">Scheduled</option>
             <option value="published">Published</option>
@@ -2932,6 +2946,7 @@ in San Diego</textarea>
     <div class="cc-modal-footer">
       <div>
         <button class="cc-btn-delete" id="cc-delete-btn" style="display:none" onclick="ccDeletePost()">Delete</button>
+        <button class="cc-btn-approve" id="cc-approve-btn" style="display:none" onclick="ccToggleApproval()">Approve</button>
       </div>
       <div style="display:flex;gap:8px">
         <button class="cc-btn-cancel" onclick="ccCloseCompose()">Cancel</button>
@@ -6033,6 +6048,11 @@ in San Diego</textarea>
     if (!_ccUseSupabase) { ccSavePosts(); return null; }
     const data = { ...post };
     delete data._mediaUrls; // don't send blob URLs to DB
+    // Approval columns arrive with sql/add-content-posts-approved.sql. Only
+    // send them when this post object actually carries them, so saving a
+    // draft against the pre-migration schema never fails on unknown columns.
+    if (!Object.prototype.hasOwnProperty.call(post, 'approved')) delete data.approved;
+    if (!Object.prototype.hasOwnProperty.call(post, 'approved_at')) delete data.approved_at;
     // DB rows have uuid ids; unsaved posts carry a temp 'cc_<ts>_<rand>' id.
     // (The old check was `id.length > 10`, which temp ids also pass — so every
     // NEW post took the PATCH branch, 400'd on the uuid cast, and was silently
@@ -6071,6 +6091,85 @@ in San Diego</textarea>
     await authFetch(`${SUPABASE_URL}/rest/v1/content_posts?id=eq.${id}`, {
       method: 'DELETE', headers: { ...svcHeaders(), 'Prefer': 'return=minimal' }
     });
+  }
+
+  // ── OWNER APPROVAL ──
+  let _ccApprovalBusy = false;
+
+  function ccApprovedBadgeHtml(post) {
+    return post && post.status === 'draft' && post.approved
+      ? '<span class="cc-approved-badge">Approved</span>'
+      : '';
+  }
+
+  function ccSyncApproveBtn() {
+    const btn = document.getElementById('cc-approve-btn');
+    if (!btn) return;
+    const post = _ccEditId ? _ccPosts.find(p => p.id === _ccEditId) : null;
+    const status = document.getElementById('cc-status')?.value || post?.status;
+    if (!post || status !== 'draft') {
+      btn.style.display = 'none';
+      return;
+    }
+    btn.style.display = '';
+    btn.disabled = _ccApprovalBusy;
+    btn.classList.toggle('approved', !!post.approved);
+    btn.textContent = _ccApprovalBusy ? 'Saving…' : (post.approved ? 'Approved ✓' : 'Approve');
+    btn.title = post.approved ? 'Click to remove approval' : 'Approve this draft';
+  }
+
+  async function ccToggleApproval() {
+    if (!_ccEditId || _ccApprovalBusy) return;
+    const post = _ccPosts.find(p => p.id === _ccEditId);
+    const status = document.getElementById('cc-status')?.value || post?.status;
+    if (!post || status !== 'draft') { ccSyncApproveBtn(); return; }
+
+    const hadApproved = Object.prototype.hasOwnProperty.call(post, 'approved');
+    const hadApprovedAt = Object.prototype.hasOwnProperty.call(post, 'approved_at');
+    const previousApproved = post.approved;
+    const previousApprovedAt = post.approved_at;
+    const approved = !post.approved;
+
+    post.approved = approved;
+    post.approved_at = approved ? new Date().toISOString() : null;
+    _ccApprovalBusy = true;
+    ccSyncApproveBtn();
+    ccRender();
+
+    let failed = false;
+    const isDbId = typeof post.id === 'string' && !post.id.startsWith('cc_');
+    if (_ccUseSupabase) {
+      if (!isDbId) {
+        failed = true;
+      } else {
+        try {
+          const r = await authFetch(`${SUPABASE_URL}/rest/v1/content_posts?id=eq.${post.id}`, {
+            method: 'PATCH',
+            headers: { ...svcHeaders(), 'Prefer': 'return=minimal' },
+            body: JSON.stringify({ approved: post.approved, approved_at: post.approved_at })
+          });
+          if (!r.ok) failed = true;
+        } catch(e) {
+          failed = true;
+        }
+      }
+    } else {
+      await ccSavePosts();
+    }
+
+    _ccApprovalBusy = false;
+    if (failed) {
+      if (hadApproved) post.approved = previousApproved; else delete post.approved;
+      if (hadApprovedAt) post.approved_at = previousApprovedAt; else delete post.approved_at;
+      ccSyncApproveBtn();
+      ccRender();
+      showToast('Approval could not be saved — the database update may still be pending. Draft unchanged.');
+      return;
+    }
+
+    ccSyncApproveBtn();
+    ccRender();
+    showToast(approved ? 'Post approved' : 'Approval removed');
   }
 
     // Upload media to Supabase Storage.
@@ -6217,6 +6316,7 @@ in San Diego</textarea>
         const label = (p.title || p.caption || 'Untitled').slice(0, 30);
         return `<div class="cc-post-card ${p.status || 'draft'}" onclick="event.stopPropagation();ccOpenCompose('${p.id}')">` +
           (dotClass ? `<span class="cc-post-dot ${dotClass}"></span>` : '') +
+          ccApprovedBadgeHtml(p) +
           `${escHtml(label)}</div>`;
       }).join('');
       const moreHtml = dayPosts.length > 4 ? `<div style="font-size:10px;color:var(--muted);text-align:center;margin-top:2px">+${dayPosts.length - 4} more</div>` : '';
@@ -6281,6 +6381,7 @@ in San Diego</textarea>
             `<div class="cc-agenda-post-title">${escHtml(p.title || p.caption || 'Untitled')}</div>` +
             `<div class="cc-agenda-post-meta">${platforms}${time ? `<span>${escHtml(time)}</span>` : ''}${tagsHtml}</div>` +
           `</div>` +
+          ccApprovedBadgeHtml(p) +
           `<div class="cc-list-status ${p.status || 'draft'}">${p.status || 'draft'}</div>` +
         `</div>`;
       }).join('');
@@ -6338,6 +6439,7 @@ in San Diego</textarea>
           <div class="cc-list-title">${escHtml(caption)}</div>
           <div class="cc-list-meta">${platforms} ${time ? '· ' + time : ''} ${tagsHtml}</div>
         </div>
+        ${ccApprovedBadgeHtml(p)}
         <div class="cc-list-status ${p.status || 'draft'}">${(p.status || 'draft')}</div>
       </div>`;
     }).join('');
@@ -6386,6 +6488,7 @@ in San Diego</textarea>
     ccRenderMediaPreviews();
     ccUpdateCharCount();
     ccRenderPublishBtns();
+    ccSyncApproveBtn();
     document.getElementById('ccComposeModal').classList.add('open');
   }
 
