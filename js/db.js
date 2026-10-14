@@ -2604,22 +2604,23 @@ function capturePendingUtm() {
     if (sessionStorage.getItem(PENDING_UTM_KEY)) return;
     const q = new URLSearchParams(window.location.search || '');
     const utm = {};
-    let hasUtm = false;
     for (const k of UTM_PARAMS) {
       const v = (q.get(k) || '').trim().slice(0, 200);
-      if (v) { utm[k] = v; hasUtm = true; }
+      if (v) utm[k] = v;
     }
     // Landing referrer (first-touch): skip empty and same-origin.
-    let ref = '';
     try {
       const r = document.referrer || '';
       if (r) {
         const ru = new URL(r);
-        if (ru.origin !== window.location.origin) ref = r.slice(0, 500);
+        if (ru.origin !== window.location.origin) utm.referrer = r.slice(0, 500);
       }
     } catch (e) {}
-    if (!hasUtm && !ref) return; // nothing worth stashing
-    if (ref) utm.referrer = ref;
+    // Landing page: where this session's journey started. Stashed
+    // unconditionally (2026-10-14) so EVERY signup can write an
+    // attribution row carrying real signal — referrer + landing page —
+    // instead of only the UTM-tagged minority.
+    utm.landing_page = (window.location.pathname || '/').slice(0, 500);
     sessionStorage.setItem(PENDING_UTM_KEY, JSON.stringify(utm));
   } catch (e) { /* best-effort */ }
 }
@@ -2627,28 +2628,49 @@ function capturePendingUtm() {
 // Run at script parse: window.location + sessionStorage are available this early.
 try { capturePendingUtm(); } catch (e) {}
 
-// Write the stashed attribution (selected during onboarding) plus any captured
-// marketing UTMs to the DB. Idempotent: PK is user_id, so a second insert
-// silently no-ops. Proceeds when either an onboarding source or UTM data exists.
-// signup_attributions.source is NOT NULL with a CHECK constraint, so the row
-// must always carry a source: the onboarding survey answer when there is one,
-// otherwise the default 'web' (UTM-only signup — previously these inserts were
-// rejected with 23502 and the rows silently lost).
+// Source classification for the always-written attribution row. The
+// onboarding survey answer is the most specific signal and wins; otherwise a
+// signup that arrived via an external referrer or a ?ref= code counts as
+// 'referral'; a plain direct arrival is 'web'. All outcomes are inside the
+// signup_attributions source CHECK (16 values incl. referral/web).
+function resolveAttributionSource(surveySource, utm, hasRefCode) {
+  if (surveySource) return surveySource;
+  if ((utm && utm.referrer) || hasRefCode) return 'referral';
+  return 'web';
+}
+
+// Write an attribution row for EVERY signup (2026-10-14). Previously the
+// insert was stash-gated: a direct arrival with no UTMs and no survey
+// answer wrote no row at all, so those signups were unattributable. The
+// row always carries what is genuinely knowable — the survey answer when
+// given, the external referrer, the UTMs, and the landing page where the
+// session started. Idempotent: PK is user_id, so a second insert (returning
+// sign-in, repeat call) hits 23505 and is treated as success — first-touch
+// is never overwritten. signup_attributions.source is NOT NULL with a CHECK
+// constraint, so the row must always carry a source (see
+// resolveAttributionSource; previously missing-source inserts were rejected
+// with 23502 and the rows silently lost).
 async function applyPendingAttribution(newUserId) {
   if (!newUserId) return null;
-  let source = null;
-  try { source = sessionStorage.getItem(PENDING_ATTRIBUTION_KEY); } catch(e) {}
-  const utm = _readPendingUtm();
-  const utmKeys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'referrer'];
-  const hasUtm = utm && utmKeys.some(k => utm[k]);
-  if (!source && !hasUtm) return null;
+  let surveySource = null;
+  try { surveySource = sessionStorage.getItem(PENDING_ATTRIBUTION_KEY); } catch(e) {}
+  const utm = _readPendingUtm() || {};
+  const source = resolveAttributionSource(surveySource, utm, !!getPendingReferralCode());
+  const utmKeys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'referrer', 'landing_page'];
 
   try {
-    const row = { user_id: newUserId, source: source || 'web' };
+    const row = { user_id: newUserId, source };
     for (const k of utmKeys) {
       if (utm[k]) row[k] = utm[k];
     }
-    const { error } = await db.from('signup_attributions').insert(row);
+    let { error } = await db.from('signup_attributions').insert(row);
+    // The landing_page column lands via sql/add-signup-landing-page.sql;
+    // until that migration is applied PostgREST rejects the unknown column
+    // (PGRST204). Drop it and retry so the row itself is never lost.
+    if (error && error.code === 'PGRST204' && row.landing_page) {
+      delete row.landing_page;
+      ({ error } = await db.from('signup_attributions').insert(row));
+    }
     // 23505 = already recorded; treat as success
     if (error && error.code !== '23505') {
       console.warn('applyPendingAttribution error', error);
