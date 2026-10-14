@@ -46,6 +46,11 @@ check('callback records last_seen (forced)', cb.includes('_updateLastSeen(true)'
 check('callback fires analyticsIdentify', cb.includes('analyticsIdentify()'));
 check('callback still fires signup_completed/oauth_login', cb.includes('signup_completed'));
 
+const si = fnBody('authSignIn');
+check('authSignIn (email sign-in + signup funnel) exists', si.length > 0);
+check('authSignIn records last_seen (forced) at session start', si.includes('_updateLastSeen(true)'));
+check('authSignIn fires analyticsIdentify', si.includes('analyticsIdentify()'));
+
 const ia = fnBody('initAuth');
 check('initAuth exists', ia.length > 0);
 check('initAuth adopts a library-held session when the app copy is missing',

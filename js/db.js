@@ -589,6 +589,9 @@ async function authSignIn(email, password) {
     if (data.expires_in) _scheduleTokenRefresh(data.expires_in);
     await loadFavorites();
     if (typeof onAuthChange === 'function') onAuthChange(currentUser);
+    // Genuine session start — stamp last_seen now rather than waiting for a
+    // later page load's initAuth (email signup funnels through here too).
+    _updateLastSeen(true);
     analyticsIdentify();
     return { data, error: null };
   } catch (e) {
