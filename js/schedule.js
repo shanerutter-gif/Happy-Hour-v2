@@ -196,19 +196,28 @@ function getOpenStatus(parsed, dayName, minsNow) {
 }
 
 // Collapse consecutive days with identical hours into grouped rows.
+// Display order is Monday-first (SCHED_DAYS stays Sun-first: it is the
+// parser/verdict indexing, not a display order). The rows form a strict
+// PARTITION of the week — every day appears in exactly one row — and
+// Sat/Sun are adjacent, so a weekend span ("Sat–Sun 12pm–2am") can never
+// split into two overlapping-looking rows at opposite ends of the table
+// (the ac90bea defect: Sun-first linear grouping stranded Sat and Sun
+// with identical hours as separate first/last rows). Both consumers
+// (modal + SSR) render THIS function, so grouping parity is structural.
+const SCHED_DISPLAY_ORDER = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 function schedGroupRows(parsed) {
   const rows = [];
   let i = 0;
   while (i < 7) {
-    const h = parsed.days[SCHED_DAYS[i]];
+    const h = parsed.days[SCHED_DISPLAY_ORDER[i]];
     const key = h ? h.open + '-' + h.close : 'closed';
     let j = i;
     while (j + 1 < 7) {
-      const h2 = parsed.days[SCHED_DAYS[j + 1]];
+      const h2 = parsed.days[SCHED_DISPLAY_ORDER[j + 1]];
       if ((h2 ? h2.open + '-' + h2.close : 'closed') !== key) break;
       j++;
     }
-    rows.push({ days: SCHED_DAYS.slice(i, j + 1), hours: h });
+    rows.push({ days: SCHED_DISPLAY_ORDER.slice(i, j + 1), hours: h });
     i = j + 1;
   }
   return rows;
@@ -233,13 +242,18 @@ const CITY_TZ = {
 // (modelled on hhNow() in js/app.js, but keyed by an explicit slug).
 // Returns { dayName, mins, tz } or null when the city is unmapped or
 // the zone math fails — callers must treat null as "no verdict".
-function zonedNow(citySlug) {
+// `at` is an optional instant (tests pin it); production passes nothing.
+// The verdict clock is ALWAYS this function with the VENUE's slug —
+// never the browser's local clock and never the browsing city's clock
+// (the ac90bea split-brain: modal paired hhNow's browsing-city day
+// with browser-local minutes, so one page could show two verdicts).
+function zonedNow(citySlug, at) {
   const tz = CITY_TZ[citySlug];
   if (!tz) return null;
   try {
     const map = {};
     new Intl.DateTimeFormat('en-US', { timeZone: tz, hour12: false, weekday: 'short', hour: '2-digit', minute: '2-digit' })
-      .formatToParts(new Date()).forEach(p => { map[p.type] = p.value; });
+      .formatToParts(at || new Date()).forEach(p => { map[p.type] = p.value; });
     if (!SCHED_DAYS.includes(map.weekday)) return null;
     let h = parseInt(map.hour, 10);
     if (h === 24) h = 0;
@@ -252,6 +266,6 @@ function zonedNow(citySlug) {
 const __scheduleExports = {
   SCHED_DAYS, SCHED_DASH, schedNormDay, normDaysAbbrev, schedExpandRange,
   schedParseDayPart, schedParseTimeRange, parseVenueHours, schedFmt,
-  getOpenStatus, schedGroupRows, CITY_TZ, zonedNow
+  getOpenStatus, schedGroupRows, SCHED_DISPLAY_ORDER, CITY_TZ, zonedNow
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = __scheduleExports;

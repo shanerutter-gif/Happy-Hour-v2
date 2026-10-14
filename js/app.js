@@ -100,18 +100,38 @@ function getTodayHours(v, dayName = TODAY) {
 // minsNow is optional (defaults to current local time); the preview page passes
 // a simulated time.
 function renderScheduleBlock(v, todayName, minsNow) {
-  const parsed = parseVenueHours(v.hours, v.days);
+  // Normalize days BEFORE parsing — the same gate api/spots.js applies.
+  // Raw v.days mixes "Mon"/"Monday"; unnormalized, the parser's claimed-
+  // day safety check silently disables itself and the modal can disagree
+  // with the SSR page for the same venue (SSR-vs-modal parity defect).
+  const parsed = parseVenueHours(v.hours, normDaysAbbrev(v.days));
   if (!parsed.ok) {
     return '<div class="modal-when">' + esc(v.hours || '') + '</div>' +
       '<div class="s-days">' + SCHED_DAYS.map(d =>
         '<span class="day-pill' + ((v.days || []).includes(d) ? (d === todayName ? ' today' : ' on') : '') + '">' + d + '</span>'
       ).join('') + '</div>';
   }
-  const now = new Date();
-  const mins = (minsNow != null) ? minsNow : now.getHours() * 60 + now.getMinutes();
-  const st = getOpenStatus(parsed, todayName, mins);
+  // The verdict clock is the VENUE's city timezone, day and minutes from
+  // the SAME zoned instant — never the browser's local clock and never
+  // the browsing city's clock (the ac90bea split-brain paired one clock's
+  // day with another's minutes and showed two verdicts for one venue).
+  // An unmapped venue city fails closed to the raw-hours display above —
+  // no guessed verdict — exactly the SSR pill's gate. A caller-passed
+  // minsNow (preview/simulation) keeps its simulated day + minutes.
+  let dayName = todayName, mins = minsNow;
+  if (mins == null) {
+    const z = zonedNow(v.city_slug);
+    if (!z) {
+      return '<div class="modal-when">' + esc(v.hours || '') + '</div>' +
+        '<div class="s-days">' + SCHED_DAYS.map(d =>
+          '<span class="day-pill' + ((v.days || []).includes(d) ? (d === todayName ? ' today' : ' on') : '') + '">' + d + '</span>'
+        ).join('') + '</div>';
+    }
+    dayName = z.dayName; mins = z.mins;
+  }
+  const st = getOpenStatus(parsed, dayName, mins);
   const rows = schedGroupRows(parsed).map(r => {
-    const isToday = r.days.includes(todayName);
+    const isToday = r.days.includes(dayName);
     const dayLabel = r.days.length > 1 ? r.days[0] + ' – ' + r.days[r.days.length - 1] : r.days[0];
     const timeLabel = r.hours ? schedFmt(r.hours.open) + ' – ' + schedFmt(r.hours.close) : 'Closed';
     return '<div class="sched-row' + (isToday ? ' sched-row--today' : '') + (r.hours ? '' : ' sched-row--closed') + '">' +

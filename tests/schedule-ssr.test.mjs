@@ -77,13 +77,40 @@ function check(name, cond, detail) {
   const p = S.parseVenueHours('Call for hours', []);
   check('unparseable hours yield ok=false', p.ok === false);
 }
-// Grouped rows collapse identical consecutive days.
+// Grouped rows collapse identical consecutive days (Mon-first display).
 {
   const p = S.parseVenueHours('Mon–Fri 11am–10pm · Sat 10am–11pm · Closed Sun', S.normDaysAbbrev(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']));
   const rows = S.schedGroupRows(p);
-  check('grouped rows: Sun closed / Mon–Fri / Sat',
-    rows.length === 3 && rows[0].hours === null && rows[1].days.length === 5 && rows[2].days[0] === 'Sat',
+  check('grouped rows: Mon–Fri / Sat / Sun closed',
+    rows.length === 3 && rows[0].days.length === 5 && rows[1].days[0] === 'Sat' && rows[2].hours === null,
     JSON.stringify(rows.map(r => r.days)));
+}
+// Weekend partition regression (the ac90bea defect class): Sat and Sun
+// with identical hours must form ONE row, and the rows must partition
+// the week — no day in two rows, no day missing — for any schedule.
+{
+  const p = S.parseVenueHours('Mon–Fri 1pm–2am · Sat–Sun 12pm–2am',
+    S.normDaysAbbrev(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']));
+  check('overnight weekend venue parses ok', p.ok === true);
+  const rows = S.schedGroupRows(p);
+  check('Sat–Sun identical overnight hours merge into one row',
+    rows.length === 2 && JSON.stringify(rows[1].days) === '["Sat","Sun"]' &&
+    rows[1].hours.open === 720 && rows[1].hours.close === 1560,
+    JSON.stringify(rows.map(r => r.days)));
+  const flat = rows.flatMap(r => r.days);
+  check('grouped rows partition the week (each day exactly once, Mon-first)',
+    JSON.stringify(flat) === JSON.stringify(S.SCHED_DISPLAY_ORDER));
+}
+// Overnight verdict after midnight in the venue's own zone.
+{
+  const p = S.parseVenueHours('Mon–Fri 1pm–2am · Sat–Sun 12pm–2am',
+    S.normDaysAbbrev(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']));
+  const st = S.getOpenStatus(p, 'Sun', 60); // Sun 01:00 — inside Sat's 12pm–2am span
+  check('Sun 1am still open via Saturday overnight span',
+    st.state === 'open' && st.label === 'Open now · Closes 2am', st.label);
+  const st2 = S.getOpenStatus(p, 'Sun', 180); // Sun 03:00 — span ended 2am, opens 12pm
+  check('Sun 3am closed, opens 12pm today',
+    st2.state === 'closed' && st2.label === 'Closed · Opens 12pm today', st2.label);
 }
 
 // ── Timezones: complete map, fail closed ────────────────────────────────
@@ -99,6 +126,27 @@ check('CITY_TZ zones are the correct IANA zones',
     !!z && S.SCHED_DAYS.includes(z.dayName) && z.mins >= 0 && z.mins < 1440);
 }
 check('zonedNow fails closed for an unmapped city', S.zonedNow('not-a-city') === null);
+// Venue-local evaluation, pinned to ONE instant (Sat 2026-10-17 05:30 UTC
+// = Fri 22:30 PDT / Sat 00:30 CDT / Sat 01:30 EDT): the same UTC moment
+// is a different local day/time per city, and the verdict for the same
+// venue hours must follow the VENUE's zone — never the viewer's clock.
+{
+  const at = new Date(Date.UTC(2026, 9, 17, 5, 30));
+  const la = S.zonedNow('los-angeles', at), aus = S.zonedNow('austin', at), ny = S.zonedNow('new-york', at);
+  check('pinned instant: LA is Fri 22:30', la.dayName === 'Fri' && la.mins === 1350, JSON.stringify(la));
+  check('pinned instant: Austin is Sat 00:30', aus.dayName === 'Sat' && aus.mins === 30, JSON.stringify(aus));
+  check('pinned instant: New York is Sat 01:30', ny.dayName === 'Sat' && ny.mins === 90, JSON.stringify(ny));
+  const p = S.parseVenueHours('Fri 4pm–1am', ['Fri']);
+  const vAus = S.getOpenStatus(p, aus.dayName, aus.mins);
+  check('Austin venue at Sat 00:30 local: still open via Fri overnight span',
+    vAus.state === 'open' && vAus.label === 'Open now · Closes 1am', vAus.label);
+  const vNy = S.getOpenStatus(p, ny.dayName, ny.mins);
+  check('same hours in New York at Sat 01:30 local: closed (span ended 1am)',
+    vNy.state === 'closed' && vNy.label === 'Closed · Opens 4pm Fri', vNy.label);
+  const vLa = S.getOpenStatus(p, la.dayName, la.mins);
+  check('same hours in Los Angeles at Fri 22:30 local: open in today\'s window',
+    vLa.state === 'open' && vLa.label === 'Open now · Closes 1am', vLa.label);
+}
 
 // ── Structure: one canonical copy, both consumers wired ─────────────────
 check('app.js no longer defines the parser (moved, not duplicated)',
@@ -115,8 +163,16 @@ check('api/spots.js renders the pill placeholder + grouped rows only when parsed
   spotsApi.includes('schedParsed.ok'));
 check('api/spots.js normalizes days before parsing (the full-name trap)',
   spotsApi.includes('normDaysAbbrev(venue.days)'));
-check('api/spots.js edge cache is unchanged (no stale-verdict regression)',
-  spotsApi.includes('s-maxage=86400'));
+check('api/spots.js edge cache bounds hours staleness (1h fresh, verdict never cached)',
+  spotsApi.includes('s-maxage=3600') && !spotsApi.includes('s-maxage=86400'));
+check('api/spots.js SSR gate is ON for the Phase-2 rebuild',
+  spotsApi.includes('SSR_OPEN_STATUS_ENABLED = true'));
+check('modal parses with normalized days (SSR parity gate)',
+  appJs.includes('parseVenueHours(v.hours, normDaysAbbrev(v.days))'));
+check('modal verdict clock is the venue timezone (zonedNow on the venue slug)',
+  appJs.includes('zonedNow(v.city_slug)') && !appJs.includes('now.getHours() * 60 + now.getMinutes()'));
+check('hydration refreshes the verdict on a timer (no frozen pill)',
+  spotsStatus.includes('setInterval(hydrate, 60000)'));
 check('hydration gates on parsed.ok and fails closed on unmapped cities',
   spotsStatus.includes('if (!parsed.ok)') && spotsStatus.includes('if (!now)') &&
   spotsStatus.includes('el.remove()'));

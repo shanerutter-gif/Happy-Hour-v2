@@ -279,12 +279,15 @@ function buildPage(venue, reviews, allVenues, seo) {
   // keeps the raw hours string, exactly the modal's fallback. Days are
   // normalized first (mixed "Mon"/"Monday" formats) or the parser's
   // safety check would silently disable itself.
-  // ROLLBACK GATE (2026-10-14): SSR open-status rendering from ac90bea is
-  // LIVE-DEFECTIVE (split-brain/frozen verdicts, grouped-row overlaps,
-  // venue-local timezone + cache-staleness issues). Keep the parser
-  // plumbing in place but render NOTHING until the Phase-2 rebuild is
-  // live-verified. Do not flip without production proof on 3 venue classes.
-  const SSR_OPEN_STATUS_ENABLED = false;
+  // SSR open-status (Phase-2 rebuild, 2026-10-14 — replaces ac90bea,
+  // which was rolled back in c506fe4 within the hour): the grouped
+  // schedule table is time-invariant, but the open/closed VERDICT is
+  // never baked into this HTML — js/spots-status.js computes it at view
+  // time from the venue's own city timezone via the shared parser, the
+  // exact path the in-app modal uses (parse-normalized → zonedNow →
+  // getOpenStatus). Grouping is the shared Mon-first partition, so the
+  // table here and the modal's can never disagree or split a weekend.
+  const SSR_OPEN_STATUS_ENABLED = true;
   const schedDaysNorm = normDaysAbbrev(venue.days);
   const schedParsed = venue.hours ? parseVenueHours(venue.hours, schedDaysNorm) : { ok: false };
   const schedHoursHTML = (SSR_OPEN_STATUS_ENABLED && schedParsed.ok) ? `
@@ -662,14 +665,17 @@ export default async function handler(req) {
     const canonSlug = slugById.get(venue.id) || slugify(venue.name);
     const html = buildPage(venue, reviews, venueIndex, { canonSlug, slugById });
 
-    // Crawl-efficiency: venue deals/hours change weekly at most, and sitemap
-    // lastmod already tracks updated_at — so cache venue pages at the edge for
-    // a day. This is the single biggest DB-egress win on crawler traffic.
+    // Cache policy (tightened 2026-10-14, Phase-2 SSR status fix): the
+    // ac90bea day-fresh + week-long SWR window let edited venue hours
+    // serve stale for days. One hour fresh / one day SWR bounds hours
+    // staleness to ~1h while keeping most crawler traffic off the DB.
+    // The open/closed verdict itself is computed client-side at view
+    // time (js/spots-status.js), so it is never frozen by this cache.
     return new Response(html, {
       status: 200,
       headers: {
         'Content-Type': 'text/html; charset=utf-8',
-        'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=604800'
+        'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400'
       }
     });
   } catch (err) {

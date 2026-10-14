@@ -36,4 +36,7 @@
   document.addEventListener('visibilitychange', function () {
     if (document.visibilityState === 'visible') hydrate();
   });
+  // A page left open across an open/close boundary must not sit on a
+  // frozen verdict — recompute every minute (cheap: one parse).
+  setInterval(hydrate, 60000);
 })();
