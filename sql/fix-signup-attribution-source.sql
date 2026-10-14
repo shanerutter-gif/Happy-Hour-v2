@@ -12,15 +12,17 @@
 -- Both failures are swallowed best-effort client-side, so signups looked
 -- fine while the attribution rows were silently lost.
 --
--- This widens the CHECK to the full existing allowed list (confirmed from
--- the live constraint via the 23514 error) plus 'business_portal' and
--- 'web'. The NOT NULL on source is intentionally left untouched.
---
--- NOTE: the onboarding survey also offers twitter / facebook / email /
--- reddit / podcast / press, which are NOT in the live constraint today —
--- survey answers with those values are rejected as well. They are left out
--- here on purpose (out of scope for this fix); adding them is a separate,
--- deliberate decision.
+-- APPLIED 2026-10-13 via the SQL Editor. Before/after constraint
+-- definitions were recorded with pg_get_constraintdef at apply time.
+-- IMPORTANT CORRECTION to the first draft of this file: the live
+-- constraint ALREADY contained all 13 survey values (the 23514 error
+-- text had truncated the list, which made it look like twitter /
+-- facebook / email / reddit / podcast / press were missing — they were
+-- not). The migration's real additions were 'referral',
+-- 'business_portal', and 'web'. Final live state: 16 values, exactly
+-- the list below. This file now matches the applied migration — do not
+-- re-run any older 10-value draft, it would silently re-break the six
+-- survey sources.
 --
 -- Idempotent: safe to run more than once.
 
@@ -37,6 +39,12 @@ alter table public.signup_attributions
     'instagram',
     'event',
     'other',
+    'twitter',
+    'facebook',
+    'email',
+    'reddit',
+    'podcast',
+    'press',
     'referral',
     'business_portal',
     'web'

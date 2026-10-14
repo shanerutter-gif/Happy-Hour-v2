@@ -288,10 +288,35 @@ function _scheduleTokenRefresh(expiresInSec) {
 
 async function initAuth() {
   try {
-    const raw = localStorage.getItem(_storageKey);
-    if (!raw) return;
-    const stored = JSON.parse(raw);
-    if (!stored?.user) return;
+    let raw = localStorage.getItem(_storageKey);
+    let stored = null;
+    try { stored = raw ? JSON.parse(raw) : null; } catch (e) { stored = null; }
+
+    if (!stored?.user) {
+      // The app keeps its own session copy (read above), but the auth
+      // library can hold a session the app never copied — e.g. a PKCE OAuth
+      // return the library exchanged by itself, or a callback that was
+      // interrupted before persisting. Adopt the library session instead of
+      // presenting as logged out: copy it into the app's storage, then fall
+      // through to the normal restore path below.
+      try {
+        const { data } = await db.auth.getSession();
+        const s = data?.session;
+        if (s?.user && s.access_token) {
+          localStorage.setItem(_storageKey, JSON.stringify({
+            access_token:  s.access_token,
+            refresh_token: s.refresh_token,
+            expires_at:    s.expires_at,
+            expires_in:    s.expires_in,
+            token_type:    s.token_type || 'bearer',
+            user:          s.user,
+          }));
+          raw = localStorage.getItem(_storageKey);
+          stored = raw ? JSON.parse(raw) : null;
+        }
+      } catch (e) {}
+      if (!stored?.user) return;
+    }
 
     const now = Math.floor(Date.now() / 1000);
 
@@ -640,32 +665,80 @@ async function authSignInWithGoogle() {
   }
 }
 
-// Handle the OAuth redirect callback (called from DOMContentLoaded)
+// Handle the OAuth redirect callback (called from DOMContentLoaded).
+// Two return shapes exist and BOTH must work: the implicit flow returns the
+// tokens in the URL hash (#access_token=...), the PKCE flow returns a
+// one-time code in the query (?code=...). The auth library is loaded from a
+// CDN and its default flow has changed across versions — when the return
+// shape switched to ?code=, this handler (hash-only at the time) silently
+// ignored every return: the account was created but the session was never
+// adopted, so no last_seen, no identify, no per-user activity was recorded
+// for OAuth signups (first seen Oct 2026; last identified event Oct 9).
 async function handleOAuthCallback() {
   const hash = window.location.hash;
   const search = window.location.search;
 
-  // Supabase returns tokens in the URL hash after OAuth redirect
-  if (!hash || !hash.includes('access_token')) return false;
+  const hashParams = (hash && hash.includes('access_token'))
+    ? new URLSearchParams(hash.replace('#', ''))
+    : null;
+  const authCode = new URLSearchParams(search || '').get('code');
+
+  if (!hashParams && !authCode) return false;
 
   try {
-    const params = new URLSearchParams(hash.replace('#', ''));
-    const accessToken  = params.get('access_token');
-    const refreshToken = params.get('refresh_token');
-    const expiresIn    = parseInt(params.get('expires_in') || '3600', 10);
-    const expiresAt    = Math.floor(Date.now() / 1000) + expiresIn;
+    let user = null;
+    let accessToken = null;
+    let refreshToken = null;
+    let expiresIn = 3600;
+    let expiresAt = 0;
 
-    if (!accessToken) return false;
+    if (hashParams) {
+      // Implicit return: tokens are in the hash.
+      accessToken  = hashParams.get('access_token');
+      refreshToken = hashParams.get('refresh_token');
+      expiresIn    = parseInt(hashParams.get('expires_in') || '3600', 10);
+      expiresAt    = Math.floor(Date.now() / 1000) + expiresIn;
 
-    // Set the session in Supabase client
-    const { data, error } = await db.auth.setSession({
-      access_token:  accessToken,
-      refresh_token: refreshToken || '',
-    });
+      if (!accessToken) return false;
 
-    if (error) throw error;
+      // Set the session in Supabase client
+      const { data, error } = await db.auth.setSession({
+        access_token:  accessToken,
+        refresh_token: refreshToken || '',
+      });
 
-    const user = data?.session?.user || data?.user;
+      if (error) throw error;
+
+      user = data?.session?.user || data?.user;
+      if (data?.session) {
+        accessToken  = data.session.access_token  || accessToken;
+        refreshToken = data.session.refresh_token || refreshToken;
+        if (data.session.expires_in) expiresIn = data.session.expires_in;
+        if (data.session.expires_at) expiresAt = data.session.expires_at;
+      }
+    } else {
+      // PKCE return: a one-time code is in the query. The library may
+      // already have exchanged it on load (detectSessionInUrl) — adopt that
+      // session if so, and only exchange the code when it hasn't.
+      let session = null;
+      try {
+        const { data } = await db.auth.getSession();
+        session = data?.session || null;
+      } catch (e) {}
+      if (!session) {
+        const { data, error } = await db.auth.exchangeCodeForSession(authCode);
+        if (error) throw error;
+        session = data?.session || null;
+      }
+      if (!session?.user) return false;
+
+      user         = session.user;
+      accessToken  = session.access_token;
+      refreshToken = session.refresh_token;
+      expiresIn    = session.expires_in || 3600;
+      expiresAt    = session.expires_at || (Math.floor(Date.now() / 1000) + expiresIn);
+    }
+
     if (!user) return false;
 
     // Persist session
@@ -685,6 +758,11 @@ async function handleOAuthCallback() {
 
     // Persist the chosen city to the profile for per-city digest routing.
     _persistSignupCity();
+    // This is a genuine authenticated session start. initAuth cannot cover
+    // this load (it runs before the OAuth session exists), so record the
+    // visit here — without this, OAuth users who never trigger a later
+    // initAuth restore keep a NULL last_seen.
+    _updateLastSeen(true);
     analyticsIdentify();
 
     const _provider = user.app_metadata?.provider || 'oauth';
