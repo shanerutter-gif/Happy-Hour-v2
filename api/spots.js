@@ -279,9 +279,15 @@ function buildPage(venue, reviews, allVenues, seo) {
   // keeps the raw hours string, exactly the modal's fallback. Days are
   // normalized first (mixed "Mon"/"Monday" formats) or the parser's
   // safety check would silently disable itself.
+  // ROLLBACK GATE (2026-10-14): SSR open-status rendering from ac90bea is
+  // LIVE-DEFECTIVE (split-brain/frozen verdicts, grouped-row overlaps,
+  // venue-local timezone + cache-staleness issues). Keep the parser
+  // plumbing in place but render NOTHING until the Phase-2 rebuild is
+  // live-verified. Do not flip without production proof on 3 venue classes.
+  const SSR_OPEN_STATUS_ENABLED = false;
   const schedDaysNorm = normDaysAbbrev(venue.days);
   const schedParsed = venue.hours ? parseVenueHours(venue.hours, schedDaysNorm) : { ok: false };
-  const schedHoursHTML = schedParsed.ok ? `
+  const schedHoursHTML = (SSR_OPEN_STATUS_ENABLED && schedParsed.ok) ? `
           <div class="sched-status" data-open-status data-hours="${esc(venue.hours)}" data-days="${esc((schedDaysNorm || []).join(','))}" data-city="${esc(venue.city_slug || '')}" style="display:none"></div>
           <div>${schedGroupRows(schedParsed).map(r => {
             const dayLabel = r.days.length > 1 ? `${r.days[0]} – ${r.days[r.days.length - 1]}` : r.days[0];
