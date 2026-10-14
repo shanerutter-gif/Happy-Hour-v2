@@ -72,6 +72,26 @@ function check(name, cond, detail) {
   const p = S.parseVenueHours('Tue–Sun 11am–10pm · Closed Mon', S.normDaysAbbrev(['Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']));
   check('"Closed Mon" segment parses ok with Mon closed', p.ok === true && p.days.Mon === null);
 }
+// Sub-venue labels ("Pizza counter:", "Wine bar:") must not swallow
+// their segments: labeled parts of one venue union into a single span
+// (earliest open, latest close). Regression shape: Smalls, Austin —
+// pre-fix this parsed Mon–Sat as CLOSED with only Sun surviving.
+{
+  const p = S.parseVenueHours(
+    'Pizza counter: Mon-Sat 11am-9pm, Sun 11am-3pm; Wine bar: Mon-Sat 4pm-10pm', []);
+  check('labeled sub-venue segments parse ok', p.ok === true);
+  check('labeled segments union Mon–Sat to 11am–10pm',
+    p.days.Mon && p.days.Mon.open === 660 && p.days.Mon.close === 1320 &&
+    p.days.Sat && p.days.Sat.open === 660 && p.days.Sat.close === 1320,
+    JSON.stringify(p.days.Mon));
+  check('unlabeled Sun segment unaffected by labels', p.days.Sun && p.days.Sun.open === 660 && p.days.Sun.close === 900);
+  const st = S.getOpenStatus(p, 'Wed', 18 * 60 + 41); // Wed 6:41pm venue-local
+  check('Smalls verdict at Wed 6:41pm: open, closes 10pm',
+    st.state === 'open' && st.label === 'Open now · Closes 10pm', st.label);
+  const plain = S.parseVenueHours('Mon 11am-9pm · Mon 4pm-10pm', ['Mon']);
+  check('unlabeled same-day segments keep overwrite semantics (no union)',
+    plain.days.Mon && plain.days.Mon.open === 960 && plain.days.Mon.close === 1320);
+}
 // Unparseable string → no verdict, ever.
 {
   const p = S.parseVenueHours('Call for hours', []);

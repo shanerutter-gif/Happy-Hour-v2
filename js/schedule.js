@@ -110,18 +110,39 @@ function parseVenueHours(hoursStr, openDays) {
   const segments = String(hoursStr).split(/\s*[·,;]\s*/);
   let anyParsed = false;
   let pendingDays = []; // days-only segments awaiting a time-only segment ("Mon, Wed" + "5–9pm")
-  const markTime = (dayList, timeStr) => {
+  const markTime = (dayList, timeStr, union = false) => {
     const t = schedParseTimeRange(timeStr);
     if (!t) { // unparseable time: don't clobber a day an earlier segment already nailed
       dayList.forEach(d => { if (days[d] === null) days[d] = undefined; });
       return;
     }
-    dayList.forEach(d => { days[d] = { open: t.open, close: t.close }; mentioned.add(d); });
+    dayList.forEach(d => {
+      // Sub-venue labeled segments ("Pizza counter: …", "Wine bar: …")
+      // describe parts of ONE venue: union them (earliest open, latest
+      // close) instead of letting the last label win or — worse — the
+      // label swallowing the segment and the day reading as closed.
+      if (union && days[d]) {
+        days[d] = { open: Math.min(days[d].open, t.open), close: Math.max(days[d].close, t.close) };
+      } else {
+        days[d] = { open: t.open, close: t.close };
+      }
+      mentioned.add(d);
+    });
     anyParsed = true;
   };
   for (const rawSeg of segments) {
-    const seg = rawSeg.trim();
+    let seg = rawSeg.trim();
     if (!seg) continue;
+    // Strip a sub-venue label prefix ("Pizza counter: Mon-Sat 11am-9pm")
+    // when the remainder starts with a day token; the segment then
+    // contributes as a union (see markTime). The label must be digit-free
+    // so a time ("11:30am…") can never be mistaken for one.
+    let labeled = false;
+    const lm = seg.match(/^([^:]{2,40}):\s+(.+)$/);
+    if (lm && !/\d/.test(lm[1]) && schedParseDayPart(lm[2].split(/\s+/)[0])) {
+      seg = lm[2].trim();
+      labeled = true;
+    }
     // "Closed Mon" / "Mon Closed" / bare "Closed"
     if (/\bclosed\b/i.test(seg)) {
       const rest = seg.replace(/\bclosed\b/gi, ' ').trim();
@@ -133,14 +154,14 @@ function parseVenueHours(hoursStr, openDays) {
     let m = seg.match(new RegExp('^([A-Za-z]+(?:\\s*' + SCHED_DASH + '\\s*[A-Za-z]+)?)\\s+(.+)$'));
     if (m) {
       const dl = schedParseDayPart(m[1]);
-      if (dl) { markTime(pendingDays.concat(dl), m[2]); pendingDays = []; }
+      if (dl) { markTime(pendingDays.concat(dl), m[2], labeled); pendingDays = []; }
       continue; // leading non-day word → noise, ignore
     }
     // Time-first: "11am – 10pm Mon–Thu"
     m = seg.match(new RegExp('^(.+?)\\s+([A-Za-z]+(?:\\s*' + SCHED_DASH + '\\s*[A-Za-z]+)?)$'));
     if (m) {
       const dl = schedParseDayPart(m[2]);
-      if (dl && schedParseTimeRange(m[1])) { markTime(pendingDays.concat(dl), m[1]); pendingDays = []; }
+      if (dl && schedParseTimeRange(m[1])) { markTime(pendingDays.concat(dl), m[1], labeled); pendingDays = []; }
       continue;
     }
     // Days-only: accumulate for a following time-only segment
