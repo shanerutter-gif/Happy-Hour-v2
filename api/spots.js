@@ -2,6 +2,10 @@ export const config = { runtime: 'edge' };
 
 import { slugify, canonicalVenueSlugs, canonicalHood, openingHoursSpec } from './_lib/seo.js';
 import { botGate } from './_lib/botgate.js';
+// Canonical venue-hours parser, shared with the app (the one copy —
+// js/schedule.js; fixtures in tests/schedule-ssr.test.mjs).
+import schedule from '../js/schedule.js';
+const { parseVenueHours, normDaysAbbrev, schedGroupRows, schedFmt } = schedule;
 
 // Canonical host. The apex (spotd.biz) 301s to www, so every canonical / og:url
 // / sitemap URL must use www — the host that returns 200 — or Google treats the
@@ -266,6 +270,25 @@ function buildPage(venue, reviews, allVenues, seo) {
     .filter(v => v.id !== venue.id && v.neighborhood === venue.neighborhood)
     .slice(0, 6);
 
+  // Grouped schedule + open-status pill (2026-10-14, SSR proposal):
+  // when the canonical parser fully resolves the venue's hours, render
+  // the grouped schedule table server-side (time-invariant, so the
+  // day-long edge cache stays correct) plus an empty pill placeholder
+  // that js/spots-status.js hydrates at view time — a verdict is never
+  // baked into cached HTML. When parsing fails, the Details row below
+  // keeps the raw hours string, exactly the modal's fallback. Days are
+  // normalized first (mixed "Mon"/"Monday" formats) or the parser's
+  // safety check would silently disable itself.
+  const schedDaysNorm = normDaysAbbrev(venue.days);
+  const schedParsed = venue.hours ? parseVenueHours(venue.hours, schedDaysNorm) : { ok: false };
+  const schedHoursHTML = schedParsed.ok ? `
+          <div class="sched-status" data-open-status data-hours="${esc(venue.hours)}" data-days="${esc((schedDaysNorm || []).join(','))}" data-city="${esc(venue.city_slug || '')}" style="display:none"></div>
+          <div>${schedGroupRows(schedParsed).map(r => {
+            const dayLabel = r.days.length > 1 ? `${r.days[0]} – ${r.days[r.days.length - 1]}` : r.days[0];
+            const timeLabel = r.hours ? `${schedFmt(r.hours.open)} – ${schedFmt(r.hours.close)}` : 'Closed';
+            return `<div class="sched-row${r.hours ? '' : ' sched-row--closed'}"><span class="sched-row-days">${dayLabel}</span><span class="sched-row-time">${timeLabel}</span></div>`;
+          }).join('')}</div>` : null;
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -467,7 +490,7 @@ ${venueFaqLd ? `<script type="application/ld+json">${JSON.stringify(venueFaqLd)}
         <div class="spot-info-icon">🕐</div>
         <div>
           <div class="spot-info-label">Hours</div>
-          <div class="spot-info-value">${hours}${venue.days?.length ? ` · ${formatDays(venue.days)}` : ''}</div>
+          <div class="spot-info-value">${schedHoursHTML || `${hours}${venue.days?.length ? ` · ${formatDays(venue.days)}` : ''}`}</div>
         </div>
       </div>` : ''}
       ${cuisine ? `
@@ -587,6 +610,8 @@ ${venueFaqLd ? `<script type="application/ld+json">${JSON.stringify(venueFaqLd)}
 <script defer src="/js/site-analytics.js?v=20260725a"></script>
 <script>window.__spotdOrganicCity='${String(venue.city_slug || '').replace(/[^a-z0-9-]/gi, '')}';</script>
 <script defer src="/js/organic-cta.js?v=20260729a"></script>
+${schedHoursHTML ? `<script defer src="/js/schedule.js?v=20261014a"></script>
+<script defer src="/js/spots-status.js?v=20261014a"></script>` : ''}
 </body>
 </html>`;
 }
