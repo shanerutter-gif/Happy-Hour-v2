@@ -448,6 +448,7 @@ function closeOb() {
 }
 
 function _obDismiss() {
+  _obStopLiveCounter();
   const overlay = document.getElementById('onboardingOverlay');
   if (!overlay || overlay.style.display === 'none') return;
   overlay.style.transition = 'opacity 0.35s ease';
@@ -465,6 +466,10 @@ function obGoTo(idx) {
     if (i === idx)        s.classList.add('ob-screen--active');
     else if (i < idx)     s.classList.add('ob-screen--prev');
     else                  s.classList.add('ob-screen--next');
+    // Belt-and-braces with the CSS visibility rule: keep inactive screens
+    // out of the accessibility tree explicitly.
+    if (i === idx) s.removeAttribute('aria-hidden');
+    else s.setAttribute('aria-hidden', 'true');
   });
 
   obState.screen = idx;
@@ -541,13 +546,23 @@ function obUpdateProgress(screen) {
 
 // ── LIVE COUNTER ───────────────────────────────────────
 function obStartLiveCounter() {
-  setInterval(() => {
+  // Guarded + owned: previously this interval was anonymous and never
+  // cleared, so it kept waking every 4.5s and rewriting hidden DOM nodes
+  // for the whole session after onboarding was dismissed (verified live
+  // 2026-10-13: counter still ticking 10s after guest-skip). On the iOS
+  // WKWebView that's a perpetual timer the app never asked for.
+  if (obState._liveTimer) return;
+  obState._liveTimer = setInterval(() => {
     const delta = Math.floor(Math.random() * 5) - 2;
     obState.liveCount = Math.max(32, Math.min(89, obState.liveCount + delta));
     document.querySelectorAll('.ob-live-num').forEach(el => {
       el.textContent = obState.liveCount;
     });
   }, 4500);
+}
+
+function _obStopLiveCounter() {
+  if (obState._liveTimer) { clearInterval(obState._liveTimer); obState._liveTimer = null; }
 }
 
 // ── VIBE PICKER ────────────────────────────────────────

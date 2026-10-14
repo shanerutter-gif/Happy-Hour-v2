@@ -66,6 +66,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Spotd">
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
 <link rel="apple-touch-icon" href="/icons/icon-180.png">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1274,11 +1276,16 @@ if (window.spotdNative) {
 .ob-screen {
   position: absolute; inset: 0;
   opacity: 0; transform: translateX(100%);
-  transition: opacity .4s cubic-bezier(.22,1,.36,1), transform .4s cubic-bezier(.22,1,.36,1);
+  /* visibility:hidden (delayed until the fade-out finishes) removes
+     off-screen screens from the VoiceOver / keyboard focus order — with
+     opacity+pointer-events alone, iOS VoiceOver swipes through all 8
+     screens and hidden buttons accept focus (Sofia audit 2026-10-13). */
+  visibility: hidden;
+  transition: opacity .4s cubic-bezier(.22,1,.36,1), transform .4s cubic-bezier(.22,1,.36,1), visibility 0s linear .4s;
   pointer-events: none;
   overflow-y: auto; -webkit-overflow-scrolling: touch;
 }
-.ob-screen--active { opacity:1; transform:translateX(0); pointer-events:auto; }
+.ob-screen--active { opacity:1; transform:translateX(0); pointer-events:auto; visibility: visible; transition-delay: 0s, 0s, 0s; }
 .ob-screen--prev   { opacity:0; transform:translateX(-30%); }
 .ob-screen--next   { opacity:0; transform:translateX(100%); }
 
@@ -1307,7 +1314,7 @@ if (window.spotdNative) {
 }
 .ob-back-btn {
   display: flex; align-items: center; justify-content: center;
-  width: 40px; height: 40px; border-radius: 50%;
+  width: 44px; height: 44px; border-radius: 50%;
   background: var(--card); border: 1px solid var(--border2);
   color: var(--muted); cursor: pointer;
   box-shadow: var(--shadow);
