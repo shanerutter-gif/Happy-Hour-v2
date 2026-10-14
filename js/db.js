@@ -140,9 +140,18 @@ function _aeFlush() {
   if (_aeTimer) { clearTimeout(_aeTimer); _aeTimer = null; }
   if (!_aeBuffer.length) return;
   // Consent gate: hold (capped) while undecided, drop if declined, send if granted.
+  // SIGNED-IN EXCEPTION (Oct 2026 fix): for an authenticated user the batch is
+  // first-party account telemetry — the same class as last_seen, check-ins and
+  // saves, which were never consent-gated. Holding it hostage to the marketing
+  // banner silently zeroed ALL per-user activity in the admin Users page for
+  // every signup who hadn't answered the banner (the banner defers during
+  // onboarding/auth, and a dismissal snoozes it for 7 days, so in practice
+  // almost no new signup ever got identified — no identify events at all from
+  // Oct 9 2026 until this fix). An explicit 'denied' is still respected for
+  // everyone; anonymous batches keep the original gate unchanged.
   const _cs = _aeConsentState();
   if (_cs === 'denied') { _aeBuffer = []; return; }
-  if (_cs === 'pending') { if (_aeBuffer.length > 60) _aeBuffer = _aeBuffer.slice(-60); return; }
+  if (_cs === 'pending' && !_accessToken) { if (_aeBuffer.length > 60) _aeBuffer = _aeBuffer.slice(-60); return; }
   // If consent.js already counted this page load anonymously (visitor accepted
   // the banner mid-session), drop the held page_view so it isn't double-counted.
   if (window.__spotdAnonPinged) {
