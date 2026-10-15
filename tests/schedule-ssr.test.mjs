@@ -191,6 +191,25 @@ check('modal parses with normalized days (SSR parity gate)',
   appJs.includes('parseVenueHours(v.hours, normDaysAbbrev(v.days))'));
 check('modal verdict clock is the venue timezone (zonedNow on the venue slug)',
   appJs.includes('zonedNow(v.city_slug)') && !appJs.includes('now.getHours() * 60 + now.getMinutes()'));
+check('getTodayHours parses with normalized days (feed/map parity gate)',
+  appJs.includes('function getTodayHours(') &&
+  appJs.slice(appJs.indexOf('function getTodayHours('), appJs.indexOf('function getTodayHours(') + 4000)
+    .includes('parseVenueHours(v.hours, normDaysAbbrev(v.days))'));
+check('no app.js consumer parses with raw v.days (the full-name trap)',
+  !appJs.includes('parseVenueHours(v.hours, v.days)'));
+// Functional shape of the trap getTodayHours must guard against: a venue
+// whose HH days claim Saturday in full-name form while its hours string
+// never mentions Saturday. Normalized, the claimed-day safety check
+// fires (ok=false -> caller falls back to the raw string, no verdict).
+// Unnormalized, the check silently disables and ok=true licenses a
+// definitive "Not open today" from an incomplete string.
+{
+  const hours = 'Mon–Fri 11am–10pm';
+  check('full-name claimed day disables the safety check when unnormalized (the trap)',
+    S.parseVenueHours(hours, ['Saturday']).ok === true);
+  check('normalized claimed day fires the safety check (no false verdict)',
+    S.parseVenueHours(hours, S.normDaysAbbrev(['Saturday'])).ok === false);
+}
 check('hydration refreshes the verdict on a timer (no frozen pill)',
   spotsStatus.includes('setInterval(hydrate, 60000)'));
 check('hydration gates on parsed.ok and fails closed on unmapped cities',

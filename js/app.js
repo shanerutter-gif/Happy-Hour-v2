@@ -33,8 +33,17 @@ function getTodayHours(v, dayName = TODAY) {
   // the week, its verdict is authoritative; 'Not open today' is returned
   // ONLY when the parsed schedule says the venue is closed today, which
   // preserves venueOpenWindow()'s closed sentinel.
+  // Normalize days BEFORE parsing — the same parity gate the modal
+  // (renderScheduleBlock) and api/spots.js apply. Raw v.days mixes
+  // "Mon"/"Monday"; unnormalized, the parser's claimed-day safety
+  // check silently disables itself and a feed/map card can return a
+  // definitive "Not open today" the modal/SSR path would refuse to
+  // give. state.venues are normalized at load today, but this
+  // function also receives unnormalized objects (e.g. the profile
+  // page's raw fetchVenues fallback) — normalize at the consumer,
+  // like every other consumer does.
   try {
-    const parsed = parseVenueHours(v.hours, v.days);
+    const parsed = parseVenueHours(v.hours, normDaysAbbrev(v.days));
     if (parsed && parsed.ok) {
       const t = parsed.days[dayName];
       if (t && t.open != null) return schedFmt(t.open) + ' \u2013 ' + schedFmt(t.close);
