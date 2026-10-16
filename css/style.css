@@ -158,7 +158,7 @@ body.theme-transitioning{transition:background .35s ease,color .35s ease}
 .city-back{background:var(--card);border:none;border-radius:var(--r-sm);color:var(--muted);font-size:12px;padding:6px 12px;cursor:pointer;font-family:'DM Sans',sans-serif;min-height:34px;transition:transform .15s,box-shadow .15s,color .15s;white-space:nowrap;box-shadow:var(--clay-sm)}
 .city-back:active{transform:scale(.95);box-shadow:var(--clay-pressed)}
 .city-back:hover{color:var(--teal)}
-.city-back-logo{background:none;border:none;padding:0;cursor:pointer;display:flex;align-items:center;opacity:.9;transition:opacity .15s;max-width:72px;overflow:hidden}
+.city-back-logo{background:none;border:none;padding:11px 8px 11px 0;cursor:pointer;display:flex;align-items:center;opacity:.9;transition:opacity .15s;max-width:72px;overflow:hidden} /* padding lifts the 22px-tall logo's hit area to 44px; visual size unchanged */
 .city-back-logo:hover{opacity:1}
 .city-back-logo-img{height:22px;width:auto;max-width:72px;display:block;object-fit:contain}
 .city-back-logo-fallback{font-family:'Cabinet Grotesk',sans-serif;font-weight:900;font-size:22px;color:var(--teal);letter-spacing:-1px}
@@ -1072,6 +1072,13 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 :root { --tabbar-clearance: calc(96px + env(safe-area-inset-bottom, 0px)); }
 
 .app-page { padding-bottom: var(--tabbar-clearance); overflow-x: clip; }
+/* App-download banner: position:fixed, bottom:0, z-index 9999, ~95px tall,
+   shown 3s after every load (web only). Nothing reserved space for it, so it
+   covers the feed's bottom card / Check-In CTA and, for signed-in users, the
+   floating bottom nav (verified live 2026-10-15, Sofia feed audit). While it
+   is visible, reserve its height in the page padding and lift the nav. */
+body.has-app-banner .app-page { padding-bottom: calc(var(--tabbar-clearance) + 100px); }
+body.has-app-banner .bottom-nav { bottom: calc(12px + env(safe-area-inset-bottom, 0px) + 100px); }
 .app-page .top-nav { display: none; }
 .city-bar { position: sticky; top: 0; z-index: 450; }
 
@@ -2876,7 +2883,7 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 
 .card-hero-fav {
   position: absolute; top: 12px; left: 12px;
-  width: 36px; height: 36px; border-radius: 50%;
+  width: 44px; height: 44px; border-radius: 50%; /* was 36px — under the 44px HIG floor (live, 2026-10-15) */
   background: rgba(255,255,255,0.2);
   backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255,255,255,0.15);
@@ -3182,6 +3189,7 @@ footer{text-align:center;padding:20px;font-family:'DM Sans',sans-serif;font-size
 
 .card-std-fav {
   padding: 8px 12px 8px 0;
+  min-height: 44px; /* star toggle on every standard card — bring the hit area to the 44px floor */
   display: flex; align-items: center;
   font-size: 16px; color: var(--muted);
   background: none; border: none;
@@ -8850,6 +8858,7 @@ h1, h2, .sf-hero-venue, .sf-ed-title, .pf-name, .modal-hero-name, .s-name {
 }
 .vs-btn {
   display: inline-flex; align-items: center; gap: 5px; border: none; background: none; cursor: pointer;
+  min-height: 44px; /* List/Map toggle measured 30px tall live (2026-10-15) — below the 44px HIG floor */
   padding: 7px 11px; border-radius: 11px; font-family: 'DM Sans', sans-serif; font-weight: 700; font-size: 12.5px; color: var(--muted);
   transition: background .15s, color .15s, transform .15s var(--ease-bounce);
 }
@@ -8863,6 +8872,8 @@ h1, h2, .sf-hero-venue, .sf-ed-title, .pf-name, .modal-hero-name, .s-name {
 /* "Happening now" forces ends-soonest ordering — the sort pills are ignored in
    that view, so dim and disable them rather than imply the selected sort applies. */
 #sortFilters.sort-disabled { opacity: .45; pointer-events: none; }
+.feed-more-btn { grid-column: 1 / -1; display: block; width: calc(100% - 40px); margin: 18px auto 8px; min-height: 44px; padding: 12px 20px; border: 1.5px solid var(--border2); border-radius: 999px; background: var(--card); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; }
+.feed-more-btn:active { transform: scale(.98); }
 .feed-footer { grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 26px 16px 34px; }
 .feed-footer-txt { font-size: 13px; color: var(--muted); }
 /* Happening-now toggle inside the Filters panel row */

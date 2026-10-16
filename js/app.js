@@ -3693,6 +3693,50 @@ function renderCards() {
   if (_renderCardsRaf) cancelAnimationFrame(_renderCardsRaf);
   _renderCardsRaf = requestAnimationFrame(_renderCardsNow);
 }
+
+// ── Feed render batching ─────────────────────────────────
+// _renderCardsNow used to build EVERY filtered card in one innerHTML pass:
+// 676 cards / ~10.5k DOM nodes / ~118k px of page on the default San Diego
+// feed. First paint and scroll memory on iPhone WKWebView pay for cards the
+// user may never reach. Render the first FEED_BATCH cards, keep the rest as
+// pre-built HTML strings, and append the next batch as a "Show more" sentinel
+// approaches the viewport (IntersectionObserver, 1200px rootMargin, so it
+// feels infinite). The sentinel is also a real button: keyboard/tap users and
+// no-IO fallbacks append the same way. resultsCount is untouched — it always
+// reports the full filtered count. A fresh render resets the stash.
+const FEED_BATCH = 60;
+let _feedRest = null, _feedObserver = null;
+function _feedShowMore() {
+  const grid = document.getElementById('cardsGrid');
+  if (!grid || !_feedRest || !_feedRest.parts.length) return;
+  const chunk = _feedRest.parts.splice(0, FEED_BATCH).join('');
+  const btn = document.getElementById('feedMoreBtn');
+  if (_feedRest.mode === 'std') {
+    const row = grid.querySelector('.card-std-row');
+    if (row) row.insertAdjacentHTML('beforeend', chunk);
+    else if (btn) btn.insertAdjacentHTML('beforebegin', chunk);
+    else grid.insertAdjacentHTML('beforeend', chunk);
+  } else if (btn) {
+    btn.insertAdjacentHTML('beforebegin', chunk);
+  } else {
+    grid.insertAdjacentHTML('beforeend', chunk);
+  }
+  if (!_feedRest.parts.length) {
+    // Last batch: the guides rail + feed footer take the sentinel's place.
+    if (btn) btn.outerHTML = _feedRest.footer || '';
+    if (_feedObserver) { _feedObserver.disconnect(); _feedObserver = null; }
+    _feedRest = null;
+  }
+}
+function _feedArmObserver() {
+  if (_feedObserver) { _feedObserver.disconnect(); _feedObserver = null; }
+  const btn = document.getElementById('feedMoreBtn');
+  if (!btn || !('IntersectionObserver' in window)) return;
+  _feedObserver = new IntersectionObserver(
+    es => { if (es.some(e => e.isIntersecting)) _feedShowMore(); },
+    { rootMargin: '1200px 0px' });
+  _feedObserver.observe(btn);
+}
 // ═══════════════════════════════════════════════════════
 // FEED REDESIGN — Mixed layout render pipeline
 // Venues only — events are never standalone cards; they surface on their venue
@@ -3703,6 +3747,8 @@ function _renderCardsNow() {
   _renderCardsRaf = null;
   const grid = document.getElementById('cardsGrid');
   if (!grid) return;
+  _feedRest = null;
+  if (_feedObserver) { _feedObserver.disconnect(); _feedObserver = null; }
 
   if (!state.filtered.length) {
     if (state.happeningNow) {
@@ -3782,9 +3828,9 @@ function _renderCardsNow() {
     } else if (isSearchView && !isTwoPane()) {
       html += `<div class="feed-label">Best matches</div>`;
     }
-    venues.forEach((v, i) => {
-      html += standardCardHTML(v, nextDelay(25), i === 0);
-    });
+    const _flatParts = venues.map((v, i) => standardCardHTML(v, nextDelay(25), i === 0));
+    html += _flatParts.slice(0, FEED_BATCH).join('');
+    if (_flatParts.length > FEED_BATCH) _feedRest = { parts: _flatParts.slice(FEED_BATCH), mode: 'flat', footer: '' };
   } else {
     // ── Hero cards ──
     // Wrapped in .card-hero-row so desktop can lay heroes out multi-column.
@@ -3819,9 +3865,9 @@ function _renderCardsNow() {
     if (standardVenues.length) {
       html += `<div class="feed-label">More spots</div>`;
       html += `<div class="card-std-row">`;
-      standardVenues.forEach(v => {
-        html += standardCardHTML(v, nextDelay(40));
-      });
+      const _stdParts = standardVenues.map(v => standardCardHTML(v, nextDelay(40)));
+      html += _stdParts.slice(0, FEED_BATCH).join('');
+      if (_stdParts.length > FEED_BATCH) _feedRest = { parts: _stdParts.slice(FEED_BATCH), mode: 'std', footer: '' };
       html += `</div>`;
     }
   }
@@ -3860,10 +3906,19 @@ function _guidesRailHTML() {
 
   // "+ Request a Venue" lives at the END of the feed (and in the empty-search
   // state), not in the header — it was the fourth row of chrome above the
-  // first card.
-  html += _guidesRailHTML();
-  html += `<div class="feed-footer"><div class="feed-footer-txt">Know a spot we're missing?</div><button class="request-venue-btn request-venue-btn--empty" onclick="openRequestVenue()">+ Request a Venue</button></div>`;
+  // first card. While batches remain, the guides rail + footer are deferred:
+  // they belong after the LAST card, so _feedShowMore swaps them in for the
+  // sentinel when the stash runs out.
+  const _footerHTML = _guidesRailHTML()
+    + `<div class="feed-footer"><div class="feed-footer-txt">Know a spot we're missing?</div><button class="request-venue-btn request-venue-btn--empty" onclick="openRequestVenue()">+ Request a Venue</button></div>`;
+  if (_feedRest && _feedRest.parts.length) {
+    _feedRest.footer = _footerHTML;
+    html += `<button type="button" id="feedMoreBtn" class="feed-more-btn" onclick="_feedShowMore()">Show more spots</button>`;
+  } else {
+    html += _footerHTML;
+  }
   grid.innerHTML = html;
+  _feedArmObserver();
 
   // Attach delegated click handler once for reliable iOS taps
   if (!grid._cardDelegateAttached) {
@@ -6791,6 +6846,10 @@ function initMap() {
       center: cityCenter,
       zoom: 12,
       zoomControl: false, // touch map: pinch to zoom; the +/- buttons are desktop furniture
+      keyboard: false, // Leaflet's default keyboard nav grabs Home/End/PageUp
+      // and pans/zooms the map instead of scrolling the feed once the map
+      // container takes focus. Touch-first app: keyboard map control is
+      // near-useless here and the trap broke feed scrolling (2026-10-03).
       preferCanvas: true,
       zoomSnap: 0.5,
       zoomDelta: 0.5,
