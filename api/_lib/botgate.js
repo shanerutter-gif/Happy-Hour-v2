@@ -36,7 +36,9 @@ export function botGate(req) {
     const url = new URL(req.url);
     console.log('[botgate] blocked', (req.headers.get('user-agent') || '').slice(0, 80), url.pathname);
   } catch (e) { /* logging must never break the gate */ }
-  // 404, not 403: reads as a dead page to the crawler, stays out of error
-  // dashboards, and costs one tiny edge response.
-  return new Response('Not found', { status: 404 });
+  // 403, not 404 (changed 2026-10-17, SEO cliff fix): a 404 told crawlers
+  // the page does not exist and polluted the GSC "Not found (404)" report,
+  // masking genuinely missing pages. 403 says "blocked" — which is the
+  // truth — and keeps 404 meaningful. Still one tiny edge response.
+  return new Response('Forbidden', { status: 403 });
 }
