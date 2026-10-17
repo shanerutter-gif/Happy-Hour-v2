@@ -218,6 +218,44 @@ check('hydration gates on parsed.ok and fails closed on unmapped cities',
 check('hydration recomputes on visibilitychange (app left open past close)',
   spotsStatus.includes('visibilitychange'));
 
+// ── Claimed-day conflict exception (Sofia 2026-10-17) ──────────────────
+// v.days holds HAPPY-HOUR days, not operating days. A near-complete
+// operating string (>=6 days mentioned, every segment parsed) must not be
+// vetoed by an HH day the venue is actually closed on — live shape:
+// American Junkie, San Diego (HH Mon–Fri; operates Tue–Sun).
+{
+  const p = S.parseVenueHours('Tue–Fri 5pm–2am · Sat 1pm–2am · Sun 10am–10pm',
+    S.normDaysAbbrev(['Mon', 'Tue', 'Wed', 'Thu', 'Fri']));
+  check('complete operating string survives an HH-only claimed day (ok=true)', p.ok === true);
+  check('claimed-but-unmentioned Mon resolves closed, not unparsed', p.days.Mon === null);
+  check('enumerated Sat keeps its past-midnight span', !!p.days.Sat && p.days.Sat.open === 780 && p.days.Sat.close === 1560);
+  const st = S.getOpenStatus(p, 'Sat', 640); // Sat 10:40am, opens 1pm
+  check('verdict restored for the conflict venue', st.state === 'closed' && st.label === 'Closed · Opens 1pm today', st.label);
+}
+{
+  // Boundary: a 5-day enumeration is NOT enough (Mon–Fri ambiguity — the
+  // pre-existing fixture above demands the veto at exactly this shape).
+  const p = S.parseVenueHours('Wed–Sat 11am–8pm · Sun 11am–6pm',
+    S.normDaysAbbrev(['Mon', 'Tue', 'Wed', 'Thu', 'Fri']));
+  check('5-day enumeration + HH-only claimed days keeps the veto (ok=false)', p.ok === false && p.days.Mon === undefined);
+}
+{
+  const p = S.parseVenueHours('Tue–Thu 12pm–9pm · Fri–Sat 12pm–12am · Sun 12pm–9pm',
+    S.normDaysAbbrev(['Mon', 'Tue', 'Wed', 'Thu', 'Fri']));
+  check('6-day enumeration resolves with Mon closed (ok=true)', p.ok === true && p.days.Mon === null);
+}
+// The exception must NOT widen: partial strings keep the strict veto.
+{
+  const p = S.parseVenueHours('Mon–Wed 5–9pm', S.normDaysAbbrev(['Mon', 'Tue', 'Wed', 'Thu', 'Fri']));
+  check('partial string (3 days) + claimed Fri stays unparsed (ok=false)', p.ok === false && p.days.Fri === undefined);
+}
+// Nor may it rescue a string with a genuinely unparseable segment.
+{
+  const p = S.parseVenueHours('Tue–Sat 11am–9pm · Sun call for hours',
+    S.normDaysAbbrev(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']));
+  check('hard-unparsed segment blocks the exception (ok=false)', p.ok === false);
+}
+
 console.log(`schedule-ssr: ${passed} passed, ${failed} failed`);
 if (failures.length) {
   console.log('FAILURES:\n - ' + failures.join('\n - '));

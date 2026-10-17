@@ -109,11 +109,16 @@ function parseVenueHours(hoursStr, openDays) {
   const mentioned = new Set();
   const segments = String(hoursStr).split(/\s*[·,;]\s*/);
   let anyParsed = false;
+  // Days a segment actively failed to parse (bad time range, dangling
+  // days-only segment). Tracked separately from the claimed-day conflict
+  // below: a hard failure always keeps the venue in the fallback, while a
+  // claimed-but-unmentioned day may not (see the conflict step).
+  const hardUnparsed = new Set();
   let pendingDays = []; // days-only segments awaiting a time-only segment ("Mon, Wed" + "5–9pm")
   const markTime = (dayList, timeStr, union = false) => {
     const t = schedParseTimeRange(timeStr);
     if (!t) { // unparseable time: don't clobber a day an earlier segment already nailed
-      dayList.forEach(d => { if (days[d] === null) days[d] = undefined; });
+      dayList.forEach(d => { if (days[d] === null) { days[d] = undefined; hardUnparsed.add(d); } });
       return;
     }
     dayList.forEach(d => {
@@ -171,9 +176,26 @@ function parseVenueHours(hoursStr, openDays) {
     if (pendingDays.length && schedParseTimeRange(seg)) { markTime(pendingDays, seg); pendingDays = []; continue; }
     // Unrecognized noise ("call for hours") → ignore
   }
-  if (pendingDays.length) pendingDays.forEach(d => { if (days[d] === null) days[d] = undefined; });
-  // Conflict: v.days claims a day the string never mentions → don't guess
-  SCHED_DAYS.forEach(d => { if (openSet.has(d) && !mentioned.has(d)) days[d] = undefined; });
+  if (pendingDays.length) pendingDays.forEach(d => { if (days[d] === null) { days[d] = undefined; hardUnparsed.add(d); } });
+  // Conflict: v.days claims a day the string never mentions → don't guess.
+  // NARROW EXCEPTION (Sofia 2026-10-17, live census: 12 of 675 San Diego
+  // venues): v.days holds HAPPY-HOUR days, not operating days (repo
+  // convention), so it routinely claims e.g. Mon–Fri while the operating
+  // string enumerates the venue's real week (Tue–Sun). When the string
+  // itself enumerates a near-complete week (>=6 distinct days) and every
+  // segment parsed cleanly, the string is an operating schedule, not a
+  // fragment: an unmentioned day is a closed day, and vetoing the whole
+  // week over the HH-days artifact only costs the venue its status pill
+  // and grouped schedule (raw-string fallback). The bar is >=6 mentioned
+  // days: a 5-day string (Mon-Fri) is genuinely ambiguous — it is the
+  // shape of both a complete office-hours week and a fragment — and the
+  // existing regression fixture for it demands the veto. Partial strings
+  // and any hard parse failure keep the strict veto regardless.
+  SCHED_DAYS.forEach(d => {
+    if (!openSet.has(d) || mentioned.has(d)) return;
+    if (hardUnparsed.size === 0 && mentioned.size >= 6) days[d] = null;
+    else days[d] = undefined;
+  });
   result.ok = anyParsed && SCHED_DAYS.every(d => days[d] !== undefined);
   return result;
 }

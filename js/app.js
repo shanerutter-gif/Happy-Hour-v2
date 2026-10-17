@@ -4333,29 +4333,29 @@ function renderModal(v, type, reviews) {
     </div>`}
 
     <div class="modal-actions-grid">
-      <div class="modal-action primary" onclick="getDirections(${v.lat || 'null'}, ${v.lng || 'null'}, '${esc((v.name || '').replace(/'/g, "\\'"))}')">
+      <button type="button" class="modal-action primary" onclick="getDirections(${v.lat || 'null'}, ${v.lng || 'null'}, '${esc((v.name || '').replace(/'/g, "\\'"))}')">
         <span class="modal-action-icon">${icn('map',20)}</span>
         <span class="modal-action-label">Directions</span>
-      </div>
-      <div class="modal-action" onclick="openVenueWebsite('${v.id}')">
+      </button>
+      <button type="button" class="modal-action" onclick="openVenueWebsite('${v.id}')">
         <span class="modal-action-icon">${icn('globe',20)}</span>
         <span class="modal-action-label">Website</span>
-      </div>
-      <div class="modal-action" onclick="shareItem('${v.id}','${type}')">
+      </button>
+      <button type="button" class="modal-action" onclick="shareItem('${v.id}','${type}')">
         <span class="modal-action-icon">${icn('share',20)}</span>
         <span class="modal-action-label">Share</span>
-      </div>
-      ${currentUser ? `<div class="modal-action" onclick="dmOpenVenueSharePicker('${v.id}')">
+      </button>
+      ${currentUser ? `<button type="button" class="modal-action" onclick="dmOpenVenueSharePicker('${v.id}')">
         <span class="modal-action-icon">${icn('comment',20)}</span>
         <span class="modal-action-label">Send</span>
-      </div>` : `<div class="modal-action" onclick="openAuth('signin','venue')">
+      </button>` : `<button type="button" class="modal-action" onclick="openAuth('signin','venue')">
         <span class="modal-action-icon">${icn('bell',20)}</span>
         <span class="modal-action-label">Alerts</span>
-      </div>`}
-      ${isVenue ? `<div class="modal-action" onclick="openAddToList('${v.id}')">
+      </button>`}
+      ${isVenue ? `<button type="button" class="modal-action" onclick="openAddToList('${v.id}')">
         <span class="modal-action-icon">${icn('bookmark',20)}</span>
         <span class="modal-action-label">Add to List</span>
-      </div>` : ''}
+      </button>` : ''}
     </div>
 
     ${isAdmin() && isVenue ? `<button class="admin-edit-btn" onclick="adminEditVenue('${v.id}')">✏️ Edit Venue</button>` : ''}

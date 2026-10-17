@@ -523,6 +523,12 @@ textarea.field{border-radius:var(--r-sm);resize:vertical;min-height:80px}
 .btn-submit:active{opacity:.88;transform:scale(.97);box-shadow:var(--clay-pressed)}
 .btn-submit:focus-visible{box-shadow:var(--ring)}
 .review-guest-note{font-size:12px;color:rgba(42,31,20,0.4)}
+/* Sofia 2026-10-17: the guest note's "sign in" is a 38x15px inline link
+   (below the WCAG 2.2 24px floor, measured live on the venue sheet).
+   Grow only its hit area inside this note — vertical padding + inline-flex
+   min-height, pulled back with negative margins so the sentence layout
+   does not move. The shared .auth-switch-btn (auth forms) is untouched. */
+.review-guest-note .auth-switch-btn{display:inline-flex;align-items:center;min-height:44px;padding:10px 6px;margin:-14px 0}
 .reviews-list{display:flex;flex-direction:column}
 .review-item{padding:12px 0;border-bottom:1px solid var(--border2)}
 .review-item:last-child{border:none}
@@ -3451,6 +3457,7 @@ body.has-app-banner .bottom-nav { bottom: calc(12px + env(safe-area-inset-bottom
   cursor: pointer; transition: all .15s;
   border: none; background: none;
   position: relative;
+  font-family: inherit; color: inherit; -webkit-tap-highlight-color: transparent;
 }
 .modal-action:not(:last-child)::after {
   content: ''; position: absolute;

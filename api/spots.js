@@ -608,7 +608,7 @@ ${venueFaqLd ? `<script type="application/ld+json">${JSON.stringify(venueFaqLd)}
 <script defer src="/js/site-analytics.js?v=20260725a"></script>
 <script>window.__spotdOrganicCity='${String(venue.city_slug || '').replace(/[^a-z0-9-]/gi, '')}';</script>
 <script defer src="/js/organic-cta.js?v=20260729a"></script>
-${schedHoursHTML ? `<script defer src="/js/schedule.js?v=20261014a"></script>
+${schedHoursHTML ? `<script defer src="/js/schedule.js?v=20261017a"></script>
 <script defer src="/js/spots-status.js?v=20261014a"></script>` : ''}
 </body>
 </html>`;
