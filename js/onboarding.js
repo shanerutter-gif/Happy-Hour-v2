@@ -44,7 +44,7 @@ function _obStashPicks() {
 // city only appears in onboarding once it has real neighborhoods + venues here.
 const OB_CITY_CONFIG = {
   'san-diego': {
-    name: 'San Diego', state: 'CA', tagline: '520+ spots live',
+    name: 'San Diego', state: 'CA', tagline: '522+ spots live',
     neighborhoods: [
       { name: 'North Park',    deals: 8,  popular: true  },
       { name: 'Downtown',      deals: 12, popular: false },
@@ -75,7 +75,7 @@ const OB_CITY_CONFIG = {
     ],
   },
   'orange-county': {
-    name: 'Orange County', state: 'CA', tagline: '330+ spots live',
+    name: 'Orange County', state: 'CA', tagline: '331+ spots live',
     neighborhoods: [
       { name: 'Newport Beach',    deals: 24, popular: true  },
       { name: 'Costa Mesa',       deals: 24, popular: false },
@@ -104,7 +104,7 @@ const OB_CITY_CONFIG = {
     ],
   },
   'los-angeles': {
-    name: 'Los Angeles', state: 'CA', tagline: '390+ spots live',
+    name: 'Los Angeles', state: 'CA', tagline: '393+ spots live',
     neighborhoods: [
       { name: 'Silver Lake',     deals: 14, popular: true  },
       { name: 'Arts District',   deals: 16, popular: false },
@@ -135,7 +135,7 @@ const OB_CITY_CONFIG = {
     ],
   },
   'new-york': {
-    name: 'New York', state: 'NY', tagline: '75+ spots live',
+    name: 'New York', state: 'NY', tagline: '76+ spots live',
     neighborhoods: [
       { name: 'Williamsburg',    deals: 11, popular: true  },
       { name: 'East Village',    deals: 7,  popular: false },
@@ -164,7 +164,7 @@ const OB_CITY_CONFIG = {
     ],
   },
   'chicago': {
-    name: 'Chicago', state: 'IL', tagline: '270+ spots live',
+    name: 'Chicago', state: 'IL', tagline: '273+ spots live',
     neighborhoods: [
       { name: 'River North',   deals: 21, popular: true  },
       { name: 'Logan Square',  deals: 15, popular: false },
@@ -195,7 +195,7 @@ const OB_CITY_CONFIG = {
     ],
   },
   'austin': {
-    name: 'Austin', state: 'TX', tagline: '225+ spots live',
+    name: 'Austin', state: 'TX', tagline: '227+ spots live',
     neighborhoods: [
       { name: 'East Austin',        deals: 21, popular: true  },
       { name: 'South Lamar',        deals: 16, popular: false },
@@ -387,6 +387,11 @@ function obPopulateDynamic() {
   // pulled from the currently selected city's config.
   var city = obCity();
   var feat = _obPick(city.featured);
+  // The preview card must not repeat the map-overlay venue (Leo 2026-10-16
+  // F2): both slots were rendered from this one pick, so a single venue
+  // appeared twice in the same viewport. The preview takes the next
+  // distinct featured venue instead.
+  var featPreview = city.featured.find(function (f) { return f.name !== feat.name; }) || feat;
   var pins = _obPick(city.mapPins);
   var h1   = _obPick(OB_SCREEN1_HEADLINES);
 
@@ -401,9 +406,9 @@ function obPopulateDynamic() {
   var pc1 = document.getElementById('obPreviewVenue');
   var pd1 = document.getElementById('obPreviewDeal');
   var pt1 = document.getElementById('obPreviewTag');
-  if (pc1) pc1.textContent = feat.name;
-  if (pd1) pd1.textContent = feat.deal + ' \u00B7 ' + feat.time;
-  if (pt1) pt1.textContent = feat.hood;
+  if (pc1) pc1.textContent = featPreview.name;
+  if (pd1) pd1.textContent = featPreview.deal + ' \u00B7 ' + featPreview.time;
+  if (pt1) pt1.textContent = featPreview.hood;
 
   // Map pin labels
   var pin1 = document.getElementById('obPin1Label');
@@ -599,11 +604,18 @@ function obRenderNeighborhoods() {
   if (!grid || grid.dataset.rendered) return;
   grid.dataset.rendered = '1';
 
-  // Shuffle neighborhoods and randomly assign "popular" badge to one
-  var shuffled = _obShuffle(obCity().neighborhoods);
-  var popIdx = Math.floor(Math.random() * Math.min(3, shuffled.length)); // top 3 get a chance
+  // Deterministic order + badge (Leo 2026-10-16 F6): sort by deals
+  // descending, badge pinned to the first (highest-deals) row, same order
+  // on every visit. Previously the rows were shuffled and the badge went
+  // to a random one of the first 3 shuffled rows — the config's `popular`
+  // flag was ignored and the badge routinely contradicted the deal count
+  // printed on its own row (e.g. badging a 5-deal hood while a 12-deal
+  // hood sat unbadged mid-list). The `popular` flag in OB_CITY_CONFIG is
+  // now vestigial; deals are the on-screen metric, so deals decide.
+  var ordered = obCity().neighborhoods.slice().sort(function (a, b) { return b.deals - a.deals; });
+  var popIdx = 0;
 
-  const total = shuffled.reduce((s, n) => s + n.deals, 0);
+  const total = ordered.reduce((s, n) => s + n.deals, 0);
 
   // Update screen 3 subtitle with total
   var h3 = obState._screen3Headline;
@@ -612,7 +624,7 @@ function obRenderNeighborhoods() {
   var banner = document.getElementById('obTotalDeals');
   if (banner) banner.textContent = total;
 
-  grid.innerHTML = shuffled.map((n, i) => `
+  grid.innerHTML = ordered.map((n, i) => `
     <button class="ob-neigh-btn${i === popIdx ? ' ob-neigh-btn--popular' : ''}"
             onclick="obSelectNeighborhood('${n.name}',${n.deals},this)">
       ${i === popIdx ? '<span class="ob-popular-badge">\uD83D\uDD25 Most popular tonight</span>' : ''}
