@@ -2,6 +2,7 @@ export const config = { runtime: 'edge' };
 
 import { slugify, canonicalHood, isHoodAlias } from './_lib/seo.js';
 import { botGate } from './_lib/botgate.js';
+import { serviceUnavailableResponse } from './_lib/fetch-all-rows.js';
 
 // Canonical host — www serves 200, the apex redirects. Keep canonical / og:url /
 // JSON-LD on www so Google indexes the served URL rather than the redirect.
@@ -55,12 +56,30 @@ function parseStartHour(hours) {
 
 /* ── Supabase fetch ──────────────────────────────── */
 
+// Fail loud (2026-10-17, SEO cliff fix): this used to return [] on any fetch
+// failure, so a Supabase flake rendered a real city page with an empty venue
+// list — HTTP 200 thin content, a soft-404 on the top impressions pages.
+// Now: bounded retries, then THROW; the handler answers a retryable 503.
+// An empty array from here therefore means the city genuinely has no
+// photo'd venues, and only that renders the 404 page below.
 async function fetchCityVenues(supabaseUrl, serviceKey, city) {
-  const res = await fetch(
-    `${supabaseUrl}/rest/v1/venues?active=eq.true&photo_url=not.is.null&city_slug=eq.${encodeURIComponent(city)}&select=name,neighborhood,address,deals,hours,days,cuisine,photo_url,google_rating,last_verified_at,url&order=name.asc`,
-    { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } }
-  );
-  return res.ok ? res.json() : [];
+  const url = `${supabaseUrl}/rest/v1/venues?active=eq.true&photo_url=not.is.null&city_slug=eq.${encodeURIComponent(city)}&select=name,neighborhood,address,deals,hours,days,cuisine,photo_url,google_rating,last_verified_at,url&order=name.asc`;
+  let lastErr = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt > 0) await new Promise(r => setTimeout(r, attempt === 1 ? 200 : 600));
+    try {
+      const res = await fetch(url, {
+        headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` }
+      });
+      if (!res.ok) { lastErr = new Error(`HTTP ${res.status}`); continue; }
+      const rows = await res.json();
+      if (!Array.isArray(rows)) { lastErr = new Error('response body was not a JSON array'); continue; }
+      return rows;
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  throw new Error(`city venues fetch failed for ${city} after 3 attempts` + (lastErr ? `: ${lastErr.message}` : ''));
 }
 
 function notFound() {
@@ -88,7 +107,15 @@ export default async function handler(req) {
   if (!city) return notFound();
 
   try {
-    const venues = await fetchCityVenues(supabaseUrl, serviceKey, city);
+    let venues;
+    try {
+      venues = await fetchCityVenues(supabaseUrl, serviceKey, city);
+    } catch (err) {
+      // Fetch failure is NOT an empty city — answer 503 (retryable) rather
+      // than rendering an empty page (soft-404) or a misleading 404.
+      console.error('[happy-hour] venue fetch failed:', err.message);
+      return serviceUnavailableResponse();
+    }
     if (!venues.length) return notFound();
 
     const cityNameStr = cityName(city);

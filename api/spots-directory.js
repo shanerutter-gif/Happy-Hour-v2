@@ -2,6 +2,7 @@ export const config = { runtime: 'edge' };
 
 import { canonicalVenueSlugs } from './_lib/seo.js';
 import { botGate } from './_lib/botgate.js';
+import { fetchAllRows, IncompleteFetchError, serviceUnavailableResponse } from './_lib/fetch-all-rows.js';
 
 // Canonical host — www serves 200, the apex redirects. Keep canonical / og:url /
 // JSON-LD on www so Google indexes the served URL rather than the redirect.
@@ -28,24 +29,12 @@ function teaser(deals) {
 
 /* ── Supabase fetch ──────────────────────────────── */
 
-// Fetch ALL rows, paging past PostgREST's 1,000-row cap via Range headers.
-// Without this, order=city_slug.asc exhausted the 1,000-row budget at
-// Austin→NY, so San Diego + Orange County (851 venues) were absent from /spots.
-async function fetchAllRows(url, headers) {
-  const out = [];
-  const pageSize = 1000;
-  for (let from = 0; ; from += pageSize) {
-    const res = await fetch(url, {
-      headers: { ...headers, Range: `${from}-${from + pageSize - 1}`, 'Range-Unit': 'items' },
-    });
-    if (!res.ok) break;
-    const rows = await res.json();
-    if (!Array.isArray(rows) || rows.length === 0) break;
-    out.push(...rows);
-    if (rows.length < pageSize) break;
-  }
-  return out;
-}
+// fetchAllRows lives in _lib/fetch-all-rows.js: it pages past PostgREST's
+// 1,000-row cap via Range headers, verifies completeness against the
+// count=exact total, and THROWS IncompleteFetchError on failure — a partial
+// result must never render as the full directory (without paging at all,
+// order exhausted the 1,000-row budget at Austin→NY, so San Diego + Orange
+// County (851 venues) were absent from /spots). The handler answers 503.
 
 async function fetchVenues(supabaseUrl, serviceKey) {
   // Mirror the sitemap: only venues with a real photo are indexable. Photoless
@@ -259,6 +248,12 @@ export default async function handler(req) {
       }
     });
   } catch (err) {
+    if (err instanceof IncompleteFetchError) {
+      // Venue list could not be assembled completely — 503 (retryable)
+      // instead of rendering a silently truncated directory.
+      console.error('[spots-directory] venue fetch incomplete:', err.message);
+      return serviceUnavailableResponse();
+    }
     return new Response('Internal server error', { status: 500 });
   }
 }

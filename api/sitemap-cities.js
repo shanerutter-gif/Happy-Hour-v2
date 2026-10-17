@@ -1,6 +1,7 @@
 export const config = { runtime: 'edge' };
 
 import { canonicalHood } from './_lib/seo.js';
+import { fetchAllRows, IncompleteFetchError, serviceUnavailableResponse } from './_lib/fetch-all-rows.js';
 
 // Sitemap for the crawlable directory + city/neighborhood happy-hour landing
 // pages. Canonical host is www (the apex redirects). See api/spots-directory.js
@@ -19,24 +20,12 @@ function urlEntry(loc, priority, changefreq, lastmod) {
   </url>`;
 }
 
-// Fetch ALL rows, paging past PostgREST's 1,000-row cap via Range headers.
-// Without this, neighborhoods on venues beyond row 1,000 were missing from the
-// city/neighborhood sitemap after the 7-city launch.
-async function fetchAllRows(url, headers) {
-  const out = [];
-  const pageSize = 1000;
-  for (let from = 0; ; from += pageSize) {
-    const res = await fetch(url, {
-      headers: { ...headers, Range: `${from}-${from + pageSize - 1}`, 'Range-Unit': 'items' },
-    });
-    if (!res.ok) break;
-    const rows = await res.json();
-    if (!Array.isArray(rows) || rows.length === 0) break;
-    out.push(...rows);
-    if (rows.length < pageSize) break;
-  }
-  return out;
-}
+// fetchAllRows lives in _lib/fetch-all-rows.js: it pages past PostgREST's
+// 1,000-row cap via Range headers (without this, neighborhoods on venues
+// beyond row 1,000 were missing from the city/neighborhood sitemap after
+// the 7-city launch), verifies completeness against the count=exact total,
+// and THROWS IncompleteFetchError on failure instead of silently emitting
+// a truncated sitemap. The handler answers 503.
 
 export default async function handler() {
   const supabaseUrl = process.env.SUPABASE_URL;
@@ -109,7 +98,11 @@ ${entries.join('\n')}
         'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400'
       }
     });
-  } catch {
+  } catch (err) {
+    if (err instanceof IncompleteFetchError) {
+      console.error('[sitemap-cities] venue fetch incomplete:', err.message);
+      return serviceUnavailableResponse();
+    }
     return new Response('Error generating sitemap', { status: 500 });
   }
 }

@@ -1,6 +1,7 @@
 export const config = { runtime: 'edge' };
 
 import { canonicalVenueSlugs } from './_lib/seo.js';
+import { fetchAllRows, IncompleteFetchError, serviceUnavailableResponse } from './_lib/fetch-all-rows.js';
 
 // Canonical host — must match the venue page <link rel="canonical"> (www, the
 // host that serves 200). The apex redirects, so apex sitemap URLs fail to fetch.
@@ -8,24 +9,12 @@ const SITE_URL = 'https://www.spotd.biz';
 
 // slugify lives in _lib/seo.js (used internally by canonicalVenueSlugs).
 
-// Fetch ALL rows, paging past PostgREST's 1,000-row default cap via Range
-// headers. Active photo'd venues exceed 1,000 since the 7-city launch, so an
-// un-paged fetch dropped ~900 URLs from this sitemap.
-async function fetchAllRows(url, headers) {
-  const out = [];
-  const pageSize = 1000;
-  for (let from = 0; ; from += pageSize) {
-    const res = await fetch(url, {
-      headers: { ...headers, Range: `${from}-${from + pageSize - 1}`, 'Range-Unit': 'items' },
-    });
-    if (!res.ok) break;
-    const rows = await res.json();
-    if (!Array.isArray(rows) || rows.length === 0) break;
-    out.push(...rows);
-    if (rows.length < pageSize) break;
-  }
-  return out;
-}
+// fetchAllRows lives in _lib/fetch-all-rows.js: it pages past PostgREST's
+// 1,000-row cap via Range headers (active photo'd venues exceed 1,000 since
+// the 7-city launch, so an un-paged fetch dropped ~900 URLs from this
+// sitemap), verifies completeness against the count=exact total, and THROWS
+// IncompleteFetchError on failure — a truncated sitemap must fail loud
+// (503) rather than silently omitting venues.
 
 export default async function handler() {
   const supabaseUrl = process.env.SUPABASE_URL;
@@ -84,7 +73,11 @@ ${urls.join('\n')}
         'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400'
       }
     });
-  } catch {
+  } catch (err) {
+    if (err instanceof IncompleteFetchError) {
+      console.error('[sitemap-venues] venue fetch incomplete:', err.message);
+      return serviceUnavailableResponse();
+    }
     return new Response('Error generating sitemap', { status: 500 });
   }
 }

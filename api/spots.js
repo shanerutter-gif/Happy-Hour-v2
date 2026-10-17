@@ -2,6 +2,7 @@ export const config = { runtime: 'edge' };
 
 import { slugify, canonicalVenueSlugs, canonicalHood, openingHoursSpec } from './_lib/seo.js';
 import { botGate } from './_lib/botgate.js';
+import { fetchAllRows, IncompleteFetchError, serviceUnavailableResponse } from './_lib/fetch-all-rows.js';
 // Canonical venue-hours parser, shared with the app (the one copy —
 // js/schedule.js; fixtures in tests/schedule-ssr.test.mjs).
 import schedule from '../js/schedule.js';
@@ -38,26 +39,14 @@ function formatDays(days) {
 
 /* ── Supabase fetch helpers ──────────────────────── */
 
-// Fetch ALL rows for a PostgREST query, paging past the 1,000-row default cap
-// via Range headers. Since the 7-city launch pushed active venues past 1,000, an
-// un-paged fetch silently dropped ~900 venues — so /spots/<slug> 404'd for them
-// and the sitemap emitted URLs that 404. Any fetch that can exceed 1,000 rows
-// MUST page like this.
-async function fetchAllRows(url, headers) {
-  const out = [];
-  const pageSize = 1000;
-  for (let from = 0; ; from += pageSize) {
-    const res = await fetch(url, {
-      headers: { ...headers, Range: `${from}-${from + pageSize - 1}`, 'Range-Unit': 'items' },
-    });
-    if (!res.ok) break;
-    const rows = await res.json();
-    if (!Array.isArray(rows) || rows.length === 0) break;
-    out.push(...rows);
-    if (rows.length < pageSize) break;
-  }
-  return out;
-}
+// fetchAllRows lives in _lib/fetch-all-rows.js (shared with the directory
+// and sitemap functions): it pages past the 1,000-row default cap via Range
+// headers, verifies the collected rows against the count=exact total, and
+// THROWS IncompleteFetchError instead of returning a partial index. Since
+// the 7-city launch pushed active venues past 1,000, an un-paged or
+// silently-truncated fetch drops ~900 venues — and resolving slugs against
+// a partial index 404s venues that exist. The handler turns the throw into
+// a retryable 503, never a 404.
 
 // Lightweight venue index: only the columns needed to match the slug from the
 // URL and build the "nearby" list. Previously this fetched the entire
@@ -657,7 +646,7 @@ export default async function handler(req) {
       // 404 page
       return new Response(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Spot Not Found — Spotd</title><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/css/style.css"><link rel="stylesheet" href="/css/blog.css"><link href="https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@400;700;800;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"></head><body style="background:var(--bg);display:flex;flex-direction:column;min-height:100vh"><nav class="blog-nav"><a href="/" class="nav-brand"><img src="/spotd_logo_v5.png" alt="Spotd" class="nav-logo-img" onerror="this.style.display='none'"></a><div class="blog-nav-links"><a href="/" class="blog-nav-cta">Open Spotd</a></div></nav><div style="flex:1;display:flex;align-items:center;justify-content:center;text-align:center;padding:40px"><div><div style="font-size:48px;margin-bottom:16px">🍹</div><h1 style="font-family:'Cabinet Grotesk',sans-serif;font-size:24px;color:var(--ink);margin-bottom:8px">Spot not found</h1><p style="color:var(--muted);margin-bottom:20px">This venue doesn't exist or has been removed.</p><a href="/" style="color:var(--coral);font-weight:600;text-decoration:none">Browse all spots on Spotd →</a></div></div></body></html>`, {
         status: 404,
-        headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=60' }
+        headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' }
       });
     }
 
@@ -679,6 +668,13 @@ export default async function handler(req) {
       }
     });
   } catch (err) {
+    if (err instanceof IncompleteFetchError) {
+      // Venue index could not be assembled completely — fail loud with a
+      // retryable 503 rather than resolving this slug against partial data
+      // (a partial index is what 404'd existing venues in Oct 2026).
+      console.error('[spots] venue index fetch incomplete:', err.message);
+      return serviceUnavailableResponse();
+    }
     return new Response('Internal server error', { status: 500 });
   }
 }
