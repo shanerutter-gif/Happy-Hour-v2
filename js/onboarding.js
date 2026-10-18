@@ -15,7 +15,12 @@ const obState = {
   selectedVibes: new Set(),
   selectedNeighborhood: null,
   selectedAttribution: null,  // e.g. 'instagram', 'tiktok', 'friend'
-  liveCount: 47,
+  // Deal total for the default city (San Diego), derived from
+  // OB_CITY_CONFIG by _obCityDealCount() on every render — never a
+  // hardcoded "live" number. The seed must equal the San Diego config
+  // sum so the static first paint matches (guarded by
+  // tests/onboarding-fabricated-numbers.test.mjs).
+  liveCount: 65,
 };
 
 const OB_ATTRIBUTION_KEY = 'spotd_pending_attribution';
@@ -261,6 +266,22 @@ function obCity() {
   return OB_CITY_CONFIG[obState.citySlug] || OB_CITY_CONFIG['san-diego'];
 }
 
+// The one honest "how much is on" number onboarding can state: the
+// selected city's happy-hour deal total from OB_CITY_CONFIG — the same
+// config counts the neighborhoods screen prints per row (the F6/F7
+// truthfulness standard). Painted identically on every .ob-live-num
+// surface so the number means the same thing on every screen.
+function _obCityDealCount() {
+  var c = obCity();
+  return (c.neighborhoods || []).reduce(function (a, n) { return a + (n.deals || 0); }, 0);
+}
+function _obPaintLiveCount() {
+  obState.liveCount = _obCityDealCount();
+  document.querySelectorAll('.ob-live-num').forEach(function (el) {
+    el.textContent = obState.liveCount;
+  });
+}
+
 const OB_VIBES = [
   { id: 'cocktails', emoji: '🍸', label: 'Craft cocktails' },
   { id: 'dive',      emoji: '🍺', label: 'Dive bars'       },
@@ -386,6 +407,9 @@ function obPopulateDynamic() {
   // Screen 2 (value preview): featured venue + map pins + headline, all
   // pulled from the currently selected city's config.
   var city = obCity();
+  // Refresh the deal count for this city before the Screen 1 headline
+  // below interpolates it (and repaint every .ob-live-num surface).
+  _obPaintLiveCount();
   var feat = _obPick(city.featured);
   // The preview card must not repeat the map-overlay venue (Leo 2026-10-16
   // F2): both slots were rendered from this one pick, so a single venue
@@ -400,7 +424,13 @@ function obPopulateDynamic() {
   var mapMeta = document.getElementById('obMapCardMeta');
   if (mapCard) mapCard.textContent = feat.name;
   if (mapDeal) mapDeal.textContent = feat.deal + ' \u00B7 ' + feat.time;
-  if (mapMeta) mapMeta.innerHTML = feat.hood + ' \u00B7 Ends in <span class="ob-timer">' + (Math.floor(Math.random()*3)+1) + 'h ' + (Math.floor(Math.random()*50)+10) + 'm</span>';
+  // Hood only -- no countdown. The previous render invented an
+  // countdown timer from Math.random() on every paint, printed
+  // directly under the venue's real deal window (Ravi 2026-10-18).
+  // The main app's real countdown badge (js/app.js fmtHHRemaining) is
+  // computed from real venue data; onboarding has no such data for
+  // its config venues, so it must not mimic the claim.
+  if (mapMeta) mapMeta.textContent = feat.hood;
 
   // Preview cards
   var pc1 = document.getElementById('obPreviewVenue');
@@ -550,20 +580,18 @@ function obUpdateProgress(screen) {
 }
 
 // ── LIVE COUNTER ───────────────────────────────────────
+// History: an anonymous interval once ticked for the whole session
+// after dismissal (lifecycle fix 2026-10-13 made it guarded + owned).
+// The guarded version still random-walked the displayed number ±2
+// every 4.5s from a hardcoded seed of 47 — and that invented number
+// was labelled "people out right now" on the welcome screen and
+// "deals are live right now" on Screen 1. Removed 2026-10-18 (Ravi):
+// the count is now the selected city's config deal total, painted
+// once per render by _obPaintLiveCount(). No timer, no invented
+// motion. _obStopLiveCounter() below stays as a harmless no-op for
+// the existing dismiss-path call sites.
 function obStartLiveCounter() {
-  // Guarded + owned: previously this interval was anonymous and never
-  // cleared, so it kept waking every 4.5s and rewriting hidden DOM nodes
-  // for the whole session after onboarding was dismissed (verified live
-  // 2026-10-13: counter still ticking 10s after guest-skip). On the iOS
-  // WKWebView that's a perpetual timer the app never asked for.
-  if (obState._liveTimer) return;
-  obState._liveTimer = setInterval(() => {
-    const delta = Math.floor(Math.random() * 5) - 2;
-    obState.liveCount = Math.max(32, Math.min(89, obState.liveCount + delta));
-    document.querySelectorAll('.ob-live-num').forEach(el => {
-      el.textContent = obState.liveCount;
-    });
-  }, 4500);
+  _obPaintLiveCount();
 }
 
 function _obStopLiveCounter() {
