@@ -355,7 +355,13 @@
       el.innerHTML = '<div class="empty-state" style="padding:24px"><div class="empty-icon">🤖</div><h3>No automations yet</h3><p>Create one to send behavior-triggered pushes automatically.</p></div>';
       return;
     }
-    el.innerHTML = automations.map(function (a) {
+    // AP2 armour: header row (metric + window named), status as a coloured
+    // chip on every row, and a distinct totals row — the count is "SENT —
+    // LIFETIME" everywhere it appears, never a bare number over "sent".
+    var totalSent = automations.reduce(function (sum, a) { return sum + (logCounts[a.id] || 0); }, 0);
+    el.innerHTML =
+      '<div class="pc-list-head"><span>Automation · Status</span><span>Sent — Lifetime</span></div>' +
+      automations.map(function (a) {
       var sentCount = logCounts[a.id] || 0;
       return '<div class="push-history-item" style="' + (a.enabled ? '' : 'opacity:.55') + '">' +
         '<div class="push-history-info">' +
@@ -366,13 +372,14 @@
           '<div class="push-history-meta" style="margin-top:2px">“' + esc(a.template_title) + '”</div>' +
         '</div>' +
         '<div style="text-align:right;flex-shrink:0;display:flex;align-items:center;gap:14px">' +
-          '<div><div class="push-history-stat">' + sentCount + '</div><div class="push-history-stat-label">sent</div></div>' +
+          '<div><div class="push-history-stat">' + sentCount + '</div><div class="push-history-stat-label">sent — lifetime</div></div>' +
           '<button class="pc-btn" data-pc-toggle="' + a.id + '" data-pc-enabled="' + (a.enabled ? '1' : '0') + '">' + (a.enabled ? 'Pause' : 'Enable') + '</button>' +
           '<button class="pc-btn" data-pc-edit="' + a.id + '">Edit</button>' +
           '<button class="pc-btn pc-btn-danger" data-pc-delete="' + a.id + '">Delete</button>' +
         '</div>' +
       '</div>';
-    }).join('');
+      }).join('') +
+      '<div class="pc-total-row"><span>Total — all automations</span><span>' + totalSent + ' sent — lifetime</span></div>';
     el.querySelectorAll('[data-pc-toggle]').forEach(function (b) {
       b.addEventListener('click', function () {
         toggleAutomation(b.getAttribute('data-pc-toggle'), b.getAttribute('data-pc-enabled') !== '1');
@@ -452,8 +459,15 @@
     // styles
     var style = document.createElement('style');
     style.textContent =
-      '.pc-badge{display:inline-block;font-size:10px;font-weight:600;letter-spacing:.5px;padding:2px 8px;border-radius:999px;background:var(--bg2,#f0e9df);color:var(--muted,#888);vertical-align:1px}' +
-      '.pc-badge-on{background:#e7f6ec;color:#27ae60}' +
+      '.pc-badge{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;padding:2px 8px;border-radius:999px;background:var(--bg2,#f0e9df);color:var(--muted,#888);border:1px solid var(--border,#e8e0d8);vertical-align:1px}' +
+      '.pc-badge-on{background:#e7f6ec;color:#27ae60;border-color:#27ae60}' +
+      /* AP2 armour (Leo 2026-10-19): sticky list header naming the metric +
+         window, zebra rows, and a totals row that cannot be confused with a
+         data row — the bare-count-over-"sent" layout is what produced the
+         22-vs-45 automation misread. */
+      '.pc-list-head{position:sticky;top:56px;z-index:5;display:flex;justify-content:space-between;gap:12px;background:var(--bg2,#f0e9df);border:1px solid var(--border,#e8e0d8);border-radius:8px;padding:7px 12px;margin-bottom:8px;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted,#888)}' +
+      '.pc-total-row{display:flex;justify-content:space-between;align-items:center;gap:12px;background:rgba(255,107,74,.10);border:1.5px solid var(--coral,#FF6B4A);border-radius:10px;padding:10px 14px;font-size:11px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:var(--text,#333)}' +
+      '#pc-automations-list .push-history-item:nth-child(even){background:var(--bg2,#f0e9df)}' +
       '.pc-btn{padding:7px 14px;border-radius:8px;border:1px solid var(--border,#e8e0d8);background:var(--card,#fff);color:var(--text,#333);font-size:12px;font-weight:600;cursor:pointer}' +
       '.pc-btn:hover{border-color:var(--coral,#FF6B4A);color:var(--coral,#FF6B4A)}' +
       '.pc-btn-danger:hover{border-color:#c0392b;color:#c0392b}' +

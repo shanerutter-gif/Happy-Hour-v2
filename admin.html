@@ -613,6 +613,37 @@
       text-transform:uppercase; white-space:nowrap; vertical-align:middle;
     }
 
+    /* AP4 (Leo 2026-10-19): lapsed-slot flagging — a draft whose slot time has
+       passed must be impossible to mistake for a healthy draft. */
+    .cc-lapsed-chip {
+      display:inline-flex; align-items:center; background:var(--coral); color:#fff;
+      font-size:9px; font-weight:800; letter-spacing:.5px; padding:2px 7px;
+      border-radius:999px; text-transform:uppercase; white-space:nowrap; vertical-align:middle;
+    }
+    .cc-post-card.lapsed { white-space:normal; border:1.5px solid var(--coral); background:rgba(255,107,74,0.14); color:var(--text); }
+    .cc-post-card.lapsed .cc-lapsed-chip { display:flex; margin-bottom:2px; }
+    .cc-lapsed-group { grid-column:1 / -1; background:rgba(255,107,74,0.08); border:1.5px dashed var(--coral); border-radius:10px; padding:10px 12px; }
+    .cc-lapsed-group-title { font-size:11px; font-weight:800; letter-spacing:.8px; text-transform:uppercase; color:var(--coral); margin-bottom:8px; font-family:'DM Sans',sans-serif; }
+    .cc-lapsed-group .cc-post-card { margin-bottom:4px; }
+    .cc-list-group-head { font-size:11px; font-weight:800; letter-spacing:1px; text-transform:uppercase; color:var(--coral); margin:14px 0 2px; font-family:'DM Sans',sans-serif; }
+    .cc-list-item.lapsed { border:1.5px solid var(--coral); }
+
+    /* AP2 (Leo 2026-10-19): table armour — headers carry the metric + window,
+       status reads as a chip, totals rows are visually unmistakable, and zebra
+       separation survives a screenshot crop, so a value can no longer be
+       mis-bound to the label on the row above it. */
+    .armour-head { position:sticky; top:56px; z-index:6; display:flex; justify-content:space-between; align-items:center; gap:12px;
+      background:var(--bg2); border:1px solid var(--border); border-radius:8px; padding:7px 12px; margin-bottom:8px;
+      font-family:'DM Sans',sans-serif; font-size:10px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:var(--muted); }
+    .armour-head.static { position:static; }
+    .armour-total { display:flex; justify-content:space-between; align-items:center; gap:12px;
+      background:rgba(255,107,74,0.10); border:1.5px solid var(--coral); border-radius:10px; padding:10px 14px; margin:8px 12px 12px;
+      font-family:'DM Sans',sans-serif; font-size:11px; font-weight:800; letter-spacing:.8px; text-transform:uppercase; color:var(--text); }
+    .armour-total .armour-total-val { font-family:'Cabinet Grotesk',sans-serif; font-size:16px; font-weight:900; color:var(--coral); letter-spacing:0; text-transform:none; }
+    #dash-trending .dash-row:nth-of-type(even) { background:rgba(42,31,20,0.04); }
+    #top-venues-list .top-venue-row:nth-of-type(even) { background:var(--bg2); }
+    tr.armour-total-row td { background:rgba(255,107,74,0.10); border-top:2px solid var(--coral); font-weight:800; text-transform:uppercase; font-size:11px; letter-spacing:.6px; }
+
     /* Mobile agenda view — replaces the 7-column grid on phones.
        Same container (#cc-grid) gets .cc-agenda instead of .cc-grid. */
     .cc-agenda { display:flex; flex-direction:column; gap:10px; }
@@ -1589,7 +1620,7 @@
           <!-- Top Venues (7d) -->
           <div class="dash-card">
             <div class="dash-card-header">
-              <span class="dash-card-title">Trending Venues (7d)</span>
+              <span class="dash-card-title">Trending Venues — Check-ins (7d)</span>
               <button class="dash-card-link" onclick="showPage('venues-top')">View All →</button>
             </div>
             <div class="dash-card-body" id="dash-trending"></div>
@@ -2625,6 +2656,7 @@ in San Diego</textarea>
           <div class="cc-stat-card"><div class="cc-stat-num" id="cc-stat-draft">0</div><div class="cc-stat-label">Drafts</div></div>
           <div class="cc-stat-card"><div class="cc-stat-num" id="cc-stat-scheduled" style="color:#3B82F6">0</div><div class="cc-stat-label">Scheduled</div></div>
           <div class="cc-stat-card"><div class="cc-stat-num" id="cc-stat-published" style="color:#22C55E">0</div><div class="cc-stat-label">Published</div></div>
+          <div class="cc-stat-card"><div class="cc-stat-num" id="cc-stat-lapsed" style="color:var(--coral)">0</div><div class="cc-stat-label">Lapsed</div></div>
           <div class="cc-stat-card"><div class="cc-stat-num" id="cc-stat-month" style="color:var(--coral)">0</div><div class="cc-stat-label">This Month</div></div>
         </div>
 
@@ -3046,6 +3078,40 @@ in San Diego</textarea>
     }
   };
 
+  // AP1 (Leo 2026-10-19): the ONE venue-count source. Every surface that
+  // prints a venue count (Dashboard KPI, All Venues, City Breakdown) reads
+  // the DB active=true count through this helper — an exact PostgREST count
+  // (Prefer: count=exact, no rows transferred), so the 1,000-row response
+  // cap can never again masquerade as a count. Returns null on failure so
+  // callers render "—" instead of a wrong number.
+  async function sbCount(table, filters = '') {
+    try {
+      const r = await authFetch(`${SUPABASE_URL}/rest/v1/${table}?select=id&${filters}&limit=0`, {
+        headers: { ...svcHeaders(), 'Prefer': 'count=exact' }
+      });
+      if (!r.ok) return null;
+      const cr = r.headers.get('content-range') || '';
+      const total = parseInt((cr.split('/')[1] || ''), 10);
+      return Number.isFinite(total) ? total : null;
+    } catch (e) { return null; }
+  }
+  const activeVenueCount = () => sbCount('venues', 'active=eq.true');
+
+  // Paginated fetch of ALL rows for a query — PostgREST caps a single
+  // response at 1,000 rows, so callers that aggregate (City Breakdown)
+  // must page or their sums silently describe only the first 1,000 rows.
+  async function sbFetchAll(table, query, pageSize = 1000) {
+    const rows = [];
+    for (let offset = 0; ; offset += pageSize) {
+      const r = await authFetch(`${SUPABASE_URL}/rest/v1/${table}?${query}&limit=${pageSize}&offset=${offset}`, { headers: svcHeaders() });
+      const batch = r.ok ? await r.json() : [];
+      if (!Array.isArray(batch) || !batch.length) break;
+      rows.push(...batch);
+      if (batch.length < pageSize) break;
+    }
+    return rows;
+  }
+
   // ── AUTH ─────────────────────────────────────────────
   const LS_KEY = 'spotd-admin-session';
 
@@ -3382,6 +3448,7 @@ in San Diego</textarea>
 
   // ── VENUES PAGE ──────────────────────────────────────
   let allVenues = [];
+  let _activeVenueCount = null; // AP1: shared DB active=true count (sbCount)
   let editingVenue = null;
   let editDeals = [];
 
@@ -3402,6 +3469,9 @@ in San Diego</textarea>
       if (batch.length < PAGE) break;
       offset += PAGE;
     }
+    // AP1: read the same DB active=true count the Dashboard KPI uses, so
+    // this page quotes the identical number.
+    _activeVenueCount = await activeVenueCount();
     renderVenueList();
   }
 
@@ -3426,7 +3496,8 @@ in San Diego</textarea>
     });
 
     const countEl = document.getElementById('venues-list-count');
-    if (countEl) countEl.textContent = `${list.length} of ${allVenues.length} venues`;
+    if (countEl) countEl.textContent = `${list.length} of ${allVenues.length} venues` +
+      (_activeVenueCount != null ? ` · ${_activeVenueCount.toLocaleString()} active (DB active=true — same count as Dashboard + City Breakdown)` : '');
 
     const el = document.getElementById('venues-list');
     if (!el) return;
@@ -4119,30 +4190,49 @@ in San Diego</textarea>
   function renderTopVenues() {
     const sorted = [..._topVenueData].sort((a,b) => b[_topVenueTab] - a[_topVenueTab]).slice(0,25);
     const statLabel = { checkins:'check-ins', rating:'avg rating', saves:'saves' };
+    // AP2 armour: the header names the metric + window, status is a chip
+    // (never loose text), and a distinct totals row sums the ROWS SHOWN —
+    // labelled as such, so it can't be mistaken for a platform total.
+    const metricHead = { checkins:'Check-ins — all time', rating:'Avg rating — all time', saves:'Saves — all time' };
     const el = document.getElementById('top-venues-list');
     if (!sorted.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">🏜️</div><h3>No data yet</h3></div>'; return; }
-    el.innerHTML = sorted.map((v,i) => {
-      const rankClass = i===0?'gold':i===1?'silver':i===2?'bronze':'';
-      const val = _topVenueTab === 'rating' ? (v.rating ? `${v.rating}★` : '—') : v[_topVenueTab];
-      return `<div class="top-venue-row">
-        <div class="top-venue-rank ${rankClass}">${i+1}</div>
-        <div class="top-venue-info">
-          <div class="top-venue-name">${escHtml(v.name)}</div>
-          <div class="top-venue-meta">${[v.city_slug, v.neighborhood].filter(Boolean).join(' · ')} · ${v.active?'<span style="color:var(--success)">Active</span>':'<span style="color:var(--muted)">Inactive</span>'}</div>
-        </div>
-        <div>
-          <div class="top-venue-stat">${val}</div>
-          <div class="top-venue-stat-label">${statLabel[_topVenueTab]}</div>
-        </div>
-      </div>`;
-    }).join('');
+    const totalsFor = {
+      checkins: { label:'Check-ins — rows shown', val: sorted.reduce((a, v) => a + (v.checkins || 0), 0) },
+      saves:    { label:'Saves — rows shown',     val: sorted.reduce((a, v) => a + (v.saves || 0), 0) },
+      rating:   { label:'Reviews — rows shown',   val: sorted.reduce((a, v) => a + (v.reviews || 0), 0) },
+    };
+    const tot = totalsFor[_topVenueTab];
+    el.innerHTML =
+      `<div class="armour-head"><span>Venue · Status</span><span>${metricHead[_topVenueTab]}</span></div>` +
+      sorted.map((v,i) => {
+        const rankClass = i===0?'gold':i===1?'silver':i===2?'bronze':'';
+        const val = _topVenueTab === 'rating' ? (v.rating ? `${v.rating}★` : '—') : v[_topVenueTab];
+        return `<div class="top-venue-row">
+          <div class="top-venue-rank ${rankClass}">${i+1}</div>
+          <div class="top-venue-info">
+            <div class="top-venue-name">${escHtml(v.name)}</div>
+            <div class="top-venue-meta">${[v.city_slug, v.neighborhood].filter(Boolean).join(' · ')} · <span class="venue-status-badge ${v.active ? 'active' : 'inactive'}">${v.active ? 'Active' : 'Inactive'}</span></div>
+          </div>
+          <div>
+            <div class="top-venue-stat">${val}</div>
+            <div class="top-venue-stat-label">${statLabel[_topVenueTab]}</div>
+          </div>
+        </div>`;
+      }).join('') +
+      `<div class="armour-total" style="margin:4px 0 0"><span>Total — top ${sorted.length} shown</span><span class="armour-total-val">${tot.val.toLocaleString()} · ${tot.label.split(' — ')[0].toLowerCase()}</span></div>`;
   }
 
   // ── CITY BREAKDOWN ────────────────────────────────────
   async function loadCities() {
     document.getElementById('cities-tbody').innerHTML = '<tr><td colspan="6" class="table-empty">Loading…</td></tr>';
     const [venues, checkins, reviews, profiles] = await Promise.all([
-      sb.get('venues', 'select=id,city_slug,active&limit=2000'),
+      // AP1: paginate ALL venue rows. The old single fetch (limit=2000) was
+      // silently capped at 1,000 rows, so every per-city count and sum on
+      // this page described only the first 1,000 venues — its "totals"
+      // summed to exactly 1,000 and its actives to 984, contradicting both
+      // the Dashboard and the DB. Summed actives below now equal the same
+      // DB active=true count the Dashboard KPI prints.
+      sbFetchAll('venues', 'select=id,city_slug,active&order=id.asc'),
       sb.get('check_ins', 'select=city_slug&limit=20000'),
       sb.get('reviews', 'select=venue_id,rating&limit=20000'),
       sb.get('profiles', 'select=id,created_at&limit=2000'),
@@ -4201,7 +4291,20 @@ in San Diego</textarea>
         <td>—</td>
       </tr>`;
     }).join('');
-    document.getElementById('cities-tbody').innerHTML = rows || '<tr><td colspan="6" class="table-empty">No data</td></tr>';
+    // AP1/AP2: a distinct totals row so a reader can reconcile this table
+    // against the Dashboard at a glance — the active total here is the same
+    // DB active=true count (venues are fully paginated above, never capped).
+    const sum = obj => Object.values(obj).reduce((a, b) => a + b, 0);
+    const totalAvg = sum(ratingCnt) ? (sum(ratingByCity) / sum(ratingCnt)).toFixed(1) + '★' : '—';
+    const totalsRow = rows ? `<tr class="armour-total-row">
+        <td>Total — all cities</td>
+        <td>${sum(venuesByCityMap).toLocaleString()} (${sum(activeByCity).toLocaleString()} active)</td>
+        <td>${sum(checkinsByCity).toLocaleString()}</td>
+        <td>${sum(reviewsByCity).toLocaleString()}</td>
+        <td>${totalAvg}</td>
+        <td>—</td>
+      </tr>` : '';
+    document.getElementById('cities-tbody').innerHTML = (rows + totalsRow) || '<tr><td colspan="6" class="table-empty">No data</td></tr>';
   }
 
   // ── CHURNED USERS ─────────────────────────────────────
@@ -6102,6 +6205,37 @@ in San Diego</textarea>
       : '';
   }
 
+  // AP4 (Leo 2026-10-19): a post is LAPSED when it is still a draft and its
+  // scheduled slot (scheduled_date + scheduled_time, local) is in the past.
+  // Drafts without a date are never lapsed — they have no slot to miss.
+  function ccSlotDate(p) {
+    if (!p || !p.scheduled_date) return null;
+    const t = String(p.scheduled_time || '12:00').slice(0, 5);
+    const d = new Date(String(p.scheduled_date).slice(0, 10) + 'T' + t + ':00');
+    return isNaN(d.getTime()) ? null : d;
+  }
+  function ccIsLapsed(p) {
+    if (!p || (p.status || 'draft') !== 'draft') return false;
+    const d = ccSlotDate(p);
+    return !!d && d.getTime() < Date.now();
+  }
+  function ccLapsedChipHtml() {
+    return '<span class="cc-lapsed-chip">Slot passed — still Draft</span>';
+  }
+  // Shared month-grid card markup (day cells + the Lapsed group render the
+  // same card, so a lapsed post looks identical in both places).
+  function ccGridCardHtml(p) {
+    const platDot = (p.platforms || [])[0];
+    const dotClass = platDot ? CC_PLATFORM_DOTS[platDot] || '' : '';
+    const label = (p.title || p.caption || 'Untitled').slice(0, 30);
+    const lapsed = ccIsLapsed(p);
+    return `<div class="cc-post-card ${p.status || 'draft'}${lapsed ? ' lapsed' : ''}" onclick="event.stopPropagation();ccOpenCompose('${p.id}')">` +
+      (dotClass ? `<span class="cc-post-dot ${dotClass}"></span>` : '') +
+      ccApprovedBadgeHtml(p) +
+      (lapsed ? ccLapsedChipHtml() : '') +
+      `${escHtml(label)}</div>`;
+  }
+
   function ccSyncApproveBtn() {
     const btn = document.getElementById('cc-approve-btn');
     if (!btn) return;
@@ -6264,16 +6398,19 @@ in San Diego</textarea>
   function ccRenderStats() {
     const now = new Date();
     const thisMonth = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
-    let drafts = 0, scheduled = 0, published = 0, month = 0;
+    let drafts = 0, scheduled = 0, published = 0, month = 0, lapsed = 0;
     _ccPosts.forEach(p => {
       if (p.status === 'draft') drafts++;
       else if (p.status === 'scheduled') scheduled++;
       else if (p.status === 'published') published++;
+      if (ccIsLapsed(p)) lapsed++;
       if (p.scheduled_date && p.scheduled_date.startsWith(thisMonth)) month++;
     });
     document.getElementById('cc-stat-draft').textContent = drafts;
     document.getElementById('cc-stat-scheduled').textContent = scheduled;
     document.getElementById('cc-stat-published').textContent = published;
+    const lapsedEl = document.getElementById('cc-stat-lapsed');
+    if (lapsedEl) lapsedEl.textContent = lapsed;
     document.getElementById('cc-stat-month').textContent = month;
   }
 
@@ -6299,6 +6436,19 @@ in San Diego</textarea>
       postsByDate[d].push(p);
     });
 
+    // AP4: lapsed drafts for the viewed month group at the TOP of the month
+    // view — approval latency should be visible before the next slot dies,
+    // not discovered after. (Each also keeps its chipped card in its day
+    // cell below.)
+    const monthPrefix = _ccYear + '-' + String(_ccMonth + 1).padStart(2, '0');
+    const lapsedInMonth = filtered
+      .filter(p => ccIsLapsed(p) && String(p.scheduled_date || '').startsWith(monthPrefix))
+      .sort((a, b) => String(a.scheduled_date).localeCompare(String(b.scheduled_date)));
+    if (lapsedInMonth.length) {
+      html += `<div class="cc-lapsed-group"><div class="cc-lapsed-group-title">⚠ Lapsed — slot passed, still Draft (${lapsedInMonth.length})</div>` +
+        lapsedInMonth.map(ccGridCardHtml).join('') + `</div>`;
+    }
+
     // Previous month padding
     for (let i = firstDay - 1; i >= 0; i--) {
       const day = daysInPrev - i;
@@ -6310,15 +6460,7 @@ in San Diego</textarea>
       const dateStr = _ccYear + '-' + String(_ccMonth+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
       const isToday = dateStr === todayStr;
       const dayPosts = postsByDate[dateStr] || [];
-      const postsHtml = dayPosts.slice(0, 4).map(p => {
-        const platDot = (p.platforms || [])[0];
-        const dotClass = platDot ? CC_PLATFORM_DOTS[platDot] || '' : '';
-        const label = (p.title || p.caption || 'Untitled').slice(0, 30);
-        return `<div class="cc-post-card ${p.status || 'draft'}" onclick="event.stopPropagation();ccOpenCompose('${p.id}')">` +
-          (dotClass ? `<span class="cc-post-dot ${dotClass}"></span>` : '') +
-          ccApprovedBadgeHtml(p) +
-          `${escHtml(label)}</div>`;
-      }).join('');
+      const postsHtml = dayPosts.slice(0, 4).map(ccGridCardHtml).join('');
       const moreHtml = dayPosts.length > 4 ? `<div style="font-size:10px;color:var(--muted);text-align:center;margin-top:2px">+${dayPosts.length - 4} more</div>` : '';
       html += `<div class="cc-day${isToday ? ' today' : ''}" onclick="ccOpenCompose(null,'${dateStr}')">
         <div class="cc-day-num">${d}</div>
@@ -6382,6 +6524,7 @@ in San Diego</textarea>
             `<div class="cc-agenda-post-meta">${platforms}${time ? `<span>${escHtml(time)}</span>` : ''}${tagsHtml}</div>` +
           `</div>` +
           ccApprovedBadgeHtml(p) +
+          (ccIsLapsed(p) ? ccLapsedChipHtml() : '') +
           `<div class="cc-list-status ${p.status || 'draft'}">${p.status || 'draft'}</div>` +
         `</div>`;
       }).join('');
@@ -6418,7 +6561,7 @@ in San Diego</textarea>
       return;
     }
 
-    list.innerHTML = sorted.map(p => {
+    const itemHtml = p => {
       const d = p.scheduled_date ? new Date(p.scheduled_date + 'T12:00:00') : new Date();
       const day = d.getDate();
       const mon = CC_MONTHS[d.getMonth()]?.slice(0, 3) || '';
@@ -6429,7 +6572,8 @@ in San Diego</textarea>
                 ? `<img class="cc-list-thumb" style="cursor:zoom-in" title="Tap to preview" onclick="event.stopPropagation();ccOpenLightboxForPost('${p.id}')" src="${escHtml(p.media_urls[0])}" alt="">`
         : '';
       const tagsHtml = (p.tags || []).map(t => `<span class="cc-tag" style="padding:2px 6px;font-size:9px">${escHtml(t)}</span>`).join('');
-      return `<div class="cc-list-item" onclick="ccOpenCompose('${p.id}')">
+      const lapsed = ccIsLapsed(p);
+      return `<div class="cc-list-item${lapsed ? ' lapsed' : ''}" onclick="ccOpenCompose('${p.id}')">
         <div class="cc-list-date">
           <div class="cc-list-date-day">${day}</div>
           <div class="cc-list-date-mon">${mon}</div>
@@ -6440,9 +6584,19 @@ in San Diego</textarea>
           <div class="cc-list-meta">${platforms} ${time ? '· ' + time : ''} ${tagsHtml}</div>
         </div>
         ${ccApprovedBadgeHtml(p)}
+        ${lapsed ? ccLapsedChipHtml() : ''}
         <div class="cc-list-status ${p.status || 'draft'}">${(p.status || 'draft')}</div>
       </div>`;
-    }).join('');
+    };
+
+    // AP4: lapsed drafts sort into their own group at the top of the list —
+    // ahead of every healthy draft, regardless of date order.
+    const lapsed = sorted.filter(ccIsLapsed);
+    const rest = sorted.filter(p => !ccIsLapsed(p));
+    list.innerHTML =
+      (lapsed.length ? `<div class="cc-list-group-head">⚠ Lapsed — slot passed, still Draft (${lapsed.length})</div>` + lapsed.map(itemHtml).join('') : '') +
+      (lapsed.length && rest.length ? `<div class="cc-list-group-head" style="color:var(--muted)">All other posts</div>` : '') +
+      rest.map(itemHtml).join('');
   }
 
   // ── COMPOSE MODAL ──
@@ -7736,8 +7890,11 @@ ${sectionsMjml}
     const nextWeek = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
 
     try {
-      const [venues, users, checkins30, pendingReqs, feedback, socialPosts, boardTasks, recentCheckins] = await Promise.all([
-        authFetch(`${SUPABASE_URL}/rest/v1/venues?select=id,name,active&active=eq.true&limit=10000`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
+      const [venueCount, users, checkins30, pendingReqs, feedback, socialPosts, boardTasks, recentCheckins] = await Promise.all([
+        // AP1: exact DB active=true count via the shared helper — the old
+        // row fetch was silently capped at 1,000 rows, which is where the
+        // dashboard's "1,000 ACTIVE VENUES" came from.
+        activeVenueCount(),
         authFetch(`${SUPABASE_URL}/rest/v1/profiles?select=id,display_name,username,created_at&order=created_at.desc&limit=500`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
         authFetch(`${SUPABASE_URL}/rest/v1/check_ins?select=id&created_at=gte.${thirtyDaysAgo}`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
         authFetch(`${SUPABASE_URL}/rest/v1/venue_requests?select=id,venue_name,neighborhood,city_slug,created_at,user_id&status=eq.pending&order=created_at.desc&limit=5`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
@@ -7748,7 +7905,7 @@ ${sectionsMjml}
       ]);
 
       // ── KPIs ──
-      document.getElementById('dk-venues').textContent = venues.length.toLocaleString();
+      document.getElementById('dk-venues').textContent = venueCount != null ? venueCount.toLocaleString() : '—';
       document.getElementById('dk-users').textContent = users.length.toLocaleString();
       document.getElementById('dk-checkins').textContent = checkins30.length.toLocaleString();
       document.getElementById('dk-requests').textContent = pendingReqs.length;
@@ -7876,7 +8033,11 @@ ${sectionsMjml}
             if (tRes.ok) (await tRes.json()).forEach(v => { trendLookup[v.id] = v.name; });
           } catch (e) { /* fall through to the Unknown fallback below */ }
         }
-        trendEl.innerHTML = sorted.map(([vid, cnt], i) => {
+        // AP2 armour: a header row naming the metric + window, then the
+        // ranked rows, then a distinct totals row (ALL venues, same 7d
+        // window — recentCheckins is the full window fetch) so the top-5
+        // numbers can never be misread as the total, or vice versa.
+        const trendRows = sorted.map(([vid, cnt], i) => {
           const name = (!vid || vid === 'null') ? 'No venue tagged' : (trendLookup[vid] || 'Unknown');
           return `<div class="dash-row">
             <div class="dash-row-main">
@@ -7888,6 +8049,10 @@ ${sectionsMjml}
             <span class="dash-row-time">${cnt} check-in${cnt !== 1 ? 's' : ''}</span>
           </div>`;
         }).join('');
+        trendEl.innerHTML =
+          `<div class="armour-head static" style="margin:10px 12px 4px"><span>Venue</span><span>Check-ins — 7d</span></div>` +
+          trendRows +
+          `<div class="armour-total"><span>Total — all venues</span><span class="armour-total-val">${recentCheckins.length} check-ins · 7d</span></div>`;
       } else {
         trendEl.innerHTML = '<div class="dash-empty">No recent check-ins</div>';
       }

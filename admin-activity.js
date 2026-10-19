@@ -391,6 +391,10 @@
     const perUser     = uniqUsers ? (totalEvents / uniqUsers).toFixed(1) : '0';
 
     const maxEvt = data.topEvents.reduce((m, r) => Math.max(m, +r.events || 0), 0);
+    // AP2: the table header names the metric + the selected window, and the
+    // totals row sums exactly the rows shown (labelled as such).
+    const rangeLabel = { today: 'Today', '7d': 'Last 7 days', '30d': 'Last 30 days', '90d': 'Last 90 days', custom: 'Selected range' }[state.preset] || 'Selected range';
+    const shownUserEvents = data.activeUsers.reduce((a, u) => a + (+u.events || 0), 0);
 
     wrap.innerHTML = `
       ${controlsBarHTML()}
@@ -455,11 +459,11 @@
           <div style="font-size:12px;color:var(--muted);margin-top:2px">In the selected range — click a row to see their full timeline</div>
         </div>
         ${data.activeUsers.length === 0 ? `<div style="padding:24px;text-align:center;color:var(--muted)">No signed-in activity in this range.</div>` : `
-        <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:14px">
-          <thead><tr style="background:var(--bg2);text-align:left">
+        <div class="ae-table-wrap"><table class="ae-table" style="font-size:14px">
+          <thead><tr style="text-align:left">
             <th style="padding:10px 12px;font-size:11px;text-transform:uppercase;letter-spacing:.5px">User</th>
             <th style="padding:10px 12px;font-size:11px;text-transform:uppercase;letter-spacing:.5px">Email</th>
-            <th style="padding:10px 12px;font-size:11px;text-transform:uppercase;letter-spacing:.5px;text-align:right">Events</th>
+            <th style="padding:10px 12px;font-size:11px;text-transform:uppercase;letter-spacing:.5px;text-align:right">Events — ${esc(rangeLabel)}</th>
             <th style="padding:10px 12px;font-size:11px;text-transform:uppercase;letter-spacing:.5px">Last seen</th>
           </tr></thead>
           <tbody>
@@ -471,6 +475,11 @@
                 <td style="padding:10px 12px;color:var(--muted);font-size:13px;white-space:nowrap">${esc(relTime(u.last_event))}</td>
               </tr>`).join('')}
           </tbody>
+          <tfoot><tr class="ae-total-row">
+            <td colspan="2" style="padding:10px 12px">Total — ${data.activeUsers.length} users shown</td>
+            <td style="padding:10px 12px;text-align:right;font-family:'DM Mono',monospace">${fmtNum(shownUserEvents)}</td>
+            <td style="padding:10px 12px"></td>
+          </tr></tfoot>
         </table></div>`}
       </div>
 
@@ -748,12 +757,12 @@
       return;
     }
     body.innerHTML = `
-      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">
-        <thead><tr style="background:var(--bg2);text-align:left">
+      <div class="ae-table-wrap"><table class="ae-table" style="font-size:13px">
+        <thead><tr style="text-align:left">
           <th style="padding:9px 12px;font-size:11px;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap">When</th>
           <th style="padding:9px 12px;font-size:11px;text-transform:uppercase;letter-spacing:.5px">Source</th>
           <th style="padding:9px 12px;font-size:11px;text-transform:uppercase;letter-spacing:.5px">Entry page</th>
-          <th style="padding:9px 12px;font-size:11px;text-transform:uppercase;letter-spacing:.5px;text-align:right">Pages</th>
+          <th style="padding:9px 12px;font-size:11px;text-transform:uppercase;letter-spacing:.5px;text-align:right">Pageviews</th>
           <th style="padding:9px 12px;font-size:11px;text-transform:uppercase;letter-spacing:.5px;text-align:right">Time</th>
           <th style="padding:9px 12px;font-size:11px;text-transform:uppercase;letter-spacing:.5px">Visitor</th>
           <th style="padding:9px 12px;font-size:11px;text-transform:uppercase;letter-spacing:.5px"></th>
@@ -886,6 +895,21 @@
 
   // ── DOM injection ──────────────────────────────────
   function inject() {
+    // AP2 armour styles (Leo 2026-10-19): sticky table headers that name the
+    // metric + window, zebra rows, and a totals row that reads as a total.
+    // The table wraps scroll internally so the sticky header stays visible.
+    if (!document.getElementById('ae-armour-css')) {
+      const st = document.createElement('style');
+      st.id = 'ae-armour-css';
+      st.textContent = `
+        .ae-table-wrap{max-height:560px;overflow:auto}
+        .ae-table{width:100%;border-collapse:collapse}
+        .ae-table thead th{position:sticky;top:0;z-index:2;background:var(--bg2)}
+        .ae-table tbody tr:nth-child(even){background:rgba(42,31,20,.04)}
+        .ae-table tr.ae-total-row td{background:rgba(255,107,74,.10);border-top:2px solid var(--coral);font-weight:800;text-transform:uppercase;font-size:11px;letter-spacing:.6px}
+      `;
+      document.head.appendChild(st);
+    }
     // Page only — navigation lives in the Users hub tab bar.
     const main = document.querySelector('.main-content');
     if (main && !document.getElementById('page-activity')) {

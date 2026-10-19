@@ -601,7 +601,7 @@
           <div>🤖 Bot-skew: ${hBot.note ? esc(hBot.note) : '— checking…'} ${health.bot.status === 'suspect' ? '— traffic today is bot-dominated, treat KPIs with caution.' : ''}</div>
           <div>🧑‍💻 Founder traffic is excluded at ingest (spotd staff + shanerutter@gmail.com), so these numbers are public traffic only.</div>
           <div>📸 Check-in counts below exclude photo check-ins.</div>
-          <div>⚠️ Venue counts are unreconciled (last audited 2026-09-29: dashboard showed 1,000 · DB active=true is 3,732 · venue list showed 4,473) — tracked separately, not a traffic-data issue.</div>
+          <div>✅ Venue counts reconciled 2026-10-19 (AP1): Dashboard, All Venues and City Breakdown all read the same DB active=true count — the old dashboard figure was the 1,000-row response cap, not a venue count.</div>
         </div>
       </div>
 
