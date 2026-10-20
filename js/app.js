@@ -7504,8 +7504,18 @@ function _rollbackCheckIn(venueId, btn) {
   syncGoingTonightUI(venueId, btn);
   showToast("Couldn't save your check-in — please try again");
 }
+// Per-venue in-flight guard for doGoingTonight: the handler is async and
+// the button is never disabled, so a double-tap (or a card tap + sheet tap
+// for the same venue) re-enters while the first write is still awaited. The
+// second tap reads the OPTIMISTIC state and runs the opposite branch —
+// add, then immediate remove — ending unchecked-in despite one intent, with
+// the photo prompt still firing for the undone check-in.
+const _checkinInFlight = new Set();
 async function doGoingTonight(venueId, btn) {
   if (!currentUser) { openAuth('signin', 'checkin'); showToast('Sign in to check in'); return; }
+  if (_checkinInFlight.has(venueId)) return;
+  _checkinInFlight.add(venueId);
+  try {
   const isCheckedIn = state.goingByMe.has(venueId);
   const today = localDateKey();
   if (isCheckedIn) {
@@ -7557,12 +7567,17 @@ async function doGoingTonight(venueId, btn) {
       // Row is in the DB (or was already there via another tab) — the full
       // side-effect chain (feed, badges, Loops, analytics) has fired.
       checkStreakAfterCheckIn();
-      setTimeout(() => maybeOpenPhotoCheckin(venueId), 600);
+      // Re-check at fire time: the user may have removed the check-in in
+      // this 600ms window, and the prompt announces "You're checked in!".
+      setTimeout(() => { if (state.goingByMe.has(venueId)) maybeOpenPhotoCheckin(venueId); }, 600);
     } else {
       _rollbackCheckIn(venueId, btn);
     }
   }
   syncGoingTonightUI(venueId, btn);
+  } finally {
+    _checkinInFlight.delete(venueId);
+  }
 }
 
 function checkInBtnLabel(count, isIn) {
@@ -8426,6 +8441,13 @@ function openPhotoCheckinPrompt(venueId, venueName) {
   fileInput.addEventListener('change', function() {
     const file = this.files && this.files[0];
     if (!file) return;
+    // Validate before staging: accept="image/*" is a picker hint, not a
+    // guarantee (desktop drag/drop, some Android pickers), and nothing
+    // downstream checks size or type — an oversized or non-image file was
+    // staged, previewed (broken), and only failed at upload with a generic
+    // toast. These are the same checks the deleted dead handler carried.
+    if (!file.type.startsWith('image/')) { showToast('Please choose an image file'); this.value = ''; return; }
+    if (file.size > 10 * 1024 * 1024) { showToast('Photo must be under 10 MB'); this.value = ''; return; }
     window._pendingCheckinPhoto = file;
     const reader = new FileReader();
     reader.onload = function(e) {

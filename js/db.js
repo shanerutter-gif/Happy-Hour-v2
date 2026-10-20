@@ -1095,7 +1095,14 @@ async function _fireCheckinLoopsEvents(userId, venueId) {
 }
 async function removeCheckIn(userId, venueId, date) {
   try {
-    await db.from('check_ins').delete().eq('user_id', userId).eq('venue_id', venueId).eq('date', date);
+    // PostgREST returns failures in the result's `error` field — it does not
+    // throw. The old code awaited without reading `error`, so this function
+    // returned true even when the DELETE was rejected (RLS, network, 4xx),
+    // which made the caller's existence-checked rollback in doGoingTonight
+    // unreachable: the UI claimed "Check-in removed" while the row persisted.
+    // Mirror addCheckIn, which has always checked `error`.
+    const { error } = await db.from('check_ins').delete().eq('user_id', userId).eq('venue_id', venueId).eq('date', date);
+    if (error) throw error;
     track('checkin_removed', { venue_id: venueId });
     // Also remove the matching activity_feed row so the social feed
     // doesn't keep stale "Shane checked in at X" cards after un-check-in.
@@ -1103,13 +1110,16 @@ async function removeCheckIn(userId, venueId, date) {
     try {
       const dayStart = `${date}T00:00:00`;
       const dayEnd   = `${date}T23:59:59.999`;
-      await db.from('activity_feed')
+      const { error: feedError } = await db.from('activity_feed')
         .delete()
         .eq('user_id', userId)
         .eq('venue_id', venueId)
         .eq('activity_type', 'check_in')
         .gte('created_at', dayStart)
         .lte('created_at', dayEnd);
+      // Best-effort: a feed-cleanup failure must not fail the removal, but
+      // log it instead of letting the error object pass silently.
+      if (feedError) console.warn('removeCheckIn activity_feed cleanup error', feedError);
     } catch (e) { /* best-effort cleanup */ }
     return true;
   } catch(e) { return false; }
