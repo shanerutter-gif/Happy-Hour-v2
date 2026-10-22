@@ -6288,7 +6288,8 @@ async function pickBannerColor(color, btn) {
   btn.closest('.banner-color-grid').querySelectorAll('.banner-color-swatch').forEach(s => s.textContent = '');
   btn.textContent = '✓';
   // Save to profile
-  await updateProfile(currentUser.id, { banner_color: color });
+  const { error } = await updateProfile(currentUser.id, { banner_color: color });
+  if (error) { showToast('Could not save — try again'); return; }
   showToast('Banner updated!');
 }
 
@@ -6398,7 +6399,8 @@ async function saveName() {
   const n = document.getElementById('pName').value.trim();
   if (!n) { showToast('Add a name first'); return; }
   if(typeof haptic==='function')haptic('medium');
-  await updateProfile(currentUser.id, { display_name: n });
+  const { error } = await updateProfile(currentUser.id, { display_name: n });
+  if (error) { console.error('saveName error', error); showToast('Could not save — try again'); return; }
   if (window._myProfile) window._myProfile.display_name = n;
   showToast('Name saved');
 }
@@ -6412,18 +6414,19 @@ async function saveBio() {
     confirmAction({
       title: 'Remove your bio?', message: 'Your profile will show no bio.',
       confirmText: 'Remove', cancelText: 'Keep it', danger: true,
-      onConfirm: async () => { await updateProfile(currentUser.id, { bio: '' }); if (window._myProfile) window._myProfile.bio = ''; showToast('Bio removed'); },
+      onConfirm: async () => { const { error } = await updateProfile(currentUser.id, { bio: '' }); if (error) { showToast('Could not save — try again'); return; } if (window._myProfile) window._myProfile.bio = ''; showToast('Bio removed'); },
     });
     return;
   }
   if (b === prev) { showToast('Bio is up to date'); return; }
   if(typeof haptic==='function')haptic('medium');
-  await updateProfile(currentUser.id, { bio: b });
+  const { error } = await updateProfile(currentUser.id, { bio: b });
+  if (error) { console.error('saveBio error', error); showToast('Could not save — try again'); return; }
   if (window._myProfile) window._myProfile.bio = b;
   showToast('Bio saved');
 }
-async function saveDigest(v) { await setDigestPreference(currentUser.id, v); showToast(v ? 'Digest enabled' : 'Digest off'); }
-async function savePrivacy(isPublic) { await savePrivacySetting(currentUser.id, isPublic); if (window._myProfile) window._myProfile.is_public = isPublic; showToast(isPublic ? 'Everyone can see your activity' : 'Only you can see your activity'); }
+async function saveDigest(v) { const { error } = await setDigestPreference(currentUser.id, v); if (error) { showToast('Could not save — try again'); return; } showToast(v ? 'Digest enabled' : 'Digest off'); }
+async function savePrivacy(isPublic) { const ok = await savePrivacySetting(currentUser.id, isPublic); if (!ok) { showToast('Could not save — try again'); return; } if (window._myProfile) window._myProfile.is_public = isPublic; showToast(isPublic ? 'Everyone can see your activity' : 'Only you can see your activity'); }
 async function renderHoodFollowBar() {
   const bar = document.getElementById('hoodFollowBar');
   if (!bar) return;

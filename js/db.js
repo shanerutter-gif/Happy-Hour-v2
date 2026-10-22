@@ -1252,7 +1252,10 @@ async function searchProfiles(query) {
 }
 async function savePrivacySetting(userId, isPublic) {
   try {
-    await updateProfile(userId, { is_public: isPublic });
+    // updateProfile resolves with the PostgREST result — a rejected upsert
+    // lands in `error`, it does not throw (Sofia 2026-10-22).
+    const { error } = await updateProfile(userId, { is_public: isPublic });
+    if (error) throw error;
     return true;
   } catch(e) { return false; }
 }
@@ -1762,9 +1765,12 @@ async function uploadProfilePhoto(file, userId, type) {
     .from(PROFILE_PHOTO_BUCKET)
     .getPublicUrl(path);
 
-  // Save URL to profile
+  // Save URL to profile — if this write is rejected the photo is NOT on
+  // the profile (it would vanish on reload), so fail the upload instead
+  // of returning a URL the UI will celebrate (Sofia 2026-10-22).
   const field = type === 'avatar' ? 'avatar_url' : 'header_url';
-  await updateProfile(userId, { [field]: urlData.publicUrl });
+  const { error: saveError } = await updateProfile(userId, { [field]: urlData.publicUrl });
+  if (saveError) { console.error('uploadProfilePhoto profile-save error', saveError); return null; }
 
   return urlData.publicUrl;
 }
