@@ -835,10 +835,12 @@ async function getFollowedNeighborhoods(userId) {
 async function toggleNeighborhoodFollow(userId, neighborhood) {
   const followed = await getFollowedNeighborhoods(userId);
   if (followed.includes(neighborhood)) {
-    await db.from('neighborhood_follows').delete().eq('user_id', userId).eq('neighborhood', neighborhood);
+    const { error } = await db.from('neighborhood_follows').delete().eq('user_id', userId).eq('neighborhood', neighborhood);
+    if (error) return true; // delete rejected — still following
     return false;
   }
-  await db.from('neighborhood_follows').insert({ user_id: userId, neighborhood });
+  const { error } = await db.from('neighborhood_follows').insert({ user_id: userId, neighborhood });
+  if (error) return false; // insert rejected — not following
   return true;
 }
 async function setDigestPreference(userId, enabled) {
@@ -1191,7 +1193,11 @@ async function followUser(followerId, followingId) {
 }
 async function unfollowUser(followerId, followingId) {
   try {
-    await db.from('user_follows').delete().eq('follower_id', followerId).eq('following_id', followingId);
+    // PostgREST reports failures in the result's error field, it does not
+    // throw — read it, mirroring followUser/addCheckIn (Sofia 2026-10-22:
+    // the removeCheckIn lesson of 2026-10-20, one table over).
+    const { error } = await db.from('user_follows').delete().eq('follower_id', followerId).eq('following_id', followingId);
+    if (error) throw error;
     return true;
   } catch(e) { return false; }
 }
@@ -1324,7 +1330,8 @@ async function followVenue(userId, venueId) {
 }
 async function unfollowVenue(userId, venueId) {
   try {
-    await db.from('venue_follows').delete().eq('user_id', userId).eq('venue_id', venueId);
+    const { error } = await db.from('venue_follows').delete().eq('user_id', userId).eq('venue_id', venueId);
+    if (error) throw error;
     return true;
   } catch(e) { return false; }
 }

@@ -6701,13 +6701,15 @@ async function toggleFollowFromSearch(userId, btn) {
   if(typeof haptic==='function')haptic('light');
   const isNowFollowing = btn.classList.contains('following');
   if (isNowFollowing) {
-    await unfollowUser(currentUser.id, userId);
+    const ok = await unfollowUser(currentUser.id, userId);
+    if (!ok) { showToast('Could not unfollow — try again'); return; }
     state._following?.delete(userId);
     btn.classList.remove('following');
     btn.textContent = '+ Follow';
     showToast('Unfollowed');
   } else {
-    await followUser(currentUser.id, userId);
+    const ok = await followUser(currentUser.id, userId);
+    if (!ok) { showToast('Could not follow — try again'); return; }
     state._following?.add(userId);
     btn.classList.add('following');
     btn.textContent = '✓ Following';
@@ -7814,13 +7816,15 @@ async function toggleFollowUser(userId, btn) {
   if(typeof haptic==='function')haptic('light');
   const isFollowing = btn.classList.contains('following');
   if (isFollowing) {
-    await unfollowUser(currentUser.id, userId);
+    const ok = await unfollowUser(currentUser.id, userId);
+    if (!ok) { showToast('Could not unfollow — try again'); return; }
     state._following?.delete(userId);
     btn.classList.remove('following');
     btn.textContent = '+ Follow';
     showToast('Unfollowed');
   } else {
-    await followUser(currentUser.id, userId);
+    const ok = await followUser(currentUser.id, userId);
+    if (!ok) { showToast('Could not follow — try again'); return; }
     state._following?.add(userId);
     btn.classList.add('following');
     btn.textContent = '✓ Following';
@@ -8132,12 +8136,16 @@ async function toggleVenueFollow(venueId, venueName, btn) {
   const currently = btn.classList.contains('following');
   btn.disabled = true;
   if (currently) {
-    await unfollowVenue(currentUser.id, venueId);
+    const ok = await unfollowVenue(currentUser.id, venueId);
+    btn.disabled = false;
+    if (!ok) { showToast('Could not unfollow — try again'); return; }
     btn.classList.remove('following');
     btn.innerHTML = '<span class="s-btn-icon">' + ICN.bell + '</span>';
     showToast(`Unfollowed ${venueName}`);
   } else {
-    await followVenue(currentUser.id, venueId);
+    const ok = await followVenue(currentUser.id, venueId);
+    btn.disabled = false;
+    if (!ok) { showToast('Could not follow — try again'); return; }
     btn.classList.add('following');
     btn.innerHTML = '<span class="s-btn-icon">' + ICN.bell + '</span>';
     showToast(`Following ${venueName} — you'll be notified of new deals`);
