@@ -631,6 +631,8 @@ ships, move it to "Recent decisions" with the PR or commit.
   Recent decisions). Built as a `@media (min-width:1200px)` block that renders
   the feed + Leaflet map side by side instead of toggling.
 
+- 2026-10-28 · **Analytics + SEO/AIO audit findings (review only, nothing shipped).** Open items: (1) ~63% of 45-day page_views are a headless scraper fleet (desktop, no referrer, SG/CN/HK, rotating IPs, since Oct 13) counted as humans — `ae_traffic_*` + `analytics_daily` have no bot filter, and `bot_hit` has never been written (client trackers bail on bot UAs; botgate blocks before JS), so the Bot-vs-Human panel is blind; (2) QA/test traffic leaks in — `INTERNAL_EMAILS` is exact-match so `shanerutter+…` test accounts (5 in 30d) aren't excluded; (3) GA consent gating is inconsistent — gated on app/about/legal/business-landing/blog.html but loaded unconditionally on all SSR pages, the 26 static blog posts, admin.html and business-portal.html; blog.html loads neither consent.js nor site-analytics.js; (4) consent.js now treats native as `pending` (NOT implied-granted as documented above) and never shows the banner in-app, so native guest activity is never recorded; (5) ~1,130 venue pages (≈30%, 40–44% in Chicago/Austin/Miami) have no happy-hour data but get "X Happy Hour" titles + FAQPage "Does X have happy hour? Yes." + "verified" labels — gate those on a real HH signal; (6) Google-rating `aggregateRating` fallback has no reviewCount (invalid) and uses third-party ratings; (7) ~3,700 venue photos hotlinked from Time Out/Infatuation/Yelp/etc.; (8) llms.txt + `CITIES` + onboarding venue counts are stale (say 1,900+; real ~3,816); (9) sitemap-pages.xml misses pacific-beach + April weekend posts; apex redirect is 307 not 308.
+
 ---
 
 ## Recent decisions
