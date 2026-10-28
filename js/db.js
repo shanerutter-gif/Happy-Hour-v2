@@ -980,23 +980,35 @@ async function deleteReview(reviewId) {
 // ── FAVORITES ──────────────────────────────────────────
 async function loadFavorites() {
   if (!currentUser) { userFavorites = new Set(); return; }
-  const { data } = await db.from('favorites').select('item_id').eq('user_id', currentUser.id);
+  const { data, error } = await db.from('favorites').select('item_id').eq('user_id', currentUser.id);
+  // A failed load must not masquerade as "no favorites": keep the prior set
+  // rather than wiping every star in the feed (Sofia 2026-10-27).
+  if (error) { console.warn('loadFavorites error:', error.message); return; }
   userFavorites = new Set((data || []).map(r => r.item_id));
 }
 function isFavorite(itemId) { return userFavorites.has(String(itemId)); }
 async function toggleFavorite(itemId, itemType = 'venue') {
   if (!currentUser) return null;
   const id = String(itemId);
-  if (isFavorite(id)) {
-    await db.from('favorites').delete().eq('user_id', currentUser.id).eq('item_id', id);
-    userFavorites.delete(id);
-    track('favorite_toggled', { item_type: itemType, saved: false });
-    return false;
-  }
-  await db.from('favorites').insert({ user_id: currentUser.id, item_id: id, item_type: itemType });
-  userFavorites.add(id);
-  track('favorite_toggled', { item_type: itemType, saved: true });
-  return true;
+  // PostgREST reports failures in the result's error field, it does not
+  // throw — read it before touching local state, mirroring followUser /
+  // removeCheckIn (Sofia 2026-10-27: the feed's save star still flipped and
+  // toasted "Saved" on a rejected write). Returns null on failure so the
+  // caller can tell "write failed" apart from false = "removed".
+  try {
+    if (isFavorite(id)) {
+      const { error } = await db.from('favorites').delete().eq('user_id', currentUser.id).eq('item_id', id);
+      if (error) { console.warn('toggleFavorite delete error:', error.message); return null; }
+      userFavorites.delete(id);
+      track('favorite_toggled', { item_type: itemType, saved: false });
+      return false;
+    }
+    const { error } = await db.from('favorites').insert({ user_id: currentUser.id, item_id: id, item_type: itemType });
+    if (error) { console.warn('toggleFavorite insert error:', error.message); return null; }
+    userFavorites.add(id);
+    track('favorite_toggled', { item_type: itemType, saved: true });
+    return true;
+  } catch (e) { console.warn('toggleFavorite error:', e); return null; }
 }
 async function getFavoriteItems(userId) {
   const { data } = await db.from('favorites').select('item_id, item_type').eq('user_id', userId);

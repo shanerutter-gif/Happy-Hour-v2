@@ -4013,7 +4013,7 @@ function _emptyGoingLine(venueId) {
       onerror="${IMG_FALLBACK}this.remove()">
 
     <button class="card-hero-fav${faved ? ' faved' : ''}" data-fav-for="${v.id}"
-      onclick="event.stopPropagation();doFavorite('${v.id}','venue',this);this.classList.toggle('faved');this.textContent=this.classList.contains('faved')?'★':'☆'">${faved ? '★' : '☆'}</button>
+      onclick="event.stopPropagation();doFavorite('${v.id}','venue',this)">${faved ? '★' : '☆'}</button>
     
     <div class="card-hero-info">
       <div class="card-hero-eyebrow">${[
@@ -4056,7 +4056,7 @@ function compactCardHTML(v, delay) {
       onerror="${IMG_FALLBACK}this.closest('.card-compact').style.background='linear-gradient(135deg,#2A1F14,#1A1208)';this.remove()">
     <div class="card-compact-overlay"></div>
     <button class="card-compact-fav${faved ? ' faved' : ''}" data-fav-for="${v.id}"
-      onclick="event.stopPropagation();doFavorite('${v.id}','venue',this);this.classList.toggle('faved');this.textContent=this.classList.contains('faved')?'★':'☆'">${faved ? '★' : '☆'}</button>
+      onclick="event.stopPropagation();doFavorite('${v.id}','venue',this)">${faved ? '★' : '☆'}</button>
     ${badge}
     <div class="card-compact-info">
       <div class="card-compact-name">${esc(v.name)}</div>
@@ -4115,7 +4115,7 @@ function standardCardHTML(v, delay, first = false) {
         onclick="event.stopPropagation();doGoingTonight('${v.id}',this)">${isMeIn ? '✓ Checked In' : '+ Check In'}</button>
     </div>
     <button class="card-std-fav${faved ? ' faved' : ''}" data-fav-for="${v.id}"
-      onclick="event.stopPropagation();doFavorite('${v.id}','venue',this);this.classList.toggle('faved');this.textContent=this.classList.contains('faved')?'★':'☆'">${faved ? '★' : '☆'}</button>
+      onclick="event.stopPropagation();doFavorite('${v.id}','venue',this)">${faved ? '★' : '☆'}</button>
   </div>`;
 }
 
@@ -4153,10 +4153,22 @@ function goingAvatars(venueId, count) {
   return html;
 }
 
+const _favInFlight = new Set();
 async function doFavorite(itemId, itemType, btn) {
   if (!currentUser) { openAuth('signin', 'favorite'); showToast('Sign in to save'); return; }
+  // In-flight guard (mirrors the 2026-10-20 check-in guard): a double-tap
+  // otherwise issues two inserts — the second hits the favorites
+  // unique(user_id, item_id) constraint, and a tap pair meant as
+  // save-then-unsave lands as a single save.
+  const favKey = String(itemId);
+  if (_favInFlight.has(favKey)) return;
+  _favInFlight.add(favKey);
+  try {
   if(typeof haptic==='function')haptic('light');
   const added = await toggleFavorite(itemId, itemType);
+  // null = the write was rejected: leave every star exactly as it was and
+  // say so, instead of flipping to a state the server never confirmed.
+  if (added === null) { showToast('Could not save — try again'); return; }
   // The modal save button and the grid card behind it are separate DOM nodes —
   // flip every save star for this item to the server-confirmed state so the
   // card behind the modal can't go stale (was: only the tapped button updated).
@@ -4166,6 +4178,7 @@ async function doFavorite(itemId, itemType, btn) {
   });
   showToast(added ? 'Saved ★' : 'Removed');
   if(added && typeof promptPushIfAppropriate==='function') promptPushIfAppropriate();
+  } finally { _favInFlight.delete(favKey); }
 }
 function openFavView() {
   if (!currentUser) { openAuth('signin', 'favorite'); return; }
