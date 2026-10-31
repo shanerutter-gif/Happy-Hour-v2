@@ -7464,11 +7464,21 @@ async function loadGoingTonight(citySlug) {
       fetchCheckInCounts(citySlug, today),
       currentUser ? fetchMyCheckIns(currentUser.id, today) : Promise.resolve([]),
     ]);
-    state.goingCounts = {};
-    (counts || []).forEach(r => { state.goingCounts[r.venue_id] = r.count; });
-    state.goingByMe = new Set();
-    state.todayCheckInCount = 0;
-    (mine || []).forEach(r => { state.goingByMe.add(r.venue_id); state.todayCheckInCount++; });
+    // A failed read comes back null (db.js, Sofia 2026-10-31) and must NOT
+    // masquerade as "zero check-ins": wiping goingByMe / todayCheckInCount
+    // on a transient failure made checked-in users see "+ Check In" again,
+    // made un-check-in impossible until a clean reload, reset the 5/day
+    // cap in the UI, and sent re-taps into the duplicate-insert path.
+    // Keep the last known state on failure — the loadFavorites rule.
+    if (counts !== null) {
+      state.goingCounts = {};
+      counts.forEach(r => { state.goingCounts[r.venue_id] = r.count; });
+    }
+    if (mine !== null) {
+      state.goingByMe = new Set();
+      state.todayCheckInCount = 0;
+      mine.forEach(r => { state.goingByMe.add(r.venue_id); state.todayCheckInCount++; });
+    }
   } catch(e) { console.warn('Check-in load failed', e); }
 }
 
@@ -8506,6 +8516,13 @@ function _updateCheckinShareLabel() {
 
 function clearCheckinPhotoPreview() {
   window._pendingCheckinPhoto = null;
+  // Reset the file input too (Sofia 2026-10-31): a file input only fires
+  // `change` when its value changes, so clearing the preview alone left
+  // the picked file in the input and re-picking the SAME photo was a
+  // silent no-op — the user tapped the photo, chose the same image, and
+  // nothing happened.
+  const fileInput = document.getElementById('photoFileInput');
+  if (fileInput) fileInput.value = '';
   const preview = document.getElementById('checkinPhotoPreview');
   const area = document.getElementById('photoUploadArea');
   if (preview) preview.style.display = 'none';
@@ -8619,6 +8636,14 @@ async function submitCheckin(venueId, venueName) {
       const inserted = await saveTagsForPost(post.id, tagIds);
       tagCount = inserted.length;
     }
+    // saveTagsForPost returns [] on a rejected insert (it never throws),
+    // so a failed tag write used to vanish here: the staged set is cleared
+    // below, the success banner omits the tags, and the user walks away
+    // believing the button's "Share photo · N tagged" promise happened —
+    // the friends were never notified (Sofia 2026-10-31). Surface the
+    // shortfall; the post itself DID land, so this is a warning, not a
+    // failure of the whole submit.
+    const tagShortfall = tagIds.length - tagCount;
     window._pendingCheckinPhoto = null;
     window._stagedTagIds = new Set();
 
@@ -8627,6 +8652,9 @@ async function submitCheckin(venueId, venueName) {
       ? `with ${tagCount} friend${tagCount > 1 ? 's' : ''} at ${venueName || 'the spot'}`
       : `at ${venueName || 'the spot'}`;
     showPostSuccess({ title: file ? 'Photo shared! 🎉' : 'Checked in! 🎉', sub });
+    if (tagShortfall > 0) {
+      setTimeout(() => showToast(`Your post is up, but ${tagShortfall} tag${tagShortfall > 1 ? 's' : ''} didn't go through — tag from the post instead`), 600);
+    }
 
     // Refresh the city feed + this venue's photo strip in the background so the
     // new check-in (and any tags) show up next time the feed is opened.

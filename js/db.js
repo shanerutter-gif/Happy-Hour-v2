@@ -1054,13 +1054,18 @@ async function fetchCheckInCounts(citySlug, date) {
     const counts = {};
     (data || []).forEach(r => { counts[r.venue_id] = (counts[r.venue_id] || 0) + 1; });
     return Object.entries(counts).map(([venue_id, count]) => ({ venue_id, count }));
-  } catch(e) { console.warn('fetchCheckInCounts error', e); return []; }
+  } catch(e) { console.warn('fetchCheckInCounts error', e); return null; } // null = load FAILED (Sofia 2026-10-31): [] would masquerade as "nobody is here" and loadGoingTonight would wipe the venue counts
 }
 async function fetchMyCheckIns(userId, date) {
   try {
-    const { data } = await db.from('check_ins').select('venue_id').eq('user_id', userId).eq('date', date);
+    // Read `error` like every other integrity-fixed reader: PostgREST
+    // reports failures there instead of throwing, so the old destructure
+    // turned a rejected read into "you have no check-ins today" (Sofia
+    // 2026-10-31). null = load failed; the caller keeps its last state.
+    const { data, error } = await db.from('check_ins').select('venue_id').eq('user_id', userId).eq('date', date);
+    if (error) throw error;
     return data || [];
-  } catch(e) { return []; }
+  } catch(e) { console.warn('fetchMyCheckIns error', e); return null; }
 }
 async function fetchAllCheckIns(userId) {
   try {
@@ -1122,8 +1127,15 @@ async function removeCheckIn(userId, venueId, date) {
     // doesn't keep stale "Shane checked in at X" cards after un-check-in.
     // Match by user + venue + same calendar day.
     try {
-      const dayStart = `${date}T00:00:00`;
-      const dayEnd   = `${date}T23:59:59.999`;
+      // created_at is timestamptz (UTC instants). The window must be the
+      // USER'S LOCAL calendar day expressed as UTC instants: the old
+      // `${date}T00:00:00` strings carry no offset, so Postgres read them
+      // as UTC midnight — for a PDT user every feed row created after
+      // 5pm local (i.e. all of happy hour) fell OUTSIDE the window and
+      // survived the un-check-in as a stale "checked in" feed card, while
+      // the previous evening's rows were swept up instead (Sofia 2026-10-31).
+      const dayStart = new Date(`${date}T00:00:00`).toISOString();
+      const dayEnd   = new Date(`${date}T23:59:59.999`).toISOString();
       const { error: feedError } = await db.from('activity_feed')
         .delete()
         .eq('user_id', userId)
