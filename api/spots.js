@@ -30,13 +30,6 @@ function starHTML(rating) {
   return s;
 }
 
-function formatDays(days) {
-  if (!days || !days.length) return '';
-  const order = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-  const sorted = days.slice().sort((a, b) => order.indexOf(a) - order.indexOf(b));
-  return sorted.join(', ');
-}
-
 /* ── Supabase fetch helpers ──────────────────────── */
 
 // fetchAllRows lives in _lib/fetch-all-rows.js (shared with the directory
@@ -223,9 +216,16 @@ function buildPage(venue, reviews, allVenues, seo) {
     // time, and this copy feeds FAQPage JSON-LD that Google indexes verbatim
     // (e.g. "lists happy hour as Daily 11am–10pm" while the real deal was
     // Mon–Fri 2–6pm). Ask about hours; don't mislabel them as happy hour.
+    // 2026-11-05 (qa-2026-11-04-ssr-faq-days): the answer used to append
+    // the venue's days[] list after the hours — but days[] holds the
+    // HAPPY-HOUR days, not the open days, so a 7-day venue with Mon–Fri
+    // happy hour read as "open [Sat/Sun hours] on Monday…Friday" — i.e.
+    // closed weekends — in
+    // both the visible FAQ and the indexed FAQPage JSON-LD. Hours render
+    // from `hours` alone; HH days live in the deals list.
     venueFaqs.push({
       q: `What are ${venue.name}'s hours?`,
-      a: `${venue.name} is open ${venue.hours}${venue.days && venue.days.length ? ` on ${formatDays(venue.days)}` : ''}.`
+      a: `${venue.name} is open ${venue.hours}.`
     });
   }
   if (venue.address) {
@@ -488,7 +488,7 @@ ${venueFaqLd ? `<script type="application/ld+json">${JSON.stringify(venueFaqLd)}
         <div class="spot-info-icon">🕐</div>
         <div>
           <div class="spot-info-label">Hours</div>
-          <div class="spot-info-value">${schedHoursHTML || `${hours}${venue.days?.length ? ` · ${formatDays(venue.days)}` : ''}`}</div>
+          <div class="spot-info-value">${schedHoursHTML || `${hours}`}</div>
         </div>
       </div>` : ''}
       ${cuisine ? `
