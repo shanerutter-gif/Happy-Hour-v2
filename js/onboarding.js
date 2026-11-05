@@ -369,6 +369,21 @@ function obInit() {
   obStartLiveCounter();
 }
 
+// Pick handlers auto-advance after a short beat so the selection state
+// paints before the screen slides away. The timer must fire ONLY if the
+// user is still on the screen that scheduled it: the bare setTimeout
+// version read obState.screen at fire time, so two rapid picks (an easy
+// double-tap on a big touch target) advanced TWO screens — the map value
+// screen was skipped entirely and its onboarding_screen_viewed fired for
+// ~0ms — and a Back tap inside the window was overridden when the stale
+// timer dragged the user forward again (Sofia audit 2026-11-05).
+function _obScheduleAdvance(delay) {
+  var from = obState.screen;
+  setTimeout(function () {
+    if (obState.screen === from) obNext();
+  }, delay);
+}
+
 // ── CITY PICKER (Screen 1) ────────────────────────────
 // Renders one button per launch-ready city. A city only appears here once it
 // has an entry in OB_CITY_CONFIG, so the picker can never offer an empty city.
@@ -387,7 +402,17 @@ function obRenderCities() {
 
 function obSelectCity(slug, el) {
   if (typeof haptic === 'function') haptic('medium');
-  obState.citySlug = OB_CITY_CONFIG[slug] ? slug : 'san-diego';
+  var newSlug = OB_CITY_CONFIG[slug] ? slug : 'san-diego';
+  // A neighborhood pick belongs to the city it was picked in. It was never
+  // cleared, so back-navigating and switching cities left the old hood in
+  // obState (and, via the _obStashPicks() below, in the OAuth stash):
+  // _loopsSignupContext() reads obState.selectedNeighborhood FIRST, so a
+  // San Diego signup who once tapped "East Austin" was written to Loops
+  // as San Diego + East Austin — and stayed wrong even when they skipped
+  // the hood screen entirely on the new city. Invalidate on city change
+  // (Sofia audit 2026-11-05).
+  if (newSlug !== obState.citySlug) obState.selectedNeighborhood = null;
+  obState.citySlug = newSlug;
   document.querySelectorAll('.ob-city-btn').forEach(function (b) { b.classList.remove('ob-neigh-btn--selected'); });
   if (el) el.classList.add('ob-neigh-btn--selected');
   // Persist so the app drops the user into the city they picked once they
@@ -399,7 +424,7 @@ function obSelectCity(slug, el) {
   obPopulateDynamic();
   var grid = document.getElementById('obNeighGrid');
   if (grid) grid.dataset.rendered = '';
-  setTimeout(function () { obNext(); }, 300);
+  _obScheduleAdvance(300);
 }
 
 // ── DYNAMIC CONTENT ───────────────────────────────────
@@ -504,7 +529,17 @@ function obGoTo(idx) {
     // Belt-and-braces with the CSS visibility rule: keep inactive screens
     // out of the accessibility tree explicitly.
     if (i === idx) s.removeAttribute('aria-hidden');
-    else s.setAttribute('aria-hidden', 'true');
+    else {
+      s.setAttribute('aria-hidden', 'true');
+      // The control the user just tapped keeps focus after advancing —
+      // and it now sits inside an aria-hidden subtree, which ARIA forbids:
+      // VoiceOver/keyboard focus is stranded on invisible content and the
+      // next swipe/tab starts from a hidden element. Release it; focus
+      // falls back to the body and the new screen is discovered in order
+      // (Sofia audit 2026-11-05).
+      var ae = document.activeElement;
+      if (ae && ae !== document.body && typeof ae.blur === 'function' && s.contains(ae)) ae.blur();
+    }
   });
 
   obState.screen = idx;
@@ -540,7 +575,7 @@ function obSelectAttribution(source, el) {
   try { sessionStorage.setItem(OB_ATTRIBUTION_KEY, source); } catch (e) {}
   if (typeof track === 'function') track('attribution_selected', { source: source });
   // Auto-advance so the user doesn't have to tap a second time
-  setTimeout(() => obNext(), 350);
+  _obScheduleAdvance(350);
 }
 
 function obAttributionSkip() {
@@ -668,7 +703,7 @@ function obSelectNeighborhood(name, deals, el) {
   el.classList.add('ob-neigh-btn--selected');
   obState.selectedNeighborhood = { name, deals };
   _obStashPicks();
-  setTimeout(() => obNext(), 300);
+  _obScheduleAdvance(300);
 }
 
 // ── SIGNUP SCREEN ──────────────────────────────────────
