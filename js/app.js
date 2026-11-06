@@ -448,6 +448,10 @@ function onAuthChange(user) {
     const lastSlug = localStorage.getItem('spotd-last-city') || 'san-diego';
     const city = CITIES.find(c => c.slug === lastSlug && c.active) || CITIES[0];
     enterCity(city.slug, city.name, city.state_code);
+  } else if (user && typeof wtMaybeStart === 'function') {
+    // Signed up while already inside a city (e.g. the organic signup sheet)
+    // — enterCity won't run again, so start the welcome tour from here.
+    wtMaybeStart();
   }
 }
 
@@ -2539,7 +2543,9 @@ async function enterCity(slug, name, stateCode) {
   // Skipped (flag NOT consumed) during the organic signup funnel — the auth
   // sheet is open on top and the push modal would cover the signup form; the
   // one-time prompt fires on their next visit instead.
-  if (!window._organicSignup && !localStorage.getItem('spotd-push-prompted')) {
+  // Also held (flag NOT consumed) while the post-signup welcome tour is
+  // pending — the tour queues the prompt for when it finishes.
+  if (!window._organicSignup && !window.__spotdWelcomeActive && !localStorage.getItem('spotd-push-prompted')) {
     localStorage.setItem('spotd-push-prompted', '1');
     setTimeout(() => {
       if (typeof promptPushIfAppropriate === 'function') {
@@ -2548,8 +2554,10 @@ async function enterCity(slug, name, stateCode) {
     }, 3000);
   }
 
-  // Tooltip walkthrough for first-time users (after cards render)
-  if (typeof ttStart === 'function') setTimeout(ttStart, 2000);
+  // New signups get the welcome tour (js/welcome-tour.js), which replaces the
+  // tooltip walkthrough; everyone else who hasn't seen tooltips gets those.
+  if (window.__spotdWelcomeActive && typeof wtMaybeStart === 'function') wtMaybeStart();
+  else if (typeof ttStart === 'function') setTimeout(ttStart, 2000);
 }
 
 // ── SHOW FILTER ────────────────────────────────────────
@@ -5250,6 +5258,11 @@ async function renderReferralTile() {
 // referrer recorded. Same prompt is also reachable from the profile invite tile.
 async function maybeShowPostSignupReferralModal() {
   if (!currentUser) return;
+  // Wait for the post-signup welcome tour to finish (js/welcome-tour.js).
+  if (window.__spotdWelcomeActive && typeof window.spotdAfterWelcome === 'function') {
+    window.spotdAfterWelcome(maybeShowPostSignupReferralModal);
+    return;
+  }
   if (localStorage.getItem('spotd-referral-prompt-seen')) return;
   try {
     if (typeof userHasReferrer === 'function' && await userHasReferrer(currentUser.id)) {

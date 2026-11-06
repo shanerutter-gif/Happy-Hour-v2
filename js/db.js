@@ -609,6 +609,18 @@ async function authSignIn(email, password) {
   }
 }
 
+// Flag a brand-new account so js/welcome-tour.js shows the post-signup
+// walkthrough once the app is ready. Set BEFORE the session starts so the
+// city entry it triggers already sees it, and so other post-signup prompts
+// queue behind the tour (window.__spotdWelcomeActive).
+function _markWelcomePending() {
+  try {
+    if (localStorage.getItem('spotd-welcome-done')) return;
+    localStorage.setItem('spotd-welcome-pending', '1');
+  } catch (e) {}
+  window.__spotdWelcomeActive = true;
+}
+
 async function authSignUp(email, password, displayName) {
   track('signup_started', { method: 'email' });
   try {
@@ -623,6 +635,7 @@ async function authSignUp(email, password, displayName) {
     // Trigger onboarding email sequence (fire-and-forget)
     triggerLoopsOnboarding(email, displayName, data.user?.id, 'email-signup');
     if (data.access_token) {
+      _markWelcomePending();
       const res = await authSignIn(email, password);
       // Now that we hold a session, persist the chosen city to the profile.
       _persistSignupCity();
@@ -789,6 +802,7 @@ async function handleOAuthCallback() {
 
     const _provider = user.app_metadata?.provider || 'oauth';
     const _isNew = !!(user.created_at && (Date.now() - new Date(user.created_at).getTime() < 60000));
+    if (_isNew) _markWelcomePending();
     // Trigger onboarding ONLY for genuinely new OAuth signups. The old code
     // fired on every OAuth sign-in (the comment claimed "Loops dedupes
     // existing contacts", but contact-create idempotency is not the point —
