@@ -31,6 +31,8 @@
   // Respect Do-Not-Track and the consent gate (js/consent.js). DNT is turned
   // into a 'denied' state by consent.js; here we only hard-skip obvious bots.
   if (isBot()) return;
+  // Internal browsers (?internal=1, set by js/consent.js) send nothing.
+  try { if (window.__spotdInternal || localStorage.getItem('spotd_internal') === '1') return; } catch (e) {}
 
   // Consent state is owned by js/consent.js (window.__spotdConsent). 'unknown'
   // (consent.js absent) falls open so analytics never silently breaks.

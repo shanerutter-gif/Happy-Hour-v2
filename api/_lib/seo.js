@@ -146,3 +146,22 @@ export function openingHoursSpec(days, hours) {
   if (!range) return null;
   return { dayOfWeek, opens: range.opens, closes: range.closes };
 }
+
+/* ── Happy-hour signal ──────────────────────────────────────────────────
+   ~30% of venues (bulk-imported Aug–Sep 2026) have no happy-hour data: their
+   deals[] are menu notes ("Hand-pressed tortillas", "What to order: …").
+   Pages must not tell Google / AI answer engines "Yes, X has happy hour" for
+   those. Conservative on purpose: a false "no" just softens copy, a false
+   "yes" is misinformation. Bare time ranges don't count ("drag brunch
+   1pm-4pm"), and price lines about covers / bottle service don't count. */
+const HH_SIGNAL_RE = /happy|\bhh\b|half[- ]?(off|price)|\d+\s?%\s?off|\$?\d+\s?off\b|late[- ]?night|drink specials|\$\s?\d/i;
+const NOT_A_DEAL_RE = /\bcover\b|bottle service|reservation|prix fixe|tasting menu|omakase/i;
+
+export function hasHappyHourSignal(v) {
+  if (!v) return false;
+  if (v.has_happy_hour === true) return true;
+  return (v.deals || []).some(d => {
+    const s = String(d || '');
+    return HH_SIGNAL_RE.test(s) && !NOT_A_DEAL_RE.test(s);
+  });
+}

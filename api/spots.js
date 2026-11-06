@@ -1,6 +1,6 @@
 export const config = { runtime: 'edge' };
 
-import { slugify, canonicalVenueSlugs, canonicalHood, openingHoursSpec } from './_lib/seo.js';
+import { slugify, canonicalVenueSlugs, canonicalHood, openingHoursSpec, hasHappyHourSignal } from './_lib/seo.js';
 import { botGate } from './_lib/botgate.js';
 import { fetchAllRows, IncompleteFetchError, serviceUnavailableResponse } from './_lib/fetch-all-rows.js';
 // Canonical venue-hours parser, shared with the app (the one copy —
@@ -100,16 +100,20 @@ function buildPage(venue, reviews, allVenues, seo) {
   const ratingCount = reviews.length;
   const googleRating = venue.google_rating ? parseFloat(venue.google_rating) : null;
 
+  // Only venues with real happy-hour data get happy-hour titles, FAQ answers
+  // and offer markup (see hasHappyHourSignal in _lib/seo.js).
+  const isHH = hasHappyHourSignal(venue);
+
   // "Verified {Mon YYYY}" trust label — last_verified_at is maintained by the
   // deal-verification workflow (3to6 shows per-venue checked dates; this is
   // Spotd's equivalent, fed by real data, never fabricated).
-  const verifiedLabel = venue.last_verified_at
+  const verifiedLabel = isHH && venue.last_verified_at
     ? new Date(venue.last_verified_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
     : '';
 
   // Build amenity tags
   const amenities = [];
-  if (venue.has_happy_hour || deals.length) amenities.push('Happy Hour');
+  if (isHH) amenities.push('Happy Hour');
   if (venue.has_live_music) amenities.push('Live Music');
   if (venue.has_trivia) amenities.push('Trivia');
   if (venue.has_karaoke) amenities.push('Karaoke');
@@ -125,8 +129,8 @@ function buildPage(venue, reviews, allVenues, seo) {
   if (venue.reservable) amenities.push('Reservable');
 
   // Build meta description
-  const dealText = deals.length ? ` Deals: ${deals.slice(0, 2).join(', ')}.` : '';
-  const metaDesc = `${venue.name} happy hour${hood ? ` in ${venue.neighborhood}` : ''}${city ? `, ${city}` : ''}.${dealText}${hours ? ` Hours: ${hours}.` : ''}${verifiedLabel ? ` Deal info verified ${verifiedLabel}.` : ''} See reviews, deals & check in on Spotd.`;
+  const dealText = deals.length ? ` ${isHH ? 'Deals' : 'Highlights'}: ${deals.slice(0, 2).join(', ')}.` : '';
+  const metaDesc = `${venue.name}${isHH ? ' happy hour' : ''}${hood ? ` in ${venue.neighborhood}` : ''}${city ? `, ${city}` : ''}.${dealText}${hours ? ` Hours: ${hours}.` : ''}${verifiedLabel ? ` Deal info verified ${verifiedLabel}.` : ''} See reviews, deals & check in on Spotd.`;
 
   // Canonical neighborhood (freeform variants like "Gaslamp" / "PB" collapse to
   // one slug so the hub link below always resolves to the canonical page).
@@ -144,6 +148,9 @@ function buildPage(venue, reviews, allVenues, seo) {
     ...(url && { url }),
     ...(photoUrl && { image: photoUrl }),
     ...(cuisine && { servesCuisine: venue.cuisine }),
+    // Only Spotd's own reviews go in AggregateRating. The Google rating stays
+    // visible on-page but never in markup: Google's review-snippet policy
+    // forbids third-party ratings, and without a count it is invalid anyway.
     ...(avgRating ? {
       aggregateRating: {
         '@type': 'AggregateRating',
@@ -152,17 +159,8 @@ function buildPage(venue, reviews, allVenues, seo) {
         bestRating: '5',
         worstRating: '1'
       }
-    } : (googleRating ? {
-      // Fallback: the venue's Google rating (labeled as such on-page). Only
-      // emitted when there are no Spotd reviews to aggregate.
-      aggregateRating: {
-        '@type': 'AggregateRating',
-        ratingValue: googleRating.toFixed(1),
-        bestRating: '5',
-        worstRating: '1'
-      }
-    } : {})),
-    ...(deals.length && {
+    } : {}),
+    ...(isHH && deals.length && {
       hasOfferCatalog: {
         '@type': 'OfferCatalog',
         name: 'Happy Hour Deals',
@@ -203,7 +201,7 @@ function buildPage(venue, reviews, allVenues, seo) {
   // hours/days, address). No generic filler; the block is omitted when the
   // venue has none of the underlying data.
   const venueFaqs = [];
-  if (deals.length) {
+  if (isHH && deals.length) {
     venueFaqs.push({
       q: `Does ${venue.name} have happy hour?`,
       a: `Yes. Current deals at ${venue.name} include ${deals.slice(0, 2).join('; ')}${deals.length > 2 ? `, plus ${deals.length - 2} more listed on this page` : ''}.${verifiedLabel ? ` Deal information last verified ${verifiedLabel} — confirm with the venue before you go, as times change often.` : ''}`
@@ -298,7 +296,7 @@ function buildPage(venue, reviews, allVenues, seo) {
 </script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>${name} Happy Hour${hood ? ` in ${esc(venue.neighborhood)}` : ''}${city ? `, ${esc(city)}` : ''} | Spotd</title>
+<title>${name}${isHH ? ' Happy Hour' : ''}${hood ? ` in ${esc(venue.neighborhood)}` : ''}${city ? `, ${esc(city)}` : ''} | Spotd</title>
 <meta name="description" content="${esc(metaDesc)}">
 <link rel="canonical" href="${SITE_URL}/spots/${canonSlug}">
 
@@ -393,14 +391,7 @@ ${venueFaqLd ? `<script type="application/ld+json">${JSON.stringify(venueFaqLd)}
   }
 </style>
 
-<!-- Google Analytics -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-5271Q2407Q"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-  gtag('config', 'G-5271Q2407Q');
-</script>
+<script> /* Consent-gated Google Analytics: gtag.js loads only after the visitor explicitly accepts analytics (see js/consent.js). Until then gtag() is a harmless stub. */ window.dataLayer = window.dataLayer || []; function gtag(){ window.dataLayer.push(arguments); } function spotdLoadGA(){ if (window.__spotdGABooted) return; try { if (localStorage.getItem('spotd_disable_ga') || localStorage.getItem('spotd_internal')) return; } catch (e) {} window.__spotdGABooted = true; var s = document.createElement('script'); s.async = true; s.src = 'https://www.googletagmanager.com/gtag/js?id=G-5271Q2407Q'; document.head.appendChild(s); gtag('js', new Date()); gtag('config', 'G-5271Q2407Q'); } try { if (localStorage.getItem('spotd_consent') === 'granted') spotdLoadGA(); } catch (e) {} document.addEventListener('spotd:consent', function(){ if (window.__spotdConsent === 'granted') spotdLoadGA(); }); </script>
 </head>
 <body>
 
@@ -463,7 +454,7 @@ ${venueFaqLd ? `<script type="application/ld+json">${JSON.stringify(venueFaqLd)}
   <!-- Deals -->
   ${deals.length ? `
   <div class="spot-section">
-    <h2 class="spot-section-title">Happy Hour Deals</h2>
+    <h2 class="spot-section-title">${isHH ? 'Happy Hour Deals' : 'Highlights'}</h2>
     ${deals.map(d => `
     <div class="spot-deal">
       <div class="spot-deal-icon">🍹</div>
@@ -604,8 +595,8 @@ ${venueFaqLd ? `<script type="application/ld+json">${JSON.stringify(venueFaqLd)}
 
 </main>
 
-<script defer src="/js/consent.js?v=20260725a"></script>
-<script defer src="/js/site-analytics.js?v=20260725a"></script>
+<script defer src="/js/consent.js?v=20261106a"></script>
+<script defer src="/js/site-analytics.js?v=20261106a"></script>
 <script>window.__spotdOrganicCity='${String(venue.city_slug || '').replace(/[^a-z0-9-]/gi, '')}';</script>
 <script defer src="/js/organic-cta.js?v=20260729a"></script>
 ${schedHoursHTML ? `<script defer src="/js/schedule.js?v=20261017a"></script>

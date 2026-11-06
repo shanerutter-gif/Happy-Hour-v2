@@ -1,6 +1,6 @@
 export const config = { runtime: 'edge' };
 
-import { slugify, canonicalHood, isHoodAlias } from './_lib/seo.js';
+import { slugify, canonicalHood, isHoodAlias, hasHappyHourSignal } from './_lib/seo.js';
 import { botGate } from './_lib/botgate.js';
 import { serviceUnavailableResponse } from './_lib/fetch-all-rows.js';
 
@@ -63,7 +63,7 @@ function parseStartHour(hours) {
 // An empty array from here therefore means the city genuinely has no
 // photo'd venues, and only that renders the 404 page below.
 async function fetchCityVenues(supabaseUrl, serviceKey, city) {
-  const url = `${supabaseUrl}/rest/v1/venues?active=eq.true&photo_url=not.is.null&city_slug=eq.${encodeURIComponent(city)}&select=name,neighborhood,address,deals,hours,days,cuisine,photo_url,google_rating,last_verified_at,url&order=name.asc`;
+  const url = `${supabaseUrl}/rest/v1/venues?active=eq.true&photo_url=not.is.null&city_slug=eq.${encodeURIComponent(city)}&select=name,neighborhood,address,deals,hours,days,cuisine,photo_url,google_rating,last_verified_at,url,has_happy_hour&order=name.asc`;
   let lastErr = null;
   for (let attempt = 0; attempt < 3; attempt++) {
     if (attempt > 0) await new Promise(r => setTimeout(r, attempt === 1 ? 200 : 600));
@@ -116,6 +116,10 @@ export default async function handler(req) {
       console.error('[happy-hour] venue fetch failed:', err.message);
       return serviceUnavailableResponse();
     }
+    // Happy-hour hubs list only venues with real happy-hour data — the rest
+    // (menu notes imported as "deals") would make every count and "Recent
+    // deals" line here a false claim. sitemap-cities.js mirrors this filter.
+    venues = venues.filter(hasHappyHourSignal);
     if (!venues.length) return notFound();
 
     const cityNameStr = cityName(city);
@@ -378,13 +382,7 @@ export default async function handler(req) {
   @media (max-width: 640px) { .hh-list { grid-template-columns: 1fr; } .hh-h1 { font-size: 26px; } }
 </style>
 
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-5271Q2407Q"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-  gtag('config', 'G-5271Q2407Q');
-</script>
+<script> /* Consent-gated Google Analytics: gtag.js loads only after the visitor explicitly accepts analytics (see js/consent.js). Until then gtag() is a harmless stub. */ window.dataLayer = window.dataLayer || []; function gtag(){ window.dataLayer.push(arguments); } function spotdLoadGA(){ if (window.__spotdGABooted) return; try { if (localStorage.getItem('spotd_disable_ga') || localStorage.getItem('spotd_internal')) return; } catch (e) {} window.__spotdGABooted = true; var s = document.createElement('script'); s.async = true; s.src = 'https://www.googletagmanager.com/gtag/js?id=G-5271Q2407Q'; document.head.appendChild(s); gtag('js', new Date()); gtag('config', 'G-5271Q2407Q'); } try { if (localStorage.getItem('spotd_consent') === 'granted') spotdLoadGA(); } catch (e) {} document.addEventListener('spotd:consent', function(){ if (window.__spotdConsent === 'granted') spotdLoadGA(); }); </script>
 </head>
 <body>
 
@@ -446,8 +444,8 @@ export default async function handler(req) {
   </div>
 </footer>
 
-<script defer src="/js/consent.js?v=20260725a"></script>
-<script defer src="/js/site-analytics.js?v=20260725a"></script>
+<script defer src="/js/consent.js?v=20261106a"></script>
+<script defer src="/js/site-analytics.js?v=20261106a"></script>
 <script>window.__spotdOrganicCity='${String(city || '').replace(/[^a-z0-9-]/gi, '')}';</script>
 <script defer src="/js/organic-cta.js?v=20260729a"></script>
 </body>

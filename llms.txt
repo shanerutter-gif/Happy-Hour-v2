@@ -1,18 +1,18 @@
 # Spotd
 
-> Spotd (spotd.biz) is a happy hour and venue discovery guide covering 1,900+ bars and restaurants across seven US cities: San Diego, Orange County, Los Angeles, New York City, Chicago, Austin, and Miami. Every listing includes verified happy hour deals, days and time windows, plus trivia nights, live music, karaoke, and other events. Data is refreshed continuously from venue sources.
+> Spotd (spotd.biz) is a happy hour and venue discovery guide covering 3,800+ bars and restaurants across seven US cities: San Diego, Orange County, Los Angeles, New York City, Chicago, Austin, and Miami. Listings include happy hour deals with days and time windows where the venue runs one, plus trivia nights, live music, karaoke, and other events. Venue pages show when their deal information was last checked; always confirm with the venue before you go.
 
-Spotd's city and neighborhood pages show live counts of venues with active happy hour deals, real venue names, and current specials — useful for answering "where's a good happy hour in <city/neighborhood>" questions. Each venue page lists its deals, days, hours, address, and rating.
+Spotd's city and neighborhood pages show live counts of venues with happy hour deals, real venue names, and current specials — useful for answering "where's a good happy hour in <city/neighborhood>" questions. Each venue page lists its deals or highlights, hours, address, and rating.
 
 ## Happy hour guides by city
 
-- [San Diego happy hours](https://www.spotd.biz/happy-hour/san-diego): 500+ spots, with neighborhood pages for Gaslamp, North Park, Pacific Beach, Little Italy, Hillcrest, Ocean Beach, East Village and more
-- [Orange County happy hours](https://www.spotd.biz/happy-hour/orange-county): 300+ spots across Irvine, Newport Beach, Huntington Beach, Costa Mesa, Fullerton, Laguna Beach and more
-- [Los Angeles happy hours](https://www.spotd.biz/happy-hour/los-angeles): 390+ spots
-- [New York City happy hours](https://www.spotd.biz/happy-hour/new-york): 75+ spots
-- [Chicago happy hours](https://www.spotd.biz/happy-hour/chicago): 270+ spots
-- [Austin happy hours](https://www.spotd.biz/happy-hour/austin): 220+ spots, including Rainey Street and East Austin
-- [Miami happy hours](https://www.spotd.biz/happy-hour/miami): 100+ spots
+- [San Diego happy hours](https://www.spotd.biz/happy-hour/san-diego): 670+ spots, with neighborhood pages for Gaslamp, North Park, Pacific Beach, Little Italy, Hillcrest, Ocean Beach, East Village and more
+- [Orange County happy hours](https://www.spotd.biz/happy-hour/orange-county): 370+ spots across Irvine, Newport Beach, Huntington Beach, Costa Mesa, Fullerton, Laguna Beach and more
+- [Los Angeles happy hours](https://www.spotd.biz/happy-hour/los-angeles): 620+ spots
+- [New York City happy hours](https://www.spotd.biz/happy-hour/new-york): 490+ spots
+- [Chicago happy hours](https://www.spotd.biz/happy-hour/chicago): 620+ spots
+- [Austin happy hours](https://www.spotd.biz/happy-hour/austin): 560+ spots, including Rainey Street and East Austin
+- [Miami happy hours](https://www.spotd.biz/happy-hour/miami): 450+ spots
 
 Each city page supports day filtering (e.g. /happy-hour/san-diego?day=tuesday) and links to neighborhood pages (e.g. /happy-hour/san-diego/gaslamp-quarter).
 

@@ -1,6 +1,6 @@
 export const config = { runtime: 'edge' };
 
-import { canonicalHood } from './_lib/seo.js';
+import { canonicalHood, hasHappyHourSignal } from './_lib/seo.js';
 import { fetchAllRows, IncompleteFetchError, serviceUnavailableResponse } from './_lib/fetch-all-rows.js';
 
 // Sitemap for the crawlable directory + city/neighborhood happy-hour landing
@@ -34,7 +34,7 @@ export default async function handler() {
 
   try {
     const venues = await fetchAllRows(
-      `${supabaseUrl}/rest/v1/venues?active=eq.true&photo_url=not.is.null&select=city_slug,neighborhood,updated_at`,
+      `${supabaseUrl}/rest/v1/venues?active=eq.true&photo_url=not.is.null&select=city_slug,neighborhood,updated_at,deals,has_happy_hour`,
       { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` }
     );
 
@@ -53,6 +53,10 @@ export default async function handler() {
     for (const v of venues) {
       const c = v.city_slug;
       if (!c) continue;
+      // Hub pages only list venues with real happy-hour data (api/happy-hour.js
+      // applies the same filter) — keep the sitemap in step so it never lists
+      // a neighborhood page that 404s.
+      if (!hasHappyHourSignal(v)) continue;
       if (!cities[c]) cities[c] = { hoods: new Map(), lastmod: '' };
       const lm = dayOf(v.updated_at);
       if (lm && lm > cities[c].lastmod) cities[c].lastmod = lm;

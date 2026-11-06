@@ -32,6 +32,13 @@ const MAX_EVENTS = 50; // hard cap per batch
 // (GA-style "internal traffic" exclusion) — they test the app constantly and
 // would otherwise dominate the dashboard. Their events are never stored.
 const INTERNAL_EMAILS = ['shanerutter@gmail.com'];
+// Plus-address aliases of internal accounts (shanerutter+qa@gmail.com etc.)
+// are test accounts — excluded the same way.
+function isInternalEmail(email) {
+  if (!email) return false;
+  const base = email.replace(/\+[^@]*@/, '@');
+  return INTERNAL_EMAILS.includes(email) || INTERNAL_EMAILS.includes(base);
+}
 
 // Crawlers / bots / link-preview fetchers — never stored as page_views (they'd
 // swamp the site-wide pageview counts). Client-side site-analytics.js also
@@ -125,7 +132,7 @@ export default async function handler(req) {
   }
 
   // Drop internal/founder traffic — don't even store it.
-  if (userEmail && INTERNAL_EMAILS.includes(userEmail)) {
+  if (isInternalEmail(userEmail)) {
     return json({ ok: true, excluded: true, inserted: 0 });
   }
 
