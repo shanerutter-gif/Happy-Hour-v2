@@ -3767,7 +3767,13 @@ body.has-app-banner .bottom-nav { bottom: calc(12px + env(safe-area-inset-bottom
   box-shadow: var(--clay-sm);
 }
 .notif-row:active { transform: scale(.98); box-shadow: var(--clay-pressed); }
-.notif-body { flex: 1; font-size: 13px; color: var(--text); line-height: 1.5; }
+.notif-avatar {
+  width: 40px; height: 40px; flex: 0 0 40px; border-radius: 50%;
+  overflow: hidden; display: flex; align-items: center; justify-content: center;
+}
+.notif-avatar .initials-avatar { width: 100% !important; height: 100% !important; font-size: 18px; }
+.notif-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.notif-body { flex: 1; min-width: 0; font-size: 13px; color: var(--text); line-height: 1.5; }
 .notif-name { font-weight: 700; color: var(--ink); }
 .notif-time { display: block; color: var(--muted); font-size: 11px; margin-top: 2px; }
 .notif-icon { font-size: 16px; flex-shrink: 0; color: var(--coral); margin-top: 2px; }
