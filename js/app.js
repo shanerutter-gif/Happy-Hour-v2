@@ -6535,7 +6535,7 @@ async function openSocialNotifications() {
       const time = fmtDate(n.created_at);
       const unread = !n.read_at;
       return `<div class="notif-row${unread ? ' notif-row--unread' : ''}" onclick="${onClick(n)}">
-        ${avatar}
+        <div class="notif-avatar">${avatar}</div>
         <div class="notif-body">
           <span class="notif-name">${esc(name)}${officialBadge(actor)}</span> ${labelFor(n)}
           <span class="notif-time">${time}${n._dupes ? ` · ×${n._dupes}` : ''}</span>
