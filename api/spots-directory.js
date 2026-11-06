@@ -186,13 +186,7 @@ export default async function handler(req) {
   @media (max-width: 640px) { .dir-list { grid-template-columns: 1fr; } .dir-h1 { font-size: 25px; } }
 </style>
 
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-5271Q2407Q"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-  gtag('config', 'G-5271Q2407Q');
-</script>
+<script> /* Consent-gated Google Analytics: gtag.js loads only after the visitor explicitly accepts analytics (see js/consent.js). Until then gtag() is a harmless stub. */ window.dataLayer = window.dataLayer || []; function gtag(){ window.dataLayer.push(arguments); } function spotdLoadGA(){ if (window.__spotdGABooted) return; try { if (localStorage.getItem('spotd_disable_ga') || localStorage.getItem('spotd_internal')) return; } catch (e) {} window.__spotdGABooted = true; var s = document.createElement('script'); s.async = true; s.src = 'https://www.googletagmanager.com/gtag/js?id=G-5271Q2407Q'; document.head.appendChild(s); gtag('js', new Date()); gtag('config', 'G-5271Q2407Q'); } try { if (localStorage.getItem('spotd_consent') === 'granted') spotdLoadGA(); } catch (e) {} document.addEventListener('spotd:consent', function(){ if (window.__spotdConsent === 'granted') spotdLoadGA(); }); </script>
 </head>
 <body>
 
@@ -234,8 +228,8 @@ export default async function handler(req) {
   </div>
 </footer>
 
-<script defer src="/js/consent.js?v=20260725a"></script>
-<script defer src="/js/site-analytics.js?v=20260725a"></script>
+<script defer src="/js/consent.js?v=20261106a"></script>
+<script defer src="/js/site-analytics.js?v=20261106a"></script>
 <script defer src="/js/organic-cta.js?v=20260729a"></script>
 </body>
 </html>`;

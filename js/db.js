@@ -92,6 +92,11 @@ function _aeVisitorId() {
   return _aeVisitor;
 }
 
+function _aeExistingVisitorId() {
+  if (_aeVisitor) return _aeVisitor;
+  try { return localStorage.getItem('spotd_vid'); } catch (e) { return null; }
+}
+
 function _aeDevice() {
   try {
     const ua = navigator.userAgent || '';
@@ -139,6 +144,8 @@ function _aeConsentState() {
 function _aeFlush() {
   if (_aeTimer) { clearTimeout(_aeTimer); _aeTimer = null; }
   if (!_aeBuffer.length) return;
+  // Internal browsers (?internal=1, see js/consent.js) send nothing.
+  if (window.__spotdInternal) { _aeBuffer = []; return; }
   // Consent gate: hold (capped) while undecided, drop if declined, send if granted.
   // SIGNED-IN EXCEPTION (Oct 2026 fix): for an authenticated user the batch is
   // first-party account telemetry — the same class as last_seen, check-ins and
@@ -169,7 +176,10 @@ function _aeFlush() {
   try {
     payload = JSON.stringify({
       session_id: _aeSessionId(),
-      visitor_id: _aeVisitorId(),
+      // A signed-in batch may be sent before consent (see above), but the
+      // persistent visitor id is only CREATED once consent is granted —
+      // before that we pass along an existing one and never write storage.
+      visitor_id: (_cs === 'granted' || _cs === 'unknown') ? _aeVisitorId() : _aeExistingVisitorId(),
       platform:   _trackPlatform(),
       device:     _aeDevice(),
       surface:    'app',   // the app shell (web PWA + iOS); SEO pages send 'site'

@@ -7,9 +7,10 @@
  * 'spotd:consent' event to flush held events the moment the visitor accepts.
  *
  * Rules:
- *  - Native app shell  → 'pending' (no implied grant — the choice is surfaced
- *                        via the post-signup interstitial and the in-app
- *                        settings entry; consent is never assumed).
+ *  - Native app shell  → 'pending' (no implied grant). The delayed banner
+ *                        shows in-app too (above the bottom nav), as well as
+ *                        the post-signup interstitial and settings entry.
+ *  - ?internal=1        → marks the browser internal: nothing is sent.
  *  - Do-Not-Track on   → 'denied'  (respect the signal, no banner).
  *  - Prior choice       → reuse it, no banner. An explicit 'denied' is never
  *                        re-prompted automatically.
@@ -50,6 +51,19 @@
 
   function get() { try { return localStorage.getItem('spotd_consent'); } catch (e) { return null; } }
 
+  // ── internal-traffic switch ──
+  // ?internal=1 marks this browser as internal (founder, teammates, QA and AI
+  // test harnesses); ?internal=0 clears it. Internal browsers send nothing to
+  // our analytics or GA. Every tracker reads window.__spotdInternal.
+  var internal = false;
+  try {
+    var iq = new URLSearchParams(location.search).get('internal');
+    if (iq === '1') localStorage.setItem('spotd_internal', '1');
+    if (iq === '0') localStorage.removeItem('spotd_internal');
+    internal = localStorage.getItem('spotd_internal') === '1';
+  } catch (e) {}
+  window.__spotdInternal = internal;
+
   // ── anonymous cookieless page-view ping ──
   function isBot() {
     try {
@@ -77,7 +91,7 @@
   }
   var pinged = false;
   function sendPing() {
-    if (pinged || isBot()) return;
+    if (pinged || internal || isBot()) return;
     pinged = true;
     window.__spotdAnonPinged = true; // trackers drop their held page_view on a later Accept
     try {
@@ -114,7 +128,7 @@
     anonSend(batch);
   }
   function armClickCapture() {
-    if (isBot()) return;
+    if (internal || isBot()) return;
     try {
       document.addEventListener('click', function (e) {
         try {
@@ -259,7 +273,6 @@
   function maybeShowBanner() {
     if (bannerShown) return;
     if (window.__spotdConsent !== 'pending') return;
-    if (isNative) return; // native surfaces the choice via post-signup + settings
     if (document.getElementById('spotd-consent') || document.getElementById('spotd-consent-modal')) return;
     if (uiBusy()) {
       if (busyRetries < 20) { busyRetries++; setTimeout(maybeShowBanner, 15000); }
@@ -296,6 +309,10 @@
         '<button type="button" class="spc-btn" id="spotd-consent-yes">Accept</button>' +
       '</div>';
     (document.body || document.documentElement).appendChild(bar);
+    try {
+      var nav = document.querySelector('.bottom-nav');
+      if (nav && nav.offsetParent !== null) bar.style.bottom = 'calc(88px + env(safe-area-inset-bottom))';
+    } catch (e) {}
     try {
       requestAnimationFrame(function () {
         requestAnimationFrame(function () { bar.classList.add('spc-in'); });
@@ -492,16 +509,6 @@
     armFreshAuthPoll();
   }
 
-  // Native app shell — no implied grant. Native stays 'pending': the choice is
-  // surfaced via the post-signup interstitial and the in-app settings entry.
-  // The anonymous aggregate ping below still counts the visit.
-  var isNative = false;
-  try {
-    isNative = !!(window.spotdNative ||
-      (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) ||
-      location.protocol === 'capacitor:');
-  } catch (e) {}
-
   // Settings entries + signup hooks run on every path — withdrawing/changing
   // consent must stay available no matter the current state.
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootExtras);
@@ -531,7 +538,7 @@
   window.__spotdConsent = 'pending';
   sendPing();
 
-  if (!isNative && !snoozed()) {
+  if (!snoozed()) {
     if (document.body) scheduleBanner();
     else document.addEventListener('DOMContentLoaded', scheduleBanner);
   }

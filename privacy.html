@@ -13,7 +13,7 @@
   function gtag(){ window.dataLayer.push(arguments); }
   function spotdLoadGA(){
     if (window.__spotdGABooted) return;
-    try { if (localStorage.getItem('spotd_disable_ga')) return; } catch (e) {}
+    try { if (localStorage.getItem('spotd_disable_ga') || localStorage.getItem('spotd_internal')) return; } catch (e) {}
     window.__spotdGABooted = true;
     var s = document.createElement('script');
     s.async = true;
@@ -117,7 +117,7 @@
     <a href="#" data-spotd-cookie-settings="1" onclick="event.preventDefault();if(window.spotdShowConsent)window.spotdShowConsent()">Cookie settings</a>
   </div>
 </footer>
-<script defer src="/js/consent.js?v=20260922a"></script>
-<script defer src="/js/site-analytics.js?v=20260725a"></script>
+<script defer src="/js/consent.js?v=20261106a"></script>
+<script defer src="/js/site-analytics.js?v=20261106a"></script>
 </body>
 </html>

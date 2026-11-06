@@ -49,7 +49,7 @@ function _obStashPicks() {
 // city only appears in onboarding once it has real neighborhoods + venues here.
 const OB_CITY_CONFIG = {
   'san-diego': {
-    name: 'San Diego', state: 'CA', tagline: '522+ spots live',
+    name: 'San Diego', state: 'CA', tagline: '670+ spots live',
     neighborhoods: [
       { name: 'North Park',    deals: 8,  popular: true  },
       { name: 'Downtown',      deals: 12, popular: false },
@@ -80,7 +80,7 @@ const OB_CITY_CONFIG = {
     ],
   },
   'orange-county': {
-    name: 'Orange County', state: 'CA', tagline: '331+ spots live',
+    name: 'Orange County', state: 'CA', tagline: '370+ spots live',
     neighborhoods: [
       { name: 'Newport Beach',    deals: 24, popular: true  },
       { name: 'Costa Mesa',       deals: 24, popular: false },
@@ -109,7 +109,7 @@ const OB_CITY_CONFIG = {
     ],
   },
   'los-angeles': {
-    name: 'Los Angeles', state: 'CA', tagline: '393+ spots live',
+    name: 'Los Angeles', state: 'CA', tagline: '620+ spots live',
     neighborhoods: [
       { name: 'Silver Lake',     deals: 14, popular: true  },
       { name: 'Arts District',   deals: 16, popular: false },
@@ -140,7 +140,7 @@ const OB_CITY_CONFIG = {
     ],
   },
   'new-york': {
-    name: 'New York', state: 'NY', tagline: '76+ spots live',
+    name: 'New York', state: 'NY', tagline: '490+ spots live',
     neighborhoods: [
       { name: 'Williamsburg',    deals: 11, popular: true  },
       { name: 'East Village',    deals: 7,  popular: false },
@@ -169,7 +169,7 @@ const OB_CITY_CONFIG = {
     ],
   },
   'chicago': {
-    name: 'Chicago', state: 'IL', tagline: '273+ spots live',
+    name: 'Chicago', state: 'IL', tagline: '620+ spots live',
     neighborhoods: [
       { name: 'River North',   deals: 21, popular: true  },
       { name: 'Logan Square',  deals: 15, popular: false },
@@ -200,7 +200,7 @@ const OB_CITY_CONFIG = {
     ],
   },
   'austin': {
-    name: 'Austin', state: 'TX', tagline: '227+ spots live',
+    name: 'Austin', state: 'TX', tagline: '560+ spots live',
     neighborhoods: [
       { name: 'East Austin',        deals: 21, popular: true  },
       { name: 'South Lamar',        deals: 16, popular: false },
@@ -231,7 +231,7 @@ const OB_CITY_CONFIG = {
     ],
   },
   'miami': {
-    name: 'Miami', state: 'FL', tagline: '100+ spots live',
+    name: 'Miami', state: 'FL', tagline: '450+ spots live',
     neighborhoods: [
       { name: 'South Beach',     deals: 9, popular: true  },
       { name: 'Wynwood',         deals: 8, popular: false },
