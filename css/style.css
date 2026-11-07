@@ -9156,3 +9156,187 @@ img.np-stop-photo { object-fit: cover; display: block; }
   .wt-post{opacity:1;transform:none;animation:none!important}
 }
 @media (min-width:1024px){ .wt-slide{gap:28px} .wt-mock{width:340px} }
+
+/* ═══════════════════════════════════════════════════════════════
+   POST-CHECK-IN PAGE v2 (2026-11-07) — full-screen, composer-style.
+   Replaces the .checkin-sheet bottom sheet (its sticky footer floated
+   over the friend list once the iOS keyboard shrank the viewport).
+   Post lives in the header so the keyboard can never cover it.
+   No per-item backdrop-filter (the friend strip can be 60 avatars).
+   ═══════════════════════════════════════════════════════════════ */
+.ck-head { grid-template-columns: 36px 1fr auto; }
+.ck-post {
+  border: none; cursor: pointer; min-width: 72px; height: 36px; padding: 0 16px;
+  border-radius: 999px; font-family: 'Cabinet Grotesk', sans-serif;
+  font-weight: 800; font-size: 15px; letter-spacing: .1px;
+  background: var(--bg2); color: var(--ink);
+  transition: transform .18s var(--ease-bounce), background .2s ease, color .2s ease, box-shadow .2s ease;
+  position: relative; overflow: hidden; -webkit-tap-highlight-color: transparent;
+}
+.ck-post--ready {
+  background: linear-gradient(135deg, var(--coral), var(--amber)); color: #fff;
+  box-shadow: 0 4px 14px rgba(255,107,74,0.35), inset 0 1px 0 rgba(255,255,255,0.25);
+}
+.ck-post:not(:disabled):active { transform: scale(.94); }
+.ck-post:disabled { opacity: .7; }
+
+.ck-scroll { padding: 16px 16px max(40px, calc(env(safe-area-inset-bottom, 0px) + 32px)); }
+
+/* Venue confirmation */
+.ck-venue {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px 10px 10px; margin: 0 0 14px;
+  border-radius: 20px; background: var(--card);
+  border: 1px solid var(--cp-glass-brd);
+  box-shadow: 0 6px 20px rgba(42,31,20,0.06);
+  animation: ckRise .42s var(--ease-bounce) both;
+}
+.ck-venue-img {
+  width: 52px; height: 52px; border-radius: 14px; overflow: hidden; flex: 0 0 auto;
+  background: linear-gradient(135deg, var(--coral), var(--amber));
+  display: flex; align-items: center; justify-content: center;
+}
+.ck-venue-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ck-venue-ph { color: #fff; display: flex; }
+.ck-venue-main { min-width: 0; flex: 1; }
+.ck-venue-name {
+  font-family: 'Cabinet Grotesk', sans-serif; font-weight: 800; font-size: 17px;
+  color: var(--ink); letter-spacing: -0.2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ck-venue-sub {
+  display: flex; align-items: center; gap: 6px; margin-top: 3px;
+  font-size: 12.5px; font-weight: 600; color: #10965A;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ck-tick {
+  width: 16px; height: 16px; border-radius: 50%; flex: 0 0 auto; background: #10965A;
+  display: inline-flex; align-items: center; justify-content: center;
+  animation: ckPop .5s .15s var(--ease-bounce) both;
+}
+.ck-tick::after {
+  content: ''; width: 4px; height: 8px; border: solid #fff; border-width: 0 2px 2px 0;
+  transform: rotate(45deg) translate(-0.5px, -1px);
+}
+[data-theme="dark"] .ck-venue { background: var(--bg2); box-shadow: 0 6px 20px rgba(0,0,0,0.35); }
+[data-theme="dark"] .ck-venue-sub { color: #4ADE97; }
+
+/* Write card: avatar + caption, photo inside the same card */
+.ck-write { padding: 14px; animation: ckRise .42s .05s var(--ease-bounce) both; }
+.ck-write-row { display: flex; gap: 10px; align-items: flex-start; }
+.ck-me { width: 36px; height: 36px; border-radius: 50%; overflow: hidden; flex: 0 0 auto;
+  display: flex; align-items: center; justify-content: center; font-size: 18px; }
+.ck-me img { width: 100%; height: 100%; object-fit: cover; }
+.ck-caption {
+  flex: 1; min-width: 0; min-height: 40px; max-height: 220px; resize: none;
+  background: transparent; border: none; outline: none; padding: 8px 2px;
+  font-family: 'DM Sans', sans-serif; font-size: 16px; line-height: 1.4; color: var(--text);
+}
+.ck-caption::placeholder { color: var(--muted); }
+
+.ck-photo-pick {
+  display: flex; align-items: center; gap: 12px; margin-top: 10px; padding: 12px;
+  border-radius: 16px; border: 1.5px dashed var(--cp-glass-brd); cursor: pointer;
+  position: relative; overflow: hidden;
+  transition: transform .18s var(--ease-bounce), background .15s ease, border-color .15s ease;
+}
+.ck-photo-pick:active { transform: scale(.985); background: rgba(255,107,74,.06); border-color: rgba(255,107,74,.4); }
+.ck-photo-pick[hidden], .ck-preview[hidden] { display: none; }
+.ck-photo-ic {
+  width: 42px; height: 42px; border-radius: 13px; flex: 0 0 auto; color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, var(--coral), var(--amber));
+  box-shadow: 0 4px 12px rgba(255,107,74,0.3), inset 0 1px 0 rgba(255,255,255,0.3);
+}
+.ck-photo-txt { display: flex; flex-direction: column; min-width: 0; }
+.ck-photo-title { font-weight: 700; font-size: 15px; color: var(--ink); }
+.ck-photo-sub { font-size: 12px; color: var(--muted); margin-top: 1px; }
+
+/* Photo preview — the WHOLE photo (contain on a dark mat), never a crop */
+.ck-preview {
+  position: relative; margin-top: 10px; border-radius: 16px; overflow: hidden;
+  background: #14100C; animation: ckRise .3s var(--ease-bounce) both;
+}
+.ck-preview img { display: block; width: 100%; max-height: 42vh; object-fit: contain; }
+.ck-preview-actions { position: absolute; top: 10px; right: 10px; display: flex; gap: 8px; }
+.ck-preview-btn {
+  display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px;
+  border: none; border-radius: 999px; cursor: pointer;
+  background: rgba(20,15,8,0.6); color: #fff; font-size: 13px; font-weight: 700;
+}
+.ck-preview-btn--x { width: 32px; padding: 0; justify-content: center; }
+.ck-preview-btn:active { transform: scale(.92); }
+
+/* Who's with you — horizontal avatar strip */
+.ck-label {
+  display: flex; align-items: baseline; justify-content: space-between;
+  margin: 20px 2px 10px;
+  font-family: 'Cabinet Grotesk', sans-serif; font-weight: 800; font-size: 16px; color: var(--ink);
+}
+.ck-label-count { font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 700; color: var(--coral); }
+.ck-friends {
+  display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none;
+  margin: 0 -16px; padding: 4px 16px 6px; scroll-padding-left: 16px;
+  -webkit-overflow-scrolling: touch;
+}
+.ck-friends::-webkit-scrollbar { display: none; }
+.ck-friend {
+  flex: 0 0 auto; width: 72px; display: flex; flex-direction: column; align-items: center; gap: 6px;
+  background: none; border: none; padding: 0; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.ck-friend-av {
+  position: relative; width: 60px; height: 60px; border-radius: 50%;
+  padding: 3px; border: 2px solid transparent; background: var(--bg2);
+  display: flex; align-items: center; justify-content: center; font-size: 26px;
+  transition: transform .22s var(--ease-bounce), border-color .15s ease;
+}
+.ck-friend-av > img, .ck-friend-av > span:not(.ck-friend-check), .ck-friend-av > div {
+  width: 100%; height: 100%; border-radius: 50%; overflow: hidden; object-fit: cover;
+}
+.ck-friend-av > span.initials-avatar { display: flex; align-items: center; justify-content: center; font-size: 28px; }
+.ck-me > span.initials-avatar { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; font-size: 18px; }
+.ck-friend:active .ck-friend-av { transform: scale(.92); }
+.ck-friend.on .ck-friend-av {
+  background:
+    linear-gradient(var(--bg), var(--bg)) padding-box,
+    linear-gradient(135deg, var(--coral), var(--amber)) border-box;
+}
+.ck-friend-check {
+  position: absolute; right: -2px; bottom: -2px; width: 22px; height: 22px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--coral), var(--amber)); border: 2px solid var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  transform: scale(0); transition: transform .22s var(--ease-bounce);
+}
+.ck-friend-check::after {
+  content: ''; width: 4px; height: 8px; border: solid #fff; border-width: 0 2px 2px 0;
+  transform: rotate(45deg) translate(-0.5px, -1px);
+}
+.ck-friend.on .ck-friend-check { transform: scale(1); }
+.ck-friend-name {
+  max-width: 100%; font-size: 12px; font-weight: 600; color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ck-friend.on .ck-friend-name { color: var(--ink); font-weight: 700; }
+.ck-friend--skel { pointer-events: none; }
+.ck-friend--skel .ck-friend-av, .ck-friend--skel .ck-friend-name {
+  background: var(--bg2); border-radius: 999px; animation: ckSkel 1.2s ease-in-out infinite alternate;
+}
+.ck-friend--skel .ck-friend-av { border-radius: 50%; }
+.ck-friend--skel .ck-friend-name { width: 44px; height: 10px; }
+.ck-friends-empty {
+  width: 100%; padding: 16px; border-radius: 16px; text-align: center;
+  font-size: 13px; color: var(--muted); background: var(--bg2);
+}
+
+.ck-skip {
+  display: block; margin: 26px auto 0; padding: 10px 18px; border: none; background: none;
+  font-size: 14px; font-weight: 600; color: var(--muted); cursor: pointer;
+}
+
+@keyframes ckRise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes ckPop  { from { transform: scale(0); } to { transform: scale(1); } }
+@keyframes ckSkel { from { opacity: .55; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .ck-venue, .ck-write, .ck-preview, .ck-tick, .ck-friend--skel .ck-friend-av,
+  .ck-friend--skel .ck-friend-name { animation: none; }
+}

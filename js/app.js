@@ -8468,172 +8468,192 @@ function _base64ToFile(base64Data, mimeType, fileName) {
 }
 
 
-// Post-check-in sheet. One clean celebration card with a SINGLE action that
-// commits everything together (photo + caption + tags). Everything is optional —
-// you can tag friends with or without a photo, and the button label adapts to
-// whatever you've added so there's never an orphaned "tagged but didn't show up"
-// state (the old two-button "Share Photo" / "Done" split dropped tags added
-// after the photo was shared).
+// Post-check-in page (overhauled 2026-11-07). Full-screen, composer-style:
+//   header  = ✕ · "Checked in" · Post (pinned top-right, so the iOS keyboard
+//             can never cover the action — the old bottom-sheet's sticky
+//             footer floated mid-sheet over the friend list once the keyboard
+//             shrank the viewport)
+//   body    = venue confirmation card → write card (avatar, caption, photo)
+//             → "Who's with you?" horizontal avatar strip → quiet Skip link.
+// Still ONE commit (submitCheckin) for photo + caption + tags — the element
+// ids (checkinShareBtn / photoCaptionField / photoFileInput / ...) are kept
+// so submitCheckin and the helpers below are unchanged in behaviour.
 function openPhotoCheckinPrompt(venueId, venueName) {
   // Close modal first to avoid stacking overlays
   closeOverlay('modalOverlay');
 
   const overlay = document.createElement('div');
-  overlay.className = 'overlay';
-  const bail = () => { window._pendingCheckinPhoto = null; window._stagedTagIds = new Set(); dismissOverlay(overlay); _tryPushPromptAfterCheckin(); };
-  overlay.onclick = e => { if (e.target === overlay) bail(); };
+  overlay.className = 'overlay overlay--full ck-overlay';
+  const bail = () => { _ckRevokePreview(); window._pendingCheckinPhoto = null; window._stagedTagIds = new Set(); dismissOverlay(overlay); _tryPushPromptAfterCheckin(); };
 
-  // Store for use after camera returns. Reset any leftover state.
+  // Store for use after the picker returns. Reset any leftover state.
   window._checkinPhotoVenueId = venueId;
   window._checkinPhotoVenueName = venueName;
   window._pendingCheckinPhoto = null;
   window._stagedTagIds = new Set();
 
-  // Build the file input separately so we can attach listener programmatically
-  const fileInput = document.createElement('input');
-  fileInput.type = 'file';
-  fileInput.accept = 'image/*';
-  fileInput.id = 'photoFileInput';
-  fileInput.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;z-index:2';
+  const v = (state.venues || []).find(x => String(x.id) === String(venueId)) || {};
+  const prof = window._myProfile || _composerProfile || {};
+  const myName = prof.display_name || currentUser?.user_metadata?.display_name || 'You';
+  const venuePhoto = v.photo_url
+    ? `<img src="${esc(optImg(v.photo_url, 240))}" data-raw="${esc(v.photo_url)}" alt="" onerror="${IMG_FALLBACK}this.remove()">`
+    : `<span class="ck-venue-ph">${icn('martini', 20)}</span>`;
+  const venueSub = [v.neighborhood, 'just now'].filter(Boolean).join(' · ');
 
   overlay.innerHTML = `
-    <div class="sheet checkin-sheet">
-      <div class="sheet-handle"></div>
-      <div class="checkin-celebrate">
-        <div class="checkin-celebrate-badge">🎉</div>
-        <div class="checkin-celebrate-title">You're checked in!</div>
-        <div class="checkin-celebrate-sub">Add a photo or tag who you're with at ${esc(venueName)} — all optional.</div>
-      </div>
+    <div class="cp cp--full ck">
+      <header class="cp-header cp-header--full ck-head">
+        <button class="cp-iconbtn" id="checkinSkipBtn" aria-label="Close">${icn('close', 17)}</button>
+        <div class="cp-edit-title">Checked in</div>
+        <button class="ck-post" id="checkinShareBtn" type="button"
+          onclick="submitCheckin(window._checkinPhotoVenueId, window._checkinPhotoVenueName)">Done</button>
+      </header>
 
-      <div class="photo-upload-area" id="photoUploadArea" style="position:relative">
-        <div style="position:relative;z-index:1;pointer-events:none;display:flex;align-items:center;justify-content:center;gap:12px">
-          <div class="photo-upload-icon">${icn('camera',22)}</div>
-          <div class="photo-upload-textwrap">
-            <div class="photo-upload-hint">Add a photo</div>
-            <div class="photo-upload-sub">Show the moment — optional</div>
+      <div class="cp-scroll ck-scroll">
+        <div class="ck-venue">
+          <div class="ck-venue-img">${venuePhoto}</div>
+          <div class="ck-venue-main">
+            <div class="ck-venue-name">${esc(venueName || 'this spot')}</div>
+            <div class="ck-venue-sub"><span class="ck-tick" aria-hidden="true"></span>Checked in${venueSub ? ' · ' + esc(venueSub) : ''}</div>
           </div>
         </div>
-      </div>
 
-      <div id="checkinPhotoPreview" style="display:none;position:relative;margin-bottom:12px">
-        <img id="checkinPreviewImg" src="" alt="Preview" style="width:100%;border-radius:14px;max-height:240px;object-fit:cover">
-        <button onclick="clearCheckinPhotoPreview()" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.55);color:#fff;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:14px">✕</button>
-      </div>
+        <div class="cp-card ck-write">
+          <div class="ck-write-row">
+            <div class="ck-me">${initialsAvatar(myName, '', prof.avatar_emoji, prof.avatar_url)}</div>
+            <textarea class="ck-caption" id="photoCaptionField" maxlength="500" rows="1"
+              placeholder="What's the vibe at ${esc(venueName || 'the spot')}?"
+              oninput="_ckAutoGrow(this);_updateCheckinShareLabel()"></textarea>
+          </div>
 
-      <textarea class="photo-caption-field" id="photoCaptionField"
-        placeholder="Say something… (optional)" rows="2" oninput="_updateCheckinShareLabel()"></textarea>
+          <label class="ck-photo-pick" id="photoUploadArea">
+            <input type="file" accept="image/*" id="photoFileInput" hidden>
+            <span class="ck-photo-ic">${icn('camera', 20)}</span>
+            <span class="ck-photo-txt">
+              <span class="ck-photo-title">Add a photo</span>
+              <span class="ck-photo-sub">Show everyone what tonight looks like</span>
+            </span>
+          </label>
 
-      <div class="cp-section-label cp-section-label--top">Who's with you?</div>
-      <div class="cp-tag-list" id="tagFriendsGridInline">
-        <div class="cp-pick-empty">Loading friends…</div>
-      </div>
+          <div class="ck-preview" id="checkinPhotoPreview" hidden>
+            <img id="checkinPreviewImg" src="" alt="Your photo">
+            <div class="ck-preview-actions">
+              <button type="button" class="ck-preview-btn" onclick="document.getElementById('photoFileInput').click()">${icn('image', 14)}<span>Change</span></button>
+              <button type="button" class="ck-preview-btn ck-preview-btn--x" onclick="clearCheckinPhotoPreview()" aria-label="Remove photo">${icn('close', 14)}</button>
+            </div>
+          </div>
+        </div>
 
-      <div class="checkin-foot">
-        <button class="photo-submit-btn" id="checkinShareBtn"
-          onclick="submitCheckin(window._checkinPhotoVenueId, window._checkinPhotoVenueName)">Done</button>
-        <button class="photo-skip-btn" id="checkinSkipBtn">Maybe later</button>
+        <div class="ck-label">
+          <span>Who's with you?</span>
+          <span class="ck-label-count" id="ckTagCount"></span>
+        </div>
+        <div class="ck-friends" id="tagFriendsGridInline">
+          ${'<span class="ck-friend ck-friend--skel"><span class="ck-friend-av"></span><span class="ck-friend-name">&nbsp;</span></span>'.repeat(5)}
+        </div>
+
+        <button type="button" class="ck-skip" id="checkinSkipLink">Skip for now</button>
       </div>
     </div>`;
 
-  // Insert file input into the upload area and attach listener AFTER DOM is ready
-  const uploadArea = overlay.querySelector('#photoUploadArea');
-  uploadArea.prepend(fileInput);
   overlay.querySelector('#checkinSkipBtn').addEventListener('click', bail);
+  overlay.querySelector('#checkinSkipLink').addEventListener('click', bail);
 
-  // Use addEventListener — survives iOS camera suspend/resume better than onchange
-  fileInput.addEventListener('change', function() {
+  // addEventListener survives iOS camera suspend/resume better than onchange
+  overlay.querySelector('#photoFileInput').addEventListener('change', function() {
     const file = this.files && this.files[0];
     if (!file) return;
-    // Validate before staging: accept="image/*" is a picker hint, not a
-    // guarantee (desktop drag/drop, some Android pickers), and nothing
-    // downstream checks size or type — an oversized or non-image file was
-    // staged, previewed (broken), and only failed at upload with a generic
-    // toast. These are the same checks the deleted dead handler carried.
+    // accept="image/*" is a picker hint, not a guarantee — validate here so a
+    // bad file never gets staged and only fails at upload with a generic toast.
     if (!file.type.startsWith('image/')) { showToast('Please choose an image file'); this.value = ''; return; }
     if (file.size > 10 * 1024 * 1024) { showToast('Photo must be under 10 MB'); this.value = ''; return; }
+    _ckRevokePreview();
     window._pendingCheckinPhoto = file;
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      const preview = document.getElementById('checkinPhotoPreview');
-      const img = document.getElementById('checkinPreviewImg');
-      const area = document.getElementById('photoUploadArea');
-      if (img) img.src = e.target.result;
-      if (preview) preview.style.display = 'block';
-      if (area) area.style.display = 'none';
-      _updateCheckinShareLabel();
-    };
-    reader.readAsDataURL(file);
+    window._ckPreviewUrl = URL.createObjectURL(file); // cheaper than a base64 FileReader copy of a full-res photo
+    const img = document.getElementById('checkinPreviewImg');
+    if (img) img.src = window._ckPreviewUrl;
+    const preview = document.getElementById('checkinPhotoPreview');
+    const area = document.getElementById('photoUploadArea');
+    if (preview) preview.hidden = false;
+    if (area) area.hidden = true;
+    _updateCheckinShareLabel();
   });
 
   presentOverlay(overlay);
   _loadTagFriendsInline(venueId, venueName);
 }
 
-// Keep the single share button's label honest about what tapping it will do,
-// so users never wonder whether their photo/tag "took".
+function _ckRevokePreview() {
+  if (window._ckPreviewUrl) { try { URL.revokeObjectURL(window._ckPreviewUrl); } catch (e) {} }
+  window._ckPreviewUrl = null;
+}
+function _ckAutoGrow(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 220) + 'px'; }
+
+// Keep the Post button's label honest about what tapping it will do, and the
+// "N selected" count beside the friends strip in step.
 function _updateCheckinShareLabel() {
+  const tagCount = window._stagedTagIds ? window._stagedTagIds.size : 0;
+  const countEl = document.getElementById('ckTagCount');
+  if (countEl) countEl.textContent = tagCount ? `${tagCount} tagged` : '';
   const btn = document.getElementById('checkinShareBtn');
   if (!btn || btn.disabled) return;
   const hasPhoto = !!window._pendingCheckinPhoto;
   const caption  = document.getElementById('photoCaptionField')?.value.trim() || '';
-  const tagCount = window._stagedTagIds ? window._stagedTagIds.size : 0;
-  if (hasPhoto)              btn.textContent = tagCount ? `Share photo · ${tagCount} tagged` : 'Share photo';
-  else if (tagCount)         btn.textContent = `Tag ${tagCount} friend${tagCount > 1 ? 's' : ''}`;
-  else if (caption)          btn.textContent = 'Post check-in';
-  else                       btn.textContent = 'Done';
+  const posting  = hasPhoto || tagCount || caption;
+  btn.textContent = hasPhoto ? 'Share' : (posting ? 'Post' : 'Done');
+  btn.classList.toggle('ck-post--ready', !!posting);
 }
 
 function clearCheckinPhotoPreview() {
   window._pendingCheckinPhoto = null;
-  // Reset the file input too (Sofia 2026-10-31): a file input only fires
-  // `change` when its value changes, so clearing the preview alone left
-  // the picked file in the input and re-picking the SAME photo was a
-  // silent no-op — the user tapped the photo, chose the same image, and
-  // nothing happened.
+  _ckRevokePreview();
+  // Reset the file input too: `change` only fires when the value changes, so
+  // re-picking the SAME photo after removing it was a silent no-op.
   const fileInput = document.getElementById('photoFileInput');
   if (fileInput) fileInput.value = '';
+  const img = document.getElementById('checkinPreviewImg');
+  if (img) img.removeAttribute('src');
   const preview = document.getElementById('checkinPhotoPreview');
   const area = document.getElementById('photoUploadArea');
-  if (preview) preview.style.display = 'none';
-  if (area) area.style.display = '';
+  if (preview) preview.hidden = true;
+  if (area) area.hidden = false;
   _updateCheckinShareLabel();
 }
 
 async function _loadTagFriendsInline(venueId, venueName) {
   if (!currentUser) return;
-  // Reset the staged-tag set for this check-in session. Tags are committed
-  // in submitCheckin when the post row exists, not on chip tap.
+  // Tags are committed in submitCheckin once the post row exists, not on tap.
   window._stagedTagIds = new Set();
+  const empty = (msg) => {
+    const grid = document.getElementById('tagFriendsGridInline');
+    if (grid) grid.innerHTML = `<div class="ck-friends-empty">${msg}</div>`;
+  };
   try {
     const followingIds = await getFollowing(currentUser.id);
     const grid = document.getElementById('tagFriendsGridInline');
     if (!grid) return;
     // Defense in depth: exclude self in case self-follow somehow exists
     const ids = (followingIds || []).filter(id => id && id !== currentUser.id);
-    if (!ids.length) {
-      grid.innerHTML = `<div class="cp-pick-empty">Follow people to tag them here.</div>`;
-      return;
-    }
+    if (!ids.length) { empty('Follow friends to tag them in your check-ins.'); return; }
     const { data: profiles } = await db.from('profiles')
       .select('id, display_name, avatar_emoji, avatar_url, username')
-      .in('id', ids)
+      .in('id', ids.slice(0, 200))
       .not('display_name', 'is', null)
-      .limit(12);
-    const list = (profiles || []).filter(p => p.id !== currentUser.id);
-    if (!list.length) {
-      grid.innerHTML = `<div class="cp-pick-empty">No friends to tag yet — follow people first.</div>`;
-      return;
-    }
-    grid.innerHTML = list.map(p => `
-      <button class="cp-tag-row" id="tag-chip-${p.id}" type="button"
-        onclick="toggleStagedTag('${p.id}','${_jsq(p.display_name || '')}',this)">
-        <span class="cp-tag-row-avatar">${initialsAvatar(p.display_name || 'Friend', '', p.avatar_emoji, p.avatar_url)}</span>
-        <span class="cp-tag-row-name">${esc(p.display_name || 'Friend')}</span>
-        <span class="cp-tag-row-check" aria-hidden="true"></span>
-      </button>`).join('');
+      .limit(60);
+    const list = (profiles || []).filter(p => p.id !== currentUser.id)
+      .sort((a, b) => (a.display_name || '').localeCompare(b.display_name || ''));
+    if (!list.length) { empty('No friends to tag yet — follow people first.'); return; }
+    grid.innerHTML = list.map(p => {
+      const name = p.display_name || 'Friend';
+      return `
+      <button class="ck-friend" id="tag-chip-${p.id}" type="button" aria-pressed="false"
+        onclick="toggleStagedTag('${p.id}','${_jsq(name)}',this)">
+        <span class="ck-friend-av">${initialsAvatar(name, '', p.avatar_emoji, p.avatar_url)}<span class="ck-friend-check" aria-hidden="true"></span></span>
+        <span class="ck-friend-name">${esc(name.split(' ')[0])}</span>
+      </button>`;
+    }).join('');
   } catch(e) {
-    const grid = document.getElementById('tagFriendsGridInline');
-    if (grid) grid.innerHTML = `<div class="cp-pick-empty">Couldn't load friends right now.</div>`;
+    empty("Couldn't load friends right now.");
   }
 }
 
@@ -8642,13 +8662,10 @@ async function _loadTagFriendsInline(venueId, venueName) {
 function toggleStagedTag(userId, name, chip) {
   if (typeof haptic === 'function') haptic('light');
   if (!window._stagedTagIds) window._stagedTagIds = new Set();
-  if (window._stagedTagIds.has(userId)) {
-    window._stagedTagIds.delete(userId);
-    chip.classList.remove('on');
-  } else {
-    window._stagedTagIds.add(userId);
-    chip.classList.add('on');
-  }
+  const on = !window._stagedTagIds.has(userId);
+  if (on) window._stagedTagIds.add(userId); else window._stagedTagIds.delete(userId);
+  chip.classList.toggle('on', on);
+  chip.setAttribute('aria-pressed', String(on));
   _updateCheckinShareLabel();
 }
 
@@ -8713,6 +8730,7 @@ async function submitCheckin(venueId, venueName) {
     // shortfall; the post itself DID land, so this is a warning, not a
     // failure of the whole submit.
     const tagShortfall = tagIds.length - tagCount;
+    _ckRevokePreview();
     window._pendingCheckinPhoto = null;
     window._stagedTagIds = new Set();
 
