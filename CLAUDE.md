@@ -605,6 +605,10 @@ Weekend-events posts (time-sensitive, short shelf life): font fix + Article sche
   extending what exists. **Read this file fully before proposing infrastructure.**
 - Strong preference for: keeping things simple, not over-engineering, no parallel
   vendors, no JS frameworks, no premature abstractions.
+- **Ship without asking (2026-11-07):** when Shane asks for a change, QA it
+  yourself (node --check, `npm test`, headless-Chromium check) and then open a PR
+  and MERGE it to `main` (= live) in the same turn. Don't stop to ask "want me to
+  merge?" — he trusts the QA. Still never push to `main` directly; go through a PR.
 - Recently got a new MacBook — can use full local Claude Code features (`gh` CLI,
   IDE integrations, MCP tools).
 
