@@ -169,7 +169,8 @@
 
   // ── state ──────────────────────────────────────────
   const state = {
-    view: 'users',                 // 'users' | 'traffic'
+    view: 'users',                 // 'users' | 'traffic' | 'venues'
+    vSurface: 'all', vCity: '', vQ: '', selVenue: null,
     preset: '7d', customFrom: '', customTo: '', bucket: 'day',
     bdSel: 'venue', tdSel: 'source', surface: 'site', selUser: null,
     selSession: null, jFilter: 'all',
@@ -179,6 +180,7 @@
     breakdown: [], userResults: [], timeline: [],
     tKpis: {}, tSeries: [], topPages: [], tBreakdown: [],
     journeys: [], journey: [],
+    venues: [], vSeries: [],
   };
 
   function rangeBounds() {
@@ -197,7 +199,175 @@
   }
 
   // ── data loads ─────────────────────────────────────
-  function loadAll() { return state.view === 'traffic' ? loadTraffic() : loadUsers(); }
+  function loadAll() {
+    if (state.view === 'venues') return loadVenues();
+    return state.view === 'traffic' ? loadTraffic() : loadUsers();
+  }
+
+  // ── Venue impressions (js/impressions.js → ae_venue_impressions) ──
+  async function loadVenues(opts) {
+    const { from, to, bucket } = rangeBounds();
+    state.bucket = bucket;
+    const quiet = opts && opts.quiet;
+    if (!quiet) setLoading();
+    try {
+      const rows = await rpc('ae_venue_impressions', {
+        p_from: from, p_to: to, p_surface: state.vSurface,
+        p_city: state.vCity || null, p_q: state.vQ || null, p_limit: 200,
+      });
+      data.venues = Array.isArray(rows) ? rows : [];
+      renderVenues();
+      if (quiet) {
+        const qi = document.getElementById('ae-v-q');
+        if (qi) { qi.focus(); const n = qi.value.length; try { qi.setSelectionRange(n, n); } catch (e) {} }
+      }
+      if (state.selVenue) selectVenue(state.selVenue);
+    } catch (e) { showError(e); }
+  }
+
+  async function selectVenue(id) {
+    state.selVenue = id;
+    const { from, to, bucket } = rangeBounds();
+    const panel = document.getElementById('ae-venue-panel');
+    if (panel) panel.innerHTML = `<div style="padding:24px;text-align:center;color:var(--muted)">Loading…</div>`;
+    try {
+      const rows = await rpc('ae_venue_impression_series', { p_venue: id, p_from: from, p_to: to, p_bucket: bucket, p_surface: state.vSurface });
+      data.vSeries = Array.isArray(rows) ? rows : [];
+    } catch (e) { data.vSeries = []; }
+    renderVenuePanel();
+    document.querySelectorAll('#activity-content .ae-v-row').forEach(r => {
+      r.style.background = r.dataset.vid === id ? 'rgba(255,107,74,.07)' : '';
+    });
+  }
+
+  const VENUE_CITIES = [
+    ['', 'All cities'], ['san-diego', 'San Diego'], ['orange-county', 'Orange County'],
+    ['los-angeles', 'Los Angeles'], ['new-york', 'New York'], ['chicago', 'Chicago'],
+    ['austin', 'Austin'], ['miami', 'Miami'],
+  ];
+
+  function renderVenues() {
+    const wrap = document.getElementById('activity-content');
+    if (!wrap) return;
+    const rows = data.venues || [];
+    const tot = rows.reduce((a, r) => {
+      a.imp += +r.impressions || 0; a.views += +r.detail_views || 0;
+      a.app += +r.app_impressions || 0; a.site += +r.site_impressions || 0;
+      if (+r.impressions > 0) a.venues++;
+      return a;
+    }, { imp: 0, views: 0, app: 0, site: 0, venues: 0 });
+    const max = rows.reduce((m, r) => Math.max(m, +r.impressions || 0), 0);
+    const surfaces = [['all', 'All'], ['app', 'App'], ['site', 'Website']];
+    const th = 'padding:9px 12px;font-size:11px;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap';
+
+    wrap.innerHTML = `
+      ${controlsBarHTML()}
+
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px">
+        <div style="display:inline-flex;background:var(--bg2);border-radius:999px;padding:3px;gap:2px">
+          ${surfaces.map(([id, lbl]) => `
+            <button class="ae-v-surface" data-surface="${id}"
+              style="padding:6px 16px;border-radius:999px;border:none;font-weight:600;font-size:13px;cursor:pointer;background:${state.vSurface === id ? 'var(--coral)' : 'transparent'};color:${state.vSurface === id ? '#fff' : 'var(--text)'}">${lbl}</button>`).join('')}
+        </div>
+        <select id="ae-v-city" style="padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:13px;font-weight:600;cursor:pointer">
+          ${VENUE_CITIES.map(([id, lbl]) => `<option value="${id}"${state.vCity === id ? ' selected' : ''}>${lbl}</option>`).join('')}
+        </select>
+        <input id="ae-v-q" type="search" placeholder="Search a venue…" value="${esc(state.vQ)}"
+          style="padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:13px;min-width:200px">
+      </div>
+
+      <div class="kpi-row" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px">
+        ${kpiCard('Impressions', fmtNum(tot.imp), 'listing seen ≥1s')}
+        ${kpiCard('Venues seen', fmtNum(tot.venues))}
+        ${kpiCard('Detail views', fmtNum(tot.views), 'modal / venue page')}
+        ${kpiCard('View rate', tot.imp ? ((tot.views / tot.imp) * 100).toFixed(1) + '%' : '—', 'detail views / impressions')}
+        ${kpiCard('App', fmtNum(tot.app), 'impressions')}
+        ${kpiCard('Website', fmtNum(tot.site), 'impressions')}
+      </div>
+
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+        <div style="padding:14px 16px;border-bottom:1px solid var(--border)">
+          <div style="font-family:'Cabinet Grotesk',sans-serif;font-size:16px;font-weight:700">Impressions by venue</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px">A listing counts once it's at least half on screen for 1 second (once per venue per visit). Viewers = unique visitors per day. Click a venue for its trend.</div>
+        </div>
+        ${rows.length === 0 ? `<div style="padding:24px;text-align:center;color:var(--muted)">No impressions in this range yet. Data starts flowing once the tracker is live.</div>` : `
+        <div class="ae-table-wrap"><table class="ae-table" style="font-size:13px">
+          <thead><tr style="text-align:left">
+            <th style="${th}">Venue</th>
+            <th style="${th}">City</th>
+            <th style="${th};text-align:right">Impressions</th>
+            <th style="${th};text-align:right">Viewers</th>
+            <th style="${th};text-align:right">App / Web</th>
+            <th style="${th};text-align:right">Detail views</th>
+            <th style="${th};text-align:right">View rate</th>
+          </tr></thead>
+          <tbody>
+            ${rows.map(r => {
+              const w = max > 0 ? Math.round((+r.impressions / max) * 100) : 0;
+              return `<tr class="ae-v-row" data-vid="${esc(r.venue_id)}" style="border-bottom:1px solid var(--border);cursor:pointer;${state.selVenue === r.venue_id ? 'background:rgba(255,107,74,.07)' : ''}">
+                <td style="padding:9px 12px;min-width:180px">
+                  <div style="font-weight:700">${esc(r.name)}</div>
+                  <div style="font-size:11px;color:var(--muted)">${esc(r.neighborhood || '')}</div>
+                  <div style="background:var(--bg2);border-radius:4px;height:5px;overflow:hidden;margin-top:4px"><div style="background:linear-gradient(90deg,#FF6B4A,#E8943A);height:100%;width:${w}%"></div></div>
+                </td>
+                <td style="padding:9px 12px;color:var(--muted);white-space:nowrap">${esc(r.city_slug || '')}</td>
+                <td style="padding:9px 12px;text-align:right;font-family:'DM Mono',monospace"><strong>${fmtNum(r.impressions)}</strong></td>
+                <td style="padding:9px 12px;text-align:right;font-family:'DM Mono',monospace">${fmtNum(r.viewers)}</td>
+                <td style="padding:9px 12px;text-align:right;font-family:'DM Mono',monospace;color:var(--muted);white-space:nowrap">${fmtNum(r.app_impressions)} / ${fmtNum(r.site_impressions)}</td>
+                <td style="padding:9px 12px;text-align:right;font-family:'DM Mono',monospace">${fmtNum(r.detail_views)}</td>
+                <td style="padding:9px 12px;text-align:right;font-family:'DM Mono',monospace;color:var(--muted)">${r.ctr == null ? '—' : esc(r.ctr) + '%'}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table></div>`}
+      </div>
+
+      <div id="ae-venue-panel" style="margin-top:18px"></div>
+    `;
+
+    wireShared();
+    wrap.querySelectorAll('.ae-v-surface').forEach(b => b.addEventListener('click', () => {
+      if (state.vSurface === b.dataset.surface) return;
+      state.vSurface = b.dataset.surface; loadVenues();
+    }));
+    document.getElementById('ae-v-city')?.addEventListener('change', e => { state.vCity = e.target.value; loadVenues(); });
+    const q = document.getElementById('ae-v-q');
+    if (q) {
+      let t = null;
+      q.addEventListener('input', () => {
+        clearTimeout(t);
+        t = setTimeout(() => { state.vQ = q.value.trim(); loadVenues({ quiet: true }); }, 400);
+      });
+    }
+    wrap.querySelectorAll('.ae-v-row').forEach(r => r.addEventListener('click', () => selectVenue(r.dataset.vid)));
+  }
+
+  function renderVenuePanel() {
+    const panel = document.getElementById('ae-venue-panel');
+    if (!panel) return;
+    const v = (data.venues || []).find(r => r.venue_id === state.selVenue);
+    if (!v) { panel.innerHTML = ''; return; }
+    const chartRows = (data.vSeries || []).map(r => ({ bucket: r.bucket, events: r.impressions, users: r.detail_views }));
+    panel.innerHTML = `
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+        <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+          <div>
+            <div style="font-family:'Cabinet Grotesk',sans-serif;font-size:16px;font-weight:700">${esc(v.name)}</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:2px">${fmtNum(v.impressions)} impressions · ${fmtNum(v.viewers)} viewers · ${fmtNum(v.detail_views)} detail views</div>
+          </div>
+          <div style="display:flex;gap:14px;font-size:12px;color:var(--muted);align-items:center">
+            <span><span style="display:inline-block;width:14px;height:3px;background:#FF6B4A;vertical-align:middle;border-radius:2px"></span> Impressions</span>
+            <span><span style="display:inline-block;width:14px;height:0;border-top:2px dashed #3B82F6;vertical-align:middle"></span> Detail views</span>
+            <button id="ae-v-close" style="border:none;background:var(--bg2);border-radius:999px;padding:4px 10px;cursor:pointer;color:var(--text)">✕</button>
+          </div>
+        </div>
+        <div style="padding:14px 10px 6px">${chartSVG(chartRows, state.bucket)}</div>
+      </div>`;
+    document.getElementById('ae-v-close')?.addEventListener('click', () => {
+      state.selVenue = null; panel.innerHTML = '';
+      document.querySelectorAll('#activity-content .ae-v-row').forEach(r => { r.style.background = ''; });
+    });
+  }
 
   async function loadUsers() {
     const { from, to, bucket } = rangeBounds();
@@ -359,7 +529,7 @@
   // Shared top bar: App Users / Site Traffic mode toggle + date range controls.
   function controlsBarHTML() {
     const presets = [['today', 'Today'], ['7d', '7 days'], ['30d', '30 days'], ['90d', '90 days']];
-    const modes = [['users', '👤 App Users'], ['traffic', '🌐 Site Traffic']];
+    const modes = [['users', '👤 App Users'], ['traffic', '🌐 Site Traffic'], ['venues', '👁 Venues']];
     return `
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
         <div style="display:inline-flex;background:var(--bg2);border-radius:999px;padding:3px;gap:2px">
@@ -922,7 +1092,8 @@
           Our own in-house analytics. <strong>App Users</strong> = per-user actions
           (tab changes, venue opens, searches, auth…). <strong>Site Traffic</strong> =
           everyone who reaches any page (venue/blog/landing) across desktop + mobile —
-          pageviews, sources, devices, geography, conversions. Adjust the date range, switch modes, drill into any user.
+          pageviews, sources, devices, geography, conversions. <strong>Venues</strong> = how many people
+          saw each listing (impressions) and opened it, across app + website. Adjust the date range, switch modes, drill into any user.
         </div>
         <div class="hub-tabs">
           <button class="hub-tab" onclick="showPage('users')">📊 Overview</button>

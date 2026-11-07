@@ -213,7 +213,28 @@ export default async function handler(req) {
 // is a daily-rotating salted hash of IP+UA (computed here, raw IP discarded) —
 // enough for distinct-visitor/session KPIs, useless for tracking an individual.
 const ANON_MAX_EVENTS = 10;
-const ANON_ALLOWED = new Set(['page_view', 'outbound_click', 'cta_click', 'app_store_click']);
+const ANON_ALLOWED = new Set(['page_view', 'outbound_click', 'cta_click', 'app_store_click', 'venue_impressions', 'venue_view']);
+
+// Venue impression / detail-view props (js/impressions.js) are rebuilt from a
+// strict shape so the anonymous path can't be used to stuff arbitrary JSON.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function venueProps(name, p) {
+  p = (p && typeof p === 'object') ? p : {};
+  const src = typeof p.src === 'string' ? p.src.slice(0, 24) : null;
+  const city = typeof p.city === 'string' ? p.city.slice(0, 40) : null;
+  const out = {};
+  if (src) out.src = src;
+  if (city) out.city = city;
+  if (name === 'venue_impressions') {
+    const ids = Array.isArray(p.ids) ? [...new Set(p.ids.filter(x => typeof x === 'string' && UUID_RE.test(x)))].slice(0, 40) : [];
+    if (!ids.length) return null;
+    out.ids = ids;
+  } else {
+    if (typeof p.id !== 'string' || !UUID_RE.test(p.id)) return null;
+    out.id = p.id;
+  }
+  return out;
+}
 
 async function handleAnonPing(req, body, events, ua) {
   const ip =
@@ -240,12 +261,17 @@ async function handleAnonPing(req, body, events, ua) {
   const rows = events.slice(0, ANON_MAX_EVENTS).map(e => {
     const name = String((e && (e.n || e.event_name)) || '').slice(0, 60);
     const path = (e && typeof e.path === 'string') ? e.path.slice(0, 200) : null;
+    let props = (e && e.p && typeof e.p === 'object') ? e.p : {};
+    if (name === 'venue_impressions' || name === 'venue_view') {
+      props = venueProps(name, props);
+      if (!props) return null;
+    }
     return {
       user_id:    null,
       session_id: anonId,
       visitor_id: anonId,
       event_name: name,
-      props:      { ...((e && e.p && typeof e.p === 'object') ? e.p : {}), anon: true },
+      props:      { ...props, anon: true },
       path,
       platform:   plat,
       device:     dev,
@@ -255,7 +281,7 @@ async function handleAnonPing(req, body, events, ua) {
       user_agent: String(ua || '').slice(0, 300),
       created_at: new Date((e && typeof e.t === 'number') ? e.t : now).toISOString(),
     };
-  }).filter(r => r.event_name && ANON_ALLOWED.has(r.event_name));
+  }).filter(r => r && r.event_name && ANON_ALLOWED.has(r.event_name));
 
   if (!rows.length) return json({ ok: true, inserted: 0 });
 

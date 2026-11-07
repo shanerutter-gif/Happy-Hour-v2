@@ -119,7 +119,7 @@ export default async function handler(req) {
       const list = byCity[c].map(v => {
         const slug = canonSlug(v);
         const t = teaser(v.deals);
-        return `<li class="dir-item">
+        return `<li class="dir-item" data-vid="${esc(String(v.id || ''))}" data-imp-src="site_directory">
           <a class="dir-link" href="/spots/${slug}">${esc(v.name)}</a>
           <span class="dir-meta">${esc(v.neighborhood || '')}${t ? ` · ${esc(t)}` : ''}</span>
         </li>`;
@@ -230,6 +230,7 @@ export default async function handler(req) {
 
 <script defer src="/js/consent.js?v=20261107a"></script>
 <script defer src="/js/site-analytics.js?v=20261106a"></script>
+<script defer src="/js/impressions.js?v=20261107a"></script>
 <script defer src="/js/organic-cta.js?v=20260729a"></script>
 </body>
 </html>`;
