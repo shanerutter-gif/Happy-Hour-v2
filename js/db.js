@@ -878,7 +878,7 @@ async function fetchVenues(citySlug) {
   // out the venue list. `hours_start`/`hours_end`/`is_official` are NOT real
   // venue columns (they're documented in CLAUDE.md but never existed in the DB),
   // so they must not be selected.
-  const { data } = await db.from('venues')
+  const { data, error } = await db.from('venues')
     .select([
       'id', 'city_slug', 'name', 'neighborhood', 'address', 'lat', 'lng',
       'hours', 'days', 'cuisine', 'deals',
@@ -891,6 +891,13 @@ async function fetchVenues(citySlug) {
     .eq('city_slug', citySlug)
     .eq('active', true)
     .order('name');
+  // PostgREST reports failures in the result's error field, it does not
+  // throw — reading only `data` turned a rejected read (400/RLS/network)
+  // into an empty city, and enterCity painted it as "No spots found"
+  // (Sofia 2026-11-07). null = load FAILED; the feed's entry point gates
+  // on it. The one best-effort caller (renderProfile's fallback list)
+  // coalesces with || [].
+  if (error) { console.warn('fetchVenues error', error); return null; }
   return data || [];
 }
 // Published DB-backed blog posts (admin Blog Manager) for the in-app Blog tab.
@@ -909,7 +916,7 @@ async function fetchDbBlogPosts() {
 async function fetchEvents(citySlug) {
   // Same rule as fetchVenues — `deals`/`photo_url`/`photo_urls` do NOT exist on
   // the `events` table, so selecting them 400s the query and drops all events.
-  const { data } = await db.from('events')
+  const { data, error } = await db.from('events')
     .select([
       'id', 'city_slug', 'name', 'venue_name', 'neighborhood', 'address',
       'lat', 'lng', 'hours', 'days', 'event_type', 'url', 'active', 'featured',
@@ -917,6 +924,11 @@ async function fetchEvents(citySlug) {
     .eq('city_slug', citySlug)
     .eq('active', true)
     .order('name');
+  // Same rule as fetchVenues (Sofia 2026-11-07): null = load FAILED.
+  // Events are supplementary (card chips + the modal section), so
+  // enterCity degrades a failed events read to [] instead of gating
+  // the whole feed on it.
+  if (error) { console.warn('fetchEvents error', error); return null; }
   return data || [];
 }
 async function fetchCities() {
@@ -1189,11 +1201,16 @@ async function logActivity(userId, type, venueId, meta = {}) {
 }
 async function fetchActivityFeed(userIds, limit = 30) {
   try {
-    const { data } = await db.from('activity_feed')
+    // Read `error` like the other integrity-fixed readers (Sofia
+    // 2026-11-07): a rejected read used to return [] indistinguishable
+    // from "no activity", and loadFeedTab painted "No activity yet".
+    // null = load FAILED; loadFeedTab (the only caller) gates on it.
+    const { data, error } = await db.from('activity_feed')
       .select('*')
       .in('user_id', userIds)
       .order('created_at', { ascending: false })
       .limit(limit);
+    if (error) throw error;
     const rows = data || [];
     const ids = [...new Set(rows.map(r => r.user_id).filter(Boolean))];
     if (ids.length) {
@@ -1203,15 +1220,18 @@ async function fetchActivityFeed(userIds, limit = 30) {
       rows.forEach(r => { r.profiles = pMap[r.user_id] || null; });
     }
     return rows;
-  } catch(e) { return []; }
+  } catch(e) { console.warn('fetchActivityFeed error', e); return null; }
 }
 async function fetchUserActivity(userId, limit = 20) {
   try {
-    const { data } = await db.from('activity_feed')
+    // Same rule as fetchActivityFeed (Sofia 2026-11-07): null = load
+    // FAILED, distinct from a genuinely empty history.
+    const { data, error } = await db.from('activity_feed')
       .select('*').eq('user_id', userId)
       .order('created_at', { ascending: false }).limit(limit);
+    if (error) throw error;
     return data || [];
-  } catch(e) { return []; }
+  } catch(e) { console.warn('fetchUserActivity error', e); return null; }
 }
 
 // ── FOLLOWS ────────────────────────────────────────────
@@ -2245,10 +2265,21 @@ async function fetchSocialFeed(citySlug, followingIds = [], limit = 60) {
         .order('created_at', { ascending: false })
         .limit(limit),
 
-      // 2. Activity feed (check-ins, reviews, favorites) city-wide via venue
+      // 2. Activity feed (check-ins, reviews, favorites) for THIS city.
+      // activity_feed has no city column, and this query used to carry no
+      // city filter at all — every city's social feed received the same
+      // latest-60 activity rows from all cities (live-verified Sofia
+      // 2026-11-07: an Austin check-in at Flightpath Coffeehouse sat in
+      // the unfiltered set served to San Diego, Los Angeles, and every
+      // other city, contradicting the feed's own "what's happening in
+      // your city" promise and its city-keyed cache guard). Scope it
+      // server-side with an inner join on the venue's city. Rows whose
+      // venue was deleted drop out — they cannot be attributed to any
+      // city, and a city feed is the wrong place for them.
       db.from('activity_feed')
-        .select('id, user_id, activity_type, venue_id, venue_name, neighborhood, meta, created_at')
+        .select('id, user_id, activity_type, venue_id, venue_name, neighborhood, meta, created_at, venues!inner(city_slug)')
         .in('activity_type', ['check_in', 'review', 'favorite', 'tagged_at'])
+        .eq('venues.city_slug', citySlug)
         .order('created_at', { ascending: false })
         .limit(limit),
 
@@ -2263,6 +2294,19 @@ async function fetchSocialFeed(citySlug, followingIds = [], limit = 60) {
         .order('created_at', { ascending: false })
         .limit(40),
     ]);
+
+    // PostgREST failures RESOLVE with { data: null, error } — they do not
+    // reject, so allSettled reports them as "fulfilled" and the old code
+    // silently turned a failed posts read into an empty feed, which
+    // loadSocialFeed then painted as "Follow people to see their
+    // activity" / "Be the first in {city}" (Sofia 2026-11-07). The posts
+    // query is this feed's primary source: its failure fails the load
+    // (null, gated in loadSocialFeed). The activity / going sources are
+    // supplementary and stay best-effort below.
+    if (photosRes.status !== 'fulfilled' || photosRes.value.error) {
+      if (photosRes.status === 'fulfilled') console.error('fetchSocialFeed posts error', photosRes.value.error);
+      return null;
+    }
 
     const photos   = photosRes.status   === 'fulfilled' ? (photosRes.value.data   || []) : [];
     const activity = activityRes.status === 'fulfilled' ? (activityRes.value.data || []) : [];

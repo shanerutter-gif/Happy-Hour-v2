@@ -1348,6 +1348,15 @@ async function loadSocialFeed(opts = {}) {
       fetchPinnedEditorialPosts(citySlug, 3),
       fetchActiveStories(citySlug, 30),
     ]);
+    // null = the primary posts read failed (db.js, Sofia 2026-11-07):
+    // paint the same failure state the catch path uses instead of letting
+    // an empty item list render as "Follow people…" / "Be the first in
+    // {city}". _socialFeedLoadedAt is NOT stamped, so the next open
+    // retries instead of serving the fake-empty feed from cache.
+    if (items === null) {
+      container.innerHTML = '<div class="social-empty"><div class="social-empty-sub">Failed to load — pull to refresh</div></div>';
+      return;
+    }
     _socialStories = stories || [];
 
     // Hydrate like + comment + saved + tagged-friends state for each item
@@ -1480,6 +1489,14 @@ async function renderTrendingTab() {
       trending = await db.rpc('trending_posts', { p_city_slug: citySlug, p_days: 30, p_limit: 30 });
       rows = (trending && trending.data) || [];
       trendingLabel = 'Most liked this month';
+    }
+    if (!rows.length && trending && trending.error) {
+      // Both RPC windows came back empty AND the last one carried a
+      // PostgREST error (db.rpc resolves with { data: null, error } — it
+      // does not throw): this is a failed load, not "nothing trending".
+      // Throw so the catch below paints "Could not load trending"
+      // instead of the fake-empty state (Sofia 2026-11-07).
+      throw trending.error;
     }
     if (!rows.length) {
       container.innerHTML = `<div class="social-empty"><div class="social-empty-icon">🔥</div><div class="social-empty-title">Nothing trending yet</div><div class="social-empty-sub">Once posts pick up likes and comments, they'll surface here.</div></div>`;
@@ -2416,15 +2433,34 @@ async function enterCity(slug, name, stateCode) {
 
   // Load data — venues AND events together
   const [venues, events] = await Promise.all([fetchVenues(slug), fetchEvents(slug)]);
+  // A failed venue load comes back null (db.js, Sofia 2026-11-07) and must
+  // NOT masquerade as an empty city: the old path set state.venues = [] and
+  // the feed painted "No spots found — try removing a filter" at a user
+  // whose filters were never the problem, with no way back but a reload.
+  // Paint an honest error with a retry that re-enters the same city, and
+  // stop — filters, map and prompts below are meaningless without venues.
+  // (City names/slugs come from the hardcoded CITIES list, so interpolating
+  // them into the retry handler is safe.)
+  if (venues === null) {
+    document.getElementById('cardsGrid').innerHTML = `<div class="empty-state">
+      <div class="empty-state-title">Couldn't load spots</div>
+      <div class="empty-state-sub">Something went wrong loading this city. Check your connection and try again.</div>
+      <button class="request-venue-btn request-venue-btn--empty" onclick="enterCity('${slug}', '${name}', '${stateCode}')">Retry</button>
+    </div>`;
+    return;
+  }
+  // Events are supplementary — a failed events read degrades to none
+  // instead of taking the whole feed down with it.
+  const evts = events || [];
   // Normalize mixed day-name formats once (see normDaysAbbrev) — fixes card
   // hours, day filter, map pins, and the modal fallback for full-name rows.
   state.venues = venues.map(v => { v.days = normDaysAbbrev(v.days); return v; });
-  state.events = events.map(e => { e.days = normDaysAbbrev(e.days); return e; });
+  state.events = evts.map(e => { e.days = normDaysAbbrev(e.days); return e; });
 
   // Index events by venue name so they surface on the matching venue (card
   // chips + modal). Events are never rendered as standalone cards.
   state._eventsByVenue = {};
-  events.forEach(e => {
+  evts.forEach(e => {
     if (!e.venue_name) return;
     const k = e.venue_name.trim().toLowerCase();
     (state._eventsByVenue[k] = state._eventsByVenue[k] || []).push(e);
@@ -4959,7 +4995,11 @@ async function renderProfile(user, seq) {
 
   let venueList = state.venues;
   if (!venueList.length && checkIns.length) {
-    try { venueList = await fetchVenues('san-diego'); } catch(e) { venueList = []; }
+    // Best-effort fallback only (profile venue names): fetchVenues now
+    // returns null on a failed read (Sofia 2026-11-07) — coalesce so a
+    // failed read keeps the old empty-list behaviour here instead of
+    // throwing on the spread below.
+    try { venueList = (await fetchVenues('san-diego')) || []; } catch(e) { venueList = []; }
   }
   const allItems     = [...venueList, ...state.events];
   const favIds       = new Set(favItems.map(f => String(f.item_id)));
@@ -7922,6 +7962,19 @@ async function loadFeedTab(tab) {
   } else {
     activities = await fetchUserActivity(currentUser.id, 40);
     profileMap[currentUser.id] = { display_name: 'You' };
+  }
+
+  // null = the activity read FAILED (db.js, Sofia 2026-11-07) — do not
+  // paint it as a genuinely empty history. Offer a retry of the same tab.
+  // (tab is an internal 'following' | 'mine' constant, safe to interpolate.)
+  if (activities === null) {
+    document.getElementById('feedRows').innerHTML = `
+      <div class="pub-empty" style="padding:40px 16px">
+        <div style="font-weight:600;margin-bottom:8px">Couldn't load activity</div>
+        <div style="color:var(--muted);font-size:13px">Something went wrong loading the feed. Try again.</div>
+        <button class="profile-action-btn" style="margin-top:16px;max-width:180px" onclick="loadFeedTab('${tab}')">Retry</button>
+      </div>`;
+    return;
   }
 
   if (!activities.length) {
