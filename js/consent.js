@@ -345,6 +345,11 @@
   // Dedicated post-signup interstitial: Accept and Decline only, equally
   // prominent, nothing pre-selected. Never shown after an explicit Decline.
   window.spotdShowPostSignupConsent = function () {
+    // Wait for the post-signup welcome tour to finish (js/welcome-tour.js).
+    if (window.__spotdWelcomeActive && typeof window.spotdAfterWelcome === 'function') {
+      window.spotdAfterWelcome(window.spotdShowPostSignupConsent);
+      return;
+    }
     try {
       if (localStorage.getItem('spotd_consent') === 'denied') return; // explicit decline wins
       if (localStorage.getItem('spotd_consent') === 'granted') return;
