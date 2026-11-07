@@ -167,8 +167,7 @@ scripts before `</body>`** at serve time. To add a new admin tool:
 |               | `nav-enrichment`    | Venue Enrichment      | `enrichment_runs` + Google Places (injected by `admin-enrichment.js`) |
 |               | `nav-heroes`        | Hero Picker           | `venues.featured` flag                      |
 | Users         | `nav-users`         | **Users hub** — ONE sidebar item (`nav-users`) with a `.hub-tabs` bar at the top of each child page switching **Overview** (`page-users`, 6 KPIs), **Activity** (`page-activity`, in-house analytics — App Users + Site Traffic + **Venues** impressions), **Churn** (`page-churn`). `nav-churn`/`nav-activity` sidebar+drawer items were REMOVED (2026-06-18 consolidation); `showActivityPage` (global, set by `admin-activity.js`) opens Activity; `showPage('churn')`/`('users')` open the others. All 3 light up `nav-users` via the `NAV_PARENT` map in `showPage`. | `profiles`/`auth.users` + `profiles.last_seen` + `analytics_events`/`ae_*`/`ae_traffic_*` RPCs (Activity page injected by `admin-activity.js`) |
-| Insights      | `nav-venues-top`    | Top Venues (check-ins/rating/saves) | `venues` + joins             |
-|               | `nav-cities`        | City Breakdown        | `cities` + `venues`                         |
+| Analytics     | `nav-insights`      | **Analytics hub** (2026-11-07, `admin-analytics-hub.js`) — ONE sidebar/drawer item with a scrollable `.hub-tabs--analytics` bar on each child page: 🌐 **Traffic** (`page-analytics`, `admin-analytics.js` — data-health, KPIs, bots-vs-humans, breakdowns, signups) · 🧭 **Attribution** (`page-attribution`) · 📱 **Social** (`page-social-analytics`) · ✉️ **Email** (`page-email-analytics`) · 🏆 **Top Venues** (`page-venues-top`) · 🗺️ **Cities** (`page-cities`). The six child nav items (`nav-analytics`, `nav-attribution`, `nav-social-analytics`, `nav-email-analytics`, `nav-venues-top`, `nav-cities` + `mob-` twins) still exist but are **hidden**; tabs `.click()` them, so each page's own switchTo/showPage + loaders are unchanged. `window.showAnalyticsHub(page?)` opens the last-used tab (localStorage `spotd-admin-analytics-tab`). Any child page being active lights `nav-insights` (MutationObserver), however it was opened. | `ae_traffic_*`/`ae_bot_*` RPCs, `signup_attributions`, `venues`/`cities` |
 | CRM           | `nav-crm`           | CRM Dashboard         | `crm_*` tables                              |
 |               | `nav-crm-contacts`  | Contacts              | `crm_contacts`                              |
 |               | `nav-crm-pipeline`  | **Pipeline** — `.hub-tabs` toggle between **Kanban** (`page-crm-pipeline`) and **Revenue Funnel** (`page-pipeline`, the old Insights "Revenue Pipeline" funnel + business-requests table). The standalone Insights `nav-pipeline` item was REMOVED (2026-06-18); `showPage('pipeline')` still works + lights up `nav-crm-pipeline` via `NAV_PARENT`. | `crm_contacts.stage` |
@@ -176,7 +175,6 @@ scripts before `</body>`** at serve time. To add a new admin tool:
 | Engage        | `nav-feedback`      | User Feedback         | `feedback` table                            |
 |               | `nav-push`          | **Push Center** — composer, schedule/recurring, automations, merged history | `push_tokens` → `/api/send-push`; `push_campaigns`/`push_automations`/`push_automation_log` → `/api/push-runner` (scheduling+automations UI injected by `admin-push-center.js` into the existing `#page-push`) |
 |               | `nav-newsletter`    | Newsletter Subscribers | `newsletter_subscribers`                   |
-|               | `nav-attribution`   | Signup Attribution    | `signup_attributions` (injected by `admin-attribution.js`) |
 | Tools         | `nav-cms`           | Site Copy editor      | `site_copy` table + iframe preview          |
 |               | `nav-board`         | **Project Board** (iframe → `/admin/board.html`) | `board_cards` table |
 |               | `nav-demo`          | Demo Data Generator   | bulk inserts                                |
@@ -184,6 +182,7 @@ scripts before `</body>`** at serve time. To add a new admin tool:
 |               | `nav-email-builder` | Email Builder (MJML)  | `email_templates` → ZIP for Loops upload    |
 |               | `nav-content-calendar` | Content Calendar   | `content_posts` table                       |
 |               | `nav-blog`          | Blog Manager (CRUD)   | `blog_posts` table                          |
+|               | `nav-team`          | Team                  | (the old single-item "Team" group, folded into Tools by `admin-analytics-hub.js`) |
 
 ### Admin auth model
 - Session in `localStorage['spotd-admin-session']` as `{ token, refresh_token, expires_at, user }`.
@@ -465,7 +464,7 @@ Copying from a mainline file? Use the bare convention.
 ### File naming
 - **Kebab-case** for everything: `admin-enrich-venues.js`, `loops-event.js`, `business-landing.html`.
 - API filenames map 1:1 to route names in `vercel.json`.
-- Admin extension scripts live at **repo root** (NOT inside `admin/`): `admin-attribution.js`, `admin-claims.js`, `admin-enrichment.js`, `admin-push-center.js`, `admin-activity.js`.
+- Admin extension scripts live at **repo root** (NOT inside `admin/`): `admin-claims.js`, `admin-listing-reviews.js`, `admin-attribution.js`, `admin-enrichment.js`, `admin-push-center.js`, `admin-activity.js`, `admin-analytics.js`, `admin-social-analytics.js`, `admin-email-analytics.js`, and `admin-analytics-hub.js` (**must stay LAST** in `SCRIPT_TAGS` — it hides the analytics nav items the others inject). **New analytics/report pages: add them as a tab in `TABS` in `admin-analytics-hub.js`, not as a new sidebar item.**
 - `admin/` subdirectory holds full HTML pages: `admin/board.html`.
 - First-run UX lives in three separate scripts: `js/onboarding.js` (pre-signup funnel), `js/welcome-tour.js` (once, right after signup), `js/tooltips.js` (tooltip tour for signed-in users who never saw the welcome tour).
 
@@ -618,6 +617,8 @@ Weekend-events posts (time-sensitive, short shelf life): font fix + Article sche
 
 - 2026-11-07 · **Business-portal impressions** — surface `ae_venue_impressions`-style numbers to claimed venue owners ("your listing was seen N times, opened M times this month") as a Pro-tier selling point. Needs an owner-scoped RPC (venue `owner_id = auth.uid()`), not the admin-gated one.
 
+- 2026-11-07 · **More admin consolidation (not done).** (1) Users → Activity still has a **Site Traffic** mode that overlaps Analytics → Traffic; its unique part is **Visitor Journeys** (`ae_recent_journeys`/`ae_journey`). Move Journeys into the Traffic tab (or add a Journeys tab), then drop the Site Traffic mode from Activity; the 👁 Venues impressions mode could move next to Top Venues. (2) Review Queue (Requests / Claims / Listing Reviews) could become one hub with per-tab counters. (3) A "Content" hub for Site Copy / Blog Manager / Content Calendar / Email Builder / Asset Generator. (4) Dashboard + Project Board are both "what needs doing" — consider surfacing board due-soon on the dashboard only.
+
 Append-only. Any unimplemented idea surfaced in conversation goes here so
 future sessions can see what's been considered but not shipped. When an idea
 ships, move it to "Recent decisions" with the PR or commit.
@@ -647,6 +648,8 @@ ships, move it to "Recent decisions" with the PR or commit.
 ## Recent decisions
 
 Append-only architectural / vendor decisions. One line per entry.
+
+- 2026-11-07 · **Admin: analytics consolidated into one "📈 Analytics" hub (6 sidebar items → 1).** Shane: users/traffic analytics and attribution were scattered. Traffic Analytics, Attribution, Social Analytics and Email Analytics had piled up at the bottom of Tools, with Top Venues and City Breakdown under Insights. New `admin-analytics-hub.js` (last in `SCRIPT_TAGS`) replaces "Insights" with an **Analytics** group holding one item; each child page gets a tab bar (Traffic · Attribution · Social · Email · Top Venues · Cities). It hides the old nav items instead of deleting them and drives them by `.click()`, so none of the six pages' code changed. The single-item "Team" group was folded into Tools. Sidebar went from 9 groups / 28 items to 7 groups / 23. Checked in headless Chromium against admin.html with all extension scripts injected: every tab opens its page, only the hub item lights up, `showPage('cities')` deep links light it too, the Users hub is unaffected, and the mobile drawer is in the right order. `admin.html` is untouched; the hub is live once `main` deploys.
 
 - 2026-11-07 · **iOS auto-zoom fix: the app was zooming/shrinking across screens.** Shane's screenshots: focusing the comment box zoomed the page in (sheet cut off both sides), and afterwards the feed rendered shrunk at the wrong scale. Root cause: iOS Safari/WKWebView zooms the page when a text field under 16px gets focus — `.cmts-input` was 14px, the Discover filter selects 13px. Fix: a global "iOS INPUT AUTO-ZOOM GUARD" block at the END of `css/style.css` (`@supports (-webkit-touch-callout:none)`) forces every input/textarea/select to 16px on iOS, and `index.html`'s viewport meta gained `maximum-scale=1.0` so the page can't get stuck zoomed. **Rule: never style a text-entry control below 16px on mobile.** Checked with the rule forced in Chromium at 320px: filter selects still fit, no horizontal overflow. Cache: `style.css?v=20261107d`.
 

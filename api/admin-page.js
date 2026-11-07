@@ -14,6 +14,8 @@ const SCRIPT_TAGS = [
   '<script src="/admin-analytics.js" defer></script>',
   '<script src="/admin-social-analytics.js" defer></script>',
   '<script src="/admin-email-analytics.js" defer></script>',
+  // MUST stay last: folds the analytics pages above into one hub item.
+  '<script src="/admin-analytics-hub.js" defer></script>',
 ];
 
 // Fetch admin.html from the GitHub Contents API instead of raw.githubusercontent.com.
