@@ -9340,3 +9340,16 @@ img.np-stop-photo { object-fit: cover; display: block; }
   .ck-venue, .ck-write, .ck-preview, .ck-tick, .ck-friend--skel .ck-friend-av,
   .ck-friend--skel .ck-friend-name { animation: none; }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   iOS INPUT AUTO-ZOOM GUARD (2026-11-07)
+   iOS Safari / WKWebView zooms the whole page when a text field with a
+   font-size under 16px gets focus (comments box was 14px, filter selects
+   13px) and often leaves the page zoomed/shrunk after the keyboard closes.
+   Every text-entry control is 16px on iOS touch devices. Keep it that way:
+   never style an input/textarea/select below 16px on mobile.
+   ═══════════════════════════════════════════════════════════════ */
+@supports (-webkit-touch-callout: none) {
+  input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]),
+  textarea, select { font-size: 16px !important; }
+}
