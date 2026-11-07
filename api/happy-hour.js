@@ -63,7 +63,7 @@ function parseStartHour(hours) {
 // An empty array from here therefore means the city genuinely has no
 // photo'd venues, and only that renders the 404 page below.
 async function fetchCityVenues(supabaseUrl, serviceKey, city) {
-  const url = `${supabaseUrl}/rest/v1/venues?active=eq.true&photo_url=not.is.null&city_slug=eq.${encodeURIComponent(city)}&select=name,neighborhood,address,deals,hours,days,cuisine,photo_url,google_rating,last_verified_at,url,has_happy_hour&order=name.asc`;
+  const url = `${supabaseUrl}/rest/v1/venues?active=eq.true&photo_url=not.is.null&city_slug=eq.${encodeURIComponent(city)}&select=id,name,neighborhood,address,deals,hours,days,cuisine,photo_url,google_rating,last_verified_at,url,has_happy_hour&order=name.asc`;
   let lastErr = null;
   for (let attempt = 0; attempt < 3; attempt++) {
     if (attempt > 0) await new Promise(r => setTimeout(r, attempt === 1 ? 200 : 600));
@@ -229,7 +229,7 @@ export default async function handler(req) {
       const verified = v.last_verified_at
         ? new Date(v.last_verified_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
         : '';
-      return `<li class="hh-venue">
+      return `<li class="hh-venue" data-vid="${esc(String(v.id || ''))}" data-imp-src="site_hub">
         <a class="hh-venue-name" href="/spots/${slug}">${esc(v.name)}</a>
         ${gRating ? `<span class="hh-venue-rating">★ ${gRating.toFixed(1)} <span>on Google</span></span>` : ''}
         ${metaBits.length ? `<span class="hh-venue-meta">${metaBits.join(' · ')}</span>` : ''}
@@ -446,6 +446,7 @@ export default async function handler(req) {
 
 <script defer src="/js/consent.js?v=20261107a"></script>
 <script defer src="/js/site-analytics.js?v=20261106a"></script>
+<script defer src="/js/impressions.js?v=20261107a"></script>
 <script>window.__spotdOrganicCity='${String(city || '').replace(/[^a-z0-9-]/gi, '')}';</script>
 <script defer src="/js/organic-cta.js?v=20260729a"></script>
 </body>

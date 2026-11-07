@@ -393,7 +393,7 @@ ${venueFaqLd ? `<script type="application/ld+json">${JSON.stringify(venueFaqLd)}
 
 <script> /* Consent-gated Google Analytics: gtag.js loads only after the visitor explicitly accepts analytics (see js/consent.js). Until then gtag() is a harmless stub. */ window.dataLayer = window.dataLayer || []; function gtag(){ window.dataLayer.push(arguments); } function spotdLoadGA(){ if (window.__spotdGABooted) return; try { if (localStorage.getItem('spotd_disable_ga') || localStorage.getItem('spotd_internal')) return; } catch (e) {} window.__spotdGABooted = true; var s = document.createElement('script'); s.async = true; s.src = 'https://www.googletagmanager.com/gtag/js?id=G-5271Q2407Q'; document.head.appendChild(s); gtag('js', new Date()); gtag('config', 'G-5271Q2407Q'); } try { if (localStorage.getItem('spotd_consent') === 'granted') spotdLoadGA(); } catch (e) {} document.addEventListener('spotd:consent', function(){ if (window.__spotdConsent === 'granted') spotdLoadGA(); }); </script>
 </head>
-<body>
+<body data-venue-view="${esc(String(venue.id))}" data-city="${spotCitySlug}">
 
 <nav class="blog-nav">
   <a href="/" class="nav-brand">
@@ -566,7 +566,7 @@ ${venueFaqLd ? `<script type="application/ld+json">${JSON.stringify(venueFaqLd)}
     <h2 class="spot-section-title">More in ${esc(venue.neighborhood)}</h2>
     <div class="spot-nearby">
       ${nearby.map(v => `
-      <a href="/spots/${slugById.get(v.id) || slugify(v.name)}" class="spot-nearby-card">
+      <a href="/spots/${slugById.get(v.id) || slugify(v.name)}" class="spot-nearby-card" data-vid="${esc(String(v.id))}" data-imp-src="site_nearby">
         <div class="spot-nearby-name">${esc(v.name)}</div>
         <div class="spot-nearby-meta">${esc(v.neighborhood || '')}${v.hours ? ` · ${esc(v.hours)}` : ''}</div>
       </a>`).join('')}
@@ -597,6 +597,7 @@ ${venueFaqLd ? `<script type="application/ld+json">${JSON.stringify(venueFaqLd)}
 
 <script defer src="/js/consent.js?v=20261107a"></script>
 <script defer src="/js/site-analytics.js?v=20261106a"></script>
+<script defer src="/js/impressions.js?v=20261107a"></script>
 <script>window.__spotdOrganicCity='${String(venue.city_slug || '').replace(/[^a-z0-9-]/gi, '')}';</script>
 <script defer src="/js/organic-cta.js?v=20260729a"></script>
 ${schedHoursHTML ? `<script defer src="/js/schedule.js?v=20261017a"></script>

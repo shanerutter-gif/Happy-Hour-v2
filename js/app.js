@@ -3735,6 +3735,7 @@ function _feedShowMore() {
     if (_feedObserver) { _feedObserver.disconnect(); _feedObserver = null; }
     _feedRest = null;
   }
+  try { window.spotdImpScan && window.spotdImpScan(); } catch (e) {}
 }
 function _feedArmObserver() {
   if (_feedObserver) { _feedObserver.disconnect(); _feedObserver = null; }
@@ -3927,6 +3928,7 @@ function _guidesRailHTML() {
   }
   grid.innerHTML = html;
   _feedArmObserver();
+  try { window.spotdImpScan && window.spotdImpScan(); } catch (e) {}
 
   // Attach delegated click handler once for reliable iOS taps
   if (!grid._cardDelegateAttached) {
@@ -4015,7 +4017,7 @@ function _emptyGoingLine(venueId) {
         onclick="event.stopPropagation();doGoingTonight('${v.id}',this)">+ Check In</button>
     </div>`;
 
-  return `<div class="card-hero" data-id="${v.id}"
+  return `<div class="card-hero" data-id="${v.id}" data-vid="${v.id}"
     onclick="openModal('${v.id}','venue')" style="${delay === false ? 'animation:none' : `animation-delay:${delay}ms`}">
     <img class="card-hero-img" src="${esc(optImg(photoUrl, 960))}" data-raw="${esc(photoUrl)}" alt="${esc(v.name)}" loading="${idx === 0 ? 'eager' : 'lazy'}" decoding="async"${idx === 0 ? ' fetchpriority="high"' : ''}
       onerror="${IMG_FALLBACK}this.remove()">
@@ -4058,7 +4060,7 @@ function compactCardHTML(v, delay) {
 
   const isMeIn = state.goingByMe.has(v.id);
 
-  return `<div class="card-compact" data-id="${v.id}"
+  return `<div class="card-compact" data-id="${v.id}" data-vid="${v.id}"
     onclick="openModal('${v.id}','venue')" style="${delay === false ? 'animation:none' : `animation-delay:${delay}ms`}">
     <img class="card-compact-img" src="${esc(optImg(photoUrl, 640))}" data-raw="${esc(photoUrl)}" alt="${esc(v.name)}" loading="lazy" decoding="async"
       onerror="${IMG_FALLBACK}this.closest('.card-compact').style.background='linear-gradient(135deg,#2A1F14,#1A1208)';this.remove()">
@@ -4109,7 +4111,7 @@ function standardCardHTML(v, delay, first = false) {
 
   const isMeIn = state.goingByMe.has(v.id);
 
-  return `<div class="card-std" data-id="${v.id}"
+  return `<div class="card-std" data-id="${v.id}" data-vid="${v.id}"
     onclick="openModal('${v.id}','venue')" style="${delay === false ? 'animation:none' : `animation-delay:${delay}ms`}">
     ${photoEl}
     <div class="card-std-body">
@@ -4210,6 +4212,7 @@ async function openModal(id, type = 'venue') {
   const item  = items.find(x => String(x.id) === String(id));
   if (!item) return null;
   track(type === 'event' ? 'event_modal_opened' : 'venue_modal_opened', { item_id: id, name: item.name, city: state.city?.slug });
+  if (type !== 'event') { try { window.spotdImpView && window.spotdImpView(id, 'app_modal'); } catch (e) {} }
   renderModal(item, type, []);
   // Double-rAF before opening the overlay so the modal's initial markup has
   // a clean paint before the slide-up animation starts — avoids a snap on
