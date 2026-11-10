@@ -4371,11 +4371,11 @@ function renderModal(v, type, reviews) {
 
   document.getElementById('modalContent').innerHTML = `
     ${photo ? `
-    <div class="modal-hero-wrap${photos.length > 1 ? ' modal-hero-carousel' : ''}"${photos.length > 1 ? '' : ` onclick="openPhotoLightbox('${esc(photo)}','${esc(v.name)}')"`}>
+    <div class="modal-hero-wrap${photos.length > 1 ? ' modal-hero-carousel' : ''}"${photos.length > 1 ? '' : ` onclick="openPhotoLightbox('${_jsq(photo)}','${_jsq(v.name)}')"`}>
       <div class="modal-hero-empty">${icn('pin', 44)}${v.neighborhood ? `<div class="modal-hero-hood">${esc(v.neighborhood)}</div>` : ''}</div>
       ${photos.length > 1
         ? `<div class="modal-hero-track" onscroll="_syncModalDots(this)">
-            ${photos.map((p, i) => `<div class="modal-hero-slide" onclick="openPhotoLightbox('${esc(p)}','${esc(v.name)}')"><img src="${esc(optImg(p, 1080))}" data-raw="${esc(p)}" alt="${esc(v.name)}" ${i === 0 ? 'loading="eager" fetchpriority="high"' : 'loading="lazy"'} decoding="async" onload="this.classList.add('is-loaded');var w=this.closest('.modal-hero-wrap');if(w)w.classList.add('img-ready')" onerror="${IMG_FALLBACK}this.style.display='none';var w=this.closest('.modal-hero-wrap');if(w)w.classList.add('img-ready')"></div>`).join('')}
+            ${photos.map((p, i) => `<div class="modal-hero-slide" onclick="openPhotoLightbox('${_jsq(p)}','${_jsq(v.name)}')"><img src="${esc(optImg(p, 1080))}" data-raw="${esc(p)}" alt="${esc(v.name)}" ${i === 0 ? 'loading="eager" fetchpriority="high"' : 'loading="lazy"'} decoding="async" onload="this.classList.add('is-loaded');var w=this.closest('.modal-hero-wrap');if(w)w.classList.add('img-ready')" onerror="${IMG_FALLBACK}this.style.display='none';var w=this.closest('.modal-hero-wrap');if(w)w.classList.add('img-ready')"></div>`).join('')}
           </div>`
         : `<img src="${esc(optImg(photo, 1080))}" data-raw="${esc(photo)}" alt="${esc(v.name)}" loading="eager" fetchpriority="high" decoding="async" onload="this.classList.add('is-loaded');var w=this.closest('.modal-hero-wrap');if(w)w.classList.add('img-ready')" onerror="${IMG_FALLBACK}var w=this.closest('.modal-hero-wrap');if(w){w.style.background='linear-gradient(135deg,#2A1F14,#1A1208)';w.classList.add('img-ready')}this.remove()">`}
       <div class="modal-hero-grad"></div>
@@ -4445,7 +4445,7 @@ function renderModal(v, type, reviews) {
         ${_dealsBlockHTML(v)}
         ${v.promo_code ? `
         <div class="modal-promo">
-          <div class="modal-promo-inner" onclick="copyPromo('${esc(v.promo_code)}',this)">
+          <div class="modal-promo-inner" onclick="copyPromo('${_jsq(v.promo_code)}',this)">
             <div class="modal-promo-left">
               <span class="modal-promo-label">Promo Code</span>
               <span class="modal-promo-code">${esc(v.promo_code)}</span>
@@ -4514,7 +4514,7 @@ function renderReviewList(reviews, itemId, type) {
       </div>
       ${r.text ? `<div class="review-text">${esc(r.text)}</div>` : ''}
       ${isOwn ? `<div class="review-acts">
-        <button class="review-act" onclick="openEditReview('${r.id}','${itemId}','${type}',${r.rating},\`${esc(r.text || '')}\`)">Edit</button>
+        <button class="review-act" onclick="openEditReview('${r.id}','${itemId}','${type}',${r.rating},'${_jsq(r.text || '')}')">Edit</button>
         <button class="review-act del" onclick="doDeleteReview('${r.id}','${itemId}','${type}')">Delete</button>
       </div>` : `<div class="review-acts"><button class="review-act" onclick="openReportMenu('review','${r.id}','${r.user_id}')">Report</button></div>`}
     </div>`;
