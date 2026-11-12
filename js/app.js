@@ -8479,18 +8479,37 @@ function _base64ToFile(base64Data, mimeType, fileName) {
 // ids (checkinShareBtn / photoCaptionField / photoFileInput / ...) are kept
 // so submitCheckin and the helpers below are unchanged in behaviour.
 function openPhotoCheckinPrompt(venueId, venueName) {
+  // Singleton (Sofia 2026-11-12): a second prompt must never stack on the
+  // first. Two quick check-ins at different venues inside doGoingTonight's
+  // 600ms prompt delay both fire maybeOpenPhotoCheckin, and each open used
+  // to append a fresh overlay — duplicate element ids (checkinShareBtn,
+  // photoCaptionField, photoFileInput) meant submitCheckin read the FIRST
+  // prompt's caption while the global venue id already pointed at the
+  // second venue, cross-posting one venue's photo/caption to the other.
+  // The latest check-in wins: drop any live prompt (and its preview URL)
+  // before building the new one.
+  document.querySelectorAll('.ck-overlay').forEach(el => el.remove());
+  _ckRevokePreview();
   // Close modal first to avoid stacking overlays
   closeOverlay('modalOverlay');
 
   const overlay = document.createElement('div');
   overlay.className = 'overlay overlay--full ck-overlay';
-  const bail = () => { _ckRevokePreview(); window._pendingCheckinPhoto = null; window._stagedTagIds = new Set(); dismissOverlay(overlay); _tryPushPromptAfterCheckin(); };
+  // While submitCheckin is in flight the ✕ / "Skip for now" exits must NOT
+  // act as a cancel (Sofia 2026-11-12): submit captured file/caption/tags
+  // locally, so a bail mid-upload only cleared the globals and dismissed
+  // the overlay — the upload kept going and the post published anyway,
+  // under a success banner, after the user had explicitly closed the page
+  // believing nothing would post. bail() is a no-op during a submit; the
+  // page dismisses itself when the post lands or fails.
+  const bail = () => { if (window._ckSubmitting) { showToast('Posting… one sec'); return; } _ckRevokePreview(); window._pendingCheckinPhoto = null; window._stagedTagIds = new Set(); dismissOverlay(overlay); _tryPushPromptAfterCheckin(); };
 
   // Store for use after the picker returns. Reset any leftover state.
   window._checkinPhotoVenueId = venueId;
   window._checkinPhotoVenueName = venueName;
   window._pendingCheckinPhoto = null;
   window._stagedTagIds = new Set();
+  window._ckSubmitting = false;
 
   const v = (state.venues || []).find(x => String(x.id) === String(venueId)) || {};
   const prof = window._myProfile || _composerProfile || {};
@@ -8622,16 +8641,24 @@ function clearCheckinPhotoPreview() {
 
 async function _loadTagFriendsInline(venueId, venueName) {
   if (!currentUser) return;
+  // Capture THIS prompt's grid synchronously (Sofia 2026-11-12): the old
+  // code re-queried getElementById('tagFriendsGridInline') AFTER the
+  // getFollowing await, so a load started by a prompt the user had already
+  // closed (or that a newer prompt replaced) painted its result into
+  // whichever prompt was live when the await resolved — clobbering the
+  // new prompt's friend strip, including chips the user had already
+  // tapped there. Paint only into the captured element, and only while
+  // it is still in the document.
+  const gridEl = document.getElementById('tagFriendsGridInline');
+  if (!gridEl) return;
   // Tags are committed in submitCheckin once the post row exists, not on tap.
   window._stagedTagIds = new Set();
   const empty = (msg) => {
-    const grid = document.getElementById('tagFriendsGridInline');
-    if (grid) grid.innerHTML = `<div class="ck-friends-empty">${msg}</div>`;
+    if (gridEl.isConnected) gridEl.innerHTML = `<div class="ck-friends-empty">${msg}</div>`;
   };
   try {
     const followingIds = await getFollowing(currentUser.id);
-    const grid = document.getElementById('tagFriendsGridInline');
-    if (!grid) return;
+    if (!gridEl.isConnected) return;
     // Defense in depth: exclude self in case self-follow somehow exists
     const ids = (followingIds || []).filter(id => id && id !== currentUser.id);
     if (!ids.length) { empty('Follow friends to tag them in your check-ins.'); return; }
@@ -8643,7 +8670,7 @@ async function _loadTagFriendsInline(venueId, venueName) {
     const list = (profiles || []).filter(p => p.id !== currentUser.id)
       .sort((a, b) => (a.display_name || '').localeCompare(b.display_name || ''));
     if (!list.length) { empty('No friends to tag yet — follow people first.'); return; }
-    grid.innerHTML = list.map(p => {
+    gridEl.innerHTML = list.map(p => {
       const name = p.display_name || 'Friend';
       return `
       <button class="ck-friend" id="tag-chip-${p.id}" type="button" aria-pressed="false"
@@ -8678,6 +8705,11 @@ function toggleStagedTag(userId, name, chip) {
 // Because there's only one button, tags are never stranded by sharing first.
 async function submitCheckin(venueId, venueName) {
   if (!currentUser) { openAuth('signin', 'checkin'); return; }
+  // Re-entry guard (Sofia 2026-11-12): the disabled Post button is the
+  // visible lock, this flag is the actual one — it also makes bail()
+  // refuse to "cancel" a post that is already uploading (see
+  // openPhotoCheckinPrompt), and blocks a second programmatic submit.
+  if (window._ckSubmitting) return;
   const file    = window._pendingCheckinPhoto || null;
   const caption = document.getElementById('photoCaptionField')?.value.trim() || '';
   const tagIds  = window._stagedTagIds ? [...window._stagedTagIds] : [];
@@ -8693,6 +8725,7 @@ async function submitCheckin(venueId, venueName) {
     return;
   }
 
+  window._ckSubmitting = true;
   if (btn) { btn.disabled = true; btn.textContent = file ? 'Sharing…' : 'Posting…'; }
 
   try {
@@ -8735,6 +8768,7 @@ async function submitCheckin(venueId, venueName) {
     window._stagedTagIds = new Set();
 
     if (overlay) dismissOverlay(overlay);
+    window._ckSubmitting = false;
     const sub = tagCount
       ? `with ${tagCount} friend${tagCount > 1 ? 's' : ''} at ${venueName || 'the spot'}`
       : `at ${venueName || 'the spot'}`;
@@ -8753,6 +8787,7 @@ async function submitCheckin(venueId, venueName) {
     _tryPushPromptAfterCheckin();
   } catch(e) {
     console.error('submitCheckin error:', e);
+    window._ckSubmitting = false;
     if (btn) { btn.disabled = false; _updateCheckinShareLabel(); }
     showToast('Something went wrong — please try again');
   }

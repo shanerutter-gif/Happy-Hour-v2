@@ -9164,9 +9164,14 @@ img.np-stop-photo { object-fit: cover; display: block; }
    Post lives in the header so the keyboard can never cover it.
    No per-item backdrop-filter (the friend strip can be 60 avatars).
    ═══════════════════════════════════════════════════════════════ */
-.ck-head { grid-template-columns: 36px 1fr auto; }
+.ck-head { grid-template-columns: 44px 1fr auto; }
+/* Touch targets (Sofia 2026-11-12): the #315 page shipped its primary
+   controls under Apple's 44px HIG floor — Post/Done at 36px tall, the
+   header ✕ at 36px (shared .cp-iconbtn), the photo Change/✕ at 32px.
+   Scope the bumps to this page so the composer keeps its own sizing. */
+.ck-head .cp-iconbtn { width: 44px; height: 44px; }
 .ck-post {
-  border: none; cursor: pointer; min-width: 72px; height: 36px; padding: 0 16px;
+  border: none; cursor: pointer; min-width: 72px; height: 44px; padding: 0 16px;
   border-radius: 999px; font-family: 'Cabinet Grotesk', sans-serif;
   font-weight: 800; font-size: 15px; letter-spacing: .1px;
   background: var(--bg2); color: var(--ink);
@@ -9260,11 +9265,11 @@ img.np-stop-photo { object-fit: cover; display: block; }
 .ck-preview img { display: block; width: 100%; max-height: 42vh; object-fit: contain; }
 .ck-preview-actions { position: absolute; top: 10px; right: 10px; display: flex; gap: 8px; }
 .ck-preview-btn {
-  display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px;
+  display: inline-flex; align-items: center; gap: 6px; height: 44px; padding: 0 14px;
   border: none; border-radius: 999px; cursor: pointer;
   background: rgba(20,15,8,0.6); color: #fff; font-size: 13px; font-weight: 700;
 }
-.ck-preview-btn--x { width: 32px; padding: 0; justify-content: center; }
+.ck-preview-btn--x { width: 44px; padding: 0; justify-content: center; }
 .ck-preview-btn:active { transform: scale(.92); }
 
 /* Who's with you — horizontal avatar strip */
@@ -9329,7 +9334,7 @@ img.np-stop-photo { object-fit: cover; display: block; }
 }
 
 .ck-skip {
-  display: block; margin: 26px auto 0; padding: 10px 18px; border: none; background: none;
+  display: block; margin: 26px auto 0; padding: 13px 22px; border: none; background: none;
   font-size: 14px; font-weight: 600; color: var(--muted); cursor: pointer;
 }
 
