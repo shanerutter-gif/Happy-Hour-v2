@@ -3012,8 +3012,25 @@ function _hhTick() {
     // mid-scroll.
     setTimeout(() => {
       if (!state.happeningNow) return;
-      document.querySelectorAll('#cardsGrid .hh-badge--ended').forEach(b => { const card = b.closest('[data-id]'); if (card) card.remove(); });
+      const endedIds = new Set();
+      document.querySelectorAll('#cardsGrid .hh-badge--ended').forEach(b => { if (b.dataset?.vid) endedIds.add(String(b.dataset.vid)); const card = b.closest('[data-id]'); if (card) card.remove(); });
       state.filtered = state.filtered.filter(v => hhActive(v));
+      // The batched "Show more" stash (_feedRest.parts) holds pre-built
+      // HTML for venues beyond the first batch — purge ended venues
+      // there too, or they resurrect inside the Happening-now view when
+      // the next batch appends. If the stash empties, the guides rail +
+      // footer take the sentinel's place (mirrors _feedShowMore).
+      if (_feedRest && _feedRest.parts.length && endedIds.size) {
+        _feedRest.parts = _feedRest.parts.filter(p => ![...endedIds].some(id => p.includes(`data-id="${id}"`)));
+        if (!_feedRest.parts.length) {
+          const btn = document.getElementById('feedMoreBtn');
+          if (btn) btn.outerHTML = _feedRest.footer || '';
+          if (_feedObserver) { _feedObserver.disconnect(); _feedObserver = null; }
+          _feedRest = null;
+        }
+      }
+      // Keep map markers in sync with the trimmed list (applyFilters rule).
+      if (state.map && (state.view === 'map' || isTwoPane())) updateMapMarkers();
       const rc = document.getElementById('resultsCount');
       if (rc) rc.textContent = `${state.filtered.length} happy hour${state.filtered.length === 1 ? '' : 's'} on right now`;
       if (!state.filtered.length) applyFilters(); // nothing left → render the empty state
@@ -3603,6 +3620,15 @@ function applyFilters() {
       const db = haversine(state.userLat, state.userLng, b.lat, b.lng);
       return da - db;
     });
+  } else if (state.sort === 'distance') {
+    // Nearest requested but no location fix yet — the locating window:
+    // _activateNearest()/setSort() set state.sort='distance' BEFORE
+    // geolocation resolves, and any applyFilters() in that window (search
+    // keystroke, filter chip, Happening-now toggle) used to fall through
+    // to the Featured branch below and FILTER the feed to featured
+    // venues only. Fall back to A-Z over the full pool (the same
+    // fallback _defaultToAZ uses) until a fix arrives.
+    state.filtered.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   } else if (state.sort === 'name') {
     state.filtered.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   } else {
